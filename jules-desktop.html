@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jules Desktop</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body style="margin:0; background:#07090c; height:100vh;">
+    <div id="root" style="height:100%;"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useCallback } = React;
+
+        const BASE = "https://jules.googleapis.com/v1alpha";
+        const T = {
+          bg:"#07090c", surface:"#0d1118", border:"#182030",
+          green:"#00e87a", text:"#c5d4e8", muted:"#4a5e76"
+        };
+
+        async function apiCall(apiKey, path, opts={}) {
+          const res = await fetch(`${BASE}${path}`, {
+            ...opts,
+            headers: { "x-goog-api-key": apiKey, "Content-Type": "application/json", ...(opts.headers||{}) },
+            body: opts.body ? JSON.stringify(opts.body) : undefined,
+          });
+          const text = await res.text();
+          if (!res.ok) throw new Error(`${res.status}: ${text}`);
+          return text ? JSON.parse(text) : {};
+        }
+
+        const SessionDetail = ({ session, apiKey }) => {
+            const [activities, setActivities] = useState([]);
+            const [msg, setMsg] = useState("");
+
+            const loadActivities = useCallback(async () => {
+                const d = await apiCall(apiKey, `/sessions/${session.id}/activities?pageSize=50`);
+                setActivities((d.activities||[]).reverse());
+            }, [apiKey, session.id]);
+
+            useEffect(() => { loadActivities(); }, [loadActivities]);
+
+            const handleSend = async () => {
+                await apiCall(apiKey, `/sessions/${session.id}:sendMessage`, { method: "POST", body: { prompt: msg } });
+                setMsg(""); loadActivities();
+            };
+
+            return (
+                <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                    <div style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
+                        {activities.map(a => (
+                            <div key={a.id} style={{ marginBottom: 10, padding: 10, background: T.surface, borderRadius: 6 }}>
+                                <div style={{ fontSize: 10, color: T.muted }}>{new Date(a.createTime).toLocaleTimeString()}</div>
+                                <div style={{ fontSize: 13 }}>{a.agentMessaged?.agentMessage || a.userMessaged?.userMessage || "Event"}</div>
+                            </div>
+                        ))}
+                    </div>
+                    <div style={{ padding: 20, borderTop: `1px solid ${T.border}` }}>
+                        <input value={msg} onChange={e => setMsg(e.target.value)} style={{ width: '100%', padding: 10, background: T.bg, color: T.text, border: `1px solid ${T.border}` }} placeholder="Message..." />
+                        <button onClick={handleSend} style={{ marginTop: 10, background: T.green, border: 'none', padding: '10px 20px', cursor: 'pointer' }}>Send</button>
+                    </div>
+                </div>
+            );
+        };
+
+        function JulesClient(){
+          const [apiKey,setApiKey]=useState(localStorage.getItem('jules_key')||"");
+          const [sessions,setSessions]=useState([]);
+          const [selected,setSelected]=useState(null);
+
+          useEffect(()=>{ if(apiKey) localStorage.setItem('jules_key', apiKey); }, [apiKey]);
+
+          const fetchSessions=useCallback(async()=>{
+            if(!apiKey) return;
+            const d = await apiCall(apiKey, "/sessions?pageSize=50");
+            setSessions(d.sessions||[]);
+          },[apiKey]);
+
+          useEffect(() => { if(apiKey) fetchSessions(); }, [apiKey]);
+
+          if(!apiKey) return (
+             <div style={{display:'flex', height:'100vh', alignItems:'center', justifyContent:'center'}}>
+                <input type="password" placeholder="API Key" onChange={e => setApiKey(e.target.value)} style={{padding:10}} />
+             </div>
+          );
+
+          return (
+            <div style={{width:"100%", height:"100%", background:T.bg, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"'IBM Plex Sans', sans-serif", color:T.text }}>
+              <div style={{ width:"90%", maxWidth:1400, height:"90%", background:T.surface, borderRadius:12, border:`1px solid ${T.border}`, display:"flex", overflow:"hidden" }}>
+                <aside style={{ width: 300, borderRight: `1px solid ${T.border}`, display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ padding: 20, fontSize: 18, fontWeight: 700, borderBottom: `1px solid ${T.border}` }}>JULES DESKTOP</div>
+                  <div style={{ flex: 1, overflowY: 'auto' }}>
+                     {sessions.map(s => (
+                         <div key={s.id} onClick={() => setSelected(s)} style={{padding: 15, cursor: 'pointer', background: selected?.id === s.id ? T.border : 'transparent'}}>
+                             <div style={{fontSize: 13, fontWeight: 600}}>{s.title || 'Untitled'}</div>
+                         </div>
+                     ))}
+                  </div>
+                </aside>
+                <main style={{ flex: 1, display: 'flex', flexDirection: 'column', background: T.bg }}>
+                   {selected ? (
+                       <SessionDetail session={selected} apiKey={apiKey} />
+                   ) : (
+                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: T.muted }}>Select a session</div>
+                   )}
+                </main>
+              </div>
+            </div>
+          );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<JulesClient />);
+    </script>
+</body>
+</html>
