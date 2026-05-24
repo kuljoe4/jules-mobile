@@ -132,6 +132,22 @@ function loadPollMs() {
 }
 function savePollMs(ms) { try { localStorage.setItem(POLL_KEY,ms); } catch {} }
 
+// ─── Plan limits (from jules.google/docs/usage-limits) ───────────────────────
+const PLAN_KEY = "jac_plan";
+const PLANS = [
+  { id:"free",  label:"Free",  daily:15,  concurrent:3,  model:"Gemini 2.5 Pro" },
+  { id:"pro",   label:"Pro",   daily:100, concurrent:15, model:"Gemini 3 Pro" },
+  { id:"ultra", label:"Ultra", daily:300, concurrent:60, model:"Gemini 3 Pro (priority)" },
+];
+function loadPlan() { try { return localStorage.getItem(PLAN_KEY)||"free"; } catch { return "free"; } }
+function savePlan(id) { try { localStorage.setItem(PLAN_KEY,id); } catch {} }
+
+// ─── Daily session counter ────────────────────────────────────────────────────
+const TODAY_KEY = () => `jac_today_${new Date().toISOString().slice(0,10)}`;
+function loadTodayCount() { try { return parseInt(localStorage.getItem(TODAY_KEY()))||0; } catch { return 0; } }
+function incTodayCount()  { try { const k=TODAY_KEY(); localStorage.setItem(k,(parseInt(localStorage.getItem(k))||0)+1); } catch {} }
+function pruneOldKeys()   { try { const t=TODAY_KEY(); for(const k of Object.keys(localStorage)) if(k.startsWith("jac_today_")&&k!==t) localStorage.removeItem(k); } catch {} }
+
 const T = {
   bg:"#07090c", surface:"#0d1118", surfaceHi:"#131b24",
   border:"#182030", borderHi:"#243548",
@@ -536,6 +552,229 @@ const ActivityFeed = memo(({ activities, showAll, onShowAll }) => {
   );
 });
 
+// ─── Interactive Plan View ────────────────────────────────────────────────────
+// Lets the user review steps, annotate individual ones, compose a revision
+// request via sendMessage, or approve the plan directly.
+const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFeedback, busy }) => {
+  const [stepNotes, setStepNotes]     = useState({}); // stepId → note string
+  const [activeNote, setActiveNote]   = useState(null); // stepId currently expanded
+  const [globalNote, setGlobalNote]   = useState("");
+  const [sending, setSending]         = useState(false);
+  const [sent, setSent]               = useState(false);
+
+  // Find the most recent planGenerated activity
+  const planAct = useMemo(() => {
+    for (let i = activities.length - 1; i >= 0; i--) {
+      if (activities[i].planGenerated?.plan) return activities[i];
+    }
+    return null;
+  }, [activities]);
+
+  const plan  = planAct?.planGenerated?.plan;
+  const steps = plan?.steps || [];
+
+  // Check if plan already approved in activity history
+  const approved = activities.some(a => a.planApproved);
+
+  const hasFeedback = globalNote.trim() || Object.values(stepNotes).some(n => n.trim());
+
+  const buildFeedbackMessage = () => {
+    const parts = ["Please revise the plan based on my feedback:"];
+    const stepFeedback = steps
+      .filter(st => stepNotes[st.id]?.trim())
+      .map((st, i) => `Step ${i + 1} (${st.title}): ${stepNotes[st.id].trim()}`);
+    if (stepFeedback.length) parts.push(...stepFeedback);
+    if (globalNote.trim()) parts.push("Overall: " + globalNote.trim());
+    return parts.join("\n");
+  };
+
+  const handleRequestRevision = async () => {
+    if (!hasFeedback || sending) return;
+    setSending(true);
+    try {
+      await onSendFeedback(buildFeedbackMessage());
+      setStepNotes({});
+      setGlobalNote("");
+      setActiveNote(null);
+      setSent(true);
+      setTimeout(() => setSent(false), 3000);
+    } finally { setSending(false); }
+  };
+
+  if (!plan) return (
+    <div style={{textAlign:"center",padding:"50px 24px",fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted}}>
+      {session.state === "PLANNING" ? "Jules is generating a plan…" : "No plan available"}
+    </div>
+  );
+
+  const pendingApproval = session.state === "AWAITING_PLAN_APPROVAL";
+  const annotatedCount  = Object.values(stepNotes).filter(n=>n.trim()).length;
+
+  return (
+    <div style={{paddingBottom:16}}>
+      {/* Plan header */}
+      <div style={{
+        marginBottom:14,padding:"10px 14px",borderRadius:7,
+        background:approved?T.greenDim:pendingApproval?T.purpleDim:T.surfaceHi,
+        border:`1px solid ${approved?T.green+"40":pendingApproval?T.purple+"40":T.border}`,
+      }}>
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:approved||!pendingApproval?0:8}}>
+          <div style={{flex:1,fontFamily:"'JetBrains Mono',monospace",fontSize:10,fontWeight:700,
+            color:approved?T.green:pendingApproval?T.purple:T.muted,letterSpacing:"0.06em"}}>
+            {approved?"✓ PLAN APPROVED":pendingApproval?"PLAN READY FOR REVIEW":"PLAN PREVIEW"}
+          </div>
+          <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.muted}}>
+            {steps.length} step{steps.length!==1?"s":""}
+          </span>
+        </div>
+        {pendingApproval&&!approved&&(
+          <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:12,color:T.muted,lineHeight:1.5}}>
+            Review each step below. Tap a step to add feedback, then request a revision or approve.
+          </div>
+        )}
+      </div>
+
+      {/* Steps */}
+      <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:16}}>
+        {steps.map((st, i) => {
+          const note     = stepNotes[st.id] || "";
+          const isOpen   = activeNote === st.id;
+          const hasNote  = note.trim().length > 0;
+
+          return (
+            <div key={st.id||i} style={{
+              background:T.surface,border:`1px solid ${hasNote?T.amber+"50":T.border}`,
+              borderLeft:`2px solid ${hasNote?T.amber:T.purple+"60"}`,
+              borderRadius:6,overflow:"hidden",transition:"border-color .15s",
+            }}>
+              {/* Step row */}
+              <div style={{display:"flex",gap:10,alignItems:"flex-start",padding:"10px 12px"}}>
+                <div style={{
+                  width:20,height:20,borderRadius:4,flexShrink:0,marginTop:1,
+                  background:hasNote?T.amberDim:T.purpleDim,
+                  border:`1px solid ${hasNote?T.amber+"50":T.purple+"40"}`,
+                  display:"flex",alignItems:"center",justifyContent:"center",
+                  fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:700,
+                  color:hasNote?T.amber:T.purple,
+                }}>{i+1}</div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:13,fontWeight:500,
+                    color:T.text,lineHeight:1.35,marginBottom:st.description?3:0}}>
+                    {st.title}
+                  </div>
+                  {st.description&&(
+                    <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:11,color:T.muted,lineHeight:1.45}}>
+                      {st.description}
+                    </div>
+                  )}
+                  {hasNote&&!isOpen&&(
+                    <div style={{marginTop:5,padding:"4px 8px",borderRadius:4,
+                      background:T.amberDim,border:`1px solid ${T.amber}30`,
+                      fontFamily:"'IBM Plex Sans',sans-serif",fontSize:11,color:T.amber,lineHeight:1.4}}>
+                      📝 {note}
+                    </div>
+                  )}
+                </div>
+                {pendingApproval&&!approved&&(
+                  <button onClick={()=>setActiveNote(isOpen?null:st.id)} style={{
+                    flexShrink:0,padding:"4px 8px",borderRadius:4,border:"none",cursor:"pointer",
+                    background:isOpen?(hasNote?T.amberDim:T.purpleDim):"transparent",
+                    outline:`1px solid ${isOpen?(hasNote?T.amber+"40":T.purple+"40"):T.border}`,
+                    fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:700,
+                    color:isOpen?(hasNote?T.amber:T.purple):T.muted,
+                    transition:"all .12s",letterSpacing:"0.06em",
+                  }}>{hasNote?"EDIT":"NOTE"}</button>
+                )}
+              </div>
+
+              {/* Per-step feedback textarea */}
+              {isOpen&&pendingApproval&&!approved&&(
+                <div style={{padding:"0 12px 12px",borderTop:`1px solid ${T.border}`}}>
+                  <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.amber,
+                    letterSpacing:"0.08em",marginBottom:5,marginTop:8}}>FEEDBACK FOR STEP {i+1}</div>
+                  <textarea
+                    value={note}
+                    onChange={e=>setStepNotes(prev=>({...prev,[st.id]:e.target.value}))}
+                    placeholder={`What should change about this step? (e.g. "Use TypeScript instead of JS", "Skip this — not needed")`}
+                    rows={2}
+                    style={{
+                      width:"100%",background:T.surfaceHi,border:`1px solid ${T.amber}40`,
+                      borderRadius:5,padding:"8px 10px",color:T.text,
+                      fontFamily:"'IBM Plex Sans',sans-serif",fontSize:12,lineHeight:1.4,
+                      resize:"vertical",outline:"none",boxSizing:"border-box",
+                    }}
+                    autoFocus
+                  />
+                  <button onClick={()=>setActiveNote(null)} style={{
+                    marginTop:5,padding:"4px 10px",borderRadius:4,border:`1px solid ${T.border}`,
+                    background:"transparent",cursor:"pointer",color:T.muted,
+                    fontFamily:"'JetBrains Mono',monospace",fontSize:9,
+                  }}>DONE</button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Global feedback + actions — only when pending approval */}
+      {pendingApproval&&!approved&&(
+        <div style={{
+          background:T.surface,border:`1px solid ${T.border}`,
+          borderRadius:7,padding:"12px 14px",
+        }}>
+          <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.muted,
+            letterSpacing:"0.08em",marginBottom:6}}>OVERALL FEEDBACK (optional)</div>
+          <textarea
+            value={globalNote}
+            onChange={e=>setGlobalNote(e.target.value)}
+            placeholder="Any overall comments before approving? (e.g. 'Make sure to run tests', 'Keep changes minimal')"
+            rows={2}
+            style={{
+              width:"100%",background:T.surfaceHi,border:`1px solid ${T.border}`,
+              borderRadius:5,padding:"8px 10px",color:T.text,
+              fontFamily:"'IBM Plex Sans',sans-serif",fontSize:12,lineHeight:1.4,
+              resize:"vertical",outline:"none",boxSizing:"border-box",
+              transition:"border-color .18s",marginBottom:10,
+            }}
+          />
+
+          {sent&&(
+            <div style={{marginBottom:8,padding:"6px 10px",borderRadius:4,
+              background:T.greenDim,border:`1px solid ${T.green}40`,
+              fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.green}}>
+              ✓ Revision request sent — Jules will update the plan
+            </div>
+          )}
+
+          <div style={{display:"flex",gap:8}}>
+            <Btn
+              onClick={handleRequestRevision}
+              disabled={!hasFeedback||sending||busy}
+              color={T.amber} outline sm
+              style={{flex:1}}
+            >
+              {sending?"SENDING…":`REVISE${annotatedCount>0?` (${annotatedCount} step${annotatedCount>1?"s":""})`:globalNote.trim()?" +note":""}`}
+            </Btn>
+            <Btn
+              onClick={onApprove}
+              disabled={busy||sending}
+              color={T.purple} sm
+              style={{flex:1}}
+            >
+              <Ic n="approve" s={11} c="#000"/>
+              {busy?"APPROVING…":"APPROVE PLAN"}
+            </Btn>
+          </div>
+          <div style={{marginTop:7,fontFamily:"'JetBrains Mono',monospace",fontSize:8,color:T.muted,textAlign:"center",lineHeight:1.6}}>
+            Revise → Jules rewrites the plan · Approve → Jules starts executing
+          </div>
+        </div>
+      )}
+    </div>
+  );
+});
+
 // ─── Diff Viewer ──────────────────────────────────────────────────────────────
 const DiffViewer = ({ patch }) => {
   if (!patch) return (
@@ -656,19 +895,27 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
   const actMapRef    = useRef(new Map());      // id → activity (dedup)
   const prevLenRef   = useRef(0);
 
-  // ── Optimized activity loader: Map-based dedup, sorted oldest→newest ──
-  const loadActivities = useCallback(async () => {
+  // ── Optimized activity loader: createTime cursor + Map dedup ──────────────
+  // First load fetches all; subsequent loads fetch only new (createTime filter)
+  const lastTsRef = useRef(null);
+  const loadActivities = useCallback(async (sinceTs=null) => {
     try {
-      const d = await apiCall(apiKey, `/sessions/${session.id}/activities?pageSize=100`, { _label:`Activities ${session.id?.slice(0,6)}` });
+      const qs = sinceTs
+        ? `createTime=${encodeURIComponent(sinceTs)}&pageSize=50`
+        : "pageSize=100";
+      const d = await apiCall(apiKey, `/sessions/${session.id}/activities?${qs}`, { _label:`Acts ${sinceTs?"Δ":"full"} ${session.id?.slice(0,6)}` });
       const incoming = d.activities || [];
       let changed = false;
+      let latestTs = lastTsRef.current;
       for (const act of incoming) {
         const k = getActKey(act);
         if (!actMapRef.current.has(k)) {
           actMapRef.current.set(k, act);
           changed = true;
+          if (!latestTs || act.createTime > latestTs) latestTs = act.createTime;
         }
       }
+      if (latestTs) lastTsRef.current = latestTs;
       if (changed) {
         const sorted = Array.from(actMapRef.current.values())
           .filter(a => !a._temp)
@@ -689,19 +936,24 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
   // On mount (keyed by session.id, so fresh per-session)
   useEffect(() => {
     actMapRef.current = new Map();
+    lastTsRef.current = null;
     prevLenRef.current = 0;
     setActivities([]);
     setShowAll(false);
     setErr(null);
-    loadActivities();
+    loadActivities(null); // full load on first open
     loadSession();
   }, []); // intentional: component is keyed by session.id
 
   // Respect global poll interval (0 = manual only)
+  // Subsequent polls use createTime cursor — only fetches NEW activities
   useEffect(() => {
     clearInterval(pollRef.current);
     if (!pollInterval) return;
-    pollRef.current = setInterval(() => { loadSession(); loadActivities(); }, pollInterval);
+    pollRef.current = setInterval(() => {
+      loadSession();
+      loadActivities(lastTsRef.current); // incremental — only new since last fetch
+    }, pollInterval);
     return () => clearInterval(pollRef.current);
   }, [session.state, pollInterval, loadActivities, loadSession]);
 
@@ -746,10 +998,31 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
     setBusy(true); setErr(null);
     try {
       await apiCall(apiKey, `/sessions/${session.id}:approvePlan`, { method:"POST", body:{}, _label:`Approve ${session.id?.slice(0,6)}` });
-      await loadSession(); await loadActivities();
+      await loadSession(); await loadActivities(lastTsRef.current);
     } catch(e) { setErr(e.message); }
     finally { setBusy(false); }
   };
+
+  // Used by PlanView to send revision requests
+  const handleSendFeedback = useCallback(async (text) => {
+    const tempKey = `_temp_${Date.now()}`;
+    const tempAct = { id:tempKey, createTime:new Date().toISOString(), userMessaged:{ userMessage:text }, _temp:true };
+    actMapRef.current.set(tempKey, tempAct);
+    setActivities(prev => [...prev, tempAct]);
+    try {
+      await apiCall(apiKey, `/sessions/${session.id}:sendMessage`, {
+        method:"POST", body:{ prompt:text }, _label:`Revise plan ${session.id?.slice(0,6)}`,
+      });
+      actMapRef.current.delete(tempKey);
+      setTab("activity"); // switch back to chat to show Jules' response
+      setTimeout(() => { loadActivities(lastTsRef.current); loadSession(); }, 1500);
+    } catch(e) {
+      setErr(e.message);
+      actMapRef.current.delete(tempKey);
+      setActivities(prev => prev.filter(a => a.id !== tempKey));
+      throw e;
+    }
+  }, [apiKey, session.id, loadActivities, loadSession]);
 
   const handleDelete = async () => {
     setBusy(true);
@@ -770,15 +1043,33 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
     activities.flatMap(a => (a.artifacts||[]).filter(x=>x.bashOutput).map(x=>({...x.bashOutput,ts:a.createTime})))
   , [activities]);
 
+  const mediaArtifacts = useMemo(() =>
+    activities.flatMap(a => (a.artifacts||[]).filter(x=>x.media?.data).map(x=>({...x.media,ts:a.createTime})))
+  , [activities]);
+
   const pr      = session.outputs?.find(o=>o.pullRequest)?.pullRequest;
   const m       = STATUS_META[session.state] || STATUS_META.QUEUED;
   const pct     = pctFromState(session.state);
   const canSend = !["COMPLETED","FAILED"].includes(session.state);
 
+  const latestPlan = useMemo(() => {
+    for (let i = activities.length - 1; i >= 0; i--) {
+      if (activities[i].planGenerated?.plan) return activities[i].planGenerated.plan;
+    }
+    return null;
+  }, [activities]);
+
+  // Auto-switch to PLAN tab when AWAITING_PLAN_APPROVAL
+  useEffect(() => {
+    if (session.state === "AWAITING_PLAN_APPROVAL" && latestPlan) setTab("plan");
+  }, [session.state, latestPlan]);
+
   const TABS = [
     { id:"activity", label:"CHAT" },
+    ...(latestPlan?[{ id:"plan", label:"PLAN" }]:[]),
     { id:"diff",     label:"DIFF" },
     { id:"bash",     label:"BASH" },
+    ...(mediaArtifacts.length>0?[{ id:"media", label:"MEDIA" }]:[]),
   ];
 
   return (
@@ -807,6 +1098,7 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
               ⎇ {session.sourceContext.githubRepoContext?.startingBranch||"main"}
             </span>
           )}
+          {session.url&&<a href={session.url} target="_blank" rel="noopener" style={{color:T.muted,textDecoration:"none",flexShrink:0,fontFamily:"'JetBrains Mono',monospace",fontSize:9}}>WEB↗</a>}
           {pr&&<a href={pr.url} target="_blank" rel="noopener" style={{color:T.blue,textDecoration:"none",flexShrink:0}}>PR↗</a>}
           <button onClick={handleDelete} disabled={busy} style={{marginLeft:"auto",background:"none",border:"none",cursor:"pointer",display:"flex",alignItems:"center",padding:2,opacity:.6}}>
             <Ic n="trash" s={13} c={T.red}/>
@@ -814,9 +1106,10 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
         </div>
 
         {session.state==="AWAITING_PLAN_APPROVAL"&&(
-          <div style={{marginBottom:10,padding:"8px 10px",background:T.purpleDim,border:`1px solid ${T.purple}40`,borderRadius:5,display:"flex",alignItems:"center",gap:8}}>
-            <div style={{flex:1,fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.purple}}>Plan ready — review then approve</div>
-            <Btn onClick={handleApprove} disabled={busy} color={T.purple} sm><Ic n="approve" s={11} c="#000"/>APPROVE</Btn>
+          <div style={{marginBottom:8,padding:"7px 10px",background:T.purpleDim,border:`1px solid ${T.purple}40`,borderRadius:5,display:"flex",alignItems:"center",gap:8,cursor:"pointer"}} onClick={()=>setTab("plan")}>
+            <span style={{width:6,height:6,borderRadius:"50%",background:T.purple,animation:"dot 1.2s ease-in-out infinite",flexShrink:0}}/>
+            <div style={{flex:1,fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.purple,fontWeight:700}}>PLAN READY — tap to review & approve</div>
+            <Ic n="plan" s={13} c={T.purple}/>
           </div>
         )}
 
@@ -850,6 +1143,16 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
           </div>
           :<ActivityFeed activities={activities} showAll={showAll} onShowAll={()=>setShowAll(true)}/>
         )}
+        {tab==="plan"&&(
+          <PlanView
+            activities={activities}
+            session={session}
+            apiKey={apiKey}
+            onApprove={handleApprove}
+            onSendFeedback={handleSendFeedback}
+            busy={busy}
+          />
+        )}
         {tab==="diff"&&<DiffViewer patch={diffArtifact?.unidiffPatch||null}/>}
         {tab==="bash"&&(
           bashOutputs.length===0
@@ -864,6 +1167,19 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
               <div style={{padding:"8px 10px",fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.text,whiteSpace:"pre-wrap",lineHeight:1.5,maxHeight:300,overflowY:"auto"}}>{b.output}</div>
             </div>
           ))
+        )}
+        {tab==="media"&&(
+          mediaArtifacts.length===0
+          ?<div style={{textAlign:"center",padding:"40px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted}}>No media artifacts</div>
+          :<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",gap:10}}>
+            {mediaArtifacts.map((m,i)=>(
+              <div key={i} style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:6,overflow:"hidden"}}>
+                <img src={`data:${m.mimeType};base64,${m.data}`} alt={`artifact-${i}`}
+                  style={{width:"100%",display:"block",maxHeight:200,objectFit:"contain",background:"#040507"}}/>
+                <div style={{padding:"5px 8px",fontFamily:"'JetBrains Mono',monospace",fontSize:8,color:T.muted}}>{m.mimeType} · {fmtTime(new Date(m.ts).getTime())}</div>
+              </div>
+            ))}
+          </div>
         )}
         <div ref={feedEndRef}/>
       </div>
@@ -910,7 +1226,7 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
 };
 
 // ─── New Session ──────────────────────────────────────────────────────────────
-const NewSession = ({ apiKey, onBack, onCreate, isDesktop }) => {
+const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) => {
   const [sources,setSources]   = useState([]);
   const [loadingSrc,setLoadSrc]= useState(true);
   const [source,setSource]     = useState("");
@@ -1011,11 +1327,26 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop }) => {
             ))}
           </div>
 
-          <div style={{padding:"8px 12px",borderRadius:5,marginBottom:18,background:T.greenDim,border:`1px solid ${T.green}30`,fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.green,lineHeight:1.7}}>
+          <div style={{padding:"8px 12px",borderRadius:5,marginBottom:10,background:T.greenDim,border:`1px solid ${T.green}30`,fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.green,lineHeight:1.7}}>
             ⚡ PAYLOAD: ~{payloadEst}KB<span style={{color:T.muted}}> · web baseline ~180KB</span>
           </div>
 
-          <Btn onClick={handleCreate} disabled={!prompt.trim()||submitting||loadingSrc} style={{width:"100%"}}>
+          {plan&&(
+            <div style={{
+              padding:"8px 12px",borderRadius:5,marginBottom:14,
+              background:todayCount>=plan.daily?T.redDim:T.surfaceHi,
+              border:`1px solid ${todayCount>=plan.daily?T.red+"40":T.border}`,
+              fontFamily:"'JetBrains Mono',monospace",fontSize:9,lineHeight:1.7,
+              color:todayCount>=plan.daily?T.red:T.muted,
+            }}>
+              {todayCount>=plan.daily
+                ? `⛔ Daily limit reached (${plan.daily} tasks on ${plan.label} plan). Upgrade at jules.google.com or wait for reset.`
+                : `📋 ${plan.label} plan · ${todayCount}/${plan.daily} tasks used today · ${plan.concurrent} concurrent max`
+              }
+            </div>
+          )}
+
+          <Btn onClick={handleCreate} disabled={!prompt.trim()||submitting||loadingSrc||(plan&&todayCount>=plan.daily)} style={{width:"100%"}}>
             {submitting?"SENDING…":"ASSIGN TO JULES →"}
           </Btn>
         </div>
@@ -1092,7 +1423,7 @@ const NetworkMonitor = ({ onBack, isDesktop }) => {
 const FILTERS = ["ALL","QUEUED","PLANNING","AWAITING_PLAN_APPROVAL","IN_PROGRESS","COMPLETED","FAILED"];
 const FILTER_LABELS = { AWAITING_PLAN_APPROVAL:"APPROVE", ALL:"ALL" };
 
-const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selectedId, isDesktop, onNew, onNetwork, pollInterval, setPollInterval, countdown }) => {
+const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selectedId, isDesktop, onNew, onNetwork, pollInterval, setPollInterval, countdown, plan, planId, setPlanId, todayCount }) => {
   const [filter,setFilter] = useState("ALL");
   const filtered = filter==="ALL" ? sessions : sessions.filter(s=>s.state===filter);
   const active   = sessions.filter(s=>ACTIVE_STATES.has(s.state)).length;
@@ -1159,6 +1490,41 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
           })}
         </div>
 
+        {/* ── Daily quota bar ── */}
+        {plan&&(
+          <div style={{marginBottom:8}}>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:4,alignItems:"center"}}>
+              <div style={{display:"flex",gap:5,alignItems:"center"}}>
+                {PLANS.map(p=>(
+                  <button key={p.id} onClick={()=>setPlanId&&setPlanId(p.id)} style={{
+                    padding:"2px 8px",borderRadius:20,border:"none",cursor:"pointer",
+                    background:p.id===planId?T.greenDim:"transparent",
+                    outline:`1px solid ${p.id===planId?T.green+"60":T.border}`,
+                    color:p.id===planId?T.green:T.muted,
+                    fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:p.id===planId?700:400,
+                    transition:"all .12s",letterSpacing:"0.05em",
+                  }}>{p.label}</button>
+                ))}
+              </div>
+              <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:todayCount>=plan.daily?T.red:T.muted}}>
+                {todayCount}/{plan.daily} <span style={{color:T.dim}}>today</span>
+              </span>
+            </div>
+            <div style={{height:3,background:T.border,borderRadius:2,overflow:"hidden"}}>
+              <div style={{
+                height:"100%",borderRadius:2,transition:"width .4s ease",transform:"translateZ(0)",
+                width:`${Math.min(100,(todayCount/plan.daily)*100)}%`,
+                background:todayCount>=plan.daily?T.red:todayCount/plan.daily>0.8?T.amber:T.green,
+                boxShadow:`0 0 4px ${todayCount>=plan.daily?T.red:T.green}60`,
+              }}/>
+            </div>
+            {todayCount>=plan.daily&&(
+              <div style={{marginTop:4,fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.red}}>
+                ⛔ Daily limit reached — resets in ~{Math.ceil((new Date(new Date().toISOString().slice(0,10)+"T00:00:00Z").getTime()+86400000-Date.now())/3600000)}h
+              </div>
+            )}
+          </div>
+        )}
         {/* ── Status filter pills ── */}
         <div style={{overflowX:"auto",paddingBottom:10,scrollbarWidth:"none",WebkitOverflowScrolling:"touch"}}>
           <div style={{display:"flex",gap:5,minWidth:"max-content"}}>
@@ -1210,12 +1576,18 @@ function JulesClient() {
   const [netSnap,setNetSnap]       = useState(NET.snapshot());
   const [pollInterval,setPollIntervalRaw] = useState(loadPollMs);
   const [countdown,setCountdown]   = useState(0);
+  const [planId,setPlanIdRaw]      = useState(loadPlan);
+  const [todayCount,setTodayCount] = useState(loadTodayCount);
   const pollRef      = useRef(null);
   const countdownRef = useRef(null);
   const nextRefAt    = useRef(0);
   const isDesktop    = useIsDesktop();
 
+  const setPlanId = useCallback(id => { savePlan(id); setPlanIdRaw(id); }, []);
+  const plan = useMemo(() => PLANS.find(p=>p.id===planId)||PLANS[0], [planId]);
+
   useEffect(() => NET.subscribe(s=>setNetSnap(s)), []);
+  useEffect(() => { pruneOldKeys(); }, []);
 
   const setPollInterval = useCallback(ms => {
     savePollMs(ms);
@@ -1277,6 +1649,8 @@ function JulesClient() {
   const handleCreate = useCallback(s => {
     setSessions(prev => [s, ...prev]);
     setSelected(s);
+    incTodayCount();
+    setTodayCount(loadTodayCount());
     if (isDesktop) setDesktop("detail"); else setMobile("list");
   }, [isDesktop]);
 
@@ -1304,6 +1678,7 @@ function JulesClient() {
             refreshing={refreshing} netSnap={netSnap} selectedId={selected?.id}
             isDesktop onNew={()=>setDesktop("new")} onNetwork={()=>setDesktop("network")}
             pollInterval={pollInterval} setPollInterval={setPollInterval} countdown={countdown}
+            plan={plan} planId={planId} setPlanId={setPlanId} todayCount={todayCount}
           />
         </div>
         {/* Main panel */}
@@ -1322,7 +1697,7 @@ function JulesClient() {
               onSessionUpdate={handleSessionUpdate} isDesktop pollInterval={pollInterval}/>
           )}
           {desktopView==="new"&&(
-            <NewSession apiKey={apiKey} onBack={()=>setDesktop("empty")} onCreate={handleCreate} isDesktop/>
+            <NewSession apiKey={apiKey} onBack={()=>setDesktop("empty")} onCreate={handleCreate} isDesktop plan={plan} todayCount={todayCount}/>
           )}
           {desktopView==="network"&&(
             <NetworkMonitor onBack={()=>setDesktop("empty")} isDesktop/>
@@ -1339,7 +1714,8 @@ function JulesClient() {
         {mobileScreen==="list"&&(
           <SessionList sessions={sessions} onSelect={handleSelect} onRefresh={()=>fetchSessions()}
             refreshing={refreshing} netSnap={netSnap} selectedId={null} isDesktop={false}
-            pollInterval={pollInterval} setPollInterval={setPollInterval} countdown={countdown}/>
+            pollInterval={pollInterval} setPollInterval={setPollInterval} countdown={countdown}
+            plan={plan} planId={planId} setPlanId={setPlanId} todayCount={todayCount}/>
         )}
         {mobileScreen==="detail"&&selected&&(
           <SessionDetail key={selected.id} session={selected} apiKey={apiKey}
@@ -1347,7 +1723,7 @@ function JulesClient() {
             onDelete={handleDelete} onSessionUpdate={handleSessionUpdate} isDesktop={false} pollInterval={pollInterval}/>
         )}
         {mobileScreen==="new"&&(
-          <NewSession apiKey={apiKey} onBack={()=>setMobile("list")} onCreate={s=>{ setSessions(prev=>[s,...prev]); setMobile("list"); }} isDesktop={false}/>
+          <NewSession apiKey={apiKey} onBack={()=>setMobile("list")} onCreate={s=>{ setSessions(prev=>[s,...prev]); incTodayCount(); setTodayCount(loadTodayCount()); setMobile("list"); }} isDesktop={false} plan={plan} todayCount={todayCount}/>
         )}
         {mobileScreen==="network"&&(
           <NetworkMonitor onBack={()=>setMobile("list")} isDesktop={false}/>
