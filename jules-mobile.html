@@ -1710,6 +1710,8 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
   const [sources,setSources]       = useState([]);
   const [loadingSrc,setLoadSrc]    = useState(true);
   const [source,setSource]         = useState(draft?.source ?? "");
+  const [sourceSearch,setSourceSearch] = useState("");
+  const [showSources,setShowSources] = useState(false);
   const [branch,setBranch]         = useState(draft?.branch ?? "");
   const [branches,setBranches]     = useState([]);   // [{displayName}] from Jules API
   const [showBranches,setShowBranches] = useState(false);
@@ -1725,6 +1727,24 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
   // ── Derive branches whenever selected source changes ─────────────────────
   // Jules API returns branches[] + defaultBranch inline on each source object
   const srcObj = useMemo(() => sources.find(s => s.name === source) || null, [sources, source]);
+
+  const getSourceDisplay = useCallback((s) => {
+    if (!s) return "No repo (repoless)";
+    return s.githubRepo ? `${s.githubRepo.owner}/${s.githubRepo.repo}` : s.id || s.name;
+  }, []);
+
+  useEffect(() => {
+    if (srcObj) setSourceSearch(getSourceDisplay(srcObj));
+    else if (source === "") setSourceSearch("No repo (repoless)");
+  }, [srcObj, source, getSourceDisplay]);
+
+  const filteredSources = useMemo(() => {
+    const all = [...sources, null]; // null represents "repoless"
+    const search = sourceSearch.toLowerCase();
+    const isSelectedMatch = (srcObj && sourceSearch === getSourceDisplay(srcObj)) || (source === "" && sourceSearch === "No repo (repoless)");
+    if (!sourceSearch || isSelectedMatch) return all;
+    return all.filter(s => getSourceDisplay(s).toLowerCase().includes(search));
+  }, [sources, sourceSearch, getSourceDisplay, srcObj, source]);
 
   useEffect(() => {
     if (!srcObj) { setBranches([]); setDefault(""); return; }
@@ -1825,12 +1845,70 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
               ?<div style={{padding:"10px 12px",borderRadius:6,background:T.amberDim,border:`1px solid ${T.amber}40`,fontFamily:"'IBM Plex Sans',sans-serif",fontSize:12,color:T.amber}}>
                 No sources found. Connect a repo at <span style={{fontFamily:"'JetBrains Mono',monospace"}}>jules.google.com</span> first.
               </div>
-              :<select value={source} onChange={e=>setSource(e.target.value)} style={{...inputSt,cursor:"pointer"}}>
-                {sources.map(s=>(
-                  <option key={s.name} value={s.name}>{s.githubRepo?`${s.githubRepo.owner}/${s.githubRepo.repo}`:s.id||s.name}</option>
-                ))}
-                <option value="">No repo (repoless)</option>
-              </select>
+              :<div style={{position:"relative"}}>
+                <input
+                  value={sourceSearch}
+                  onChange={e=>{setSourceSearch(e.target.value); setShowSources(true);}}
+                  onFocus={()=>setShowSources(true)}
+                  placeholder="Search repositories..."
+                  style={{...inputSt, paddingRight:36}}
+                />
+                <div style={{position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", display:"flex", alignItems:"center", pointerEvents:"none"}}>
+                  <Ic n="code" s={14} c={showSources?T.green:T.muted}/>
+                </div>
+
+                {showSources && (
+                  <>
+                    <div
+                      style={{position:"fixed", inset:0, zIndex:100}}
+                      onClick={()=>{
+                        setShowSources(false);
+                        // Reset search text to current selection on close
+                        if (srcObj) setSourceSearch(getSourceDisplay(srcObj));
+                        else if (source === "") setSourceSearch("No repo (repoless)");
+                      }}
+                    />
+                    <div style={{
+                      position:"absolute", top:"100%", left:0, right:0, zIndex:101,
+                      marginTop:4, background:T.surfaceHi, border:`1px solid ${T.borderHi}`,
+                      borderRadius:6, maxHeight:200, overflowY:"auto",
+                      boxShadow:"0 10px 25px rgba(0,0,0,0.5)",
+                    }}>
+                      {filteredSources.length === 0 && (
+                        <div style={{padding:"12px", textAlign:"center", fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.muted}}>
+                          NO RESULTS FOUND
+                        </div>
+                      )}
+                      {filteredSources.map((s, idx) => {
+                        const isRepoless = s === null;
+                        const sName = isRepoless ? "" : s.name;
+                        const isSelected = sName === source;
+                        return (
+                          <button
+                            key={isRepoless ? "_repoless" : s.name}
+                            onClick={()=>{setSource(sName); setSourceSearch(getSourceDisplay(s)); setShowSources(false);}}
+                            style={{
+                              width:"100%", padding:"10px 12px", background:"none", border:"none",
+                              textAlign:"left", cursor:"pointer", display:"flex", alignItems:"center", gap:8,
+                              borderBottom:idx < filteredSources.length - 1 ? `1px solid ${T.border}` : "none",
+                              transition:"background .1s",
+                            }}
+                            onMouseEnter={e=>e.currentTarget.style.background=T.dim}
+                            onMouseLeave={e=>e.currentTarget.style.background="none"}
+                          >
+                            <Ic n="code" s={12} c={isSelected?T.green:T.muted}/>
+                            <span style={{
+                              flex:1, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:13,
+                              color:isSelected?T.green:T.text, fontWeight:isSelected?600:400,
+                              overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
+                            }}>{getSourceDisplay(s)}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </div>
             }
           </Field>
 
@@ -1848,11 +1926,14 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
                   <Ic n="branch" s={14} c={showBranches?T.green:T.muted}/>
                 </div>
 
-                {showBranches && filteredBranches.length > 0 && (
+                {showBranches && (
                   <>
                     <div
                       style={{position:"fixed", inset:0, zIndex:100}}
-                      onClick={()=>setShowBranches(false)}
+                      onClick={()=>{
+                        setShowBranches(false);
+                        setBranch(branch); // Trigger re-render/reset if needed
+                      }}
                     />
                     <div style={{
                       position:"absolute", top:"100%", left:0, right:0, zIndex:101,
@@ -1860,6 +1941,11 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
                       borderRadius:6, maxHeight:200, overflowY:"auto",
                       boxShadow:"0 10px 25px rgba(0,0,0,0.5)",
                     }}>
+                      {filteredBranches.length === 0 && (
+                        <div style={{padding:"12px", textAlign:"center", fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.muted}}>
+                          NO RESULTS FOUND
+                        </div>
+                      )}
                       {filteredBranches.map(b => (
                         <button
                           key={b}
