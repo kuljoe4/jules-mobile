@@ -1387,6 +1387,7 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
   const [source,setSource]         = useState(draft?.source ?? "");
   const [branch,setBranch]         = useState(draft?.branch ?? "");
   const [branches,setBranches]     = useState([]);   // [{displayName}] from Jules API
+  const [showBranches,setShowBranches] = useState(false);
   const [defaultBranch,setDefault] = useState("");   // e.g. "main"
   const [prompt,setPrompt]         = useState(draft?.prompt ?? "");
   const [title,setTitle]           = useState(draft?.title ?? "");
@@ -1411,6 +1412,12 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
     // Only auto-set branch if we don't have a saved draft branch for this source
     if (!draft?.branch || draft?.source !== source) setBranch(def);
   }, [srcObj, source]);
+
+  const filteredBranches = useMemo(() => {
+    if (!branch || branches.includes(branch)) return branches;
+    const s = branch.toLowerCase();
+    return branches.filter(b => b.toLowerCase().includes(s));
+  }, [branches, branch]);
 
   // Persist on every change (debounced 400ms)
   const draftRef = useRef(null);
@@ -1504,51 +1511,75 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
 
           {source&&(
             <Field label="STARTING BRANCH">
-              {branches.length > 0 ? (
-                <div>
-                  <select
-                    value={branch}
-                    onChange={e => setBranch(e.target.value)}
-                    style={{...inputSt, cursor:"pointer"}}
-                  >
-                    {branches.map(b => (
-                      <option key={b} value={b}>
-                        {b}{b === defaultBranch ? "  ★ default" : ""}
-                      </option>
-                    ))}
-                  </select>
-                  <div style={{
-                    marginTop:5, display:"flex", gap:6, alignItems:"center",
-                    fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:T.muted,
-                  }}>
-                    <span>{branches.length} branch{branches.length!==1?"es":""} · default: </span>
-                    <span style={{color:T.green}}>{defaultBranch}</span>
-                    {branch !== defaultBranch && (
-                      <button onClick={()=>setBranch(defaultBranch)} style={{
-                        marginLeft:4, padding:"1px 7px", borderRadius:3,
-                        background:"transparent", border:`1px solid ${T.border}`,
-                        color:T.muted, cursor:"pointer",
-                        fontFamily:"'JetBrains Mono',monospace", fontSize:8,
-                      }}>reset</button>
-                    )}
-                  </div>
+              <div style={{position:"relative"}}>
+                <input
+                  value={branch}
+                  onChange={e=>{setBranch(e.target.value); setShowBranches(true);}}
+                  onFocus={()=>setShowBranches(true)}
+                  placeholder={defaultBranch || "main"}
+                  style={{...inputSt, paddingRight:36}}
+                />
+                <div style={{position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", display:"flex", alignItems:"center", pointerEvents:"none"}}>
+                  <Ic n="branch" s={14} c={showBranches?T.green:T.muted}/>
                 </div>
-              ) : (
-                <div>
-                  <input
-                    value={branch}
-                    onChange={e=>setBranch(e.target.value)}
-                    placeholder={defaultBranch || "main"}
-                    style={inputSt}
-                  />
-                  <div style={{
-                    marginTop:5, fontFamily:"'JetBrains Mono',monospace",
-                    fontSize:9, color:T.muted,
-                  }}>
-                    {loadingSrc ? "Loading branches…" : "No branches in API response — type manually"}
-                  </div>
-                </div>
-              )}
+
+                {showBranches && filteredBranches.length > 0 && (
+                  <>
+                    <div
+                      style={{position:"fixed", inset:0, zIndex:100}}
+                      onClick={()=>setShowBranches(false)}
+                    />
+                    <div style={{
+                      position:"absolute", top:"100%", left:0, right:0, zIndex:101,
+                      marginTop:4, background:T.surfaceHi, border:`1px solid ${T.borderHi}`,
+                      borderRadius:6, maxHeight:200, overflowY:"auto",
+                      boxShadow:"0 10px 25px rgba(0,0,0,0.5)",
+                    }}>
+                      {filteredBranches.map(b => (
+                        <button
+                          key={b}
+                          onClick={()=>{setBranch(b); setShowBranches(false);}}
+                          style={{
+                            width:"100%", padding:"10px 12px", background:"none", border:"none",
+                            textAlign:"left", cursor:"pointer", display:"flex", alignItems:"center", gap:8,
+                            borderBottom:`1px solid ${T.border}`, transition:"background .1s",
+                          }}
+                          onMouseEnter={e=>e.currentTarget.style.background=T.dim}
+                          onMouseLeave={e=>e.currentTarget.style.background="none"}
+                        >
+                          <Ic n="branch" s={12} c={b===branch?T.green:T.muted}/>
+                          <span style={{
+                            flex:1, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:13,
+                            color:b===branch?T.green:T.text, fontWeight:b===branch?600:400,
+                            overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
+                          }}>{b}</span>
+                          {b===defaultBranch && (
+                            <span style={{
+                              fontFamily:"'JetBrains Mono',monospace", fontSize:8,
+                              color:T.green, background:T.greenDim, padding:"1px 5px", borderRadius:3,
+                            }}>DEFAULT</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+              <div style={{
+                marginTop:5, display:"flex", gap:6, alignItems:"center",
+                fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:T.muted,
+              }}>
+                <span>{branches.length || 0} branch{branches.length!==1?"es":""}</span>
+                {defaultBranch && <span>· default: <span style={{color:T.green}}>{defaultBranch}</span></span>}
+                {branch !== defaultBranch && defaultBranch && (
+                  <button onClick={()=>setBranch(defaultBranch)} style={{
+                    marginLeft:4, padding:"1px 7px", borderRadius:3,
+                    background:"transparent", border:`1px solid ${T.border}`,
+                    color:T.muted, cursor:"pointer",
+                    fontFamily:"'JetBrains Mono',monospace", fontSize:8,
+                  }}>reset</button>
+                )}
+              </div>
             </Field>
           )}
 
@@ -1874,7 +1905,18 @@ function JulesClient() {
     if (!quiet) setRefreshing(true);
     try {
       const d = await apiCall(apiKey, `/sessions?pageSize=${sessionLimit}`, { _label:"List sessions" });
-      setSessions(d.sessions||[]);
+      const raw = d.sessions || [];
+      // Sort: Active first, then by latest update/create time
+      const sorted = [...raw].sort((a, b) => {
+        const aActive = ACTIVE_STATES.has(a.state);
+        const bActive = ACTIVE_STATES.has(b.state);
+        if (aActive && !bActive) return -1;
+        if (!aActive && bActive) return 1;
+        const aTime = new Date(a.updateTime || a.createTime).getTime();
+        const bTime = new Date(b.updateTime || b.createTime).getTime();
+        return bTime - aTime;
+      });
+      setSessions(sorted);
     } catch {}
     finally { if (!quiet) setRefreshing(false); }
   }, [apiKey, sessionLimit]);
