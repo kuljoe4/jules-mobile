@@ -225,6 +225,21 @@ function loadPollMs() {
 }
 function savePollMs(ms) { try { localStorage.setItem(POLL_KEY,ms); } catch {} }
 
+// ─── Session list limits ──────────────────────────────────────────────────────
+const LIMIT_OPTIONS = [
+  { label:"20",  val:20  },
+  { label:"50",  val:50  },
+  { label:"100", val:100 },
+  { label:"250", val:250 },
+];
+const LIMIT_KEY     = "jac_limit";
+const DEFAULT_LIMIT = 50;
+
+function loadLimit() {
+  try { const v=parseInt(localStorage.getItem(LIMIT_KEY)); return LIMIT_OPTIONS.some(o=>o.val===v)?v:DEFAULT_LIMIT; } catch { return DEFAULT_LIMIT; }
+}
+function saveLimit(v) { try { localStorage.setItem(LIMIT_KEY,v); } catch {} }
+
 // ─── Plan limits (from jules.google/docs/usage-limits) ───────────────────────
 const PLAN_KEY = "jac_plan";
 const PLANS = [
@@ -666,8 +681,12 @@ const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFeedback,
   const plan  = planAct?.planGenerated?.plan;
   const steps = plan?.steps || [];
 
-  // Check if plan already approved in activity history
-  const approved = activities.some(a => a.planApproved);
+  // Check if plan already approved in activity history (must be after the plan was generated)
+  const approved = useMemo(() => {
+    if (!planAct) return false;
+    const planTs = new Date(planAct.createTime).getTime();
+    return activities.some(a => a.planApproved && new Date(a.createTime).getTime() >= planTs);
+  }, [activities, planAct]);
 
   const hasFeedback = globalNote.trim() || Object.values(stepNotes).some(n => n.trim());
 
@@ -1125,6 +1144,14 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
     } catch(e) { setErr(e.message); setBusy(false); }
   };
 
+  const handleRefresh = async () => {
+    setBusy(true); setErr(null);
+    try {
+      await Promise.all([loadSession(), loadActivities(null)]);
+    } catch(e) { setErr(e.message); }
+    finally { setBusy(false); }
+  };
+
   const diffArtifact = useMemo(() => {
     for (const a of activities) {
       if (a.artifacts) for (const art of a.artifacts) if (art.changeSet?.gitPatch?.unidiffPatch) return art.changeSet.gitPatch;
@@ -1141,9 +1168,10 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
   , [activities]);
 
   const pr      = session.outputs?.find(o=>o.pullRequest)?.pullRequest;
+  const summary = session.outputs?.find(o=>o.sessionSummary)?.sessionSummary;
   const m       = STATUS_META[session.state] || STATUS_META.QUEUED;
   const pct     = pctFromState(session.state);
-  const canSend = !["COMPLETED","FAILED"].includes(session.state);
+  const canSend = true; // Always allow follow-up messages
 
   const latestPlan = useMemo(() => {
     for (let i = activities.length - 1; i >= 0; i--) {
@@ -1193,9 +1221,14 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
           )}
           {session.url&&<a href={session.url} target="_blank" rel="noopener" style={{color:T.muted,textDecoration:"none",flexShrink:0,fontFamily:"'JetBrains Mono',monospace",fontSize:9}}>WEB↗</a>}
           {pr&&<a href={pr.url} target="_blank" rel="noopener" style={{color:T.blue,textDecoration:"none",flexShrink:0}}>PR↗</a>}
-          <button onClick={handleDelete} disabled={busy} style={{marginLeft:"auto",background:"none",border:"none",cursor:"pointer",display:"flex",alignItems:"center",padding:2,opacity:.6}}>
-            <Ic n="trash" s={13} c={T.red}/>
-          </button>
+          <div style={{marginLeft:"auto",display:"flex",gap:10,alignItems:"center"}}>
+            <button onClick={handleRefresh} disabled={busy} style={{background:"none",border:"none",cursor:busy?"default":"pointer",display:"flex",padding:2,opacity:.6,animation:busy?"spin 1s linear infinite":"none"}}>
+              <Ic n="refresh" s={13} c={T.muted}/>
+            </button>
+            <button onClick={handleDelete} disabled={busy} style={{background:"none",border:"none",cursor:"pointer",display:"flex",alignItems:"center",padding:2,opacity:.6}}>
+              <Ic n="trash" s={13} c={T.red}/>
+            </button>
+          </div>
         </div>
 
         {session.state==="AWAITING_PLAN_APPROVAL"&&(
@@ -1213,6 +1246,22 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
         )}
 
         {err&&<div style={{marginBottom:8,padding:"6px 10px",borderRadius:4,background:T.redDim,border:`1px solid ${T.red}40`,fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.red}}>{err}</div>}
+
+        {summary && (
+          <div style={{
+            marginBottom:10, padding:"10px 14px", background:T.surfaceHi,
+            border:`1px solid ${T.border}`, borderRadius:6,
+          }}>
+            <div style={{
+              fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:T.green,
+              fontWeight:700, letterSpacing:"0.06em", marginBottom:6,
+            }}>SESSION SUMMARY</div>
+            <div style={{
+              fontFamily:"'IBM Plex Sans',sans-serif", fontSize:12, color:T.text,
+              lineHeight:1.55, whiteSpace:"pre-wrap",
+            }}>{summary.summary}</div>
+          </div>
+        )}
 
         <div style={{display:"flex"}}>
           {TABS.map(t=>(
@@ -1338,6 +1387,7 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
   const [source,setSource]         = useState(draft?.source ?? "");
   const [branch,setBranch]         = useState(draft?.branch ?? "");
   const [branches,setBranches]     = useState([]);   // [{displayName}] from Jules API
+  const [showBranches,setShowBranches] = useState(false);
   const [defaultBranch,setDefault] = useState("");   // e.g. "main"
   const [prompt,setPrompt]         = useState(draft?.prompt ?? "");
   const [title,setTitle]           = useState(draft?.title ?? "");
@@ -1362,6 +1412,12 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
     // Only auto-set branch if we don't have a saved draft branch for this source
     if (!draft?.branch || draft?.source !== source) setBranch(def);
   }, [srcObj, source]);
+
+  const filteredBranches = useMemo(() => {
+    if (!branch || branches.includes(branch)) return branches;
+    const s = branch.toLowerCase();
+    return branches.filter(b => b.toLowerCase().includes(s));
+  }, [branches, branch]);
 
   // Persist on every change (debounced 400ms)
   const draftRef = useRef(null);
@@ -1455,51 +1511,75 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
 
           {source&&(
             <Field label="STARTING BRANCH">
-              {branches.length > 0 ? (
-                <div>
-                  <select
-                    value={branch}
-                    onChange={e => setBranch(e.target.value)}
-                    style={{...inputSt, cursor:"pointer"}}
-                  >
-                    {branches.map(b => (
-                      <option key={b} value={b}>
-                        {b}{b === defaultBranch ? "  ★ default" : ""}
-                      </option>
-                    ))}
-                  </select>
-                  <div style={{
-                    marginTop:5, display:"flex", gap:6, alignItems:"center",
-                    fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:T.muted,
-                  }}>
-                    <span>{branches.length} branch{branches.length!==1?"es":""} · default: </span>
-                    <span style={{color:T.green}}>{defaultBranch}</span>
-                    {branch !== defaultBranch && (
-                      <button onClick={()=>setBranch(defaultBranch)} style={{
-                        marginLeft:4, padding:"1px 7px", borderRadius:3,
-                        background:"transparent", border:`1px solid ${T.border}`,
-                        color:T.muted, cursor:"pointer",
-                        fontFamily:"'JetBrains Mono',monospace", fontSize:8,
-                      }}>reset</button>
-                    )}
-                  </div>
+              <div style={{position:"relative"}}>
+                <input
+                  value={branch}
+                  onChange={e=>{setBranch(e.target.value); setShowBranches(true);}}
+                  onFocus={()=>setShowBranches(true)}
+                  placeholder={defaultBranch || "main"}
+                  style={{...inputSt, paddingRight:36}}
+                />
+                <div style={{position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", display:"flex", alignItems:"center", pointerEvents:"none"}}>
+                  <Ic n="branch" s={14} c={showBranches?T.green:T.muted}/>
                 </div>
-              ) : (
-                <div>
-                  <input
-                    value={branch}
-                    onChange={e=>setBranch(e.target.value)}
-                    placeholder={defaultBranch || "main"}
-                    style={inputSt}
-                  />
-                  <div style={{
-                    marginTop:5, fontFamily:"'JetBrains Mono',monospace",
-                    fontSize:9, color:T.muted,
-                  }}>
-                    {loadingSrc ? "Loading branches…" : "No branches in API response — type manually"}
-                  </div>
-                </div>
-              )}
+
+                {showBranches && filteredBranches.length > 0 && (
+                  <>
+                    <div
+                      style={{position:"fixed", inset:0, zIndex:100}}
+                      onClick={()=>setShowBranches(false)}
+                    />
+                    <div style={{
+                      position:"absolute", top:"100%", left:0, right:0, zIndex:101,
+                      marginTop:4, background:T.surfaceHi, border:`1px solid ${T.borderHi}`,
+                      borderRadius:6, maxHeight:200, overflowY:"auto",
+                      boxShadow:"0 10px 25px rgba(0,0,0,0.5)",
+                    }}>
+                      {filteredBranches.map(b => (
+                        <button
+                          key={b}
+                          onClick={()=>{setBranch(b); setShowBranches(false);}}
+                          style={{
+                            width:"100%", padding:"10px 12px", background:"none", border:"none",
+                            textAlign:"left", cursor:"pointer", display:"flex", alignItems:"center", gap:8,
+                            borderBottom:`1px solid ${T.border}`, transition:"background .1s",
+                          }}
+                          onMouseEnter={e=>e.currentTarget.style.background=T.dim}
+                          onMouseLeave={e=>e.currentTarget.style.background="none"}
+                        >
+                          <Ic n="branch" s={12} c={b===branch?T.green:T.muted}/>
+                          <span style={{
+                            flex:1, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:13,
+                            color:b===branch?T.green:T.text, fontWeight:b===branch?600:400,
+                            overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
+                          }}>{b}</span>
+                          {b===defaultBranch && (
+                            <span style={{
+                              fontFamily:"'JetBrains Mono',monospace", fontSize:8,
+                              color:T.green, background:T.greenDim, padding:"1px 5px", borderRadius:3,
+                            }}>DEFAULT</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+              <div style={{
+                marginTop:5, display:"flex", gap:6, alignItems:"center",
+                fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:T.muted,
+              }}>
+                <span>{branches.length || 0} branch{branches.length!==1?"es":""}</span>
+                {defaultBranch && <span>· default: <span style={{color:T.green}}>{defaultBranch}</span></span>}
+                {branch !== defaultBranch && defaultBranch && (
+                  <button onClick={()=>setBranch(defaultBranch)} style={{
+                    marginLeft:4, padding:"1px 7px", borderRadius:3,
+                    background:"transparent", border:`1px solid ${T.border}`,
+                    color:T.muted, cursor:"pointer",
+                    fontFamily:"'JetBrains Mono',monospace", fontSize:8,
+                  }}>reset</button>
+                )}
+              </div>
             </Field>
           )}
 
@@ -1626,7 +1706,7 @@ const NetworkMonitor = ({ onBack, isDesktop }) => {
 const FILTERS = ["ALL","QUEUED","PLANNING","AWAITING_PLAN_APPROVAL","IN_PROGRESS","COMPLETED","FAILED"];
 const FILTER_LABELS = { AWAITING_PLAN_APPROVAL:"APPROVE", ALL:"ALL" };
 
-const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selectedId, isDesktop, onNew, onNetwork, pollInterval, setPollInterval, countdown, plan, planId, setPlanId, todayCount }) => {
+const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selectedId, isDesktop, onNew, onNetwork, pollInterval, setPollInterval, sessionLimit, setSessionLimit, countdown, plan, planId, setPlanId, todayCount }) => {
   const [filter,setFilter] = useState("ALL");
   const filtered = filter==="ALL" ? sessions : sessions.filter(s=>s.state===filter);
   const active   = sessions.filter(s=>ACTIVE_STATES.has(s.state)).length;
@@ -1676,7 +1756,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
         </div>
 
         {/* ── Interval picker ── */}
-        <div style={{display:"flex",gap:4,alignItems:"center",marginBottom:8,flexWrap:"nowrap",overflowX:"auto",scrollbarWidth:"none"}}>
+        <div style={{display:"flex",gap:4,alignItems:"center",marginBottom:6,flexWrap:"nowrap",overflowX:"auto",scrollbarWidth:"none"}}>
           <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,color:T.muted,letterSpacing:"0.08em",flexShrink:0,paddingRight:2}}>AUTO</span>
           {POLL_OPTIONS.map(opt => {
             const isAct = opt.ms === pollInterval;
@@ -1687,6 +1767,23 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
                 background:isAct?(opt.ms===0?T.redDim:T.greenDim):"transparent",
                 outline:`1px solid ${isAct?(opt.ms===0?T.red+"60":T.green+"60"):T.border}`,
                 color:c,fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:isAct?700:400,
+                letterSpacing:"0.05em",cursor:"pointer",transition:"all .12s",
+              }}>{opt.label}</button>
+            );
+          })}
+        </div>
+
+        {/* ── Limit picker ── */}
+        <div style={{display:"flex",gap:4,alignItems:"center",marginBottom:8,flexWrap:"nowrap",overflowX:"auto",scrollbarWidth:"none"}}>
+          <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,color:T.muted,letterSpacing:"0.08em",flexShrink:0,paddingRight:2}}>LIMIT</span>
+          {LIMIT_OPTIONS.map(opt => {
+            const isAct = opt.val === sessionLimit;
+            return (
+              <button key={opt.label} onClick={()=>setSessionLimit(opt.val)} style={{
+                flexShrink:0,padding:"3px 9px",borderRadius:20,border:"none",
+                background:isAct?T.greenDim:"transparent",
+                outline:`1px solid ${isAct?T.green+"60":T.border}`,
+                color:isAct?T.green:T.muted,fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:isAct?700:400,
                 letterSpacing:"0.05em",cursor:"pointer",transition:"all .12s",
               }}>{opt.label}</button>
             );
@@ -1778,6 +1875,7 @@ function JulesClient() {
   const [refreshing,setRefreshing] = useState(false);
   const [netSnap,setNetSnap]       = useState(NET.snapshot());
   const [pollInterval,setPollIntervalRaw] = useState(loadPollMs);
+  const [sessionLimit,setSessionLimitRaw] = useState(loadLimit);
   const [countdown,setCountdown]   = useState(0);
   const [planId,setPlanIdRaw]      = useState(loadPlan);
   const [todayCount,setTodayCount] = useState(loadTodayCount);
@@ -1797,15 +1895,31 @@ function JulesClient() {
     setPollIntervalRaw(ms);
   }, []);
 
+  const setSessionLimit = useCallback(v => {
+    saveLimit(v);
+    setSessionLimitRaw(v);
+  }, []);
+
   const fetchSessions = useCallback(async (quiet=false) => {
     if (!apiKey) return;
     if (!quiet) setRefreshing(true);
     try {
-      const d = await apiCall(apiKey, "/sessions?pageSize=50", { _label:"List sessions" });
-      setSessions(d.sessions||[]);
+      const d = await apiCall(apiKey, `/sessions?pageSize=${sessionLimit}`, { _label:"List sessions" });
+      const raw = d.sessions || [];
+      // Sort: Active first, then by latest update/create time
+      const sorted = [...raw].sort((a, b) => {
+        const aActive = ACTIVE_STATES.has(a.state);
+        const bActive = ACTIVE_STATES.has(b.state);
+        if (aActive && !bActive) return -1;
+        if (!aActive && bActive) return 1;
+        const aTime = new Date(a.updateTime || a.createTime).getTime();
+        const bTime = new Date(b.updateTime || b.createTime).getTime();
+        return bTime - aTime;
+      });
+      setSessions(sorted);
     } catch {}
     finally { if (!quiet) setRefreshing(false); }
-  }, [apiKey]);
+  }, [apiKey, sessionLimit]);
 
   // Schedule auto-poll + countdown whenever apiKey or pollInterval changes
   useEffect(() => {
@@ -1831,7 +1945,7 @@ function JulesClient() {
     }, 1000);
 
     return () => { clearTimeout(pollRef.current); clearInterval(countdownRef.current); };
-  }, [apiKey, pollInterval]);
+  }, [apiKey, pollInterval, fetchSessions]);
 
   const handleSessionUpdate = useCallback(updated => {
     setSessions(prev => prev.map(s=>s.id===updated.id?updated:s));
@@ -1880,7 +1994,9 @@ function JulesClient() {
             sessions={sessions} onSelect={handleSelect} onRefresh={()=>fetchSessions()}
             refreshing={refreshing} netSnap={netSnap} selectedId={selected?.id}
             isDesktop onNew={()=>setDesktop("new")} onNetwork={()=>setDesktop("network")}
-            pollInterval={pollInterval} setPollInterval={setPollInterval} countdown={countdown}
+            pollInterval={pollInterval} setPollInterval={setPollInterval}
+            sessionLimit={sessionLimit} setSessionLimit={setSessionLimit}
+            countdown={countdown}
             plan={plan} planId={planId} setPlanId={setPlanId} todayCount={todayCount}
           />
         </div>
@@ -1917,7 +2033,9 @@ function JulesClient() {
         {mobileScreen==="list"&&(
           <SessionList sessions={sessions} onSelect={handleSelect} onRefresh={()=>fetchSessions()}
             refreshing={refreshing} netSnap={netSnap} selectedId={null} isDesktop={false}
-            pollInterval={pollInterval} setPollInterval={setPollInterval} countdown={countdown}
+            pollInterval={pollInterval} setPollInterval={setPollInterval}
+            sessionLimit={sessionLimit} setSessionLimit={setSessionLimit}
+            countdown={countdown}
             plan={plan} planId={planId} setPlanId={setPlanId} todayCount={todayCount}/>
         )}
         {mobileScreen==="detail"&&selected&&(
