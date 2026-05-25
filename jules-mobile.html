@@ -681,8 +681,12 @@ const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFeedback,
   const plan  = planAct?.planGenerated?.plan;
   const steps = plan?.steps || [];
 
-  // Check if plan already approved in activity history
-  const approved = activities.some(a => a.planApproved);
+  // Check if plan already approved in activity history (must be after the plan was generated)
+  const approved = useMemo(() => {
+    if (!planAct) return false;
+    const planTs = new Date(planAct.createTime).getTime();
+    return activities.some(a => a.planApproved && new Date(a.createTime).getTime() >= planTs);
+  }, [activities, planAct]);
 
   const hasFeedback = globalNote.trim() || Object.values(stepNotes).some(n => n.trim());
 
@@ -1164,9 +1168,10 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
   , [activities]);
 
   const pr      = session.outputs?.find(o=>o.pullRequest)?.pullRequest;
+  const summary = session.outputs?.find(o=>o.sessionSummary)?.sessionSummary;
   const m       = STATUS_META[session.state] || STATUS_META.QUEUED;
   const pct     = pctFromState(session.state);
-  const canSend = !["COMPLETED","FAILED"].includes(session.state);
+  const canSend = true; // Always allow follow-up messages
 
   const latestPlan = useMemo(() => {
     for (let i = activities.length - 1; i >= 0; i--) {
@@ -1241,6 +1246,22 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
         )}
 
         {err&&<div style={{marginBottom:8,padding:"6px 10px",borderRadius:4,background:T.redDim,border:`1px solid ${T.red}40`,fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.red}}>{err}</div>}
+
+        {summary && (
+          <div style={{
+            marginBottom:10, padding:"10px 14px", background:T.surfaceHi,
+            border:`1px solid ${T.border}`, borderRadius:6,
+          }}>
+            <div style={{
+              fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:T.green,
+              fontWeight:700, letterSpacing:"0.06em", marginBottom:6,
+            }}>SESSION SUMMARY</div>
+            <div style={{
+              fontFamily:"'IBM Plex Sans',sans-serif", fontSize:12, color:T.text,
+              lineHeight:1.55, whiteSpace:"pre-wrap",
+            }}>{summary.summary}</div>
+          </div>
+        )}
 
         <div style={{display:"flex"}}>
           {TABS.map(t=>(
