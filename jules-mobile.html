@@ -471,6 +471,7 @@ const PATHS = {
   plan:"M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 12h6M9 16h4",
   approve:"M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z",
   branch:"M6 3v12M18 9a3 3 0 100-6 3 3 0 000 6zM6 21a3 3 0 100-6 3 3 0 000 6zM18 9a9 9 0 01-9 9",
+  download:"M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4m4-5l5 5 5-5m-5 5V3",
 };
 const Ic = ({n,s=16,c=T.muted}) => (
   <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
@@ -530,8 +531,39 @@ const inputSt = {
   outline:"none",boxSizing:"border-box",transition:"border-color .18s",
 };
 
+// ─── Media Artifacts ──────────────────────────────────────────────────────────
+const MediaArtifacts = memo(({ artifacts, ts, onMediaClick }) => {
+  const mediaItems = (artifacts || []).filter(a => a.media?.data);
+  if (mediaItems.length === 0) return null;
+
+  return (
+    <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginTop:8 }}>
+      {mediaItems.map((a, i) => (
+        <button
+          key={i}
+          onClick={() => onMediaClick?.({ ...a.media, ts })}
+          style={{
+            padding:0, border:`1px solid ${T.border}`, borderRadius:6,
+            background:T.surfaceHi, cursor:"pointer", overflow:"hidden",
+            width:100, height:70, display:"flex", alignItems:"center",
+            justifyContent:"center", transition:"border-color .15s",
+          }}
+          onMouseEnter={e => e.currentTarget.style.borderColor = T.green}
+          onMouseLeave={e => e.currentTarget.style.borderColor = T.border}
+        >
+          <img
+            src={`data:${a.media.mimeType};base64,${a.media.data}`}
+            alt="artifact-thumb"
+            style={{ width:"100%", height:"100%", objectFit:"cover" }}
+          />
+        </button>
+      ))}
+    </div>
+  );
+});
+
 // ─── Chat Bubble ──────────────────────────────────────────────────────────────
-const ChatBubble = memo(({ act, type }) => {
+const ChatBubble = memo(({ act, type, onMediaClick }) => {
   const isUser = type === "userMessaged";
   const text   = isUser ? act.userMessaged?.userMessage : act.agentMessaged?.agentMessage;
   const time   = fmtTime(new Date(act.createTime).getTime());
@@ -568,6 +600,7 @@ const ChatBubble = memo(({ act, type }) => {
           fontFamily:"'IBM Plex Sans',sans-serif",
           whiteSpace:"pre-wrap",wordBreak:"break-word",
         }}>{text}</div>
+        <MediaArtifacts artifacts={act.artifacts} ts={act.createTime} onMediaClick={onMediaClick}/>
         <div style={{
           marginTop:5,fontFamily:"'JetBrains Mono',monospace",fontSize:8,
           color:isUser?T.blue+"70":T.green+"60",textAlign:isUser?"right":"left",
@@ -583,7 +616,7 @@ const ChatBubble = memo(({ act, type }) => {
 });
 
 // ─── Timeline Event (non-message activities) ──────────────────────────────────
-const TimelineEvent = memo(({ act }) => {
+const TimelineEvent = memo(({ act, onMediaClick }) => {
   const type = getActType(act);
   const isMajor = ["sessionCompleted", "sessionFailed", "planGenerated", "planApproved"].includes(type);
   const IC_MAP = {
@@ -658,16 +691,109 @@ const TimelineEvent = memo(({ act }) => {
           <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,color:T.muted,flexShrink:0}}>{time}</span>
         </div>
         {detail}
+        <MediaArtifacts artifacts={act.artifacts} ts={act.createTime} onMediaClick={onMediaClick}/>
       </div>
     </div>
   );
 });
 
+// ─── Media Modal ──────────────────────────────────────────────────────────────
+const MediaModal = ({ media, onClose }) => {
+  if (!media) return null;
+
+  const handleDownload = (e) => {
+    e.stopPropagation();
+    const link = document.createElement("a");
+    link.href = `data:${media.mimeType};base64,${media.data}`;
+    link.download = `jules-artifact-${Date.now()}.${media.mimeType.split("/")[1] || "png"}`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position:"fixed", inset:0, zIndex:10000,
+        background:"rgba(4,5,7,0.95)", backdropFilter:"blur(10px)",
+        display:"flex", flexDirection:"column",
+        animation:"fadeIn .2s ease",
+      }}
+    >
+      <style>{`
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes zoomIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+      `}</style>
+
+      {/* Header */}
+      <div style={{
+        display:"flex", alignItems:"center", gap:12, padding:"16px 20px",
+        background:"linear-gradient(to bottom, rgba(7,9,12,0.8), transparent)",
+      }}>
+        <div style={{ flex:1 }}>
+          <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.text, fontWeight:700 }}>
+            MEDIA ARTIFACT
+          </div>
+          <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:T.muted }}>
+            {media.mimeType} · {fmtTime(new Date(media.ts).getTime())}
+          </div>
+        </div>
+        <button
+          onClick={handleDownload}
+          style={{
+            background:T.surfaceHi, border:`1px solid ${T.borderHi}`, borderRadius:8,
+            padding:"8px 14px", cursor:"pointer", display:"flex", alignItems:"center", gap:8,
+            color:T.green, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700,
+          }}
+        >
+          <Ic n="download" s={14} c={T.green}/>
+          SAVE
+        </button>
+        <button
+          onClick={onClose}
+          style={{
+            background:T.surfaceHi, border:`1px solid ${T.borderHi}`, borderRadius:8,
+            padding:"8px", cursor:"pointer", display:"flex",
+          }}
+        >
+          <Ic n="x" s={18} c={T.text}/>
+        </button>
+      </div>
+
+      {/* Content */}
+      <div style={{
+        flex:1, display:"flex", alignItems:"center", justifyContent:"center",
+        padding:20, overflow:"hidden",
+      }}>
+        <img
+          src={`data:${media.mimeType};base64,${media.data}`}
+          alt="artifact-preview"
+          style={{
+            maxWidth:"100%", maxHeight:"100%", objectFit:"contain",
+            borderRadius:4, boxShadow:"0 20px 50px rgba(0,0,0,0.5)",
+            animation:"zoomIn .25s cubic-bezier(0.2, 0, 0.2, 1)",
+          }}
+          onClick={(e) => e.stopPropagation()}
+        />
+      </div>
+
+      {/* Footer / Hint */}
+      <div style={{
+        padding:20, textAlign:"center", fontFamily:"'JetBrains Mono',monospace",
+        fontSize:9, color:T.muted, letterSpacing:"0.05em",
+      }}>
+        TAP OUTSIDE TO CLOSE
+      </div>
+    </div>
+  );
+};
+
 // ─── Activity Feed ────────────────────────────────────────────────────────────
 const COLLAPSE_THRESHOLD = 35;
 const COLLAPSE_SHOW      = 25;
 
-const ActivityFeed = memo(({ activities, showAll, onShowAll }) => {
+const ActivityFeed = memo(({ activities, showAll, onShowAll, onMediaClick }) => {
   const collapse  = !showAll && activities.length > COLLAPSE_THRESHOLD;
   const visible   = collapse ? activities.slice(activities.length - COLLAPSE_SHOW) : activities;
   const hidden    = activities.length - visible.length;
@@ -689,9 +815,9 @@ const ActivityFeed = memo(({ activities, showAll, onShowAll }) => {
         const type = getActType(act);
         const key  = getActKey(act);
         if (type === "userMessaged" || type === "agentMessaged") {
-          return <ChatBubble key={key} act={act} type={type}/>;
+          return <ChatBubble key={key} act={act} type={type} onMediaClick={onMediaClick}/>;
         }
-        return <TimelineEvent key={key} act={act}/>;
+        return <TimelineEvent key={key} act={act} onMediaClick={onMediaClick}/>;
       })}
     </>
   );
@@ -1046,6 +1172,7 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
   const [msg,setMsg]             = useState("");
   const [busy,setBusy]           = useState(false);
   const [err,setErr]             = useState(null);
+  const [activeMedia,setActiveMedia] = useState(null);
   const pollRef      = useRef(null);
   const txtRef       = useRef(null);
   const feedEndRef   = useRef(null);
@@ -1346,7 +1473,7 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
           ?<div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted}}>
             {ACTIVE_STATES.has(session.state)?"Waiting for activity…":"No activities yet"}
           </div>
-          :<ActivityFeed activities={activities} showAll={showAll} onShowAll={()=>setShowAll(true)}/>
+          :<ActivityFeed activities={activities} showAll={showAll} onShowAll={()=>setShowAll(true)} onMediaClick={setActiveMedia}/>
         )}
         {tab==="plan"&&(
           <PlanView
@@ -1376,18 +1503,40 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
         {tab==="media"&&(
           mediaArtifacts.length===0
           ?<div style={{textAlign:"center",padding:"40px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted}}>No media artifacts</div>
-          :<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",gap:10}}>
+          :<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:12}}>
             {mediaArtifacts.map((m,i)=>(
-              <div key={i} style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:6,overflow:"hidden"}}>
-                <img src={`data:${m.mimeType};base64,${m.data}`} alt={`artifact-${i}`}
-                  style={{width:"100%",display:"block",maxHeight:200,objectFit:"contain",background:"#040507"}}/>
-                <div style={{padding:"5px 8px",fontFamily:"'JetBrains Mono',monospace",fontSize:8,color:T.muted}}>{m.mimeType} · {fmtTime(new Date(m.ts).getTime())}</div>
-              </div>
+              <button
+                key={i}
+                onClick={() => setActiveMedia(m)}
+                style={{
+                  background:T.surface, border:`1px solid ${T.border}`, borderRadius:8,
+                  overflow:"hidden", cursor:"pointer", padding:0, textAlign:"left",
+                  transition:"transform .15s, border-color .15s",
+                }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = T.green; e.currentTarget.style.transform = "translateY(-2px)"; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.transform = "none"; }}
+              >
+                <div style={{ width:"100%", height:120, background:"#040507", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                  <img src={`data:${m.mimeType};base64,${m.data}`} alt={`artifact-${i}`}
+                    style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
+                </div>
+                <div style={{ padding:"8px 10px" }}>
+                  <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:T.text, fontWeight:700, marginBottom:2 }}>
+                    {m.mimeType.split("/")[1]?.toUpperCase() || "IMAGE"}
+                  </div>
+                  <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:8, color:T.muted }}>
+                    {fmtTime(new Date(m.ts).getTime())}
+                  </div>
+                </div>
+              </button>
             ))}
           </div>
         )}
         <div ref={feedEndRef}/>
       </div>
+
+      {/* ── Media Lightbox ── */}
+      <MediaModal media={activeMedia} onClose={() => setActiveMedia(null)}/>
 
       {/* ── Composer ── */}
       {canSend&&(
