@@ -538,26 +538,37 @@ const MediaArtifacts = memo(({ artifacts, ts, onMediaClick }) => {
 
   return (
     <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginTop:8 }}>
-      {mediaItems.map((a, i) => (
-        <button
-          key={i}
-          onClick={() => onMediaClick?.({ ...a.media, ts })}
-          style={{
-            padding:0, border:`1px solid ${T.border}`, borderRadius:6,
-            background:T.surfaceHi, cursor:"pointer", overflow:"hidden",
-            width:100, height:70, display:"flex", alignItems:"center",
-            justifyContent:"center", transition:"border-color .15s",
-          }}
-          onMouseEnter={e => e.currentTarget.style.borderColor = T.green}
-          onMouseLeave={e => e.currentTarget.style.borderColor = T.border}
-        >
-          <img
-            src={`data:${a.media.mimeType};base64,${a.media.data}`}
-            alt="artifact-thumb"
-            style={{ width:"100%", height:"100%", objectFit:"cover" }}
-          />
-        </button>
-      ))}
+      {mediaItems.map((a, i) => {
+        const isVideo = (a.media.mimeType || "").includes("video") || (a.media.mimeType || "").includes("webm");
+        return (
+          <button
+            key={i}
+            onClick={() => onMediaClick?.({ ...a.media, ts })}
+            style={{
+              padding:0, border:`1px solid ${T.border}`, borderRadius:6,
+              background:T.surfaceHi, cursor:"pointer", overflow:"hidden",
+              width:100, height:70, display:"flex", alignItems:"center",
+              justifyContent:"center", transition:"border-color .15s",
+            }}
+            onMouseEnter={e => e.currentTarget.style.borderColor = T.green}
+            onMouseLeave={e => e.currentTarget.style.borderColor = T.border}
+          >
+            {isVideo ? (
+              <video
+                src={`data:${a.media.mimeType};base64,${a.media.data}`}
+                muted autoPlay loop playsInline
+                style={{ width:"100%", height:"100%", objectFit:"cover" }}
+              />
+            ) : (
+              <img
+                src={`data:${a.media.mimeType};base64,${a.media.data}`}
+                alt="artifact-thumb"
+                style={{ width:"100%", height:"100%", objectFit:"cover" }}
+              />
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 });
@@ -711,6 +722,8 @@ const MediaModal = ({ media, onClose }) => {
     document.body.removeChild(link);
   };
 
+  const isVideo = (media.mimeType || "").includes("video") || (media.mimeType || "").includes("webm");
+
   return (
     <div
       onClick={onClose}
@@ -766,16 +779,29 @@ const MediaModal = ({ media, onClose }) => {
         flex:1, display:"flex", alignItems:"center", justifyContent:"center",
         padding:20, overflow:"hidden",
       }}>
-        <img
-          src={`data:${media.mimeType};base64,${media.data}`}
-          alt="artifact-preview"
-          style={{
-            maxWidth:"100%", maxHeight:"100%", objectFit:"contain",
-            borderRadius:4, boxShadow:"0 20px 50px rgba(0,0,0,0.5)",
-            animation:"zoomIn .25s cubic-bezier(0.2, 0, 0.2, 1)",
-          }}
-          onClick={(e) => e.stopPropagation()}
-        />
+        {isVideo ? (
+          <video
+            src={`data:${media.mimeType};base64,${media.data}`}
+            controls autoPlay loop playsInline
+            style={{
+              maxWidth:"100%", maxHeight:"100%", objectFit:"contain",
+              borderRadius:4, boxShadow:"0 20px 50px rgba(0,0,0,0.5)",
+              animation:"zoomIn .25s cubic-bezier(0.2, 0, 0.2, 1)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          />
+        ) : (
+          <img
+            src={`data:${media.mimeType};base64,${media.data}`}
+            alt="artifact-preview"
+            style={{
+              maxWidth:"100%", maxHeight:"100%", objectFit:"contain",
+              borderRadius:4, boxShadow:"0 20px 50px rgba(0,0,0,0.5)",
+              animation:"zoomIn .25s cubic-bezier(0.2, 0, 0.2, 1)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          />
+        )}
       </div>
 
       {/* Footer / Hint */}
@@ -1188,21 +1214,36 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
   const lastTsRef = useRef(null);
   const loadActivities = useCallback(async (sinceTs=null) => {
     try {
-      const qs = sinceTs
-        ? `createTime=${encodeURIComponent(sinceTs)}&pageSize=50`
-        : "pageSize=100";
-      const d = await apiCall(apiKey, `/sessions/${session.id}/activities?${qs}`, { _label:`Acts ${sinceTs?"Δ":"full"} ${session.id?.slice(0,6)}` });
-      const incoming = d.activities || [];
+      let pageToken = null;
       let changed = false;
       let latestTs = lastTsRef.current;
-      for (const act of incoming) {
-        const k = getActKey(act);
-        if (!actMapRef.current.has(k)) {
-          actMapRef.current.set(k, act);
-          changed = true;
-          if (!latestTs || act.createTime > latestTs) latestTs = act.createTime;
+
+      do {
+        const qs = sinceTs
+          ? `createTime=${encodeURIComponent(sinceTs)}&pageSize=50`
+          : `pageSize=100${pageToken ? `&pageToken=${pageToken}` : ""}`;
+
+        const d = await apiCall(apiKey, `/sessions/${session.id}/activities?${qs}`, {
+          _label:`Acts ${sinceTs?"Δ":"full"} ${session.id?.slice(0,6)}`
+        });
+
+        const incoming = d.activities || [];
+        for (const act of incoming) {
+          const k = getActKey(act);
+          if (!actMapRef.current.has(k)) {
+            actMapRef.current.set(k, act);
+            changed = true;
+            if (!latestTs || act.createTime > latestTs) latestTs = act.createTime;
+          }
         }
-      }
+        pageToken = d.nextPageToken;
+
+        // On incremental loads (sinceTs), we don't need to follow tokens as new
+        // activities are added to the end of the history.
+        if (sinceTs) break;
+
+      } while (pageToken);
+
       if (latestTs) lastTsRef.current = latestTs;
       if (changed) {
         const sorted = Array.from(actMapRef.current.values())
@@ -1390,31 +1431,32 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
     <div style={{display:"flex",flexDirection:"column",height:"100%",minHeight:0}}>
       {/* ── Header ── */}
       <div style={{
-        padding:scrolled?"8px 16px 0":"12px 16px 0",
+        padding:scrolled?"6px 16px 0":"12px 16px 0",
         borderBottom:`1px solid ${T.border}`,
         background:T.surface,
         flexShrink:0,
-        transition:"padding .2s ease",
+        transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)",
       }}>
-        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:scrolled?4:8}}>
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:scrolled?0:8}}>
           {!isDesktop&&(
             <button onClick={onBack} style={{background:"none",border:"none",cursor:"pointer",padding:3,display:"flex",flexShrink:0}}>
               <Ic n="back" s={18} c={T.text}/>
             </button>
           )}
-          <div style={{flex:1,minWidth:0}}>
+          <div style={{flex:1,minWidth:0,transition:"all .2s ease"}}>
             <div style={{
               fontFamily:"'IBM Plex Sans',sans-serif",
-              fontSize:scrolled?12:14,
+              fontSize:scrolled?11:14,
               fontWeight:600,
               color:T.text,
-              lineHeight:1.3,
+              lineHeight:scrolled?1.6:1.3,
               overflow:"hidden",
               textOverflow:"ellipsis",
               display:"-webkit-box",
               WebkitLineClamp:scrolled?1:2,
               WebkitBoxOrient:"vertical",
-              transition:"font-size .2s ease",
+              transition:"all .2s ease",
+              opacity:scrolled?0.8:1,
             }}>
               {session.title||session.prompt}
             </div>
@@ -1422,21 +1464,31 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
           <Pill status={session.state} small/>
         </div>
 
-        {!scrolled && <Bar pct={pct} status={session.state}/>}
+        <div style={{
+          height:scrolled?0:2, overflow:"hidden", transition:"all .2s ease",
+          marginBottom:scrolled?0:5, opacity:scrolled?0:1
+        }}>
+          <Bar pct={pct} status={session.state}/>
+        </div>
+
         <div style={{
           display:"flex",gap:10,
-          marginTop:scrolled?0:5,
-          marginBottom:scrolled?6:10,
-          fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.muted,flexWrap:"nowrap",alignItems:"center"
+          height:scrolled?0:14,
+          marginTop:0,
+          marginBottom:scrolled?0:10,
+          opacity:scrolled?0:1,
+          overflow:"hidden",
+          fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.muted,flexWrap:"nowrap",alignItems:"center",
+          transition:"all .2s ease",
         }}>
-          {!scrolled && <span>{session.id?.slice(0,10)}</span>}
-          {!scrolled && session.sourceContext?.source&&(
+          <span>{session.id?.slice(0,10)}</span>
+          {session.sourceContext?.source&&(
             <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
               ⎇ {session.sourceContext.githubRepoContext?.startingBranch||"main"}
             </span>
           )}
-          {session.url && !scrolled && <a href={session.url} target="_blank" rel="noopener" style={{color:T.muted,textDecoration:"none",flexShrink:0,fontFamily:"'JetBrains Mono',monospace",fontSize:9}}>WEB↗</a>}
-          {pr && !scrolled && <a href={pr.url} target="_blank" rel="noopener" style={{color:T.blue,textDecoration:"none",flexShrink:0}}>PR↗</a>}
+          {session.url && <a href={session.url} target="_blank" rel="noopener" style={{color:T.muted,textDecoration:"none",flexShrink:0,fontFamily:"'JetBrains Mono',monospace",fontSize:9}}>WEB↗</a>}
+          {pr && <a href={pr.url} target="_blank" rel="noopener" style={{color:T.blue,textDecoration:"none",flexShrink:0}}>PR↗</a>}
 
           <div style={{marginLeft:"auto",display:"flex",gap:12,alignItems:"center"}}>
             {pollInterval > 0 && (
@@ -1448,11 +1500,9 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
             <button onClick={handleRefresh} disabled={busy} title="Refresh activity" style={{background:"none",border:"none",cursor:busy?"default":"pointer",display:"flex",padding:4,opacity:.8,animation:busy?"spin 1s linear infinite":"none"}}>
               <Ic n="refresh" s={14} c={T.text}/>
             </button>
-            {!scrolled && (
-              <button onClick={() => { if(confirm("Delete this session?")) handleDelete(); }} disabled={busy} title="Delete session" style={{background:T.redDim, border:`1px solid ${T.red}30`, borderRadius:4, cursor:"pointer", display:"flex", alignItems:"center", padding:4, transition:"opacity .2s"}}>
-                <Ic n="trash" s={14} c={T.red}/>
-              </button>
-            )}
+            <button onClick={() => { if(confirm("Delete this session?")) handleDelete(); }} disabled={busy} title="Delete session" style={{background:T.redDim, border:`1px solid ${T.red}30`, borderRadius:4, cursor:"pointer", display:"flex", alignItems:"center", padding:4, transition:"opacity .2s"}}>
+              <Ic n="trash" s={14} c={T.red}/>
+            </button>
           </div>
         </div>
 
@@ -1490,10 +1540,12 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
           })}
         </div>
 
-        {summary && !scrolled && (
+        {summary && (
           <div style={{
-            marginBottom:10, padding:"10px 14px", background:T.surfaceHi,
-            border:`1px solid ${T.border}`, borderRadius:6,
+            height:scrolled?0:"auto", overflow:"hidden", opacity:scrolled?0:1,
+            marginBottom:scrolled?0:10, padding:scrolled?0:"10px 14px",
+            background:T.surfaceHi, border:`${scrolled?0:1}px solid ${T.border}`,
+            borderRadius:6, transition:"all .2s ease",
           }}>
             <div style={{
               fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:T.green,
@@ -1506,7 +1558,7 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
           </div>
         )}
 
-        <div style={{display:"flex"}}>
+        <div style={{display:"flex", paddingBottom:scrolled?6:0, transition:"all .2s ease"}}>
           {TABS.map(t=>(
             <button key={t.id} onClick={()=>setTab(t.id)} style={{
               flex:1,padding:"8px 0",background:"none",border:"none",
@@ -1557,32 +1609,40 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
           mediaArtifacts.length===0
           ?<div style={{textAlign:"center",padding:"40px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted}}>No media artifacts</div>
           :<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:12}}>
-            {mediaArtifacts.map((m,i)=>(
-              <button
-                key={i}
-                onClick={() => setActiveMedia(m)}
-                style={{
-                  background:T.surface, border:`1px solid ${T.border}`, borderRadius:8,
-                  overflow:"hidden", cursor:"pointer", padding:0, textAlign:"left",
-                  transition:"transform .15s, border-color .15s",
-                }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = T.green; e.currentTarget.style.transform = "translateY(-2px)"; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.transform = "none"; }}
-              >
-                <div style={{ width:"100%", height:120, background:"#040507", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                  <img src={`data:${m.mimeType};base64,${m.data}`} alt={`artifact-${i}`}
-                    style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
-                </div>
-                <div style={{ padding:"8px 10px" }}>
-                  <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:T.text, fontWeight:700, marginBottom:2 }}>
-                    {m.mimeType.split("/")[1]?.toUpperCase() || "IMAGE"}
+            {mediaArtifacts.map((m,i)=>{
+              const isVideo = (m.mimeType || "").includes("video") || (m.mimeType || "").includes("webm");
+              return (
+                <button
+                  key={i}
+                  onClick={() => setActiveMedia(m)}
+                  style={{
+                    background:T.surface, border:`1px solid ${T.border}`, borderRadius:8,
+                    overflow:"hidden", cursor:"pointer", padding:0, textAlign:"left",
+                    transition:"transform .15s, border-color .15s",
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = T.green; e.currentTarget.style.transform = "translateY(-2px)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.transform = "none"; }}
+                >
+                  <div style={{ width:"100%", height:120, background:"#040507", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                    {isVideo ? (
+                      <video src={`data:${m.mimeType};base64,${m.data}`} muted autoPlay loop playsInline
+                        style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
+                    ) : (
+                      <img src={`data:${m.mimeType};base64,${m.data}`} alt={`artifact-${i}`}
+                        style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
+                    )}
                   </div>
-                  <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:8, color:T.muted }}>
-                    {fmtTime(new Date(m.ts).getTime())}
+                  <div style={{ padding:"8px 10px" }}>
+                    <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:T.text, fontWeight:700, marginBottom:2 }}>
+                      {m.mimeType.split("/")[1]?.toUpperCase() || "IMAGE"}
+                    </div>
+                    <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:8, color:T.muted }}>
+                      {fmtTime(new Date(m.ts).getTime())}
+                    </div>
                   </div>
-                </div>
-              </button>
-            ))}
+                </button>
+              );
+            })}
           </div>
         )}
         <div ref={feedEndRef}/>
@@ -1985,19 +2045,39 @@ const FILTER_LABELS = { AWAITING_PLAN_APPROVAL:"APPROVE", ALL:"ALL" };
 
 const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selectedId, isDesktop, onNew, onNetwork, pollInterval, setPollInterval, sessionLimit, setSessionLimit, countdown, plan, planId, setPlanId, todayCount, customDaily, setCustomDaily }) => {
   const [filter,setFilter] = useState("ALL");
+  const [scrolled,setScrolled] = useState(false);
+
+  const handleScroll = useCallback(e => {
+    const s = e.target.scrollTop > 40;
+    if (s !== scrolled) setScrolled(s);
+  }, [scrolled]);
   const filtered = filter==="ALL" ? sessions : sessions.filter(s=>s.state===filter);
   const active   = sessions.filter(s=>ACTIVE_STATES.has(s.state)).length;
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%",minHeight:0}}>
-      <div style={{padding:"12px 16px 0",background:T.surface,borderBottom:`1px solid ${T.border}`,flexShrink:0}}>
-        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
-          <div style={{width:28,height:28,borderRadius:6,background:T.green,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace",fontSize:15,fontWeight:900,color:"#000",boxShadow:`0 0 12px ${T.green}40`,flexShrink:0}}>J</div>
-          <div style={{minWidth:0}}>
-            <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:12,fontWeight:700,color:T.text}}>JULES</div>
-            <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,color:active>0?T.amber:T.muted}}>
-              {active>0?`⚡ ${active} ACTIVE`:"AGENT CLIENT"}
-            </div>
+      <div style={{
+        padding:scrolled?"8px 16px 0":"12px 16px 0",
+        background:T.surface,
+        borderBottom:`1px solid ${T.border}`,
+        flexShrink:0,
+        transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)",
+      }}>
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:scrolled?0:10}}>
+          <div style={{
+            width:scrolled?20:28,height:scrolled?20:28,borderRadius:6,background:T.green,
+            display:"flex",alignItems:"center",justifyContent:"center",
+            fontFamily:"'JetBrains Mono',monospace",fontSize:scrolled?11:15,fontWeight:900,color:"#000",
+            boxShadow:scrolled?"none":`0 0 12px ${T.green}40`,flexShrink:0,
+            transition:"all .2s ease",
+          }}>J</div>
+          <div style={{minWidth:0, transition:"all .2s ease"}}>
+            <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:scrolled?10:12,fontWeight:700,color:T.text}}>JULES</div>
+            {!scrolled && (
+              <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,color:active>0?T.amber:T.muted}}>
+                {active>0?`⚡ ${active} ACTIVE`:"AGENT CLIENT"}
+              </div>
+            )}
           </div>
           <div style={{marginLeft:"auto",display:"flex",gap:6,alignItems:"center",flexShrink:0}}>
             {isDesktop&&(
@@ -2033,7 +2113,13 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
         </div>
 
         {/* ── Interval picker ── */}
-        <div style={{display:"flex",gap:4,alignItems:"center",marginBottom:6,flexWrap:"nowrap",overflowX:"auto",scrollbarWidth:"none",padding:"4px 2px"}}>
+        <div style={{
+          display:"flex",gap:4,alignItems:"center",
+          height:scrolled?0:22, overflow:"hidden", opacity:scrolled?0:1,
+          marginBottom:scrolled?0:6, flexWrap:"nowrap", overflowX:"auto",
+          scrollbarWidth:"none", padding:scrolled?0:"4px 2px",
+          transition:"all .2s ease",
+        }}>
           <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,color:T.muted,letterSpacing:"0.08em",flexShrink:0,paddingRight:2}}>AUTO</span>
           {POLL_OPTIONS.map(opt => {
             const isAct = opt.ms === pollInterval;
@@ -2051,7 +2137,13 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
         </div>
 
         {/* ── Limit picker ── */}
-        <div style={{display:"flex",gap:4,alignItems:"center",marginBottom:8,flexWrap:"nowrap",overflowX:"auto",scrollbarWidth:"none",padding:"4px 2px"}}>
+        <div style={{
+          display:"flex",gap:4,alignItems:"center",
+          height:scrolled?0:22, overflow:"hidden", opacity:scrolled?0:1,
+          marginBottom:scrolled?0:8, flexWrap:"nowrap", overflowX:"auto",
+          scrollbarWidth:"none", padding:scrolled?0:"4px 2px",
+          transition:"all .2s ease",
+        }}>
           <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,color:T.muted,letterSpacing:"0.08em",flexShrink:0,paddingRight:2}}>LIMIT</span>
           {LIMIT_OPTIONS.map(opt => {
             const isAct = opt.val === sessionLimit;
@@ -2069,7 +2161,11 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
 
         {/* ── Daily quota bar ── */}
         {plan&&(
-          <div style={{marginBottom:8, padding:"4px 2px"}}>
+          <div style={{
+            height:scrolled?0:"auto", overflow:"hidden", opacity:scrolled?0:1,
+            marginBottom:scrolled?0:8, padding:scrolled?0:"4px 2px",
+            transition:"all .2s ease",
+          }}>
             <div style={{display:"flex",justifyContent:"space-between",marginBottom:4,alignItems:"center"}}>
               <div style={{display:"flex",gap:5,alignItems:"center",overflowX:"auto",scrollbarWidth:"none",padding:"4px 0"}}>
                 {PLANS.map(p=>(
@@ -2142,7 +2238,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
         </div>
       </div>
 
-      <div style={{flex:1,overflowY:"auto",padding:"10px 12px",WebkitOverflowScrolling:"touch",minHeight:200}}>
+      <div onScroll={handleScroll} style={{flex:1,overflowY:"auto",padding:"10px 12px",WebkitOverflowScrolling:"touch",minHeight:200}}>
         {refreshing&&sessions.length===0&&(
           <div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted}}>Loading sessions…</div>
         )}
