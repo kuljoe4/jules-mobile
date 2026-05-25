@@ -246,6 +246,16 @@ function loadLimit() {
 }
 function saveLimit(v) { try { localStorage.setItem(LIMIT_KEY,v); } catch {} }
 
+// ─── Layout Mode ──────────────────────────────────────────────────────────────
+const LAYOUT_KEY = "jac_layout";
+const LAYOUT_OPTIONS = [
+  { id:"auto",    label:"AUTO"    },
+  { id:"mobile",  label:"MOBILE"  },
+  { id:"desktop", label:"DESKTOP" },
+];
+function loadLayout() { try { return localStorage.getItem(LAYOUT_KEY)||"auto"; } catch { return "auto"; } }
+function saveLayout(v) { try { localStorage.setItem(LAYOUT_KEY,v); } catch {} }
+
 // ─── Plan limits (from jules.google/docs/usage-limits) ───────────────────────
 const PLAN_KEY = "jac_plan";
 const PLANS = [
@@ -2129,7 +2139,7 @@ const NetworkMonitor = ({ onBack, isDesktop }) => {
 const FILTERS = ["ALL","QUEUED","PLANNING","AWAITING_PLAN_APPROVAL","IN_PROGRESS","COMPLETED","FAILED"];
 const FILTER_LABELS = { AWAITING_PLAN_APPROVAL:"APPROVE", ALL:"ALL" };
 
-const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selectedId, isDesktop, onNew, onNetwork, pollInterval, setPollInterval, sessionLimit, setSessionLimit, countdown, plan, planId, setPlanId, todayCount, customDaily, setCustomDaily }) => {
+const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selectedId, isDesktop, onNew, onNetwork, pollInterval, setPollInterval, sessionLimit, setSessionLimit, layoutMode, setLayoutMode, countdown, plan, planId, setPlanId, todayCount, customDaily, setCustomDaily }) => {
   const [filter,setFilter] = useState("ALL");
   const [scrolled,setScrolled] = useState(false);
 
@@ -2226,7 +2236,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
         <div style={{
           display:"flex",gap:4,alignItems:"center",
           height:scrolled?0:22, overflow:"hidden", opacity:scrolled?0:1,
-          marginBottom:scrolled?0:8, flexWrap:"nowrap", overflowX:"auto",
+          marginBottom:scrolled?0:4, flexWrap:"nowrap", overflowX:"auto",
           scrollbarWidth:"none", padding:scrolled?0:"4px 2px",
           transition:"all .2s ease",
         }}>
@@ -2239,6 +2249,29 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
                 background:isAct?T.greenDim:"transparent",
                 outline:`1px solid ${isAct?T.green+"60":T.border}`,
                 color:isAct?T.green:T.muted,fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:isAct?700:400,
+                letterSpacing:"0.05em",cursor:"pointer",transition:"all .12s",
+              }}>{opt.label}</button>
+            );
+          })}
+        </div>
+
+        {/* ── Layout picker ── */}
+        <div style={{
+          display:"flex",gap:4,alignItems:"center",
+          height:scrolled?0:22, overflow:"hidden", opacity:scrolled?0:1,
+          marginBottom:scrolled?0:8, flexWrap:"nowrap", overflowX:"auto",
+          scrollbarWidth:"none", padding:scrolled?0:"4px 2px",
+          transition:"all .2s ease",
+        }}>
+          <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,color:T.muted,letterSpacing:"0.08em",flexShrink:0,paddingRight:2}}>VIEW</span>
+          {LAYOUT_OPTIONS.map(opt => {
+            const isAct = opt.id === layoutMode;
+            return (
+              <button key={opt.id} onClick={()=>setLayoutMode(opt.id)} style={{
+                flexShrink:0,padding:"3px 9px",borderRadius:20,border:"none",
+                background:isAct?T.blueDim:"transparent",
+                outline:`1px solid ${isAct?T.blue+"60":T.border}`,
+                color:isAct?T.blue:T.muted,fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:isAct?700:400,
                 letterSpacing:"0.05em",cursor:"pointer",transition:"all .12s",
               }}>{opt.label}</button>
             );
@@ -2351,6 +2384,7 @@ function JulesClient() {
   const [pollInterval,setPollIntervalRaw] = useState(loadPollMs);
   const [actPollInterval,setActPollIntervalRaw] = useState(loadActPollMs);
   const [sessionLimit,setSessionLimitRaw] = useState(loadLimit);
+  const [layoutMode,setLayoutModeRaw]     = useState(loadLayout);
   const [countdown,setCountdown]   = useState(0);
   const [planId,setPlanIdRaw]      = useState(loadPlan);
   const [customDaily,setCustomDailyRaw] = useState(loadCustomDaily);
@@ -2358,7 +2392,13 @@ function JulesClient() {
   const pollRef      = useRef(null);
   const countdownRef = useRef(null);
   const nextRefAt    = useRef(0);
-  const isDesktop    = useIsDesktop();
+
+  const windowIsDesktop = useIsDesktop();
+  const isDesktop = useMemo(() => {
+    if (layoutMode === "mobile") return false;
+    if (layoutMode === "desktop") return true;
+    return windowIsDesktop;
+  }, [layoutMode, windowIsDesktop]);
 
   const setPlanId = useCallback(id => { savePlan(id); setPlanIdRaw(id); }, []);
   const setCustomDaily = useCallback(v => { saveCustomDaily(v); setCustomDailyRaw(v); }, []);
@@ -2384,6 +2424,11 @@ function JulesClient() {
   const setSessionLimit = useCallback(v => {
     saveLimit(v);
     setSessionLimitRaw(v);
+  }, []);
+
+  const setLayoutMode = useCallback(v => {
+    saveLayout(v);
+    setLayoutModeRaw(v);
   }, []);
 
   const fetchSessions = useCallback(async (quiet=false) => {
@@ -2482,6 +2527,7 @@ function JulesClient() {
             isDesktop onNew={()=>setDesktop("new")} onNetwork={()=>setDesktop("network")}
             pollInterval={pollInterval} setPollInterval={setPollInterval}
             sessionLimit={sessionLimit} setSessionLimit={setSessionLimit}
+            layoutMode={layoutMode} setLayoutMode={setLayoutMode}
             countdown={countdown}
             plan={plan} planId={planId} setPlanId={setPlanId} todayCount={todayCount}
             customDaily={customDaily} setCustomDaily={setCustomDaily}
@@ -2523,6 +2569,7 @@ function JulesClient() {
             refreshing={refreshing} netSnap={netSnap} selectedId={null} isDesktop={false}
             pollInterval={pollInterval} setPollInterval={setPollInterval}
             sessionLimit={sessionLimit} setSessionLimit={setSessionLimit}
+            layoutMode={layoutMode} setLayoutMode={setLayoutMode}
             countdown={countdown}
             plan={plan} planId={planId} setPlanId={setPlanId} todayCount={todayCount}
             customDaily={customDaily} setCustomDaily={setCustomDaily}/>
