@@ -218,12 +218,18 @@ const POLL_OPTIONS = [
   { label:"10m",  ms:600000 },
 ];
 const POLL_KEY        = "jac_poll_ms";
+const ACT_POLL_KEY    = "jac_act_poll_ms";
 const DEFAULT_POLL_MS = 30000;
 
 function loadPollMs() {
   try { const v=parseInt(localStorage.getItem(POLL_KEY)); return POLL_OPTIONS.some(o=>o.ms===v)?v:DEFAULT_POLL_MS; } catch { return DEFAULT_POLL_MS; }
 }
 function savePollMs(ms) { try { localStorage.setItem(POLL_KEY,ms); } catch {} }
+
+function loadActPollMs() {
+  try { const v=parseInt(localStorage.getItem(ACT_POLL_KEY)); return POLL_OPTIONS.some(o=>o.ms===v)?v:DEFAULT_POLL_MS; } catch { return DEFAULT_POLL_MS; }
+}
+function saveActPollMs(ms) { try { localStorage.setItem(ACT_POLL_KEY,ms); } catch {} }
 
 // ─── Session list limits ──────────────────────────────────────────────────────
 const LIMIT_OPTIONS = [
@@ -246,9 +252,14 @@ const PLANS = [
   { id:"free",  label:"Free",  daily:15,  concurrent:3,  model:"Gemini 2.5 Pro" },
   { id:"pro",   label:"Pro",   daily:100, concurrent:15, model:"Gemini 3 Pro" },
   { id:"ultra", label:"Ultra", daily:300, concurrent:60, model:"Gemini 3 Pro (priority)" },
+  { id:"custom",label:"Custom",daily:0,   concurrent:0,  model:"Custom Config" },
 ];
+const CUSTOM_DAILY_KEY = "jac_custom_daily";
 function loadPlan() { try { return localStorage.getItem(PLAN_KEY)||"free"; } catch { return "free"; } }
 function savePlan(id) { try { localStorage.setItem(PLAN_KEY,id); } catch {} }
+
+function loadCustomDaily() { try { return parseInt(localStorage.getItem(CUSTOM_DAILY_KEY))||50; } catch { return 50; } }
+function saveCustomDaily(v) { try { localStorage.setItem(CUSTOM_DAILY_KEY,v); } catch {} }
 
 // ─── Daily session counter ────────────────────────────────────────────────────
 const TODAY_KEY = () => `jac_today_${new Date().toISOString().slice(0,10)}`;
@@ -509,7 +520,7 @@ const ChatBubble = memo(({ act, type }) => {
   return (
     <div style={{
       display:"flex",flexDirection:isUser?"row-reverse":"row",
-      alignItems:"flex-end",gap:8,marginBottom:14,
+      alignItems:"flex-end",gap:10,marginBottom:20,
       padding:isUser?"0 0 0 48px":"0 48px 0 0",
     }}>
       {/* Avatar */}
@@ -554,6 +565,7 @@ const ChatBubble = memo(({ act, type }) => {
 // ─── Timeline Event (non-message activities) ──────────────────────────────────
 const TimelineEvent = memo(({ act }) => {
   const type = getActType(act);
+  const isMajor = ["sessionCompleted", "sessionFailed", "planGenerated", "planApproved"].includes(type);
   const IC_MAP = {
     planGenerated:{n:"plan",c:T.purple},
     planApproved:{n:"approve",c:T.green},
@@ -608,7 +620,12 @@ const TimelineEvent = memo(({ act }) => {
   }
 
   return (
-    <div style={{display:"flex",gap:8,marginBottom:8,alignItems:"stretch"}}>
+    <div style={{
+      display:"flex",gap:12,marginBottom:16,alignItems:"stretch",
+      padding:isMajor?"12px":"4px 12px", borderRadius:8,
+      background:isMajor?T.surfaceHi:"transparent",
+      border:isMajor?`1px solid ${T.border}`:"none",
+    }}>
       <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:0,flexShrink:0,width:18}}>
         <div style={{width:18,height:18,borderRadius:4,background:`${ic.c}15`,border:`1px solid ${ic.c}30`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
           <Ic n={ic.n} s={10} c={ic.c}/>
@@ -993,7 +1010,7 @@ const SessionCard = memo(({ s, onPress, isSelected }) => {
 });
 
 // ─── Session Detail ───────────────────────────────────────────────────────────
-const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessionUpdate, isDesktop, pollInterval }) => {
+const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessionUpdate, isDesktop, pollInterval, setPollInterval }) => {
   const [session,setSession]     = useState(initSession);
   const [activities,setActivities] = useState([]);
   const [showAll,setShowAll]     = useState(false);
@@ -1221,12 +1238,12 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
           )}
           {session.url&&<a href={session.url} target="_blank" rel="noopener" style={{color:T.muted,textDecoration:"none",flexShrink:0,fontFamily:"'JetBrains Mono',monospace",fontSize:9}}>WEB↗</a>}
           {pr&&<a href={pr.url} target="_blank" rel="noopener" style={{color:T.blue,textDecoration:"none",flexShrink:0}}>PR↗</a>}
-          <div style={{marginLeft:"auto",display:"flex",gap:10,alignItems:"center"}}>
-            <button onClick={handleRefresh} disabled={busy} style={{background:"none",border:"none",cursor:busy?"default":"pointer",display:"flex",padding:2,opacity:.6,animation:busy?"spin 1s linear infinite":"none"}}>
-              <Ic n="refresh" s={13} c={T.muted}/>
+          <div style={{marginLeft:"auto",display:"flex",gap:16,alignItems:"center"}}>
+            <button onClick={handleRefresh} disabled={busy} title="Refresh activity" style={{background:"none",border:"none",cursor:busy?"default":"pointer",display:"flex",padding:4,opacity:.8,animation:busy?"spin 1s linear infinite":"none"}}>
+              <Ic n="refresh" s={15} c={T.text}/>
             </button>
-            <button onClick={handleDelete} disabled={busy} style={{background:"none",border:"none",cursor:"pointer",display:"flex",alignItems:"center",padding:2,opacity:.6}}>
-              <Ic n="trash" s={13} c={T.red}/>
+            <button onClick={() => { if(confirm("Delete this session?")) handleDelete(); }} disabled={busy} title="Delete session" style={{background:T.redDim, border:`1px solid ${T.red}30`, borderRadius:4, cursor:"pointer", display:"flex", alignItems:"center", padding:4, transition:"opacity .2s"}}>
+              <Ic n="trash" s={15} c={T.red}/>
             </button>
           </div>
         </div>
@@ -1246,6 +1263,24 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
         )}
 
         {err&&<div style={{marginBottom:8,padding:"6px 10px",borderRadius:4,background:T.redDim,border:`1px solid ${T.red}40`,fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.red}}>{err}</div>}
+
+        {/* ── Interval picker ── */}
+        <div style={{display:"flex",gap:4,alignItems:"center",marginBottom:10,flexWrap:"nowrap",overflowX:"auto",scrollbarWidth:"none",padding:"0 2px"}}>
+          <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,color:T.muted,letterSpacing:"0.08em",flexShrink:0,paddingRight:2}}>AUTO</span>
+          {POLL_OPTIONS.map(opt => {
+            const isAct = opt.ms === pollInterval;
+            const c = isAct ? (opt.ms===0 ? T.red : T.green) : T.muted;
+            return (
+              <button key={opt.label} onClick={()=>setPollInterval(opt.ms)} style={{
+                flexShrink:0,padding:"3px 9px",borderRadius:20,border:"none",
+                background:isAct?(opt.ms===0?T.redDim:T.greenDim):"transparent",
+                outline:`1px solid ${isAct?(opt.ms===0?T.red+"60":T.green+"60"):T.border}`,
+                color:c,fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:isAct?700:400,
+                letterSpacing:"0.05em",cursor:"pointer",transition:"all .12s",
+              }}>{opt.label}</button>
+            );
+          })}
+        </div>
 
         {summary && (
           <div style={{
@@ -1277,7 +1312,7 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
       </div>
 
       {/* ── Content ── */}
-      <div style={{flex:1,overflowY:"auto",padding:"14px 16px",WebkitOverflowScrolling:"touch",minHeight:0}}>
+      <div style={{flex:1,overflowY:"auto",padding:"14px 16px",WebkitOverflowScrolling:"touch",minHeight:200}}>
         {tab==="activity"&&(
           activities.length===0
           ?<div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted}}>
@@ -1706,7 +1741,7 @@ const NetworkMonitor = ({ onBack, isDesktop }) => {
 const FILTERS = ["ALL","QUEUED","PLANNING","AWAITING_PLAN_APPROVAL","IN_PROGRESS","COMPLETED","FAILED"];
 const FILTER_LABELS = { AWAITING_PLAN_APPROVAL:"APPROVE", ALL:"ALL" };
 
-const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selectedId, isDesktop, onNew, onNetwork, pollInterval, setPollInterval, sessionLimit, setSessionLimit, countdown, plan, planId, setPlanId, todayCount }) => {
+const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selectedId, isDesktop, onNew, onNetwork, pollInterval, setPollInterval, sessionLimit, setSessionLimit, countdown, plan, planId, setPlanId, todayCount, customDaily, setCustomDaily }) => {
   const [filter,setFilter] = useState("ALL");
   const filtered = filter==="ALL" ? sessions : sessions.filter(s=>s.state===filter);
   const active   = sessions.filter(s=>ACTIVE_STATES.has(s.state)).length;
@@ -1756,7 +1791,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
         </div>
 
         {/* ── Interval picker ── */}
-        <div style={{display:"flex",gap:4,alignItems:"center",marginBottom:6,flexWrap:"nowrap",overflowX:"auto",scrollbarWidth:"none"}}>
+        <div style={{display:"flex",gap:4,alignItems:"center",marginBottom:6,flexWrap:"nowrap",overflowX:"auto",scrollbarWidth:"none",padding:"0 2px"}}>
           <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,color:T.muted,letterSpacing:"0.08em",flexShrink:0,paddingRight:2}}>AUTO</span>
           {POLL_OPTIONS.map(opt => {
             const isAct = opt.ms === pollInterval;
@@ -1774,7 +1809,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
         </div>
 
         {/* ── Limit picker ── */}
-        <div style={{display:"flex",gap:4,alignItems:"center",marginBottom:8,flexWrap:"nowrap",overflowX:"auto",scrollbarWidth:"none"}}>
+        <div style={{display:"flex",gap:4,alignItems:"center",marginBottom:8,flexWrap:"nowrap",overflowX:"auto",scrollbarWidth:"none",padding:"0 2px"}}>
           <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,color:T.muted,letterSpacing:"0.08em",flexShrink:0,paddingRight:2}}>LIMIT</span>
           {LIMIT_OPTIONS.map(opt => {
             const isAct = opt.val === sessionLimit;
@@ -1792,12 +1827,12 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
 
         {/* ── Daily quota bar ── */}
         {plan&&(
-          <div style={{marginBottom:8}}>
+          <div style={{marginBottom:8, padding:"0 2px"}}>
             <div style={{display:"flex",justifyContent:"space-between",marginBottom:4,alignItems:"center"}}>
-              <div style={{display:"flex",gap:5,alignItems:"center"}}>
+              <div style={{display:"flex",gap:5,alignItems:"center",overflowX:"auto",scrollbarWidth:"none",paddingBottom:2}}>
                 {PLANS.map(p=>(
                   <button key={p.id} onClick={()=>setPlanId&&setPlanId(p.id)} style={{
-                    padding:"2px 8px",borderRadius:20,border:"none",cursor:"pointer",
+                    flexShrink:0,padding:"2px 8px",borderRadius:20,border:"none",cursor:"pointer",
                     background:p.id===planId?T.greenDim:"transparent",
                     outline:`1px solid ${p.id===planId?T.green+"60":T.border}`,
                     color:p.id===planId?T.green:T.muted,
@@ -1806,10 +1841,25 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
                   }}>{p.label}</button>
                 ))}
               </div>
-              <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:todayCount>=plan.daily?T.red:T.muted}}>
+              <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:todayCount>=plan.daily?T.red:T.muted,flexShrink:0,marginLeft:8}}>
                 {todayCount}/{plan.daily} <span style={{color:T.dim}}>today</span>
               </span>
             </div>
+            {planId==="custom" && (
+              <div style={{display:"flex", alignItems:"center", gap:6, marginBottom:6}}>
+                <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:8, color:T.muted}}>DAILY LIMIT:</span>
+                <input
+                  type="number"
+                  value={customDaily}
+                  onChange={e=>setCustomDaily(Math.max(1, parseInt(e.target.value)||1))}
+                  style={{
+                    background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:4,
+                    padding:"2px 6px", color:T.green, fontFamily:"'JetBrains Mono',monospace",
+                    fontSize:9, width:50, outline:"none",
+                  }}
+                />
+              </div>
+            )}
             <div style={{height:3,background:T.border,borderRadius:2,overflow:"hidden"}}>
               <div style={{
                 height:"100%",borderRadius:2,transition:"width .4s ease",transform:"translateZ(0)",
@@ -1826,7 +1876,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
           </div>
         )}
         {/* ── Status filter pills ── */}
-        <div style={{overflowX:"auto",paddingBottom:10,scrollbarWidth:"none",WebkitOverflowScrolling:"touch"}}>
+        <div style={{overflowX:"auto",padding:"0 2px 10px",scrollbarWidth:"none",WebkitOverflowScrolling:"touch"}}>
           <div style={{display:"flex",gap:5,minWidth:"max-content"}}>
             {FILTERS.map(f => {
               const cnt = f==="ALL" ? sessions.length : sessions.filter(s=>s.state===f).length;
@@ -1850,7 +1900,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
         </div>
       </div>
 
-      <div style={{flex:1,overflowY:"auto",padding:"10px 12px",WebkitOverflowScrolling:"touch",minHeight:0}}>
+      <div style={{flex:1,overflowY:"auto",padding:"10px 12px",WebkitOverflowScrolling:"touch",minHeight:200}}>
         {refreshing&&sessions.length===0&&(
           <div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted}}>Loading sessions…</div>
         )}
@@ -1867,7 +1917,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
 
 // ─── Main App ─────────────────────────────────────────────────────────────────
 function JulesClient() {
-  const [apiKey,setApiKey]     = useState(() => { try { return sessionStorage.getItem("jac_key")||""; } catch { return ""; } });
+  const [apiKey,setApiKey]     = useState(() => { try { return localStorage.getItem("jac_key")||""; } catch { return ""; } });
   const [sessions,setSessions] = useState([]);
   const [selected,setSelected] = useState(null);
   const [mobileScreen,setMobile]   = useState("list");
@@ -1875,9 +1925,11 @@ function JulesClient() {
   const [refreshing,setRefreshing] = useState(false);
   const [netSnap,setNetSnap]       = useState(NET.snapshot());
   const [pollInterval,setPollIntervalRaw] = useState(loadPollMs);
+  const [actPollInterval,setActPollIntervalRaw] = useState(loadActPollMs);
   const [sessionLimit,setSessionLimitRaw] = useState(loadLimit);
   const [countdown,setCountdown]   = useState(0);
   const [planId,setPlanIdRaw]      = useState(loadPlan);
+  const [customDaily,setCustomDailyRaw] = useState(loadCustomDaily);
   const [todayCount,setTodayCount] = useState(loadTodayCount);
   const pollRef      = useRef(null);
   const countdownRef = useRef(null);
@@ -1885,7 +1937,12 @@ function JulesClient() {
   const isDesktop    = useIsDesktop();
 
   const setPlanId = useCallback(id => { savePlan(id); setPlanIdRaw(id); }, []);
-  const plan = useMemo(() => PLANS.find(p=>p.id===planId)||PLANS[0], [planId]);
+  const setCustomDaily = useCallback(v => { saveCustomDaily(v); setCustomDailyRaw(v); }, []);
+  const plan = useMemo(() => {
+    const p = PLANS.find(p=>p.id===planId)||PLANS[0];
+    if (p.id === "custom") return { ...p, daily: customDaily };
+    return p;
+  }, [planId, customDaily]);
 
   useEffect(() => NET.subscribe(s=>setNetSnap(s)), []);
   useEffect(() => { pruneOldKeys(); }, []);
@@ -1893,6 +1950,11 @@ function JulesClient() {
   const setPollInterval = useCallback(ms => {
     savePollMs(ms);
     setPollIntervalRaw(ms);
+  }, []);
+
+  const setActPollInterval = useCallback(ms => {
+    saveActPollMs(ms);
+    setActPollIntervalRaw(ms);
   }, []);
 
   const setSessionLimit = useCallback(v => {
@@ -1972,7 +2034,7 @@ function JulesClient() {
   }, [isDesktop]);
 
   const saveKey = k => {
-    try { sessionStorage.setItem("jac_key", k); } catch {}
+    try { localStorage.setItem("jac_key", k); } catch {}
     setApiKey(k);
   };
 
@@ -1998,6 +2060,7 @@ function JulesClient() {
             sessionLimit={sessionLimit} setSessionLimit={setSessionLimit}
             countdown={countdown}
             plan={plan} planId={planId} setPlanId={setPlanId} todayCount={todayCount}
+            customDaily={customDaily} setCustomDaily={setCustomDaily}
           />
         </div>
         {/* Main panel */}
@@ -2013,7 +2076,8 @@ function JulesClient() {
           {desktopView==="detail"&&selected&&(
             <SessionDetail key={selected.id} session={selected} apiKey={apiKey}
               onBack={()=>setDesktop("empty")} onDelete={handleDelete}
-              onSessionUpdate={handleSessionUpdate} isDesktop pollInterval={pollInterval}/>
+              onSessionUpdate={handleSessionUpdate} isDesktop
+              pollInterval={actPollInterval} setPollInterval={setActPollInterval}/>
           )}
           {desktopView==="new"&&(
             <NewSession apiKey={apiKey} onBack={()=>setDesktop("empty")} onCreate={handleCreate} isDesktop plan={plan} todayCount={todayCount}/>
@@ -2036,12 +2100,14 @@ function JulesClient() {
             pollInterval={pollInterval} setPollInterval={setPollInterval}
             sessionLimit={sessionLimit} setSessionLimit={setSessionLimit}
             countdown={countdown}
-            plan={plan} planId={planId} setPlanId={setPlanId} todayCount={todayCount}/>
+            plan={plan} planId={planId} setPlanId={setPlanId} todayCount={todayCount}
+            customDaily={customDaily} setCustomDaily={setCustomDaily}/>
         )}
         {mobileScreen==="detail"&&selected&&(
           <SessionDetail key={selected.id} session={selected} apiKey={apiKey}
             onBack={()=>{ setMobile("list"); fetchSessions(true); }}
-            onDelete={handleDelete} onSessionUpdate={handleSessionUpdate} isDesktop={false} pollInterval={pollInterval}/>
+            onDelete={handleDelete} onSessionUpdate={handleSessionUpdate} isDesktop={false}
+            pollInterval={actPollInterval} setPollInterval={setActPollInterval}/>
         )}
         {mobileScreen==="new"&&(
           <NewSession apiKey={apiKey} onBack={()=>setMobile("list")} onCreate={s=>{ setSessions(prev=>[s,...prev]); incTodayCount(); setTodayCount(loadTodayCount()); setMobile("list"); }} isDesktop={false} plan={plan} todayCount={todayCount}/>
