@@ -11,9 +11,50 @@
     <meta name="application-name" content="Jules Agent">
     <meta name="description" content="Jules AI coding agent client — monitor sessions, review plans, send messages">
     <title>Jules Agent</title>
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- DNS preconnect for CDN resources -->
+    <link rel="preconnect" href="https://unpkg.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <!-- Fonts early so they don't cause FOUT -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap">
+    <!-- Critical inline styles for instant splash render (no JS needed) -->
+    <style>
+      *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+      html,body{height:100%;overflow:hidden;background:#07090c;}
+      #splash{
+        position:fixed;inset:0;z-index:9999;background:#07090c;
+        display:flex;flex-direction:column;align-items:center;justify-content:center;
+        gap:0;font-family:'JetBrains Mono',monospace;
+        transition:opacity .3s ease, visibility .3s ease;
+      }
+      #splash.hidden{opacity:0;visibility:hidden;pointer-events:none;}
+      #splash-logo{
+        width:60px;height:60px;border-radius:14px;background:#00e87a;
+        display:flex;align-items:center;justify-content:center;
+        font-size:34px;font-weight:900;color:#000;
+        box-shadow:0 0 40px rgba(0,232,122,.35);
+        margin-bottom:22px;
+      }
+      #splash-title{font-size:13px;font-weight:700;color:#c5d4e8;letter-spacing:.06em;margin-bottom:6px;}
+      #splash-sub{font-size:10px;color:#4a5e76;letter-spacing:.05em;margin-bottom:28px;}
+      #splash-bar-wrap{width:120px;height:2px;background:#1e2d3d;border-radius:2px;overflow:hidden;}
+      #splash-bar{
+        height:100%;width:0%;background:#00e87a;border-radius:2px;
+        box-shadow:0 0 6px rgba(0,232,122,.6);
+        animation:splash-load 2.4s cubic-bezier(.4,0,.2,1) forwards;
+      }
+      #splash-hint{margin-top:14px;font-size:10px;font-weight:700;color:#4a5e76;letter-spacing:.07em;}
+      #splash-step{margin-top:5px;font-size:9px;color:#2a3d52;letter-spacing:.06em;min-height:13px;transition:opacity .2s;}
+      @keyframes splash-load{
+        0%  {width:0%}
+        30% {width:35%}
+        60% {width:62%}
+        85% {width:80%}
+        100%{width:92%}   /* intentionally stops before 100 — React completes it */
+      }
+      /* Skeleton shimmer for list (shown inside #root before React paints) */
+      @keyframes shimmer{to{background-position:200% center;}}
+    </style>
     <script>
     // ── PWA Bootstrap ──────────────────────────────────────────────────────────
     // Chrome PWA install requires:
@@ -106,8 +147,60 @@
     </script>
 </head>
 <body style="margin:0;background:#07090c;height:100%;overflow:hidden;">
+
+<!-- ── Instant splash — renders before ANY JS loads ─────────────────────── -->
+<div id="splash">
+  <div id="splash-logo">J</div>
+  <div id="splash-title">JULES AGENT</div>
+  <div id="splash-sub">AI CODING SESSIONS</div>
+  <div id="splash-bar-wrap"><div id="splash-bar"></div></div>
+  <div id="splash-hint">INITIALISING…</div>
+  <div id="splash-step"></div>
+</div>
+
 <div id="root"></div>
+
+<!-- ── Progress tracker — updates splash as each dep loads ─────────────── -->
+<script>
+(function(){
+  var hint  = document.getElementById("splash-hint");
+  var step  = document.getElementById("splash-step");
+  var bar   = document.getElementById("splash-bar");
+  var t0    = Date.now();
+
+  function setMsg(h, s, pct) {
+    if (hint) hint.textContent = h;
+    if (step) step.textContent = s;
+    if (bar && pct !== undefined) {
+      bar.style.animation = "none";
+      bar.style.transition = "width .3s cubic-bezier(.4,0,.2,1)";
+      bar.style.width = pct + "%";
+    }
+  }
+  function elapsed() { return ((Date.now()-t0)/1000).toFixed(1)+"s"; }
+
+  // Expose for inline onload handlers below
+  window.__splashMsg = setMsg;
+  window.__splashElapsed = elapsed;
+
+  setMsg("LOADING REACT…", "core library · " + elapsed(), 8);
+})();
+</script>
+
+<!-- Scripts deferred to end of body so splash paints first -->
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"
+  onload="__splashMsg('LOADING RENDERER…','react-dom · '+__splashElapsed(),28)"
+  onerror="__splashMsg('CDN ERROR','react failed to load — check connection',0)"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"
+  onload="__splashMsg('LOADING COMPILER…','babel standalone · '+__splashElapsed(),50)"
+  onerror="__splashMsg('CDN ERROR','react-dom failed to load',0)"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"
+  onload="__splashMsg('COMPILING UI…','transforming jsx · '+__splashElapsed(),72)"
+  onerror="__splashMsg('CDN ERROR','babel failed to load',0)"></script>
 <script type="text/babel">
+// Signal that Babel compilation is done and React is about to mount
+if (window.__splashMsg) __splashMsg("MOUNTING APP…", "building component tree · " + __splashElapsed(), 88);
+
 const { useState, useEffect, useRef, useCallback, useMemo, memo } = React;
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -1240,17 +1333,35 @@ function clearDraft() {
 
 const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) => {
   const draft = useMemo(() => loadDraft(), []);
-  const [sources,setSources]   = useState([]);
-  const [loadingSrc,setLoadSrc]= useState(true);
-  const [source,setSource]     = useState(draft?.source ?? "");
-  const [branch,setBranch]     = useState(draft?.branch ?? "main");
-  const [prompt,setPrompt]     = useState(draft?.prompt ?? "");
-  const [title,setTitle]       = useState(draft?.title ?? "");
-  const [autoMode,setAutoMode] = useState(draft?.autoMode ?? true);
-  const [reqApproval,setReqApp]= useState(draft?.reqApproval ?? false);
-  const [submitting,setSub]    = useState(false);
-  const [err,setErr]           = useState(null);
+  const [sources,setSources]       = useState([]);
+  const [loadingSrc,setLoadSrc]    = useState(true);
+  const [source,setSource]         = useState(draft?.source ?? "");
+  const [branch,setBranch]         = useState(draft?.branch ?? "");
+  const [branches,setBranches]     = useState([]);   // [{displayName}] from Jules API
+  const [defaultBranch,setDefault] = useState("");   // e.g. "main"
+  const [prompt,setPrompt]         = useState(draft?.prompt ?? "");
+  const [title,setTitle]           = useState(draft?.title ?? "");
+  const [autoMode,setAutoMode]     = useState(draft?.autoMode ?? true);
+  const [reqApproval,setReqApp]    = useState(draft?.reqApproval ?? false);
+  const [submitting,setSub]        = useState(false);
+  const [err,setErr]               = useState(null);
   const [savedFlash,setSavedFlash] = useState(false);
+
+  // ── Derive branches whenever selected source changes ─────────────────────
+  // Jules API returns branches[] + defaultBranch inline on each source object
+  const srcObj = useMemo(() => sources.find(s => s.name === source) || null, [sources, source]);
+
+  useEffect(() => {
+    if (!srcObj) { setBranches([]); setDefault(""); return; }
+    const repo = srcObj.githubRepo;
+    if (!repo) { setBranches([]); setDefault(""); return; }
+    const bs   = (repo.branches || []).map(b => b.displayName).filter(Boolean);
+    const def  = repo.defaultBranch?.displayName || bs[0] || "main";
+    setBranches(bs);
+    setDefault(def);
+    // Only auto-set branch if we don't have a saved draft branch for this source
+    if (!draft?.branch || draft?.source !== source) setBranch(def);
+  }, [srcObj, source]);
 
   // Persist on every change (debounced 400ms)
   const draftRef = useRef(null);
@@ -1277,7 +1388,7 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
 
   const handleClearDraft = () => {
     clearDraft();
-    setSource(""); setBranch("main"); setPrompt(""); setTitle("");
+    setSource(""); setBranch(""); setPrompt(""); setTitle("");
     setAutoMode(true); setReqApp(false);
     setSavedFlash(true);
     setTimeout(() => setSavedFlash(false), 1500);
@@ -1344,7 +1455,51 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
 
           {source&&(
             <Field label="STARTING BRANCH">
-              <input value={branch} onChange={e=>setBranch(e.target.value)} placeholder="main" style={inputSt}/>
+              {branches.length > 0 ? (
+                <div>
+                  <select
+                    value={branch}
+                    onChange={e => setBranch(e.target.value)}
+                    style={{...inputSt, cursor:"pointer"}}
+                  >
+                    {branches.map(b => (
+                      <option key={b} value={b}>
+                        {b}{b === defaultBranch ? "  ★ default" : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <div style={{
+                    marginTop:5, display:"flex", gap:6, alignItems:"center",
+                    fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:T.muted,
+                  }}>
+                    <span>{branches.length} branch{branches.length!==1?"es":""} · default: </span>
+                    <span style={{color:T.green}}>{defaultBranch}</span>
+                    {branch !== defaultBranch && (
+                      <button onClick={()=>setBranch(defaultBranch)} style={{
+                        marginLeft:4, padding:"1px 7px", borderRadius:3,
+                        background:"transparent", border:`1px solid ${T.border}`,
+                        color:T.muted, cursor:"pointer",
+                        fontFamily:"'JetBrains Mono',monospace", fontSize:8,
+                      }}>reset</button>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <input
+                    value={branch}
+                    onChange={e=>setBranch(e.target.value)}
+                    placeholder={defaultBranch || "main"}
+                    style={inputSt}
+                  />
+                  <div style={{
+                    marginTop:5, fontFamily:"'JetBrains Mono',monospace",
+                    fontSize:9, color:T.muted,
+                  }}>
+                    {loadingSrc ? "Loading branches…" : "No branches in API response — type manually"}
+                  </div>
+                </div>
+              )}
             </Field>
           )}
 
@@ -1802,6 +1957,19 @@ function JulesClient() {
 
 // ─── Shell ────────────────────────────────────────────────────────────────────
 function Shell({ children, desktop=false }) {
+  // Dismiss the pre-React splash screen on first paint
+  useEffect(() => {
+    const splash = document.getElementById("splash");
+    if (!splash) return;
+    // Fast-complete the progress bar then fade out
+    const bar = document.getElementById("splash-bar");
+    if (bar) { bar.style.animation = "none"; bar.style.width = "100%"; bar.style.transition = "width .18s ease"; }
+    const hint = document.getElementById("splash-hint");
+    if (hint) hint.textContent = "READY";
+    const t = setTimeout(() => { splash.classList.add("hidden"); }, 180);
+    return () => clearTimeout(t);
+  }, []);
+
   return (
     <div style={{
       width:"100%",background:T.bg,display:"flex",isolation:"isolate",
@@ -1812,9 +1980,6 @@ function Shell({ children, desktop=false }) {
       ),
     }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
-        *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
-        html,body{height:100%;overflow:hidden;background:#07090c;}
         ::-webkit-scrollbar{width:3px;height:3px;}
         ::-webkit-scrollbar-thumb{background:${T.dim};border-radius:3px;}
         ::-webkit-scrollbar-track{background:transparent;}
