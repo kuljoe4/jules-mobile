@@ -1173,7 +1173,11 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
   const [busy,setBusy]           = useState(false);
   const [err,setErr]             = useState(null);
   const [activeMedia,setActiveMedia] = useState(null);
+  const [countdown,setCountdown] = useState(0);
+  const [scrolled,setScrolled]   = useState(false);
   const pollRef      = useRef(null);
+  const countdownRef = useRef(null);
+  const nextRefAt    = useRef(0);
   const txtRef       = useRef(null);
   const feedEndRef   = useRef(null);
   const actMapRef    = useRef(new Map());      // id → activity (dedup)
@@ -1232,14 +1236,26 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
   // Respect global poll interval (0 = manual only)
   // Subsequent polls use createTime cursor — only fetches NEW activities
   useEffect(() => {
-    clearInterval(pollRef.current);
-    if (!pollInterval) return;
-    pollRef.current = setInterval(() => {
-      loadSession();
-      loadActivities(lastTsRef.current); // incremental — only new since last fetch
-    }, pollInterval);
-    return () => clearInterval(pollRef.current);
-  }, [session.state, pollInterval, loadActivities, loadSession]);
+    clearTimeout(pollRef.current);
+    clearInterval(countdownRef.current);
+    if (!pollInterval) { setCountdown(0); return; }
+
+    const schedule = () => {
+      nextRefAt.current = Date.now() + pollInterval;
+      setCountdown(Math.ceil(pollInterval / 1000));
+      pollRef.current = setTimeout(async () => {
+        await Promise.all([loadSession(), loadActivities(lastTsRef.current)]);
+        schedule();
+      }, pollInterval);
+    };
+    schedule();
+
+    countdownRef.current = setInterval(() => {
+      setCountdown(Math.max(0, Math.ceil((nextRefAt.current - Date.now()) / 1000)));
+    }, 1000);
+
+    return () => { clearTimeout(pollRef.current); clearInterval(countdownRef.current); };
+  }, [pollInterval, loadActivities, loadSession]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -1365,41 +1381,78 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
     ...(mediaArtifacts.length>0?[{ id:"media", label:"MEDIA" }]:[]),
   ];
 
+  const handleScroll = useCallback(e => {
+    const s = e.target.scrollTop > 40;
+    if (s !== scrolled) setScrolled(s);
+  }, [scrolled]);
+
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%",minHeight:0}}>
       {/* ── Header ── */}
-      <div style={{padding:"12px 16px 0",borderBottom:`1px solid ${T.border}`,background:T.surface,flexShrink:0}}>
-        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+      <div style={{
+        padding:scrolled?"8px 16px 0":"12px 16px 0",
+        borderBottom:`1px solid ${T.border}`,
+        background:T.surface,
+        flexShrink:0,
+        transition:"padding .2s ease",
+      }}>
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:scrolled?4:8}}>
           {!isDesktop&&(
             <button onClick={onBack} style={{background:"none",border:"none",cursor:"pointer",padding:3,display:"flex",flexShrink:0}}>
               <Ic n="back" s={18} c={T.text}/>
             </button>
           )}
           <div style={{flex:1,minWidth:0}}>
-            <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:14,fontWeight:600,color:T.text,lineHeight:1.3,overflow:"hidden",textOverflow:"ellipsis",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>
+            <div style={{
+              fontFamily:"'IBM Plex Sans',sans-serif",
+              fontSize:scrolled?12:14,
+              fontWeight:600,
+              color:T.text,
+              lineHeight:1.3,
+              overflow:"hidden",
+              textOverflow:"ellipsis",
+              display:"-webkit-box",
+              WebkitLineClamp:scrolled?1:2,
+              WebkitBoxOrient:"vertical",
+              transition:"font-size .2s ease",
+            }}>
               {session.title||session.prompt}
             </div>
           </div>
           <Pill status={session.state} small/>
         </div>
 
-        <Bar pct={pct} status={session.state}/>
-        <div style={{display:"flex",gap:10,marginTop:5,marginBottom:10,fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.muted,flexWrap:"wrap"}}>
-          <span>{session.id?.slice(0,10)}</span>
-          {session.sourceContext?.source&&(
+        {!scrolled && <Bar pct={pct} status={session.state}/>}
+        <div style={{
+          display:"flex",gap:10,
+          marginTop:scrolled?0:5,
+          marginBottom:scrolled?6:10,
+          fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.muted,flexWrap:"nowrap",alignItems:"center"
+        }}>
+          {!scrolled && <span>{session.id?.slice(0,10)}</span>}
+          {!scrolled && session.sourceContext?.source&&(
             <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
               ⎇ {session.sourceContext.githubRepoContext?.startingBranch||"main"}
             </span>
           )}
-          {session.url&&<a href={session.url} target="_blank" rel="noopener" style={{color:T.muted,textDecoration:"none",flexShrink:0,fontFamily:"'JetBrains Mono',monospace",fontSize:9}}>WEB↗</a>}
-          {pr&&<a href={pr.url} target="_blank" rel="noopener" style={{color:T.blue,textDecoration:"none",flexShrink:0}}>PR↗</a>}
-          <div style={{marginLeft:"auto",display:"flex",gap:16,alignItems:"center"}}>
+          {session.url && !scrolled && <a href={session.url} target="_blank" rel="noopener" style={{color:T.muted,textDecoration:"none",flexShrink:0,fontFamily:"'JetBrains Mono',monospace",fontSize:9}}>WEB↗</a>}
+          {pr && !scrolled && <a href={pr.url} target="_blank" rel="noopener" style={{color:T.blue,textDecoration:"none",flexShrink:0}}>PR↗</a>}
+
+          <div style={{marginLeft:"auto",display:"flex",gap:12,alignItems:"center"}}>
+            {pollInterval > 0 && (
+              <div style={{padding:"2px 7px",borderRadius:20,background:T.greenDim,border:`1px solid ${T.green}30`,fontFamily:"'JetBrains Mono',monospace",fontSize:8,color:T.green,display:"flex",alignItems:"center",gap:4,flexShrink:0}}>
+                <span style={{width:3,height:3,borderRadius:"50%",background:T.green,animation:"dot 2s ease-in-out infinite"}}/>
+                {countdown}s
+              </div>
+            )}
             <button onClick={handleRefresh} disabled={busy} title="Refresh activity" style={{background:"none",border:"none",cursor:busy?"default":"pointer",display:"flex",padding:4,opacity:.8,animation:busy?"spin 1s linear infinite":"none"}}>
-              <Ic n="refresh" s={15} c={T.text}/>
+              <Ic n="refresh" s={14} c={T.text}/>
             </button>
-            <button onClick={() => { if(confirm("Delete this session?")) handleDelete(); }} disabled={busy} title="Delete session" style={{background:T.redDim, border:`1px solid ${T.red}30`, borderRadius:4, cursor:"pointer", display:"flex", alignItems:"center", padding:4, transition:"opacity .2s"}}>
-              <Ic n="trash" s={15} c={T.red}/>
-            </button>
+            {!scrolled && (
+              <button onClick={() => { if(confirm("Delete this session?")) handleDelete(); }} disabled={busy} title="Delete session" style={{background:T.redDim, border:`1px solid ${T.red}30`, borderRadius:4, cursor:"pointer", display:"flex", alignItems:"center", padding:4, transition:"opacity .2s"}}>
+                <Ic n="trash" s={14} c={T.red}/>
+              </button>
+            )}
           </div>
         </div>
 
@@ -1420,7 +1473,7 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
         {err&&<div style={{marginBottom:8,padding:"6px 10px",borderRadius:4,background:T.redDim,border:`1px solid ${T.red}40`,fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.red}}>{err}</div>}
 
         {/* ── Interval picker ── */}
-        <div style={{display:"flex",gap:4,alignItems:"center",marginBottom:10,flexWrap:"nowrap",overflowX:"auto",scrollbarWidth:"none",padding:"0 2px"}}>
+        <div style={{display:"flex",gap:4,alignItems:"center",marginBottom:10,flexWrap:"nowrap",overflowX:"auto",scrollbarWidth:"none",padding:"4px 2px"}}>
           <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,color:T.muted,letterSpacing:"0.08em",flexShrink:0,paddingRight:2}}>AUTO</span>
           {POLL_OPTIONS.map(opt => {
             const isAct = opt.ms === pollInterval;
@@ -1437,7 +1490,7 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
           })}
         </div>
 
-        {summary && (
+        {summary && !scrolled && (
           <div style={{
             marginBottom:10, padding:"10px 14px", background:T.surfaceHi,
             border:`1px solid ${T.border}`, borderRadius:6,
@@ -1467,7 +1520,7 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
       </div>
 
       {/* ── Content ── */}
-      <div style={{flex:1,overflowY:"auto",padding:"14px 16px",WebkitOverflowScrolling:"touch",minHeight:200}}>
+      <div onScroll={handleScroll} style={{flex:1,overflowY:"auto",padding:"14px 16px",WebkitOverflowScrolling:"touch",minHeight:200}}>
         {tab==="activity"&&(
           activities.length===0
           ?<div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted}}>
@@ -1980,7 +2033,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
         </div>
 
         {/* ── Interval picker ── */}
-        <div style={{display:"flex",gap:4,alignItems:"center",marginBottom:6,flexWrap:"nowrap",overflowX:"auto",scrollbarWidth:"none",padding:"0 2px"}}>
+        <div style={{display:"flex",gap:4,alignItems:"center",marginBottom:6,flexWrap:"nowrap",overflowX:"auto",scrollbarWidth:"none",padding:"4px 2px"}}>
           <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,color:T.muted,letterSpacing:"0.08em",flexShrink:0,paddingRight:2}}>AUTO</span>
           {POLL_OPTIONS.map(opt => {
             const isAct = opt.ms === pollInterval;
@@ -1998,7 +2051,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
         </div>
 
         {/* ── Limit picker ── */}
-        <div style={{display:"flex",gap:4,alignItems:"center",marginBottom:8,flexWrap:"nowrap",overflowX:"auto",scrollbarWidth:"none",padding:"0 2px"}}>
+        <div style={{display:"flex",gap:4,alignItems:"center",marginBottom:8,flexWrap:"nowrap",overflowX:"auto",scrollbarWidth:"none",padding:"4px 2px"}}>
           <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,color:T.muted,letterSpacing:"0.08em",flexShrink:0,paddingRight:2}}>LIMIT</span>
           {LIMIT_OPTIONS.map(opt => {
             const isAct = opt.val === sessionLimit;
@@ -2016,9 +2069,9 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
 
         {/* ── Daily quota bar ── */}
         {plan&&(
-          <div style={{marginBottom:8, padding:"0 2px"}}>
+          <div style={{marginBottom:8, padding:"4px 2px"}}>
             <div style={{display:"flex",justifyContent:"space-between",marginBottom:4,alignItems:"center"}}>
-              <div style={{display:"flex",gap:5,alignItems:"center",overflowX:"auto",scrollbarWidth:"none",paddingBottom:2}}>
+              <div style={{display:"flex",gap:5,alignItems:"center",overflowX:"auto",scrollbarWidth:"none",padding:"4px 0"}}>
                 {PLANS.map(p=>(
                   <button key={p.id} onClick={()=>setPlanId&&setPlanId(p.id)} style={{
                     flexShrink:0,padding:"2px 8px",borderRadius:20,border:"none",cursor:"pointer",
@@ -2065,8 +2118,8 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
           </div>
         )}
         {/* ── Status filter pills ── */}
-        <div style={{overflowX:"auto",padding:"0 2px 10px",scrollbarWidth:"none",WebkitOverflowScrolling:"touch"}}>
-          <div style={{display:"flex",gap:5,minWidth:"max-content"}}>
+        <div style={{overflowX:"auto",padding:"4px 2px 10px",scrollbarWidth:"none",WebkitOverflowScrolling:"touch"}}>
+          <div style={{display:"flex",gap:5,minWidth:"max-content",padding:"4px 0"}}>
             {FILTERS.map(f => {
               const cnt = f==="ALL" ? sessions.length : sessions.filter(s=>s.state===f).length;
               if (cnt===0 && f!=="ALL") return null;
