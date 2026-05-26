@@ -246,6 +246,16 @@ function loadLimit() {
 }
 function saveLimit(v) { try { localStorage.setItem(LIMIT_KEY,v); } catch {} }
 
+// ─── Layout Mode ──────────────────────────────────────────────────────────────
+const LAYOUT_KEY = "jac_layout";
+const LAYOUT_OPTIONS = [
+  { id:"auto",    label:"AUTO"    },
+  { id:"mobile",  label:"MOBILE"  },
+  { id:"desktop", label:"DESKTOP" },
+];
+function loadLayout() { try { return localStorage.getItem(LAYOUT_KEY)||"auto"; } catch { return "auto"; } }
+function saveLayout(v) { try { localStorage.setItem(LAYOUT_KEY,v); } catch {} }
+
 // ─── Plan limits (from jules.google/docs/usage-limits) ───────────────────────
 const PLAN_KEY = "jac_plan";
 const PLANS = [
@@ -1710,6 +1720,8 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
   const [sources,setSources]       = useState([]);
   const [loadingSrc,setLoadSrc]    = useState(true);
   const [source,setSource]         = useState(draft?.source ?? "");
+  const [sourceSearch,setSourceSearch] = useState("");
+  const [showSources,setShowSources] = useState(false);
   const [branch,setBranch]         = useState(draft?.branch ?? "");
   const [branches,setBranches]     = useState([]);   // [{displayName}] from Jules API
   const [showBranches,setShowBranches] = useState(false);
@@ -1725,6 +1737,24 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
   // ── Derive branches whenever selected source changes ─────────────────────
   // Jules API returns branches[] + defaultBranch inline on each source object
   const srcObj = useMemo(() => sources.find(s => s.name === source) || null, [sources, source]);
+
+  const getSourceDisplay = useCallback((s) => {
+    if (!s) return "No repo (repoless)";
+    return s.githubRepo ? `${s.githubRepo.owner}/${s.githubRepo.repo}` : s.id || s.name;
+  }, []);
+
+  useEffect(() => {
+    if (srcObj) setSourceSearch(getSourceDisplay(srcObj));
+    else if (source === "") setSourceSearch("No repo (repoless)");
+  }, [srcObj, source, getSourceDisplay]);
+
+  const filteredSources = useMemo(() => {
+    const all = [...sources, null]; // null represents "repoless"
+    const search = sourceSearch.toLowerCase();
+    const isSelectedMatch = (srcObj && sourceSearch === getSourceDisplay(srcObj)) || (source === "" && sourceSearch === "No repo (repoless)");
+    if (!sourceSearch || isSelectedMatch) return all;
+    return all.filter(s => getSourceDisplay(s).toLowerCase().includes(search));
+  }, [sources, sourceSearch, getSourceDisplay, srcObj, source]);
 
   useEffect(() => {
     if (!srcObj) { setBranches([]); setDefault(""); return; }
@@ -1825,12 +1855,70 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
               ?<div style={{padding:"10px 12px",borderRadius:6,background:T.amberDim,border:`1px solid ${T.amber}40`,fontFamily:"'IBM Plex Sans',sans-serif",fontSize:12,color:T.amber}}>
                 No sources found. Connect a repo at <span style={{fontFamily:"'JetBrains Mono',monospace"}}>jules.google.com</span> first.
               </div>
-              :<select value={source} onChange={e=>setSource(e.target.value)} style={{...inputSt,cursor:"pointer"}}>
-                {sources.map(s=>(
-                  <option key={s.name} value={s.name}>{s.githubRepo?`${s.githubRepo.owner}/${s.githubRepo.repo}`:s.id||s.name}</option>
-                ))}
-                <option value="">No repo (repoless)</option>
-              </select>
+              :<div style={{position:"relative"}}>
+                <input
+                  value={sourceSearch}
+                  onChange={e=>{setSourceSearch(e.target.value); setShowSources(true);}}
+                  onFocus={()=>setShowSources(true)}
+                  placeholder="Search repositories..."
+                  style={{...inputSt, paddingRight:36}}
+                />
+                <div style={{position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", display:"flex", alignItems:"center", pointerEvents:"none"}}>
+                  <Ic n="code" s={14} c={showSources?T.green:T.muted}/>
+                </div>
+
+                {showSources && (
+                  <>
+                    <div
+                      style={{position:"fixed", inset:0, zIndex:100}}
+                      onClick={()=>{
+                        setShowSources(false);
+                        // Reset search text to current selection on close
+                        if (srcObj) setSourceSearch(getSourceDisplay(srcObj));
+                        else if (source === "") setSourceSearch("No repo (repoless)");
+                      }}
+                    />
+                    <div style={{
+                      position:"absolute", top:"100%", left:0, right:0, zIndex:101,
+                      marginTop:4, background:T.surfaceHi, border:`1px solid ${T.borderHi}`,
+                      borderRadius:6, maxHeight:200, overflowY:"auto",
+                      boxShadow:"0 10px 25px rgba(0,0,0,0.5)",
+                    }}>
+                      {filteredSources.length === 0 && (
+                        <div style={{padding:"12px", textAlign:"center", fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.muted}}>
+                          NO RESULTS FOUND
+                        </div>
+                      )}
+                      {filteredSources.map((s, idx) => {
+                        const isRepoless = s === null;
+                        const sName = isRepoless ? "" : s.name;
+                        const isSelected = sName === source;
+                        return (
+                          <button
+                            key={isRepoless ? "_repoless" : s.name}
+                            onClick={()=>{setSource(sName); setSourceSearch(getSourceDisplay(s)); setShowSources(false);}}
+                            style={{
+                              width:"100%", padding:"10px 12px", background:"none", border:"none",
+                              textAlign:"left", cursor:"pointer", display:"flex", alignItems:"center", gap:8,
+                              borderBottom:idx < filteredSources.length - 1 ? `1px solid ${T.border}` : "none",
+                              transition:"background .1s",
+                            }}
+                            onMouseEnter={e=>e.currentTarget.style.background=T.dim}
+                            onMouseLeave={e=>e.currentTarget.style.background="none"}
+                          >
+                            <Ic n="code" s={12} c={isSelected?T.green:T.muted}/>
+                            <span style={{
+                              flex:1, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:13,
+                              color:isSelected?T.green:T.text, fontWeight:isSelected?600:400,
+                              overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
+                            }}>{getSourceDisplay(s)}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </div>
             }
           </Field>
 
@@ -1848,11 +1936,14 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
                   <Ic n="branch" s={14} c={showBranches?T.green:T.muted}/>
                 </div>
 
-                {showBranches && filteredBranches.length > 0 && (
+                {showBranches && (
                   <>
                     <div
                       style={{position:"fixed", inset:0, zIndex:100}}
-                      onClick={()=>setShowBranches(false)}
+                      onClick={()=>{
+                        setShowBranches(false);
+                        setBranch(branch); // Trigger re-render/reset if needed
+                      }}
                     />
                     <div style={{
                       position:"absolute", top:"100%", left:0, right:0, zIndex:101,
@@ -1860,6 +1951,11 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
                       borderRadius:6, maxHeight:200, overflowY:"auto",
                       boxShadow:"0 10px 25px rgba(0,0,0,0.5)",
                     }}>
+                      {filteredBranches.length === 0 && (
+                        <div style={{padding:"12px", textAlign:"center", fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.muted}}>
+                          NO RESULTS FOUND
+                        </div>
+                      )}
                       {filteredBranches.map(b => (
                         <button
                           key={b}
@@ -2043,7 +2139,7 @@ const NetworkMonitor = ({ onBack, isDesktop }) => {
 const FILTERS = ["ALL","QUEUED","PLANNING","AWAITING_PLAN_APPROVAL","IN_PROGRESS","COMPLETED","FAILED"];
 const FILTER_LABELS = { AWAITING_PLAN_APPROVAL:"APPROVE", ALL:"ALL" };
 
-const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selectedId, isDesktop, onNew, onNetwork, pollInterval, setPollInterval, sessionLimit, setSessionLimit, countdown, plan, planId, setPlanId, todayCount, customDaily, setCustomDaily }) => {
+const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selectedId, isDesktop, onNew, onNetwork, pollInterval, setPollInterval, sessionLimit, setSessionLimit, layoutMode, setLayoutMode, countdown, plan, planId, setPlanId, todayCount, customDaily, setCustomDaily }) => {
   const [filter,setFilter] = useState("ALL");
   const [scrolled,setScrolled] = useState(false);
 
@@ -2140,7 +2236,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
         <div style={{
           display:"flex",gap:4,alignItems:"center",
           height:scrolled?0:22, overflow:"hidden", opacity:scrolled?0:1,
-          marginBottom:scrolled?0:8, flexWrap:"nowrap", overflowX:"auto",
+          marginBottom:scrolled?0:4, flexWrap:"nowrap", overflowX:"auto",
           scrollbarWidth:"none", padding:scrolled?0:"4px 2px",
           transition:"all .2s ease",
         }}>
@@ -2153,6 +2249,29 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
                 background:isAct?T.greenDim:"transparent",
                 outline:`1px solid ${isAct?T.green+"60":T.border}`,
                 color:isAct?T.green:T.muted,fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:isAct?700:400,
+                letterSpacing:"0.05em",cursor:"pointer",transition:"all .12s",
+              }}>{opt.label}</button>
+            );
+          })}
+        </div>
+
+        {/* ── Layout picker ── */}
+        <div style={{
+          display:"flex",gap:4,alignItems:"center",
+          height:scrolled?0:22, overflow:"hidden", opacity:scrolled?0:1,
+          marginBottom:scrolled?0:8, flexWrap:"nowrap", overflowX:"auto",
+          scrollbarWidth:"none", padding:scrolled?0:"4px 2px",
+          transition:"all .2s ease",
+        }}>
+          <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,color:T.muted,letterSpacing:"0.08em",flexShrink:0,paddingRight:2}}>VIEW</span>
+          {LAYOUT_OPTIONS.map(opt => {
+            const isAct = opt.id === layoutMode;
+            return (
+              <button key={opt.id} onClick={()=>setLayoutMode(opt.id)} style={{
+                flexShrink:0,padding:"3px 9px",borderRadius:20,border:"none",
+                background:isAct?T.blueDim:"transparent",
+                outline:`1px solid ${isAct?T.blue+"60":T.border}`,
+                color:isAct?T.blue:T.muted,fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:isAct?700:400,
                 letterSpacing:"0.05em",cursor:"pointer",transition:"all .12s",
               }}>{opt.label}</button>
             );
@@ -2265,6 +2384,7 @@ function JulesClient() {
   const [pollInterval,setPollIntervalRaw] = useState(loadPollMs);
   const [actPollInterval,setActPollIntervalRaw] = useState(loadActPollMs);
   const [sessionLimit,setSessionLimitRaw] = useState(loadLimit);
+  const [layoutMode,setLayoutModeRaw]     = useState(loadLayout);
   const [countdown,setCountdown]   = useState(0);
   const [planId,setPlanIdRaw]      = useState(loadPlan);
   const [customDaily,setCustomDailyRaw] = useState(loadCustomDaily);
@@ -2272,7 +2392,13 @@ function JulesClient() {
   const pollRef      = useRef(null);
   const countdownRef = useRef(null);
   const nextRefAt    = useRef(0);
-  const isDesktop    = useIsDesktop();
+
+  const windowIsDesktop = useIsDesktop();
+  const isDesktop = useMemo(() => {
+    if (layoutMode === "mobile") return false;
+    if (layoutMode === "desktop") return true;
+    return windowIsDesktop;
+  }, [layoutMode, windowIsDesktop]);
 
   const setPlanId = useCallback(id => { savePlan(id); setPlanIdRaw(id); }, []);
   const setCustomDaily = useCallback(v => { saveCustomDaily(v); setCustomDailyRaw(v); }, []);
@@ -2298,6 +2424,11 @@ function JulesClient() {
   const setSessionLimit = useCallback(v => {
     saveLimit(v);
     setSessionLimitRaw(v);
+  }, []);
+
+  const setLayoutMode = useCallback(v => {
+    saveLayout(v);
+    setLayoutModeRaw(v);
   }, []);
 
   const fetchSessions = useCallback(async (quiet=false) => {
@@ -2396,6 +2527,7 @@ function JulesClient() {
             isDesktop onNew={()=>setDesktop("new")} onNetwork={()=>setDesktop("network")}
             pollInterval={pollInterval} setPollInterval={setPollInterval}
             sessionLimit={sessionLimit} setSessionLimit={setSessionLimit}
+            layoutMode={layoutMode} setLayoutMode={setLayoutMode}
             countdown={countdown}
             plan={plan} planId={planId} setPlanId={setPlanId} todayCount={todayCount}
             customDaily={customDaily} setCustomDaily={setCustomDaily}
@@ -2437,6 +2569,7 @@ function JulesClient() {
             refreshing={refreshing} netSnap={netSnap} selectedId={null} isDesktop={false}
             pollInterval={pollInterval} setPollInterval={setPollInterval}
             sessionLimit={sessionLimit} setSessionLimit={setSessionLimit}
+            layoutMode={layoutMode} setLayoutMode={setLayoutMode}
             countdown={countdown}
             plan={plan} planId={planId} setPlanId={setPlanId} todayCount={todayCount}
             customDaily={customDaily} setCustomDaily={setCustomDaily}/>
