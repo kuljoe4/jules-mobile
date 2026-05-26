@@ -253,7 +253,14 @@ const LAYOUT_OPTIONS = [
   { id:"mobile",  label:"MOBILE"  },
   { id:"desktop", label:"DESKTOP" },
 ];
-function loadLayout() { try { return localStorage.getItem(LAYOUT_KEY)||"auto"; } catch { return "auto"; } }
+function loadLayout() {
+  try {
+    const v = localStorage.getItem(LAYOUT_KEY);
+    if (v && LAYOUT_OPTIONS.some(o => o.id === v)) return v;
+    // Default to locked based on current width if no preference
+    return window.innerWidth >= 768 ? "desktop" : "mobile";
+  } catch { return "mobile"; }
+}
 function saveLayout(v) { try { localStorage.setItem(LAYOUT_KEY,v); } catch {} }
 
 // ─── Plan limits (from jules.google/docs/usage-limits) ───────────────────────
@@ -482,6 +489,7 @@ const PATHS = {
   approve:"M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z",
   branch:"M6 3v12M18 9a3 3 0 100-6 3 3 0 000 6zM6 21a3 3 0 100-6 3 3 0 000 6zM18 9a9 9 0 01-9 9",
   download:"M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4m4-5l5 5 5-5m-5 5V3",
+  layout_toggle:"M12 4V2m0 20v-2m8-8h2M2 12h2m13.657-5.657l1.414-1.414m-14.142 14.142l1.414-1.414m0-14.142l-1.414-1.414m14.142 14.142l-1.414-1.414",
 };
 const Ic = ({n,s=16,c=T.muted}) => (
   <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
@@ -2202,6 +2210,9 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
                 <span>PAUSED</span>
               </div>
             )}
+            <button onClick={()=>setLayoutMode(isDesktop?"mobile":"desktop")} title="Toggle Layout" style={{background:"none",border:"none",cursor:"pointer",display:"flex",padding:3}}>
+              <Ic n="layout_toggle" s={16} c={layoutMode==="auto"?T.muted:T.green}/>
+            </button>
             <button onClick={onRefresh} disabled={refreshing} title="Refresh now" style={{background:"none",border:"none",cursor:refreshing?"default":"pointer",display:"flex",padding:3,animation:refreshing?"spin 1s linear infinite":"none",transformOrigin:"center"}}>
               <Ic n="refresh" s={15} c={refreshing?T.green:T.muted}/>
             </button>
