@@ -690,32 +690,6 @@ const Markdown = memo(({ text }) => {
 
 const MediaPicker = ({ files, setFiles, busy }) => {
   const fileInputRef = useRef(null);
-<<<<<<< HEAD
-
-  const processFiles = useCallback(async (fileList) => {
-    if (busy) return;
-    const newFiles = [];
-    for (const file of fileList) {
-      if (file.size > 15 * 1024 * 1024) { // 15MB limit
-        alert(`File ${file.name} is too large (>15MB)`);
-        continue;
-      }
-      const reader = new FileReader();
-      const dataPromise = new Promise((resolve, reject) => {
-        reader.onload = (e) => resolve(e.target.result.split(',')[1]);
-        reader.onerror = (e) => reject(new Error("Failed to read file"));
-        reader.readAsDataURL(file);
-      });
-      const base64Data = await dataPromise;
-      newFiles.push({
-        name: file.name,
-        mimeType: file.type || 'application/octet-stream',
-        data: base64Data
-      });
-    }
-    setFiles(prev => [...prev, ...newFiles]);
-  }, [busy, setFiles]);
-=======
   const [isProcessing, setIsProcessing] = useState(false);
 
   const processFiles = useCallback(async (fileList) => {
@@ -746,7 +720,6 @@ const MediaPicker = ({ files, setFiles, busy }) => {
       setIsProcessing(false);
     }
   }, [busy, isProcessing, setFiles]);
->>>>>>> remotes/origin/feature/media-input-uiux-readability-2133815345753043077
 
   const onFileSelect = (e) => {
     if (e.target.files) processFiles(e.target.files);
@@ -814,20 +787,12 @@ const MediaPicker = ({ files, setFiles, busy }) => {
                 boxShadow: "0 4px 12px rgba(0,0,0,0.2)"
               }}>
                 {isImg ? (
-<<<<<<< HEAD
-                  <img src={`data:${f.mimeType};base64,${f.data}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                ) : (
-                  <div style={{
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                    height: '100%', fontSize: 9, color: T.muted, textAlign: 'center', padding: 6
-=======
                   <img src={`data:${f.mimeType};base64,${f.data}`} style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: busy ? 0.5 : 1 }} />
                 ) : (
                   <div style={{
                     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                     height: '100%', fontSize: 9, color: T.muted, textAlign: 'center', padding: 6,
                     opacity: busy ? 0.5 : 1
->>>>>>> remotes/origin/feature/media-input-uiux-readability-2133815345753043077
                   }}>
                     <Ic n="tasks" s={16} c={T.muted} />
                     <div style={{ marginTop: 4, overflow: 'hidden', textOverflow: 'ellipsis', width: '100%', whiteSpace: 'nowrap' }}>
@@ -835,17 +800,6 @@ const MediaPicker = ({ files, setFiles, busy }) => {
                     </div>
                   </div>
                 )}
-<<<<<<< HEAD
-                <button
-                  onClick={() => onRemove(i)}
-                  style={{
-                    position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.6)',
-                    border: 'none', borderRadius: '50%', width: 18, height: 18,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    cursor: 'pointer', color: '#fff', fontSize: 12, fontWeight: 'bold'
-                  }}
-                >×</button>
-=======
                 {busy && (
                   <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
                     <div style={{ width: 20, height: 20, borderRadius: "50%", border: `2px solid ${T.green}`, borderTopColor: "transparent", animation: "spin 1s linear infinite" }} />
@@ -862,45 +816,20 @@ const MediaPicker = ({ files, setFiles, busy }) => {
                     }}
                   >×</button>
                 )}
->>>>>>> remotes/origin/feature/media-input-uiux-readability-2133815345753043077
               </div>
             );
           })}
         </div>
       )}
 
-<<<<<<< HEAD
-      <div style={{ display: 'flex', gap: 8 }}>
-        <button
-          onClick={() => fileInputRef.current.click()}
-          disabled={busy}
-=======
       <div style={{ display: 'flex', gap: 8, alignItems: "center" }}>
         <button
           onClick={() => fileInputRef.current.click()}
           disabled={busy || isProcessing}
->>>>>>> remotes/origin/feature/media-input-uiux-readability-2133815345753043077
           style={{
             background: 'transparent', border: `1px dashed ${T.borderHi}`,
             borderRadius: 6, padding: '8px 12px', color: T.muted,
             fontFamily: "'JetBrains Mono',monospace", fontSize: 11,
-<<<<<<< HEAD
-            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
-            transition: 'all .2s'
-          }}
-          onMouseEnter={e => { e.currentTarget.style.borderColor = T.green; e.currentTarget.style.color = T.green; }}
-          onMouseLeave={e => { e.currentTarget.style.borderColor = T.borderHi; e.currentTarget.style.color = T.muted; }}
-        >
-          <Ic n="plus" s={12} c="inherit" /> ATTACH MEDIA
-        </button>
-        <div style={{
-          display: 'flex', alignItems: 'center',
-          fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: T.dim,
-          letterSpacing: '0.05em'
-        }}>
-          OR PASTE / DRAG FILES
-        </div>
-=======
             cursor: (busy || isProcessing) ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 6,
             transition: 'all .2s',
             opacity: (busy || isProcessing) ? 0.5 : 1
@@ -923,7 +852,6 @@ const MediaPicker = ({ files, setFiles, busy }) => {
         {(isProcessing || busy) && (
           <div style={{ width: 12, height: 12, borderRadius: "50%", border: `2px solid ${T.green}`, borderTopColor: "transparent", animation: "spin 1s linear infinite" }} />
         )}
->>>>>>> remotes/origin/feature/media-input-uiux-readability-2133815345753043077
       </div>
     </div>
   );
@@ -1792,11 +1720,7 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
         body:{
           prompt:text,
           ...(files.length > 0 && {
-<<<<<<< HEAD
-            artifacts: files.map(f => ({
-=======
             inputArtifacts: files.map(f => ({
->>>>>>> remotes/origin/feature/media-input-uiux-readability-2133815345753043077
               media: {
                 data: f.data,
                 mimeType: f.mimeType
@@ -1984,24 +1908,7 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
           )}
           {session.url && <a href={session.url} target="_blank" rel="noopener" style={{color:T.muted,textDecoration:"none",flexShrink:0,fontFamily:"'JetBrains Mono',monospace",fontSize:11}}>WEB↗</a>}
           {pr && <a href={pr.url} target="_blank" rel="noopener" style={{color:T.blue,textDecoration:"none",flexShrink:0}}>PR↗</a>}
-<<<<<<< HEAD
 
-          <div style={{marginLeft:"auto",display:"flex",gap:12,alignItems:"center"}}>
-            {pollInterval > 0 && (
-              <div style={{padding:"2px 7px",borderRadius:20,background:T.greenDim,border:`1px solid ${T.green}30`,fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.green,display:"flex",alignItems:"center",gap:4,flexShrink:0}}>
-                <span style={{width:3,height:3,borderRadius:"50%",background:T.green,animation:"dot 2s ease-in-out infinite"}}/>
-                {countdown}s
-              </div>
-            )}
-            <button onClick={handleRefresh} disabled={busy} title="Refresh activity" style={{background:"none",border:"none",cursor:busy?"default":"pointer",display:"flex",padding:4,opacity:.8,animation:busy?"spin 1s linear infinite":"none"}}>
-              <Ic n="refresh" s={14} c={T.text}/>
-            </button>
-            <button onClick={() => { if(confirm("Delete this session?")) handleDelete(); }} disabled={busy} title="Delete session" style={{background:T.redDim, border:`1px solid ${T.red}30`, borderRadius:4, cursor:"pointer", display:"flex", alignItems:"center", padding:4, transition:"opacity .2s"}}>
-              <Ic n="trash" s={14} c={T.red}/>
-            </button>
-          </div>
-=======
->>>>>>> remotes/origin/feature/media-input-uiux-readability-2133815345753043077
         </div>
 
         {session.state==="AWAITING_PLAN_APPROVAL"&&(
@@ -2359,11 +2266,7 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
       }),
       requirePlanApproval: reqApproval,
       ...(attachedFiles.length > 0 && {
-<<<<<<< HEAD
-        artifacts: attachedFiles.map(f => ({
-=======
         inputArtifacts: attachedFiles.map(f => ({
->>>>>>> remotes/origin/feature/media-input-uiux-readability-2133815345753043077
           media: {
             data: f.data,
             mimeType: f.mimeType
