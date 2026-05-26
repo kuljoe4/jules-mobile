@@ -31,20 +31,20 @@
       #splash-logo{
         width:60px;height:60px;border-radius:14px;background:#00e87a;
         display:flex;align-items:center;justify-content:center;
-        font-size:34px;font-weight:900;color:#000;
+        font-size:38px;font-weight:900;color:#000;
         box-shadow:0 0 40px rgba(0,232,122,.35);
         margin-bottom:22px;
       }
-      #splash-title{font-size:13px;font-weight:700;color:#c5d4e8;letter-spacing:.06em;margin-bottom:6px;}
-      #splash-sub{font-size:10px;color:#4a5e76;letter-spacing:.05em;margin-bottom:28px;}
+      #splash-title{font-size:15px;font-weight:700;color:#c5d4e8;letter-spacing:.06em;margin-bottom:6px;}
+      #splash-sub{font-size:12px;color:#4a5e76;letter-spacing:.05em;margin-bottom:28px;}
       #splash-bar-wrap{width:120px;height:2px;background:#1e2d3d;border-radius:2px;overflow:hidden;}
       #splash-bar{
         height:100%;width:0%;background:#00e87a;border-radius:2px;
         box-shadow:0 0 6px rgba(0,232,122,.6);
         animation:splash-load 2.4s cubic-bezier(.4,0,.2,1) forwards;
       }
-      #splash-hint{margin-top:14px;font-size:10px;font-weight:700;color:#4a5e76;letter-spacing:.07em;}
-      #splash-step{margin-top:5px;font-size:9px;color:#2a3d52;letter-spacing:.06em;min-height:13px;transition:opacity .2s;}
+      #splash-hint{margin-top:14px;font-size:12px;font-weight:700;color:#4a5e76;letter-spacing:.07em;}
+      #splash-step{margin-top:5px;font-size:11px;color:#2a3d52;letter-spacing:.06em;min-height:13px;transition:opacity .2s;}
       @keyframes splash-load{
         0%  {width:0%}
         30% {width:35%}
@@ -414,15 +414,15 @@ const PWABanner = () => {
       background:"#0d1118", borderBottom:`1px solid #ffb40040`,
       padding:"10px 16px", display:"flex", gap:10, alignItems:"flex-start",
     }}>
-      <span style={{fontSize:16,flexShrink:0}}>⚠️</span>
+      <span style={{fontSize:18,flexShrink:0}}>⚠️</span>
       <div style={{flex:1,minWidth:0}}>
-        <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,fontWeight:700,color:"#ffb400",marginBottom:4}}>
+        <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:12,fontWeight:700,color:"#ffb400",marginBottom:4}}>
           OPENED FROM FILE:// — PWA INSTALL UNAVAILABLE
         </div>
-        <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:12,color:"#4a5e76",lineHeight:1.6}}>
+        <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:14,color:"#4a5e76",lineHeight:1.6}}>
           Chrome requires HTTP/HTTPS to install PWAs. Serve this file locally:
         </div>
-        <div style={{marginTop:6,background:"#040507",border:"1px solid #182030",borderRadius:5,padding:"6px 10px",fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:"#00e87a",lineHeight:1.8}}>
+        <div style={{marginTop:6,background:"#040507",border:"1px solid #182030",borderRadius:5,padding:"6px 10px",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:"#00e87a",lineHeight:1.8}}>
           # Python (any machine)<br/>
           python3 -m http.server 8080<br/><br/>
           # Node / npx<br/>
@@ -430,11 +430,11 @@ const PWABanner = () => {
           # Termux<br/>
           pkg install python &amp;&amp; python3 -m http.server 8080
         </div>
-        <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:12,color:"#4a5e76",marginTop:5}}>
+        <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:14,color:"#4a5e76",marginTop:5}}>
           Then open <span style={{fontFamily:"'JetBrains Mono',monospace",color:"#4da6ff"}}>http://localhost:8080/{location.pathname.split("/").pop()}</span> in Chrome.
         </div>
       </div>
-      <button onClick={()=>{sessionStorage.setItem("pwa_dismissed","1");setDismissed(true);}} style={{background:"none",border:"none",cursor:"pointer",color:"#4a5e76",fontSize:16,flexShrink:0,padding:0,lineHeight:1}}>×</button>
+      <button onClick={()=>{sessionStorage.setItem("pwa_dismissed","1");setDismissed(true);}} style={{background:"none",border:"none",cursor:"pointer",color:"#4a5e76",fontSize:18,flexShrink:0,padding:0,lineHeight:1}}>×</button>
     </div>
   );
 
@@ -444,16 +444,16 @@ const PWABanner = () => {
       background:"rgba(0,232,122,.07)", borderBottom:`1px solid rgba(0,232,122,.2)`,
       padding:"8px 16px", display:"flex", alignItems:"center", gap:10,
     }}>
-      <span style={{fontSize:14,flexShrink:0}}>📲</span>
-      <div style={{flex:1,fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:"#00e87a"}}>
+      <span style={{fontSize:16,flexShrink:0}}>📲</span>
+      <div style={{flex:1,fontFamily:"'JetBrains Mono',monospace",fontSize:12,color:"#00e87a"}}>
         Install Jules as an app for offline access
       </div>
       <button onClick={install} disabled={installing} style={{
         padding:"5px 13px",borderRadius:5,border:"none",cursor:"pointer",
         background:"#00e87a",color:"#000",fontFamily:"'JetBrains Mono',monospace",
-        fontSize:10,fontWeight:700,letterSpacing:"0.07em",flexShrink:0,
+        fontSize:12,fontWeight:700,letterSpacing:"0.07em",flexShrink:0,
       }}>{installing?"…":"INSTALL"}</button>
-      <button onClick={()=>{sessionStorage.setItem("pwa_dismissed","1");setDismissed(true);}} style={{background:"none",border:"none",cursor:"pointer",color:"#4a5e76",fontSize:16,padding:0,lineHeight:1,flexShrink:0}}>×</button>
+      <button onClick={()=>{sessionStorage.setItem("pwa_dismissed","1");setDismissed(true);}} style={{background:"none",border:"none",cursor:"pointer",color:"#4a5e76",fontSize:18,padding:0,lineHeight:1,flexShrink:0}}>×</button>
     </div>
   );
 
@@ -506,7 +506,7 @@ const Pill = ({status,small=false}) => {
       padding:small?"2px 7px":"3px 9px",borderRadius:3,
       background:m.bg,border:`1px solid ${m.color}30`,
       fontFamily:"'JetBrains Mono',monospace",
-      fontSize:small?9:10,fontWeight:700,letterSpacing:"0.07em",color:m.color,flexShrink:0,
+      fontSize:small?11:12,fontWeight:700,letterSpacing:"0.07em",color:m.color,flexShrink:0,
     }}>
       {m.pulse&&<span style={{width:4,height:4,borderRadius:"50%",background:m.color,animation:"dot 1.2s ease-in-out infinite",flexShrink:0}}/>}
       {m.label}
@@ -530,7 +530,7 @@ const Btn = ({children,onClick,color=T.green,disabled=false,outline=false,sm=fal
     borderRadius:5,cursor:disabled?"default":"pointer",
     padding:sm?"6px 12px":"10px 16px",
     color:disabled?T.muted:(outline?color:"#000"),
-    fontFamily:"'JetBrains Mono',monospace",fontSize:sm?9:10,fontWeight:700,letterSpacing:"0.08em",
+    fontFamily:"'JetBrains Mono',monospace",fontSize:sm?11:12,fontWeight:700,letterSpacing:"0.08em",
     transition:"opacity .15s",opacity:disabled?.5:1,
     display:"flex",alignItems:"center",justifyContent:"center",gap:6,...s,
   }}>{children}</button>
@@ -538,7 +538,7 @@ const Btn = ({children,onClick,color=T.green,disabled=false,outline=false,sm=fal
 
 const Field = ({label,children,style:s={}}) => (
   <div style={{marginBottom:16,...s}}>
-    <div style={{marginBottom:5,fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.muted,letterSpacing:"0.1em"}}>{label}</div>
+    <div style={{marginBottom:5,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted,letterSpacing:"0.1em"}}>{label}</div>
     {children}
   </div>
 );
@@ -556,10 +556,10 @@ const Markdown = memo(({ text }) => {
       return (
         <div key={i} style={{
           margin:"8px 0", background:"#040507", border:`1px solid ${T.border}`,
-          borderRadius:6, overflow:"hidden", fontFamily:"'JetBrains Mono',monospace", fontSize:11,
+          borderRadius:6, overflow:"hidden", fontFamily:"'JetBrains Mono',monospace", fontSize:13,
         }}>
           {lang && (
-            <div style={{padding:"3px 10px", background:T.surface, borderBottom:`1px solid ${T.border}`, fontSize:9, color:T.muted, textTransform:"uppercase", letterSpacing:"0.05em"}}>
+            <div style={{padding:"3px 10px", background:T.surface, borderBottom:`1px solid ${T.border}`, fontSize:11, color:T.muted, textTransform:"uppercase", letterSpacing:"0.05em"}}>
               {lang}
             </div>
           )}
@@ -573,9 +573,157 @@ const Markdown = memo(({ text }) => {
   });
 });
 
+const MediaPicker = ({ files, setFiles, busy }) => {
+  const fileInputRef = useRef(null);
+
+  const processFiles = useCallback(async (fileList) => {
+    if (busy) return;
+    const newFiles = [];
+    for (const file of fileList) {
+      if (file.size > 15 * 1024 * 1024) { // 15MB limit
+        alert(`File ${file.name} is too large (>15MB)`);
+        continue;
+      }
+      const reader = new FileReader();
+      const dataPromise = new Promise((resolve, reject) => {
+        reader.onload = (e) => resolve(e.target.result.split(',')[1]);
+        reader.onerror = (e) => reject(new Error("Failed to read file"));
+        reader.readAsDataURL(file);
+      });
+      const base64Data = await dataPromise;
+      newFiles.push({
+        name: file.name,
+        mimeType: file.type || 'application/octet-stream',
+        data: base64Data
+      });
+    }
+    setFiles(prev => [...prev, ...newFiles]);
+  }, [busy, setFiles]);
+
+  const onFileSelect = (e) => {
+    if (e.target.files) processFiles(e.target.files);
+    e.target.value = '';
+  };
+
+  const onRemove = (idx) => {
+    setFiles(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  // Drag and Drop handlers
+  const [isDragging, setIsDragging] = useState(false);
+  const onDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const onDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const onDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      processFiles(e.dataTransfer.files);
+    }
+  };
+
+  return (
+    <div
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+      style={{
+        marginTop: 8,
+        padding: isDragging ? "10px" : "0",
+        border: isDragging ? `2px dashed ${T.green}` : "none",
+        borderRadius: 8,
+        background: isDragging ? T.greenDim : "transparent",
+        transition: "all .2s ease"
+      }}
+    >
+      <input
+        type="file"
+        multiple
+        ref={fileInputRef}
+        onChange={onFileSelect}
+        style={{ display: 'none' }}
+      />
+
+      {files.length > 0 && (
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
+          {files.map((f, i) => {
+            const isImg = f.mimeType.startsWith('image/');
+            return (
+              <div key={i} style={{
+                position: 'relative', width: 70, height: 70,
+                borderRadius: 8, border: `1px solid ${T.borderHi}`,
+                background: T.surfaceHi, overflow: 'hidden',
+                boxShadow: "0 4px 12px rgba(0,0,0,0.2)"
+              }}>
+                {isImg ? (
+                  <img src={`data:${f.mimeType};base64,${f.data}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  <div style={{
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                    height: '100%', fontSize: 9, color: T.muted, textAlign: 'center', padding: 6
+                  }}>
+                    <Ic n="tasks" s={16} c={T.muted} />
+                    <div style={{ marginTop: 4, overflow: 'hidden', textOverflow: 'ellipsis', width: '100%', whiteSpace: 'nowrap' }}>
+                      {f.name}
+                    </div>
+                  </div>
+                )}
+                <button
+                  onClick={() => onRemove(i)}
+                  style={{
+                    position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.6)',
+                    border: 'none', borderRadius: '50%', width: 18, height: 18,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    cursor: 'pointer', color: '#fff', fontSize: 12, fontWeight: 'bold'
+                  }}
+                >×</button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button
+          onClick={() => fileInputRef.current.click()}
+          disabled={busy}
+          style={{
+            background: 'transparent', border: `1px dashed ${T.borderHi}`,
+            borderRadius: 6, padding: '8px 12px', color: T.muted,
+            fontFamily: "'JetBrains Mono',monospace", fontSize: 11,
+            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
+            transition: 'all .2s'
+          }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = T.green; e.currentTarget.style.color = T.green; }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = T.borderHi; e.currentTarget.style.color = T.muted; }}
+        >
+          <Ic n="plus" s={12} c="inherit" /> ATTACH MEDIA
+        </button>
+        <div style={{
+          display: 'flex', alignItems: 'center',
+          fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: T.dim,
+          letterSpacing: '0.05em'
+        }}>
+          OR PASTE / DRAG FILES
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const inputSt = {
   width:"100%",background:T.surfaceHi,border:`1px solid ${T.border}`,borderRadius:6,
-  padding:"10px 12px",color:T.text,fontFamily:"'IBM Plex Sans',sans-serif",fontSize:13,
+  padding:"10px 12px",color:T.text,fontFamily:"'IBM Plex Sans',sans-serif",fontSize:15,
   outline:"none",boxSizing:"border-box",transition:"border-color .18s",
 };
 
@@ -636,31 +784,31 @@ const ChatBubble = memo(({ act, type, onMediaClick }) => {
     }}>
       {/* Avatar */}
       <div style={{
-        width:26,height:26,borderRadius:6,flexShrink:0,
+        width:30,height:30,borderRadius:6,flexShrink:0,
         background:isUser?T.blueDim:T.green,
         border:`1px solid ${isUser?T.blue+"40":"transparent"}`,
         display:"flex",alignItems:"center",justifyContent:"center",
-        fontFamily:"'JetBrains Mono',monospace",fontSize:11,fontWeight:900,
+        fontFamily:"'JetBrains Mono',monospace",fontSize:13,fontWeight:900,
         color:isUser?T.blue:"#000",
       }}>{isUser?"U":"J"}</div>
 
       {/* Bubble */}
       <div style={{
-        maxWidth:"76%",
+        maxWidth:"80%",
         background:isUser?T.userBubble:T.agentBubble,
         border:`1px solid ${isUser?T.blue+"30":T.green+"25"}`,
         borderRadius:isUser?"12px 12px 2px 12px":"12px 12px 12px 2px",
-        padding:"10px 13px",
+        padding:"12px 15px",
         opacity:isTemp?0.6:1,
         transition:"opacity .2s",
       }}>
         <div style={{
-          fontSize:13,color:T.text,lineHeight:1.55,
+          fontSize:15,color:T.text,lineHeight:1.55,
           fontFamily:"'IBM Plex Sans',sans-serif",
         }}><Markdown text={text}/></div>
         <MediaArtifacts artifacts={act.artifacts} ts={act.createTime} onMediaClick={onMediaClick}/>
         <div style={{
-          marginTop:5,fontFamily:"'JetBrains Mono',monospace",fontSize:8,
+          marginTop:5,fontFamily:"'JetBrains Mono',monospace",fontSize:10,
           color:isUser?T.blue+"70":T.green+"60",textAlign:isUser?"right":"left",
           display:"flex",gap:6,justifyContent:isUser?"flex-end":"flex-start",alignItems:"center",
         }}>
@@ -698,14 +846,14 @@ const TimelineEvent = memo(({ act, onMediaClick }) => {
           {plan.steps.map((st,i) => (
             <div key={st.id||i} style={{display:"flex",gap:8,marginBottom:6,alignItems:"flex-start"}}>
               <div style={{
-                width:17,height:17,borderRadius:3,flexShrink:0,
+                width:20,height:20,borderRadius:3,flexShrink:0,
                 background:T.purpleDim,border:`1px solid ${T.purple}40`,
                 display:"flex",alignItems:"center",justifyContent:"center",
-                fontFamily:"'JetBrains Mono',monospace",fontSize:8,color:T.purple,
+                fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.purple,
               }}>{i+1}</div>
               <div>
-                <div style={{fontSize:12,color:T.text,fontWeight:500,lineHeight:1.35}}>{st.title}</div>
-                {st.description&&<div style={{fontSize:11,color:T.muted,marginTop:1}}>{st.description}</div>}
+                <div style={{fontSize:14,color:T.text,fontWeight:500,lineHeight:1.35}}>{st.title}</div>
+                {st.description&&<div style={{fontSize:13,color:T.muted,marginTop:1}}>{st.description}</div>}
               </div>
             </div>
           ))}
@@ -718,7 +866,7 @@ const TimelineEvent = memo(({ act, onMediaClick }) => {
       title = act.progressUpdated?.title || "Progress";
       detail = act.progressUpdated?.description && (
         <div style={{
-          fontSize:11, color:isReview?T.text:T.muted, marginTop:3,
+          fontSize:13, color:isReview?T.text:T.muted, marginTop:3,
           lineHeight:1.5, padding:isReview?"10px 14px":"0",
           background:isReview?"rgba(77,166,255,0.04)":"transparent",
           border:isReview?`1px solid ${T.blue}15`:"none", borderRadius:isReview?8:0,
@@ -726,7 +874,7 @@ const TimelineEvent = memo(({ act, onMediaClick }) => {
         }}>
           {isReview && (
             <div style={{display:"flex", alignItems:"center", gap:6, marginBottom:8}}>
-              <span style={{padding:"2px 6px", borderRadius:3, background:T.blueDim, color:T.blue, fontSize:8, fontWeight:700, letterSpacing:"0.05em"}}>REVIEW</span>
+              <span style={{padding:"2px 6px", borderRadius:3, background:T.blueDim, color:T.blue, fontSize:10, fontWeight:700, letterSpacing:"0.05em"}}>REVIEW</span>
               <div style={{height:1, flex:1, background:`linear-gradient(90deg, ${T.blue}30, transparent)`}}/>
             </div>
           )}
@@ -740,7 +888,7 @@ const TimelineEvent = memo(({ act, onMediaClick }) => {
     case "sessionFailed":
       title = "Session failed";
       detail = act.sessionFailed?.reason && (
-        <div style={{fontSize:11,color:T.red,marginTop:3,fontFamily:"'IBM Plex Sans',sans-serif"}}>{act.sessionFailed.reason}</div>
+        <div style={{fontSize:13,color:T.red,marginTop:3,fontFamily:"'IBM Plex Sans',sans-serif"}}>{act.sessionFailed.reason}</div>
       );
       break;
     case "planApproved": title = "Plan approved"; break;
@@ -750,20 +898,20 @@ const TimelineEvent = memo(({ act, onMediaClick }) => {
   return (
     <div style={{
       display:"flex",gap:12,marginBottom:16,alignItems:"stretch",
-      padding:isMajor?"12px":"4px 12px", borderRadius:8,
+      padding:isMajor?"14px":"4px 12px", borderRadius:8,
       background:isMajor?T.surfaceHi:"transparent",
       border:isMajor?`1px solid ${T.border}`:"none",
     }}>
-      <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:0,flexShrink:0,width:18}}>
-        <div style={{width:18,height:18,borderRadius:4,background:`${ic.c}15`,border:`1px solid ${ic.c}30`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-          <Ic n={ic.n} s={10} c={ic.c}/>
+      <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:0,flexShrink:0,width:20}}>
+        <div style={{width:20,height:20,borderRadius:4,background:`${ic.c}15`,border:`1px solid ${ic.c}30`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+          <Ic n={ic.n} s={12} c={ic.c}/>
         </div>
         {detail&&<div style={{width:1,flex:1,background:T.border,marginTop:3}}/>}
       </div>
       <div style={{flex:1,paddingBottom:detail?10:0,minWidth:0}}>
-        <div style={{display:"flex",gap:8,alignItems:"center",height:18}}>
-          <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,fontWeight:700,color:ic.c,flex:1}}>{title}</span>
-          <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,color:T.muted,flexShrink:0}}>{time}</span>
+        <div style={{display:"flex",gap:8,alignItems:"center",height:20}}>
+          <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:12,fontWeight:700,color:ic.c,flex:1}}>{title}</span>
+          <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted,flexShrink:0}}>{time}</span>
         </div>
         {detail}
         <MediaArtifacts artifacts={act.artifacts} ts={act.createTime} onMediaClick={onMediaClick}/>
@@ -809,10 +957,10 @@ const MediaModal = ({ media, onClose }) => {
         background:"linear-gradient(to bottom, rgba(7,9,12,0.8), transparent)",
       }}>
         <div style={{ flex:1 }}>
-          <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.text, fontWeight:700 }}>
+          <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:13, color:T.text, fontWeight:700 }}>
             MEDIA ARTIFACT
           </div>
-          <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:T.muted }}>
+          <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.muted }}>
             {media.mimeType} · {fmtTime(new Date(media.ts).getTime())}
           </div>
         </div>
@@ -821,7 +969,7 @@ const MediaModal = ({ media, onClose }) => {
           style={{
             background:T.surfaceHi, border:`1px solid ${T.borderHi}`, borderRadius:8,
             padding:"8px 14px", cursor:"pointer", display:"flex", alignItems:"center", gap:8,
-            color:T.green, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700,
+            color:T.green, fontFamily:"'JetBrains Mono',monospace", fontSize:12, fontWeight:700,
           }}
         >
           <Ic n="download" s={14} c={T.green}/>
@@ -871,7 +1019,7 @@ const MediaModal = ({ media, onClose }) => {
       {/* Footer / Hint */}
       <div style={{
         padding:20, textAlign:"center", fontFamily:"'JetBrains Mono',monospace",
-        fontSize:9, color:T.muted, letterSpacing:"0.05em",
+        fontSize:11, color:T.muted, letterSpacing:"0.05em",
       }}>
         TAP OUTSIDE TO CLOSE
       </div>
@@ -895,7 +1043,7 @@ const ActivityFeed = memo(({ activities, showAll, onShowAll, onMediaClick }) => 
           display:"block",width:"100%",marginBottom:14,
           background:T.surfaceHi,border:`1px solid ${T.border}`,
           borderRadius:6,padding:"8px 12px",cursor:"pointer",
-          fontFamily:"'JetBrains Mono',monospace",fontSize:9,
+          fontFamily:"'JetBrains Mono',monospace",fontSize:11,
           color:T.muted,textAlign:"center",letterSpacing:"0.08em",
         }}>
           ↑ SHOW {hidden} EARLIER {hidden===1?"EVENT":"EVENTS"}
@@ -967,7 +1115,7 @@ const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFeedback,
   };
 
   if (!plan) return (
-    <div style={{textAlign:"center",padding:"50px 24px",fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted}}>
+    <div style={{textAlign:"center",padding:"50px 24px",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.muted}}>
       {session.state === "PLANNING" ? "Jules is generating a plan…" : "No plan available"}
     </div>
   );
@@ -984,16 +1132,16 @@ const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFeedback,
         border:`1px solid ${approved?T.green+"40":pendingApproval?T.purple+"40":T.border}`,
       }}>
         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:approved||!pendingApproval?0:8}}>
-          <div style={{flex:1,fontFamily:"'JetBrains Mono',monospace",fontSize:10,fontWeight:700,
+          <div style={{flex:1,fontFamily:"'JetBrains Mono',monospace",fontSize:12,fontWeight:700,
             color:approved?T.green:pendingApproval?T.purple:T.muted,letterSpacing:"0.06em"}}>
             {approved?"✓ PLAN APPROVED":pendingApproval?"PLAN READY FOR REVIEW":"PLAN PREVIEW"}
           </div>
-          <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.muted}}>
+          <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted}}>
             {steps.length} step{steps.length!==1?"s":""}
           </span>
         </div>
         {pendingApproval&&!approved&&(
-          <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:12,color:T.muted,lineHeight:1.5}}>
+          <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:14,color:T.muted,lineHeight:1.5}}>
             Review each step below. Tap a step to add feedback, then request a revision or approve.
           </div>
         )}
@@ -1015,27 +1163,27 @@ const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFeedback,
               {/* Step row */}
               <div style={{display:"flex",gap:10,alignItems:"flex-start",padding:"10px 12px"}}>
                 <div style={{
-                  width:20,height:20,borderRadius:4,flexShrink:0,marginTop:1,
+                  width:24,height:24,borderRadius:4,flexShrink:0,marginTop:1,
                   background:hasNote?T.amberDim:T.purpleDim,
                   border:`1px solid ${hasNote?T.amber+"50":T.purple+"40"}`,
                   display:"flex",alignItems:"center",justifyContent:"center",
-                  fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:700,
+                  fontFamily:"'JetBrains Mono',monospace",fontSize:11,fontWeight:700,
                   color:hasNote?T.amber:T.purple,
                 }}>{i+1}</div>
                 <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:13,fontWeight:500,
+                  <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:15,fontWeight:500,
                     color:T.text,lineHeight:1.35,marginBottom:st.description?3:0}}>
                     {st.title}
                   </div>
                   {st.description&&(
-                    <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:11,color:T.muted,lineHeight:1.45}}>
+                    <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:13,color:T.muted,lineHeight:1.45}}>
                       {st.description}
                     </div>
                   )}
                   {hasNote&&!isOpen&&(
                     <div style={{marginTop:5,padding:"4px 8px",borderRadius:4,
                       background:T.amberDim,border:`1px solid ${T.amber}30`,
-                      fontFamily:"'IBM Plex Sans',sans-serif",fontSize:11,color:T.amber,lineHeight:1.4}}>
+                      fontFamily:"'IBM Plex Sans',sans-serif",fontSize:13,color:T.amber,lineHeight:1.4}}>
                       📝 {note}
                     </div>
                   )}
@@ -1045,7 +1193,7 @@ const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFeedback,
                     flexShrink:0,padding:"4px 8px",borderRadius:4,border:"none",cursor:"pointer",
                     background:isOpen?(hasNote?T.amberDim:T.purpleDim):"transparent",
                     outline:`1px solid ${isOpen?(hasNote?T.amber+"40":T.purple+"40"):T.border}`,
-                    fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:700,
+                    fontFamily:"'JetBrains Mono',monospace",fontSize:10,fontWeight:700,
                     color:isOpen?(hasNote?T.amber:T.purple):T.muted,
                     transition:"all .12s",letterSpacing:"0.06em",
                   }}>{hasNote?"EDIT":"NOTE"}</button>
@@ -1055,7 +1203,7 @@ const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFeedback,
               {/* Per-step feedback textarea */}
               {isOpen&&pendingApproval&&!approved&&(
                 <div style={{padding:"0 12px 12px",borderTop:`1px solid ${T.border}`}}>
-                  <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.amber,
+                  <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.amber,
                     letterSpacing:"0.08em",marginBottom:5,marginTop:8}}>FEEDBACK FOR STEP {i+1}</div>
                   <textarea
                     value={note}
@@ -1065,7 +1213,7 @@ const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFeedback,
                     style={{
                       width:"100%",background:T.surfaceHi,border:`1px solid ${T.amber}40`,
                       borderRadius:5,padding:"8px 10px",color:T.text,
-                      fontFamily:"'IBM Plex Sans',sans-serif",fontSize:12,lineHeight:1.4,
+                      fontFamily:"'IBM Plex Sans',sans-serif",fontSize:14,lineHeight:1.4,
                       resize:"vertical",outline:"none",boxSizing:"border-box",
                     }}
                     autoFocus
@@ -1073,7 +1221,7 @@ const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFeedback,
                   <button onClick={()=>setActiveNote(null)} style={{
                     marginTop:5,padding:"4px 10px",borderRadius:4,border:`1px solid ${T.border}`,
                     background:"transparent",cursor:"pointer",color:T.muted,
-                    fontFamily:"'JetBrains Mono',monospace",fontSize:9,
+                    fontFamily:"'JetBrains Mono',monospace",fontSize:11,
                   }}>DONE</button>
                 </div>
               )}
@@ -1088,7 +1236,7 @@ const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFeedback,
           background:T.surface,border:`1px solid ${T.border}`,
           borderRadius:7,padding:"12px 14px",
         }}>
-          <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.muted,
+          <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted,
             letterSpacing:"0.08em",marginBottom:6}}>OVERALL FEEDBACK (optional)</div>
           <textarea
             value={globalNote}
@@ -1098,7 +1246,7 @@ const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFeedback,
             style={{
               width:"100%",background:T.surfaceHi,border:`1px solid ${T.border}`,
               borderRadius:5,padding:"8px 10px",color:T.text,
-              fontFamily:"'IBM Plex Sans',sans-serif",fontSize:12,lineHeight:1.4,
+              fontFamily:"'IBM Plex Sans',sans-serif",fontSize:14,lineHeight:1.4,
               resize:"vertical",outline:"none",boxSizing:"border-box",
               transition:"border-color .18s",marginBottom:10,
             }}
@@ -1107,7 +1255,7 @@ const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFeedback,
           {sent&&(
             <div style={{marginBottom:8,padding:"6px 10px",borderRadius:4,
               background:T.greenDim,border:`1px solid ${T.green}40`,
-              fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.green}}>
+              fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.green}}>
               ✓ Revision request sent — Jules will update the plan
             </div>
           )}
@@ -1131,7 +1279,7 @@ const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFeedback,
               {busy?"APPROVING…":"APPROVE PLAN"}
             </Btn>
           </div>
-          <div style={{marginTop:7,fontFamily:"'JetBrains Mono',monospace",fontSize:8,color:T.muted,textAlign:"center",lineHeight:1.6}}>
+          <div style={{marginTop:7,fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted,textAlign:"center",lineHeight:1.6}}>
             Revise → Jules rewrites the plan · Approve → Jules starts executing
           </div>
         </div>
@@ -1143,7 +1291,7 @@ const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFeedback,
 // ─── Diff Viewer ──────────────────────────────────────────────────────────────
 const DiffViewer = ({ patch }) => {
   if (!patch) return (
-    <div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted}}>
+    <div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.muted}}>
       No diff available yet
     </div>
   );
@@ -1178,15 +1326,15 @@ const DiffViewer = ({ patch }) => {
         <div key={gi} style={{background:"#040507", border:`1px solid ${T.border}`, borderRadius:8, overflow:"hidden"}}>
           {/* File Header */}
           <div style={{padding:"8px 12px", background:T.surface, borderBottom:`1px solid ${T.border}`, display:"flex", alignItems:"center", gap:8}}>
-            <Ic n="code" s={12} c={T.green}/>
-            <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:700, color:T.text}}>{g.file}</span>
+            <Ic n="code" s={14} c={T.green}/>
+            <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:13, fontWeight:700, color:T.text}}>{g.file}</span>
           </div>
 
           {/* Hunks */}
-          <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, lineHeight:1.5}}>
+          <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:13, lineHeight:1.5}}>
             {g.hunks.map((h, hi) => (
               <div key={hi}>
-                <div style={{padding:"4px 12px", background:"rgba(77,166,255,.05)", color:T.blue, fontSize:10, borderBottom:`1px solid ${T.border}40`}}>
+                <div style={{padding:"4px 12px", background:"rgba(77,166,255,.05)", color:T.blue, fontSize:12, borderBottom:`1px solid ${T.border}40`}}>
                   {h.header}
                 </div>
                 {h.lines.map((line, li) => {
@@ -1199,7 +1347,7 @@ const DiffViewer = ({ patch }) => {
 
                   return (
                     <div key={li} style={{display:"flex", background:bg, minHeight:20, borderLeft:`2px solid ${isAdd?T.green+'40':isRem?T.red+'40':'transparent'}`}}>
-                      <div style={{width:22, flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", color:c, opacity:0.6, fontSize:10, userSelect:"none", fontWeight:700, fontFamily:"monospace"}}>
+                      <div style={{width:22, flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", color:c, opacity:0.6, fontSize:12, userSelect:"none", fontWeight:700, fontFamily:"monospace"}}>
                         {symbol}
                       </div>
                       <div style={{padding:"2px 10px", color:isAdd?T.green:isRem?T.red:T.text, whiteSpace:"pre-wrap", wordBreak:"break-all", flex:1, opacity: (isAdd||isRem)?1:0.7}}>
@@ -1243,21 +1391,21 @@ const SetupScreen = ({ onSave }) => {
             fontFamily:"'JetBrains Mono',monospace",fontSize:30,fontWeight:900,color:"#000",
             margin:"0 auto 16px",boxShadow:`0 0 32px ${T.green}40`,
           }}>J</div>
-          <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:14,fontWeight:700,color:T.text,marginBottom:6}}>JULES AGENT CLIENT</div>
-          <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:13,color:T.muted,lineHeight:1.6}}>
+          <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:16,fontWeight:700,color:T.text,marginBottom:6}}>JULES AGENT CLIENT</div>
+          <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:15,color:T.muted,lineHeight:1.6}}>
             Enter your Jules API key from<br/>
-            <span style={{color:T.blue,fontFamily:"'JetBrains Mono',monospace",fontSize:11}}>jules.google.com → Settings → API</span>
+            <span style={{color:T.blue,fontFamily:"'JetBrains Mono',monospace",fontSize:13}}>jules.google.com → Settings → API</span>
           </div>
         </div>
         <input
           type="password" value={key}
           onChange={e=>setKey(e.target.value)}
           placeholder="AIza..."
-          style={{...inputSt,fontSize:14,fontFamily:"'JetBrains Mono',monospace",marginBottom:10}}
+          style={{...inputSt,fontSize:16,fontFamily:"'JetBrains Mono',monospace",marginBottom:10}}
           onKeyDown={e=>e.key==="Enter"&&doConnect()}
           autoFocus
         />
-        {err&&<div style={{padding:"8px 12px",borderRadius:5,marginBottom:10,background:T.redDim,border:`1px solid ${T.red}40`,fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.red}}>{err}</div>}
+        {err&&<div style={{padding:"8px 12px",borderRadius:5,marginBottom:10,background:T.redDim,border:`1px solid ${T.red}40`,fontFamily:"'JetBrains Mono',monospace",fontSize:12,color:T.red}}>{err}</div>}
         <div style={{display:"flex", gap:10}}>
           <Btn onClick={doConnect} disabled={!key.trim()||testing} style={{flex:1}}>
             <Ic n="key" s={12} c="#000"/>
@@ -1270,7 +1418,7 @@ const SetupScreen = ({ onSave }) => {
             <Ic n="trash" s={14} c={T.muted}/>
           </button>
         </div>
-        <div style={{marginTop:16,fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.muted,textAlign:"center",lineHeight:1.7}}>
+          <div style={{marginTop:16,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted,textAlign:"center",lineHeight:1.7}}>
           Key stored locally for persistence<br/>
           Install Jules GitHub app first via web UI
         </div>
@@ -1295,16 +1443,16 @@ const SessionCard = memo(({ s, onPress, isSelected }) => {
     }}>
       <div style={{display:"flex",alignItems:"flex-start",gap:8,marginBottom:7}}>
         <div style={{flex:1,minWidth:0}}>
-          {repo&&<div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.muted,marginBottom:3,letterSpacing:"0.04em",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{repo}</div>}
-          <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:13,fontWeight:500,color:T.text,lineHeight:1.35,overflow:"hidden",textOverflow:"ellipsis",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>{s.title||s.prompt}</div>
+          {repo&&<div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted,marginBottom:3,letterSpacing:"0.04em",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{repo}</div>}
+          <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:15,fontWeight:500,color:T.text,lineHeight:1.35,overflow:"hidden",textOverflow:"ellipsis",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>{s.title||s.prompt}</div>
         </div>
         <Pill status={s.state} small/>
       </div>
       <Bar pct={pct} status={s.state}/>
-      <div style={{display:"flex",alignItems:"center",gap:10,marginTop:6,fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.muted}}>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginTop:6,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted}}>
         <span>{fmtAgo(new Date(s.updateTime||s.createTime).getTime())}</span>
         {s.outputs?.find(o=>o.pullRequest)&&<span style={{color:T.blue}}>PR→</span>}
-        <span style={{marginLeft:"auto",fontSize:8,color:T.dim,background:T.surfaceHi,padding:"1px 5px",borderRadius:2}}>{s.id?.slice(0,8)}</span>
+        <span style={{marginLeft:"auto",fontSize:10,color:T.dim,background:T.surfaceHi,padding:"1px 5px",borderRadius:2}}>{s.id?.slice(0,8)}</span>
       </div>
     </button>
   );
@@ -1317,6 +1465,8 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
   const [showAll,setShowAll]     = useState(false);
   const [tab,setTab]             = useState("activity");
   const [msg,setMsg]             = useState("");
+  const [attachedFiles,setAttachedFiles] = useState([]);
+  const [uiUxExpert,setUiUxExpert] = useState(false);
   const [busy,setBusy]           = useState(false);
   const [err,setErr]             = useState(null);
   const [activeMedia,setActiveMedia] = useState(null);
@@ -1435,20 +1585,44 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
 
   // ── Actions ─────────────────────────────────────────────────────────────────
   const handleSend = async () => {
-    if (!msg.trim() || busy) return;
-    const text = msg.trim();
+    if ((!msg.trim() && attachedFiles.length === 0) || busy) return;
+    let text = msg.trim();
+    if (uiUxExpert) {
+      const persona = "(Please respond as a UI/UX expert)";
+      text = text ? `${text}\n\n${persona}` : persona;
+    }
+    const files = [...attachedFiles];
     setMsg("");
+    setAttachedFiles([]);
     setBusy(true); setErr(null);
 
     // Optimistic: add temp bubble immediately
     const tempKey = `_temp_${Date.now()}`;
-    const tempAct = { id:tempKey, createTime:new Date().toISOString(), userMessaged:{ userMessage:text }, _temp:true };
+    const tempAct = {
+      id:tempKey,
+      createTime:new Date().toISOString(),
+      userMessaged:{ userMessage:text },
+      artifacts: files.map(f => ({ media: { data: f.data, mimeType: f.mimeType } })),
+      _temp:true
+    };
     actMapRef.current.set(tempKey, tempAct);
     setActivities(prev => [...prev, tempAct]);
 
     try {
       await apiCall(apiKey, `/sessions/${session.id}:sendMessage`, {
-        method:"POST", body:{ prompt:text }, _label:`Message → ${session.id?.slice(0,6)}`,
+        method:"POST",
+        body:{
+          prompt:text,
+          ...(files.length > 0 && {
+            artifacts: files.map(f => ({
+              media: {
+                data: f.data,
+                mimeType: f.mimeType
+              }
+            }))
+          })
+        },
+        _label:`Message → ${session.id?.slice(0,6)}`,
       });
       // Remove temp, fetch real activities
       actMapRef.current.delete(tempKey);
@@ -1572,7 +1746,7 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
           <div style={{flex:1,minWidth:0,transition:"all .2s ease"}}>
             <div style={{
               fontFamily:"'IBM Plex Sans',sans-serif",
-              fontSize:scrolled?11:14,
+              fontSize:scrolled?13:16,
               fontWeight:600,
               color:T.text,
               lineHeight:scrolled?1.6:1.3,
@@ -1599,12 +1773,12 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
 
         <div style={{
           display:"flex",gap:10,
-          height:scrolled?0:14,
+          height:scrolled?0:16,
           marginTop:0,
           marginBottom:scrolled?0:10,
           opacity:scrolled?0:1,
           overflow:"hidden",
-          fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.muted,flexWrap:"nowrap",alignItems:"center",
+          fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted,flexWrap:"nowrap",alignItems:"center",
           transition:"all .2s ease",
         }}>
           <span>{session.id?.slice(0,10)}</span>
@@ -1613,12 +1787,12 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
               ⎇ {session.sourceContext.githubRepoContext?.startingBranch||"main"}
             </span>
           )}
-          {session.url && <a href={session.url} target="_blank" rel="noopener" style={{color:T.muted,textDecoration:"none",flexShrink:0,fontFamily:"'JetBrains Mono',monospace",fontSize:9}}>WEB↗</a>}
+          {session.url && <a href={session.url} target="_blank" rel="noopener" style={{color:T.muted,textDecoration:"none",flexShrink:0,fontFamily:"'JetBrains Mono',monospace",fontSize:11}}>WEB↗</a>}
           {pr && <a href={pr.url} target="_blank" rel="noopener" style={{color:T.blue,textDecoration:"none",flexShrink:0}}>PR↗</a>}
 
           <div style={{marginLeft:"auto",display:"flex",gap:12,alignItems:"center"}}>
             {pollInterval > 0 && (
-              <div style={{padding:"2px 7px",borderRadius:20,background:T.greenDim,border:`1px solid ${T.green}30`,fontFamily:"'JetBrains Mono',monospace",fontSize:8,color:T.green,display:"flex",alignItems:"center",gap:4,flexShrink:0}}>
+              <div style={{padding:"2px 7px",borderRadius:20,background:T.greenDim,border:`1px solid ${T.green}30`,fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.green,display:"flex",alignItems:"center",gap:4,flexShrink:0}}>
                 <span style={{width:3,height:3,borderRadius:"50%",background:T.green,animation:"dot 2s ease-in-out infinite"}}/>
                 {countdown}s
               </div>
@@ -1635,22 +1809,22 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
         {session.state==="AWAITING_PLAN_APPROVAL"&&(
           <div style={{marginBottom:8,padding:"7px 10px",background:T.purpleDim,border:`1px solid ${T.purple}40`,borderRadius:5,display:"flex",alignItems:"center",gap:8,cursor:"pointer"}} onClick={()=>setTab("plan")}>
             <span style={{width:6,height:6,borderRadius:"50%",background:T.purple,animation:"dot 1.2s ease-in-out infinite",flexShrink:0}}/>
-            <div style={{flex:1,fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.purple,fontWeight:700}}>PLAN READY — tap to review & approve</div>
+            <div style={{flex:1,fontFamily:"'JetBrains Mono',monospace",fontSize:12,color:T.purple,fontWeight:700}}>PLAN READY — tap to review & approve</div>
             <Ic n="plan" s={13} c={T.purple}/>
           </div>
         )}
 
         {session.state==="AWAITING_USER_FEEDBACK"&&(
-          <div style={{marginBottom:10,padding:"8px 10px",background:T.amberDim,border:`1px solid ${T.amber}40`,borderRadius:5,fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.amber}}>
+          <div style={{marginBottom:10,padding:"8px 10px",background:T.amberDim,border:`1px solid ${T.amber}40`,borderRadius:5,fontFamily:"'JetBrains Mono',monospace",fontSize:12,color:T.amber}}>
             ⚡ Jules needs your input — reply below
           </div>
         )}
 
-        {err&&<div style={{marginBottom:8,padding:"6px 10px",borderRadius:4,background:T.redDim,border:`1px solid ${T.red}40`,fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.red}}>{err}</div>}
+        {err&&<div style={{marginBottom:8,padding:"6px 10px",borderRadius:4,background:T.redDim,border:`1px solid ${T.red}40`,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.red}}>{err}</div>}
 
         {/* ── Interval picker ── */}
         <div style={{display:"flex",gap:4,alignItems:"center",marginBottom:10,flexWrap:"nowrap",overflowX:"auto",scrollbarWidth:"none",padding:"4px 2px"}}>
-          <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,color:T.muted,letterSpacing:"0.08em",flexShrink:0,paddingRight:2}}>AUTO</span>
+          <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted,letterSpacing:"0.08em",flexShrink:0,paddingRight:2}}>AUTO</span>
           {POLL_OPTIONS.map(opt => {
             const isAct = opt.ms === pollInterval;
             const c = isAct ? (opt.ms===0 ? T.red : T.green) : T.muted;
@@ -1659,7 +1833,7 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
                 flexShrink:0,padding:"3px 9px",borderRadius:20,border:"none",
                 background:isAct?(opt.ms===0?T.redDim:T.greenDim):"transparent",
                 outline:`1px solid ${isAct?(opt.ms===0?T.red+"60":T.green+"60"):T.border}`,
-                color:c,fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:isAct?700:400,
+                color:c,fontFamily:"'JetBrains Mono',monospace",fontSize:11,fontWeight:isAct?700:400,
                 letterSpacing:"0.05em",cursor:"pointer",transition:"all .12s",
               }}>{opt.label}</button>
             );
@@ -1674,11 +1848,11 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
             borderRadius:6, transition:"all .2s ease",
           }}>
             <div style={{
-              fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:T.green,
+              fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.green,
               fontWeight:700, letterSpacing:"0.06em", marginBottom:6,
             }}>SESSION SUMMARY</div>
             <div style={{
-              fontFamily:"'IBM Plex Sans',sans-serif", fontSize:12, color:T.text,
+              fontFamily:"'IBM Plex Sans',sans-serif", fontSize:14, color:T.text,
               lineHeight:1.55, whiteSpace:"pre-wrap",
             }}>{summary.summary}</div>
           </div>
@@ -1690,7 +1864,7 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
               flex:1,padding:"8px 0",background:"none",border:"none",
               borderBottom:`2px solid ${tab===t.id?T.green:"transparent"}`,
               color:tab===t.id?T.green:T.muted,cursor:"pointer",
-              fontFamily:"'JetBrains Mono',monospace",fontSize:10,fontWeight:700,letterSpacing:"0.07em",
+              fontFamily:"'JetBrains Mono',monospace",fontSize:12,fontWeight:700,letterSpacing:"0.07em",
               transition:"color .15s, border-color .15s",
             }}>{t.label}</button>
           ))}
@@ -1701,7 +1875,7 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
       <div onScroll={handleScroll} style={{flex:1,overflowY:"auto",padding:"14px 16px",WebkitOverflowScrolling:"touch",minHeight:200}}>
         {tab==="activity"&&(
           activities.length===0
-          ?<div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted}}>
+          ?<div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.muted}}>
             {ACTIVE_STATES.has(session.state)?"Waiting for activity…":"No activities yet"}
           </div>
           :<ActivityFeed activities={activities} showAll={showAll} onShowAll={()=>setShowAll(true)} onMediaClick={setActiveMedia}/>
@@ -1719,21 +1893,21 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
         {tab==="diff"&&<DiffViewer patch={diffArtifact?.unidiffPatch||null}/>}
         {tab==="bash"&&(
           bashOutputs.length===0
-          ?<div style={{textAlign:"center",padding:"40px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted}}>No bash output</div>
+          ?<div style={{textAlign:"center",padding:"40px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.muted}}>No bash output</div>
           :bashOutputs.map((b,i)=>(
             <div key={i} style={{marginBottom:12,background:"#040507",border:`1px solid ${T.border}`,borderRadius:6,overflow:"hidden"}}>
               <div style={{padding:"5px 10px",background:T.surface,borderBottom:`1px solid ${T.border}`,display:"flex",gap:8,alignItems:"center"}}>
                 <Ic n="terminal" s={11} c={T.muted}/>
-                <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{b.command}</span>
-                <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:b.exitCode===0?T.green:T.red,flexShrink:0}}>exit:{b.exitCode}</span>
+                <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:12,color:T.muted,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{b.command}</span>
+                <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:b.exitCode===0?T.green:T.red,flexShrink:0}}>exit:{b.exitCode}</span>
               </div>
-              <div style={{padding:"8px 10px",fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.text,whiteSpace:"pre-wrap",lineHeight:1.5,maxHeight:300,overflowY:"auto"}}>{b.output}</div>
+              <div style={{padding:"8px 10px",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.text,whiteSpace:"pre-wrap",lineHeight:1.5,maxHeight:300,overflowY:"auto"}}>{b.output}</div>
             </div>
           ))
         )}
         {tab==="media"&&(
           mediaArtifacts.length===0
-          ?<div style={{textAlign:"center",padding:"40px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted}}>No media artifacts</div>
+          ?<div style={{textAlign:"center",padding:"40px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.muted}}>No media artifacts</div>
           :<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:12}}>
             {mediaArtifacts.map((m,i)=>{
               const isVideo = (m.mimeType || "").includes("video") || (m.mimeType || "").includes("webm");
@@ -1759,10 +1933,10 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
                     )}
                   </div>
                   <div style={{ padding:"8px 10px" }}>
-                    <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:T.text, fontWeight:700, marginBottom:2 }}>
+                    <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.text, fontWeight:700, marginBottom:2 }}>
                       {m.mimeType.split("/")[1]?.toUpperCase() || "IMAGE"}
                     </div>
-                    <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:8, color:T.muted }}>
+                    <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.muted }}>
                       {fmtTime(new Date(m.ts).getTime())}
                     </div>
                   </div>
@@ -1780,38 +1954,79 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
       {/* ── Composer ── */}
       {canSend&&(
         <div style={{padding:"10px 16px 14px",borderTop:`1px solid ${T.border}`,background:T.surface,flexShrink:0}}>
-          <div style={{display:"flex",gap:8,alignItems:"flex-end"}}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <MediaPicker files={attachedFiles} setFiles={setAttachedFiles} busy={busy} />
+            <button
+              onClick={() => setUiUxExpert(!uiUxExpert)}
+              style={{
+                background: uiUxExpert ? T.purpleDim : "transparent",
+                border: `1px solid ${uiUxExpert ? T.purple : T.borderHi}`,
+                borderRadius: 20, padding: "4px 10px",
+                color: uiUxExpert ? T.purple : T.muted,
+                fontFamily: "'JetBrains Mono',monospace", fontSize: 10,
+                fontWeight: 700, cursor: "pointer", transition: "all .2s"
+              }}
+            >
+              UI/UX {uiUxExpert ? "ON" : "OFF"}
+            </button>
+          </div>
+          <div style={{display:"flex",gap:8,alignItems:"flex-end", marginTop:4}}>
             <textarea
               ref={txtRef}
               value={msg}
               onChange={e=>setMsg(e.target.value)}
+              onPaste={async (e) => {
+                const items = e.clipboardData?.items;
+                if (!items) return;
+                const fileList = [];
+                for (const item of items) {
+                  if (item.kind === 'file') {
+                    const file = item.getAsFile();
+                    if (file) fileList.push(file);
+                  }
+                }
+                if (fileList.length > 0) {
+                  const newFiles = [];
+                  for (const file of fileList) {
+                    const reader = new FileReader();
+                    const dataPromise = new Promise((resolve, reject) => {
+                      reader.onload = (ev) => resolve(ev.target.result.split(',')[1]);
+                      reader.onerror = (ev) => reject(new Error("Failed to read file"));
+                      reader.readAsDataURL(file);
+                    });
+                    const base64Data = await dataPromise;
+                    newFiles.push({ name: file.name, mimeType: file.type || 'application/octet-stream', data: base64Data });
+                  }
+                  setAttachedFiles(prev => [...prev, ...newFiles]);
+                }
+              }}
               onKeyDown={e=>e.key==="Enter"&&!e.shiftKey&&(e.preventDefault(),handleSend())}
               placeholder="Message Jules or give new instructions…"
               rows={2}
               style={{
                 flex:1,background:T.surfaceHi,
-                border:`1px solid ${msg?T.green+"66":T.border}`,
+                border:`1px solid ${msg||attachedFiles.length?T.green+"66":T.border}`,
                 borderRadius:6,padding:"8px 10px",color:T.text,
-                fontFamily:"'IBM Plex Sans',sans-serif",fontSize:13,lineHeight:1.4,
+                fontFamily:"'IBM Plex Sans',sans-serif",fontSize:15,lineHeight:1.4,
                 resize:"none",outline:"none",transition:"border-color .2s",
                 WebkitOverflowScrolling:"touch",
               }}
             />
             <button
               onClick={handleSend}
-              disabled={!msg.trim()||busy}
+              disabled={(!msg.trim()&&attachedFiles.length===0)||busy}
               style={{
                 width:38,height:38,flexShrink:0,borderRadius:6,border:"none",
-                background:msg.trim()&&!busy?T.green:T.dim,
-                cursor:msg.trim()&&!busy?"pointer":"default",
+                background:(msg.trim()||attachedFiles.length)&&!busy?T.green:T.dim,
+                cursor:(msg.trim()||attachedFiles.length)&&!busy?"pointer":"default",
                 display:"flex",alignItems:"center",justifyContent:"center",
                 transition:"background .2s",
               }}
             >
-              <Ic n="send" s={14} c={msg.trim()&&!busy?"#000":T.muted}/>
+              <Ic n="send" s={14} c={(msg.trim()||attachedFiles.length)&&!busy?"#000":T.muted}/>
             </button>
           </div>
-          <div style={{marginTop:4,fontFamily:"'JetBrains Mono',monospace",fontSize:8,color:T.muted}}>↵ send · shift+↵ newline</div>
+          <div style={{marginTop:4,fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted}}>↵ send · shift+↵ newline</div>
         </div>
       )}
     </div>
@@ -1846,6 +2061,8 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
   const [title,setTitle]           = useState(draft?.title ?? "");
   const [autoMode,setAutoMode]     = useState(draft?.autoMode ?? true);
   const [reqApproval,setReqApp]    = useState(draft?.reqApproval ?? false);
+  const [uiUxExpert,setUiUxExpert] = useState(draft?.uiUxExpert ?? false);
+  const [attachedFiles,setAttachedFiles] = useState([]);
   const [submitting,setSub]        = useState(false);
   const [err,setErr]               = useState(null);
   const [savedFlash,setSavedFlash] = useState(false);
@@ -1900,10 +2117,10 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
   useEffect(() => {
     clearTimeout(draftRef.current);
     draftRef.current = setTimeout(() => {
-      saveDraft({ source, branch, prompt, title, autoMode, reqApproval });
+      saveDraft({ source, branch, prompt, title, autoMode, reqApproval, uiUxExpert });
     }, 400);
     return () => clearTimeout(draftRef.current);
-  }, [source, branch, prompt, title, autoMode, reqApproval]);
+  }, [source, branch, prompt, title, autoMode, reqApproval, uiUxExpert]);
 
   useEffect(() => {
     (async () => {
@@ -1929,14 +2146,28 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
   const handleCreate = async () => {
     if (!prompt.trim()) return;
     setSub(true); setErr(null);
+
+    let finalPrompt = prompt.trim();
+    if (uiUxExpert) {
+      finalPrompt += "\n\nPlease approach this task from the perspective of a UI/UX expert, ensuring that any changes or additions follow modern design principles, accessibility standards, and provide an excellent user experience.";
+    }
+
     const body = {
-      prompt: prompt.trim(),
+      prompt: finalPrompt,
       ...(title.trim()&&{title:title.trim()}),
       ...(source&&{
         sourceContext:{ source, githubRepoContext:{ startingBranch:branch||defaultBranch||"main" } },
         ...(autoMode&&{automationMode:"AUTO_CREATE_PR"}),
       }),
       requirePlanApproval: reqApproval,
+      ...(attachedFiles.length > 0 && {
+        artifacts: attachedFiles.map(f => ({
+          media: {
+            data: f.data,
+            mimeType: f.mimeType
+          }
+        }))
+      }),
     };
     try {
       const d = await apiCall(apiKey, "/sessions", { method:"POST", body, _label:"Create session" });
@@ -1951,31 +2182,31 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
     <div style={{display:"flex",flexDirection:"column",height:"100%",minHeight:0}}>
       <div style={{padding:"12px 16px",borderBottom:`1px solid ${T.border}`,background:T.surface,display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
         {!isDesktop&&<button onClick={onBack} style={{background:"none",border:"none",cursor:"pointer",display:"flex"}}><Ic n="back" s={18} c={T.text}/></button>}
-        <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.text,letterSpacing:"0.05em",fontWeight:700,flex:1}}>NEW SESSION</div>
+        <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.text,letterSpacing:"0.05em",fontWeight:700,flex:1}}>NEW SESSION</div>
         {/* Draft indicator */}
         {draft&&(prompt||title||branch!=="main")&&!savedFlash&&(
           <button onClick={handleClearDraft} title="Clear saved draft" style={{
             display:"flex",alignItems:"center",gap:5,padding:"3px 9px",borderRadius:20,
             background:T.amberDim,border:`1px solid ${T.amber}40`,cursor:"pointer",
-            fontFamily:"'JetBrains Mono',monospace",fontSize:8,color:T.amber,letterSpacing:"0.07em",
+            fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.amber,letterSpacing:"0.07em",
           }}>
             <span style={{width:4,height:4,borderRadius:"50%",background:T.amber,flexShrink:0}}/>
             DRAFT
           </button>
         )}
         {savedFlash&&(
-          <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,color:T.muted,padding:"3px 9px"}}>CLEARED</span>
+          <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted,padding:"3px 9px"}}>CLEARED</span>
         )}
       </div>
       <div style={{flex:1,overflowY:"auto",padding:"18px 24px",WebkitOverflowScrolling:"touch",minHeight:0}}>
         <div style={{maxWidth:560,margin:"0 auto"}}>
-          {err&&<div style={{padding:"8px 12px",borderRadius:5,marginBottom:12,background:T.redDim,border:`1px solid ${T.red}40`,fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.red}}>{err}</div>}
+          {err&&<div style={{padding:"8px 12px",borderRadius:5,marginBottom:12,background:T.redDim,border:`1px solid ${T.red}40`,fontFamily:"'JetBrains Mono',monospace",fontSize:12,color:T.red}}>{err}</div>}
 
           <Field label="REPOSITORY (SOURCE)">
             {loadingSrc
-              ?<div style={{...inputSt,color:T.muted,fontSize:11}}>Loading sources…</div>
+              ?<div style={{...inputSt,color:T.muted,fontSize:13}}>Loading sources…</div>
               :sources.length===0
-              ?<div style={{padding:"10px 12px",borderRadius:6,background:T.amberDim,border:`1px solid ${T.amber}40`,fontFamily:"'IBM Plex Sans',sans-serif",fontSize:12,color:T.amber}}>
+              ?<div style={{padding:"10px 12px",borderRadius:6,background:T.amberDim,border:`1px solid ${T.amber}40`,fontFamily:"'IBM Plex Sans',sans-serif",fontSize:14,color:T.amber}}>
                 No sources found. Connect a repo at <span style={{fontFamily:"'JetBrains Mono',monospace"}}>jules.google.com</span> first.
               </div>
               :<div style={{position:"relative"}}>
@@ -2008,7 +2239,7 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
                       boxShadow:"0 10px 25px rgba(0,0,0,0.5)",
                     }}>
                       {filteredSources.length === 0 && (
-                        <div style={{padding:"12px", textAlign:"center", fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.muted}}>
+                        <div style={{padding:"12px", textAlign:"center", fontFamily:"'JetBrains Mono',monospace", fontSize:12, color:T.muted}}>
                           NO RESULTS FOUND
                         </div>
                       )}
@@ -2031,7 +2262,7 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
                           >
                             <Ic n="code" s={12} c={isSelected?T.green:T.muted}/>
                             <span style={{
-                              flex:1, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:13,
+                              flex:1, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:15,
                               color:isSelected?T.green:T.text, fontWeight:isSelected?600:400,
                               overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
                             }}>{getSourceDisplay(s)}</span>
@@ -2075,7 +2306,7 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
                       boxShadow:"0 10px 25px rgba(0,0,0,0.5)",
                     }}>
                       {filteredBranches.length === 0 && (
-                        <div style={{padding:"12px", textAlign:"center", fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.muted}}>
+                        <div style={{padding:"12px", textAlign:"center", fontFamily:"'JetBrains Mono',monospace", fontSize:12, color:T.muted}}>
                           NO RESULTS FOUND
                         </div>
                       )}
@@ -2093,13 +2324,13 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
                         >
                           <Ic n="branch" s={12} c={b===branch?T.green:T.muted}/>
                           <span style={{
-                            flex:1, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:13,
+                            flex:1, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:15,
                             color:b===branch?T.green:T.text, fontWeight:b===branch?600:400,
                             overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
                           }}>{b}</span>
                           {b===defaultBranch && (
                             <span style={{
-                              fontFamily:"'JetBrains Mono',monospace", fontSize:8,
+                              fontFamily:"'JetBrains Mono',monospace", fontSize:10,
                               color:T.green, background:T.greenDim, padding:"1px 5px", borderRadius:3,
                             }}>DEFAULT</span>
                           )}
@@ -2111,7 +2342,7 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
               </div>
               <div style={{
                 marginTop:5, display:"flex", gap:6, alignItems:"center",
-                fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:T.muted,
+                fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.muted,
               }}>
                 <span>{branches.length || 0} branch{branches.length!==1?"es":""}</span>
                 {defaultBranch && <span>· default: <span style={{color:T.green}}>{defaultBranch}</span></span>}
@@ -2120,7 +2351,7 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
                     marginLeft:4, padding:"1px 7px", borderRadius:3,
                     background:"transparent", border:`1px solid ${T.border}`,
                     color:T.muted, cursor:"pointer",
-                    fontFamily:"'JetBrains Mono',monospace", fontSize:8,
+                    fontFamily:"'JetBrains Mono',monospace", fontSize:10,
                   }}>reset</button>
                 )}
               </div>
@@ -2133,33 +2364,63 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
 
           <Field label="TASK PROMPT *">
             <textarea value={prompt} onChange={e=>setPrompt(e.target.value)}
+              onPaste={async (e) => {
+                const items = e.clipboardData?.items;
+                if (!items) return;
+                const fileList = [];
+                for (const item of items) {
+                  if (item.kind === 'file') {
+                    const file = item.getAsFile();
+                    if (file) fileList.push(file);
+                  }
+                }
+                if (fileList.length > 0) {
+                  // We need to access MediaPicker's logic or duplicate it.
+                  // Simplest is to just use a custom paste handler here.
+                  const newFiles = [];
+                  for (const file of fileList) {
+                    const reader = new FileReader();
+                    const dataPromise = new Promise((resolve, reject) => {
+                      reader.onload = (ev) => resolve(ev.target.result.split(',')[1]);
+                      reader.onerror = (ev) => reject(new Error("Failed to read file"));
+                      reader.readAsDataURL(file);
+                    });
+                    const base64Data = await dataPromise;
+                    newFiles.push({ name: file.name, mimeType: file.type || 'application/octet-stream', data: base64Data });
+                  }
+                  setAttachedFiles(prev => [...prev, ...newFiles]);
+                }
+              }}
               placeholder="Describe the coding task for Jules to execute…"
               rows={6} style={{...inputSt,resize:"vertical",lineHeight:1.5}}/>
+
+            <MediaPicker files={attachedFiles} setFiles={setAttachedFiles} busy={submitting} />
           </Field>
 
-          <div style={{display:"flex",gap:10,marginBottom:16}}>
+          <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap"}}>
             {[
               {label:"AUTO PR",    val:autoMode,   set:setAutoMode, hint:"Create PR when done", disabled:!source},
               {label:"APPROVE PLAN",val:reqApproval,set:setReqApp,  hint:"Review plan first"},
+              {label:"UI/UX EXPERT",val:uiUxExpert,set:setUiUxExpert,hint:"Apply design focus"},
             ].map(opt=>(
               <button
                 key={opt.label}
                 onClick={()=>!opt.disabled&&opt.set(v=>!v)}
                 disabled={opt.disabled}
                 style={{
-                  flex:1,padding:"9px 8px",borderRadius:5,cursor:opt.disabled?"default":"pointer",
+                  flex:"1 1 100px",padding:"9px 8px",borderRadius:5,cursor:opt.disabled?"default":"pointer",
                   background:opt.val?T.greenDim:T.surfaceHi,
                   border:`1px solid ${opt.val?T.green+"50":T.border}`,
                   display:"flex",flexDirection:"column",alignItems:"center",gap:3,
                   opacity:opt.disabled?0.4:1,
                 }}>
-                <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:700,color:opt.val?T.green:T.muted,letterSpacing:"0.08em"}}>{opt.label}</div>
-                <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,color:T.muted}}>{opt.hint}</div>
+                <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,fontWeight:700,color:opt.val?T.green:T.muted,letterSpacing:"0.08em"}}>{opt.label}</div>
+                <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted}}>{opt.hint}</div>
               </button>
             ))}
           </div>
 
-          <div style={{padding:"8px 12px",borderRadius:5,marginBottom:10,background:T.greenDim,border:`1px solid ${T.green}30`,fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.green,lineHeight:1.7}}>
+          <div style={{padding:"8px 12px",borderRadius:5,marginBottom:10,background:T.greenDim,border:`1px solid ${T.green}30`,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.green,lineHeight:1.7}}>
             ⚡ PAYLOAD: ~{payloadEst}KB<span style={{color:T.muted}}> · web baseline ~180KB</span>
           </div>
 
@@ -2168,7 +2429,7 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
               padding:"8px 12px",borderRadius:5,marginBottom:14,
               background:todayCount>=plan.daily?T.redDim:T.surfaceHi,
               border:`1px solid ${todayCount>=plan.daily?T.red+"40":T.border}`,
-              fontFamily:"'JetBrains Mono',monospace",fontSize:9,lineHeight:1.7,
+              fontFamily:"'JetBrains Mono',monospace",fontSize:11,lineHeight:1.7,
               color:todayCount>=plan.daily?T.red:T.muted,
             }}>
               {todayCount>=plan.daily
@@ -2199,7 +2460,7 @@ const NetworkMonitor = ({ onBack, isDesktop }) => {
     <div style={{display:"flex",flexDirection:"column",height:"100%",minHeight:0}}>
       <div style={{padding:"12px 16px",borderBottom:`1px solid ${T.border}`,background:T.surface,display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
         {!isDesktop&&<button onClick={onBack} style={{background:"none",border:"none",cursor:"pointer",display:"flex"}}><Ic n="back" s={18} c={T.text}/></button>}
-        <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.text,letterSpacing:"0.05em",fontWeight:700}}>NETWORK MONITOR</div>
+        <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.text,letterSpacing:"0.05em",fontWeight:700}}>NETWORK MONITOR</div>
       </div>
       <div style={{flex:1,overflowY:"auto",padding:"16px 24px",WebkitOverflowScrolling:"touch",minHeight:0}}>
         <div style={{maxWidth:640,margin:"0 auto"}}>
@@ -2211,37 +2472,37 @@ const NetworkMonitor = ({ onBack, isDesktop }) => {
               {l:"DATA SAVED", v:`${reduction}%`,c:T.purple},
             ].map(s=>(
               <div key={s.l} style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:6,padding:"12px 14px"}}>
-                <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,color:T.muted,letterSpacing:"0.1em",marginBottom:4}}>{s.l}</div>
-                <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:22,fontWeight:700,color:s.c}}>{s.v}</div>
+                <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted,letterSpacing:"0.1em",marginBottom:4}}>{s.l}</div>
+                <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:24,fontWeight:700,color:s.c}}>{s.v}</div>
               </div>
             ))}
           </div>
           <div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:6,padding:"14px",marginBottom:14}}>
-            <div style={{display:"flex",justifyContent:"space-between",marginBottom:8,fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.muted}}>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:8,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted}}>
               <span>SESSION USAGE</span><span style={{color:T.green}}>{fmtBytes(total)}</span>
             </div>
             <div style={{height:6,background:T.border,borderRadius:3,overflow:"hidden"}}>
               <div style={{height:"100%",width:`${Math.min(100,(total/500)*100)}%`,background:`linear-gradient(90deg,${T.green},${T.amber})`,borderRadius:3,boxShadow:`0 0 8px ${T.green}60`,transition:"width .4s ease",transform:"translateZ(0)"}}/>
             </div>
-            <div style={{display:"flex",justifyContent:"space-between",marginTop:5,fontFamily:"'JetBrains Mono',monospace",fontSize:8,color:T.muted}}>
+            <div style={{display:"flex",justifyContent:"space-between",marginTop:5,fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted}}>
               <span>0</span><span>500KB budget</span>
             </div>
           </div>
-          <div style={{background:T.amberDim,border:`1px solid ${T.amber}30`,borderRadius:6,padding:"12px 14px",marginBottom:16,fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.amber,lineHeight:1.7}}>
+          <div style={{background:T.amberDim,border:`1px solid ${T.amber}30`,borderRadius:6,padding:"12px 14px",marginBottom:16,fontFamily:"'JetBrains Mono',monospace",fontSize:12,color:T.amber,lineHeight:1.7}}>
             ⚡ WEB EQUIV. WOULD COST: {fmtBytes(webEst)}<br/>
             <span style={{color:T.muted}}>Diff-only payloads · smart polling · no JS bundle overhead</span>
           </div>
-          <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.muted,letterSpacing:"0.08em",marginBottom:8}}>REQUEST LOG</div>
+          <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted,letterSpacing:"0.08em",marginBottom:8}}>REQUEST LOG</div>
           {log.length===0
-            ?<div style={{textAlign:"center",padding:"20px",fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted}}>No requests yet</div>
+            ?<div style={{textAlign:"center",padding:"20px",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.muted}}>No requests yet</div>
             :log.map(r=>(
               <div key={r.id} style={{display:"flex",gap:10,alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${T.border}`}}>
                 <div style={{width:5,height:5,borderRadius:"50%",background:T.green,flexShrink:0}}/>
                 <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:12,color:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.label}</div>
-                  <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.muted}}>{fmtAgo(r.ts)}</div>
+                  <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:14,color:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.label}</div>
+                  <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted}}>{fmtAgo(r.ts)}</div>
                 </div>
-                <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.green,flexShrink:0}}>{fmtBytes(r.bytes)}</div>
+                <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:12,color:T.green,flexShrink:0}}>{fmtBytes(r.bytes)}</div>
               </div>
             ))
           }
@@ -2250,10 +2511,10 @@ const NetworkMonitor = ({ onBack, isDesktop }) => {
             <button onClick={resetApp} style={{
               width:"100%", padding:"12px", borderRadius:6,
               background:"transparent", border:`1px solid ${T.red}40`,
-              color:T.red, fontFamily:"'JetBrains Mono',monospace", fontSize:10,
+              color:T.red, fontFamily:"'JetBrains Mono',monospace", fontSize:12,
               fontWeight:700, letterSpacing:"0.1em", cursor:"pointer",
             }}>RESET APP & CLEAR CACHE</button>
-            <div style={{marginTop:8, fontFamily:"'JetBrains Mono',monospace", fontSize:8, color:T.muted, textAlign:"center"}}>
+            <div style={{marginTop:8, fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.muted, textAlign:"center"}}>
               Deletes all local settings, API keys, and Service Worker cache.
             </div>
           </div>
@@ -2289,16 +2550,16 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
       }}>
         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:scrolled?0:10}}>
           <div style={{
-            width:scrolled?20:28,height:scrolled?20:28,borderRadius:6,background:T.green,
+            width:scrolled?20:32,height:scrolled?20:32,borderRadius:6,background:T.green,
             display:"flex",alignItems:"center",justifyContent:"center",
-            fontFamily:"'JetBrains Mono',monospace",fontSize:scrolled?11:15,fontWeight:900,color:"#000",
+            fontFamily:"'JetBrains Mono',monospace",fontSize:scrolled?11:18,fontWeight:900,color:"#000",
             boxShadow:scrolled?"none":`0 0 12px ${T.green}40`,flexShrink:0,
             transition:"all .2s ease",
           }}>J</div>
           <div style={{minWidth:0, transition:"all .2s ease"}}>
-            <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:scrolled?10:12,fontWeight:700,color:T.text}}>JULES</div>
+            <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:scrolled?12:14,fontWeight:700,color:T.text}}>JULES</div>
             {!scrolled && (
-              <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,color:active>0?T.amber:T.muted}}>
+              <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:active>0?T.amber:T.muted}}>
                 {active>0?`⚡ ${active} ACTIVE`:"AGENT CLIENT"}
               </div>
             )}
@@ -2306,17 +2567,17 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
           <div style={{marginLeft:"auto",display:"flex",gap:6,alignItems:"center",flexShrink:0}}>
             {isDesktop&&(
               <>
-                <button onClick={onNew} title="New Session" style={{width:26,height:26,borderRadius:5,background:T.greenDim,border:`1px solid ${T.green}40`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}>
-                  <Ic n="plus" s={13} c={T.green}/>
+                <button onClick={onNew} title="New Session" style={{width:30,height:30,borderRadius:5,background:T.greenDim,border:`1px solid ${T.green}40`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}>
+                  <Ic n="plus" s={15} c={T.green}/>
                 </button>
-                <button onClick={onNetwork} title="Network Monitor" style={{width:26,height:26,borderRadius:5,background:T.surfaceHi,border:`1px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}>
-                  <Ic n="wifi" s={13} c={T.muted}/>
+                <button onClick={onNetwork} title="Network Monitor" style={{width:30,height:30,borderRadius:5,background:T.surfaceHi,border:`1px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}>
+                  <Ic n="wifi" s={15} c={T.muted}/>
                 </button>
               </>
             )}
             {/* Countdown badge */}
             {pollInterval > 0 && (
-              <div style={{padding:"3px 8px",borderRadius:20,background:T.greenDim,border:`1px solid ${T.green}30`,fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.green,display:"flex",alignItems:"center",gap:4,flexShrink:0}}>
+              <div style={{padding:"3px 8px",borderRadius:20,background:T.greenDim,border:`1px solid ${T.green}30`,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.green,display:"flex",alignItems:"center",gap:4,flexShrink:0}}>
                 <span style={{width:4,height:4,borderRadius:"50%",background:T.green,animation:"dot 2s ease-in-out infinite"}}/>
                 {fmtBytes(netSnap.total)}
                 <span style={{color:T.muted,margin:"0 1px"}}>·</span>
@@ -2324,7 +2585,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
               </div>
             )}
             {pollInterval === 0 && (
-              <div style={{padding:"3px 8px",borderRadius:20,background:T.dim,border:`1px solid ${T.border}`,fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.muted,display:"flex",alignItems:"center",gap:4,flexShrink:0}}>
+              <div style={{padding:"3px 8px",borderRadius:20,background:T.dim,border:`1px solid ${T.border}`,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted,display:"flex",alignItems:"center",gap:4,flexShrink:0}}>
                 {fmtBytes(netSnap.total)}
                 <span style={{color:T.dim,margin:"0 1px"}}>·</span>
                 <span>PAUSED</span>
@@ -2347,7 +2608,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
           scrollbarWidth:"none", padding:scrolled?0:"4px 2px",
           transition:"all .2s ease",
         }}>
-          <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,color:T.muted,letterSpacing:"0.08em",flexShrink:0,paddingRight:2}}>AUTO</span>
+          <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted,letterSpacing:"0.08em",flexShrink:0,paddingRight:2}}>AUTO</span>
           {POLL_OPTIONS.map(opt => {
             const isAct = opt.ms === pollInterval;
             const c = isAct ? (opt.ms===0 ? T.red : T.green) : T.muted;
@@ -2356,7 +2617,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
                 flexShrink:0,padding:"3px 9px",borderRadius:20,border:"none",
                 background:isAct?(opt.ms===0?T.redDim:T.greenDim):"transparent",
                 outline:`1px solid ${isAct?(opt.ms===0?T.red+"60":T.green+"60"):T.border}`,
-                color:c,fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:isAct?700:400,
+                color:c,fontFamily:"'JetBrains Mono',monospace",fontSize:11,fontWeight:isAct?700:400,
                 letterSpacing:"0.05em",cursor:"pointer",transition:"all .12s",
               }}>{opt.label}</button>
             );
@@ -2371,7 +2632,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
           scrollbarWidth:"none", padding:scrolled?0:"4px 2px",
           transition:"all .2s ease",
         }}>
-          <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,color:T.muted,letterSpacing:"0.08em",flexShrink:0,paddingRight:2}}>LIMIT</span>
+          <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted,letterSpacing:"0.08em",flexShrink:0,paddingRight:2}}>LIMIT</span>
           {LIMIT_OPTIONS.map(opt => {
             const isAct = opt.val === sessionLimit;
             return (
@@ -2379,7 +2640,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
                 flexShrink:0,padding:"3px 9px",borderRadius:20,border:"none",
                 background:isAct?T.greenDim:"transparent",
                 outline:`1px solid ${isAct?T.green+"60":T.border}`,
-                color:isAct?T.green:T.muted,fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:isAct?700:400,
+                color:isAct?T.green:T.muted,fontFamily:"'JetBrains Mono',monospace",fontSize:11,fontWeight:isAct?700:400,
                 letterSpacing:"0.05em",cursor:"pointer",transition:"all .12s",
               }}>{opt.label}</button>
             );
@@ -2394,7 +2655,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
           scrollbarWidth:"none", padding:scrolled?0:"4px 2px",
           transition:"all .2s ease",
         }}>
-          <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,color:T.muted,letterSpacing:"0.08em",flexShrink:0,paddingRight:2}}>VIEW</span>
+          <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted,letterSpacing:"0.08em",flexShrink:0,paddingRight:2}}>VIEW</span>
           {LAYOUT_OPTIONS.map(opt => {
             const isAct = opt.id === layoutMode;
             return (
@@ -2402,7 +2663,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
                 flexShrink:0,padding:"3px 9px",borderRadius:20,border:"none",
                 background:isAct?T.blueDim:"transparent",
                 outline:`1px solid ${isAct?T.blue+"60":T.border}`,
-                color:isAct?T.blue:T.muted,fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:isAct?700:400,
+                color:isAct?T.blue:T.muted,fontFamily:"'JetBrains Mono',monospace",fontSize:11,fontWeight:isAct?700:400,
                 letterSpacing:"0.05em",cursor:"pointer",transition:"all .12s",
               }}>{opt.label}</button>
             );
@@ -2424,18 +2685,18 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
                     background:p.id===planId?T.greenDim:"transparent",
                     outline:`1px solid ${p.id===planId?T.green+"60":T.border}`,
                     color:p.id===planId?T.green:T.muted,
-                    fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:p.id===planId?700:400,
+                    fontFamily:"'JetBrains Mono',monospace",fontSize:10,fontWeight:p.id===planId?700:400,
                     transition:"all .12s",letterSpacing:"0.05em",
                   }}>{p.label}</button>
                 ))}
               </div>
-              <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:todayCount>=plan.daily?T.red:T.muted,flexShrink:0,marginLeft:8}}>
+              <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:todayCount>=plan.daily?T.red:T.muted,flexShrink:0,marginLeft:8}}>
                 {todayCount}/{plan.daily} <span style={{color:T.dim}}>today</span>
               </span>
             </div>
             {planId==="custom" && (
               <div style={{display:"flex", alignItems:"center", gap:6, marginBottom:6}}>
-                <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:8, color:T.muted}}>DAILY LIMIT:</span>
+                <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.muted}}>DAILY LIMIT:</span>
                 <input
                   type="number"
                   value={customDaily}
@@ -2443,7 +2704,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
                   style={{
                     background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:4,
                     padding:"2px 6px", color:T.green, fontFamily:"'JetBrains Mono',monospace",
-                    fontSize:9, width:50, outline:"none",
+                    fontSize:11, width:50, outline:"none",
                   }}
                 />
               </div>
@@ -2457,7 +2718,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
               }}/>
             </div>
             {todayCount>=plan.daily&&(
-              <div style={{marginTop:4,fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.red}}>
+              <div style={{marginTop:4,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.red}}>
                 ⛔ Daily limit reached — resets in ~{Math.ceil((new Date(new Date().toISOString().slice(0,10)+"T00:00:00Z").getTime()+86400000-Date.now())/3600000)}h
               </div>
             )}
@@ -2477,7 +2738,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
                   background:isAct?`${ac}20`:"transparent",
                   outline:`1px solid ${isAct?`${ac}80`:T.border}`,
                   color:isAct?ac:T.muted,
-                  fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:700,letterSpacing:"0.06em",
+                  fontFamily:"'JetBrains Mono',monospace",fontSize:11,fontWeight:700,letterSpacing:"0.06em",
                   cursor:"pointer",transition:"background .12s, color .12s",
                 }}>
                   {FILTER_LABELS[f]||f} {cnt>0?cnt:""}
@@ -2490,10 +2751,10 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
 
       <div onScroll={handleScroll} style={{flex:1,overflowY:"auto",padding:"10px 12px",WebkitOverflowScrolling:"touch",minHeight:200}}>
         {refreshing&&sessions.length===0&&(
-          <div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted}}>Loading sessions…</div>
+          <div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.muted}}>Loading sessions…</div>
         )}
         {!refreshing&&filtered.length===0&&(
-          <div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted}}>
+          <div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.muted}}>
             {filter==="ALL"?"No sessions yet":"No sessions with this status"}
           </div>
         )}
@@ -2669,7 +2930,7 @@ function JulesClient() {
           {desktopView==="empty"&&(
             <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:14,padding:32}}>
               <div style={{width:48,height:48,borderRadius:11,background:T.greenDim,border:`1px solid ${T.green}25`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace",fontSize:26,fontWeight:900,color:T.green}}>J</div>
-              <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted,textAlign:"center",lineHeight:2}}>
+              <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.muted,textAlign:"center",lineHeight:2}}>
                 SELECT A SESSION ←{"\u00A0"}{"\u00A0"}OR{"\u00A0"}{"\u00A0"}NEW ↖
               </div>
             </div>
@@ -2729,10 +2990,10 @@ function JulesClient() {
           return (
             <button key={id} onClick={()=>setMobile(id)} style={{flex:1,padding:"11px 0 13px",background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
               <div style={{position:"relative"}}>
-                <Ic n={n} s={19} c={isAct?T.green:T.muted}/>
+                <Ic n={n} s={22} c={isAct?T.green:T.muted}/>
                 {hasAlert&&<div style={{position:"absolute",top:-2,right:-4,width:7,height:7,borderRadius:"50%",background:T.purple,border:`1.5px solid ${T.surface}`,animation:"dot 1.5s ease-in-out infinite"}}/>}
               </div>
-              <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,color:isAct?T.green:T.muted,fontWeight:isAct?700:400,letterSpacing:"0.07em"}}>{label}</span>
+              <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:isAct?T.green:T.muted,fontWeight:isAct?700:400,letterSpacing:"0.07em"}}>{label}</span>
             </button>
           );
         })}
