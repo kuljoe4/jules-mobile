@@ -1742,6 +1742,11 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
   const [err,setErr]               = useState(null);
   const [savedFlash,setSavedFlash] = useState(false);
 
+  // Auto-disable AUTO PR for repoless sessions
+  useEffect(() => {
+    if (!source && autoMode) setAutoMode(false);
+  }, [source, autoMode]);
+
   // ── Derive branches whenever selected source changes ─────────────────────
   // Jules API returns branches[] + defaultBranch inline on each source object
   const srcObj = useMemo(() => sources.find(s => s.name === source) || null, [sources, source]);
@@ -1819,9 +1824,11 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
     const body = {
       prompt: prompt.trim(),
       ...(title.trim()&&{title:title.trim()}),
-      ...(source&&{ sourceContext:{ source, githubRepoContext:{ startingBranch:branch||"main" } } }),
+      ...(source&&{
+        sourceContext:{ source, githubRepoContext:{ startingBranch:branch||defaultBranch||"main" } },
+        ...(autoMode&&{automationMode:"AUTO_CREATE_PR"}),
+      }),
       requirePlanApproval: reqApproval,
-      ...(autoMode&&{automationMode:"AUTO_CREATE_PR"}),
     };
     try {
       const d = await apiCall(apiKey, "/sessions", { method:"POST", body, _label:"Create session" });
@@ -2024,15 +2031,20 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
 
           <div style={{display:"flex",gap:10,marginBottom:16}}>
             {[
-              {label:"AUTO PR",    val:autoMode,   set:setAutoMode, hint:"Create PR when done"},
+              {label:"AUTO PR",    val:autoMode,   set:setAutoMode, hint:"Create PR when done", disabled:!source},
               {label:"APPROVE PLAN",val:reqApproval,set:setReqApp,  hint:"Review plan first"},
             ].map(opt=>(
-              <button key={opt.label} onClick={()=>opt.set(v=>!v)} style={{
-                flex:1,padding:"9px 8px",borderRadius:5,cursor:"pointer",
-                background:opt.val?T.greenDim:T.surfaceHi,
-                border:`1px solid ${opt.val?T.green+"50":T.border}`,
-                display:"flex",flexDirection:"column",alignItems:"center",gap:3,
-              }}>
+              <button
+                key={opt.label}
+                onClick={()=>!opt.disabled&&opt.set(v=>!v)}
+                disabled={opt.disabled}
+                style={{
+                  flex:1,padding:"9px 8px",borderRadius:5,cursor:opt.disabled?"default":"pointer",
+                  background:opt.val?T.greenDim:T.surfaceHi,
+                  border:`1px solid ${opt.val?T.green+"50":T.border}`,
+                  display:"flex",flexDirection:"column",alignItems:"center",gap:3,
+                  opacity:opt.disabled?0.4:1,
+                }}>
                 <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:700,color:opt.val?T.green:T.muted,letterSpacing:"0.08em"}}>{opt.label}</div>
                 <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,color:T.muted}}>{opt.hint}</div>
               </button>
