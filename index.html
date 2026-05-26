@@ -543,6 +543,121 @@ const Field = ({label,children,style:s={}}) => (
   </div>
 );
 
+const PickerBtn = ({ label, isAct, onClick, activeColor=T.green, activeBg=null }) => (
+  <button onClick={onClick} style={{
+    flexShrink:0, padding:"3px 9px", borderRadius:20, border:"none",
+    background:isAct ? (activeBg || `${activeColor}15`) : "transparent",
+    outline:`1px solid ${isAct ? `${activeColor}60` : T.border}`,
+    color:isAct ? activeColor : T.muted,
+    fontFamily:"'JetBrains Mono',monospace", fontSize:9, fontWeight:isAct?700:400,
+    letterSpacing:"0.05em", cursor:"pointer", transition:"all .12s",
+  }}>{label}</button>
+);
+
+const Backdrop = ({ onClick, zIndex=100 }) => (
+  <div style={{ position:"fixed", inset:0, zIndex }} onClick={onClick}/>
+);
+
+const SearchPicker = ({ value, search, onSearch, onSelect, onHide, options, placeholder, icon, isOpen, getDisplay, getVal, renderExtra }) => {
+  return (
+    <div style={{position:"relative"}}>
+      <input
+        value={search}
+        onChange={e=>onSearch(e.target.value)}
+        onFocus={()=>onSearch(search, true)}
+        placeholder={placeholder}
+        style={{...inputSt, paddingRight:36}}
+      />
+      <div style={{position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", display:"flex", alignItems:"center", pointerEvents:"none"}}>
+        <Ic n={icon} s={14} c={isOpen?T.green:T.muted}/>
+      </div>
+
+      {isOpen && (
+        <>
+          <Backdrop onClick={onHide}/>
+          <div style={{
+            position:"absolute", top:"100%", left:0, right:0, zIndex:101,
+            marginTop:4, background:T.surfaceHi, border:`1px solid ${T.borderHi}`,
+            borderRadius:6, maxHeight:200, overflowY:"auto",
+            boxShadow:"0 10px 25px rgba(0,0,0,0.5)",
+          }}>
+            {options.length === 0 && (
+              <div style={{padding:"12px", textAlign:"center", fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.muted}}>
+                NO RESULTS FOUND
+              </div>
+            )}
+            {options.map((opt, idx) => {
+              const val = getVal(opt);
+              const isSelected = val === value;
+              return (
+                <button
+                  key={idx}
+                  onClick={()=>onSelect(opt)}
+                  style={{
+                    width:"100%", padding:"10px 12px", background:"none", border:"none",
+                    textAlign:"left", cursor:"pointer", display:"flex", alignItems:"center", gap:8,
+                    borderBottom:idx < options.length - 1 ? `1px solid ${T.border}` : "none",
+                    transition:"background .1s",
+                  }}
+                  onMouseEnter={e=>e.currentTarget.style.background=T.dim}
+                  onMouseLeave={e=>e.currentTarget.style.background="none"}
+                >
+                  <Ic n={icon} s={12} c={isSelected?T.green:T.muted}/>
+                  <span style={{
+                    flex:1, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:13,
+                    color:isSelected?T.green:T.text, fontWeight:isSelected?600:400,
+                    overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
+                  }}>{getDisplay(opt)}</span>
+                  {renderExtra && renderExtra(opt)}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+const useScrollThreshold = (threshold = 40) => {
+  const [scrolled, setScrolled] = useState(false);
+  const onScroll = useCallback(e => {
+    const s = e.target.scrollTop > threshold;
+    if (s !== scrolled) setScrolled(s);
+  }, [scrolled, threshold]);
+  return [scrolled, onScroll];
+};
+
+const useAutoPoll = (interval, fn) => {
+  const [countdown, setCountdown] = useState(0);
+  const pollRef = useRef(null);
+  const countdownRef = useRef(null);
+  const nextRefAt = useRef(0);
+
+  const schedule = useCallback(() => {
+    if (!interval) { setCountdown(0); return; }
+    nextRefAt.current = Date.now() + interval;
+    setCountdown(Math.ceil(interval / 1000));
+    pollRef.current = setTimeout(async () => {
+      try { await fn(); } catch(e) { console.error("Poll failed", e); }
+      finally { schedule(); }
+    }, interval);
+  }, [interval, fn]);
+
+  useEffect(() => {
+    clearTimeout(pollRef.current);
+    clearInterval(countdownRef.current);
+    if (!interval) return;
+    schedule();
+    countdownRef.current = setInterval(() => {
+      setCountdown(Math.max(0, Math.ceil((nextRefAt.current - Date.now()) / 1000)));
+    }, 1000);
+    return () => { clearTimeout(pollRef.current); clearInterval(countdownRef.current); };
+  }, [interval, schedule]);
+
+  return countdown;
+};
+
 const Markdown = memo(({ text }) => {
   if (!text) return null;
   const parts = text.split(/```/g);
@@ -685,7 +800,7 @@ const TimelineEvent = memo(({ act, onMediaClick }) => {
     sessionFailed:{n:"x",c:T.red},
     system:{n:"code",c:T.muted},
   };
-  const ic  = IC_MAP[type] || IC_MAP.system;
+  const ic  = { ...(IC_MAP[type] || IC_MAP.system) };
   const time = fmtTime(new Date(act.createTime).getTime());
 
   let title = "", detail = null;
@@ -720,9 +835,10 @@ const TimelineEvent = memo(({ act, onMediaClick }) => {
         <div style={{
           fontSize:11, color:isReview?T.text:T.muted, marginTop:3,
           lineHeight:1.5, padding:isReview?"10px 14px":"0",
-          background:isReview?"rgba(77,166,255,0.04)":"transparent",
+          background:isReview?`${T.blue}0a`:"transparent",
           border:isReview?`1px solid ${T.blue}15`:"none", borderRadius:isReview?8:0,
           boxShadow:isReview?"inset 0 0 12px rgba(77,166,255,0.02)":"none",
+          fontFamily:"'IBM Plex Sans',sans-serif",
         }}>
           {isReview && (
             <div style={{display:"flex", alignItems:"center", gap:6, marginBottom:8}}>
@@ -740,7 +856,7 @@ const TimelineEvent = memo(({ act, onMediaClick }) => {
     case "sessionFailed":
       title = "Session failed";
       detail = act.sessionFailed?.reason && (
-        <div style={{fontSize:11,color:T.red,marginTop:3,fontFamily:"'IBM Plex Sans',sans-serif"}}>{act.sessionFailed.reason}</div>
+        <div style={{fontSize:11,color:T.red,marginTop:3}}>{act.sessionFailed.reason}</div>
       );
       break;
     case "planApproved": title = "Plan approved"; break;
@@ -1320,11 +1436,7 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
   const [busy,setBusy]           = useState(false);
   const [err,setErr]             = useState(null);
   const [activeMedia,setActiveMedia] = useState(null);
-  const [countdown,setCountdown] = useState(0);
-  const [scrolled,setScrolled]   = useState(false);
-  const pollRef      = useRef(null);
-  const countdownRef = useRef(null);
-  const nextRefAt    = useRef(0);
+  const [scrolled, handleScroll] = useScrollThreshold();
   const txtRef       = useRef(null);
   const feedEndRef   = useRef(null);
   const actMapRef    = useRef(new Map());      // id → activity (dedup)
@@ -1395,34 +1507,7 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
     loadSession();
   }, []); // intentional: component is keyed by session.id
 
-  // Respect global poll interval (0 = manual only)
-  // Subsequent polls use createTime cursor — only fetches NEW activities
-  useEffect(() => {
-    clearTimeout(pollRef.current);
-    clearInterval(countdownRef.current);
-    if (!pollInterval) { setCountdown(0); return; }
-
-    const schedule = () => {
-      nextRefAt.current = Date.now() + pollInterval;
-      setCountdown(Math.ceil(pollInterval / 1000));
-      pollRef.current = setTimeout(async () => {
-        try {
-          await Promise.all([loadSession(), loadActivities(lastTsRef.current)]);
-        } catch (e) {
-          console.error("Auto-poll failed:", e);
-        } finally {
-          schedule();
-        }
-      }, pollInterval);
-    };
-    schedule();
-
-    countdownRef.current = setInterval(() => {
-      setCountdown(Math.max(0, Math.ceil((nextRefAt.current - Date.now()) / 1000)));
-    }, 1000);
-
-    return () => { clearTimeout(pollRef.current); clearInterval(countdownRef.current); };
-  }, [pollInterval, loadActivities, loadSession]);
+  const countdown = useAutoPoll(pollInterval, useCallback(() => Promise.all([loadSession(), loadActivities(lastTsRef.current)]), [loadSession, loadActivities]));
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -1548,10 +1633,6 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
     ...(mediaArtifacts.length>0?[{ id:"media", label:"MEDIA" }]:[]),
   ];
 
-  const handleScroll = useCallback(e => {
-    const s = e.target.scrollTop > 40;
-    if (s !== scrolled) setScrolled(s);
-  }, [scrolled]);
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%",minHeight:0}}>
@@ -1651,19 +1732,15 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
         {/* ── Interval picker ── */}
         <div style={{display:"flex",gap:4,alignItems:"center",marginBottom:10,flexWrap:"nowrap",overflowX:"auto",scrollbarWidth:"none",padding:"4px 2px"}}>
           <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,color:T.muted,letterSpacing:"0.08em",flexShrink:0,paddingRight:2}}>AUTO</span>
-          {POLL_OPTIONS.map(opt => {
-            const isAct = opt.ms === pollInterval;
-            const c = isAct ? (opt.ms===0 ? T.red : T.green) : T.muted;
-            return (
-              <button key={opt.label} onClick={()=>setPollInterval(opt.ms)} style={{
-                flexShrink:0,padding:"3px 9px",borderRadius:20,border:"none",
-                background:isAct?(opt.ms===0?T.redDim:T.greenDim):"transparent",
-                outline:`1px solid ${isAct?(opt.ms===0?T.red+"60":T.green+"60"):T.border}`,
-                color:c,fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:isAct?700:400,
-                letterSpacing:"0.05em",cursor:"pointer",transition:"all .12s",
-              }}>{opt.label}</button>
-            );
-          })}
+          {POLL_OPTIONS.map(opt => (
+            <PickerBtn
+              key={opt.label}
+              label={opt.label}
+              isAct={opt.ms === pollInterval}
+              onClick={()=>setPollInterval(opt.ms)}
+              activeColor={opt.ms === 0 ? T.red : T.green}
+            />
+          ))}
         </div>
 
         {summary && (
@@ -1978,137 +2055,37 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
               ?<div style={{padding:"10px 12px",borderRadius:6,background:T.amberDim,border:`1px solid ${T.amber}40`,fontFamily:"'IBM Plex Sans',sans-serif",fontSize:12,color:T.amber}}>
                 No sources found. Connect a repo at <span style={{fontFamily:"'JetBrains Mono',monospace"}}>jules.google.com</span> first.
               </div>
-              :<div style={{position:"relative"}}>
-                <input
-                  value={sourceSearch}
-                  onChange={e=>{setSourceSearch(e.target.value); setShowSources(true);}}
-                  onFocus={()=>setShowSources(true)}
-                  placeholder="Search repositories..."
-                  style={{...inputSt, paddingRight:36}}
-                />
-                <div style={{position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", display:"flex", alignItems:"center", pointerEvents:"none"}}>
-                  <Ic n="code" s={14} c={showSources?T.green:T.muted}/>
-                </div>
-
-                {showSources && (
-                  <>
-                    <div
-                      style={{position:"fixed", inset:0, zIndex:100}}
-                      onClick={()=>{
-                        setShowSources(false);
-                        // Reset search text to current selection on close
-                        if (srcObj) setSourceSearch(getSourceDisplay(srcObj));
-                        else if (source === "") setSourceSearch("No repo (repoless)");
-                      }}
-                    />
-                    <div style={{
-                      position:"absolute", top:"100%", left:0, right:0, zIndex:101,
-                      marginTop:4, background:T.surfaceHi, border:`1px solid ${T.borderHi}`,
-                      borderRadius:6, maxHeight:200, overflowY:"auto",
-                      boxShadow:"0 10px 25px rgba(0,0,0,0.5)",
-                    }}>
-                      {filteredSources.length === 0 && (
-                        <div style={{padding:"12px", textAlign:"center", fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.muted}}>
-                          NO RESULTS FOUND
-                        </div>
-                      )}
-                      {filteredSources.map((s, idx) => {
-                        const isRepoless = s === null;
-                        const sName = isRepoless ? "" : s.name;
-                        const isSelected = sName === source;
-                        return (
-                          <button
-                            key={isRepoless ? "_repoless" : s.name}
-                            onClick={()=>{setSource(sName); setSourceSearch(getSourceDisplay(s)); setShowSources(false);}}
-                            style={{
-                              width:"100%", padding:"10px 12px", background:"none", border:"none",
-                              textAlign:"left", cursor:"pointer", display:"flex", alignItems:"center", gap:8,
-                              borderBottom:idx < filteredSources.length - 1 ? `1px solid ${T.border}` : "none",
-                              transition:"background .1s",
-                            }}
-                            onMouseEnter={e=>e.currentTarget.style.background=T.dim}
-                            onMouseLeave={e=>e.currentTarget.style.background="none"}
-                          >
-                            <Ic n="code" s={12} c={isSelected?T.green:T.muted}/>
-                            <span style={{
-                              flex:1, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:13,
-                              color:isSelected?T.green:T.text, fontWeight:isSelected?600:400,
-                              overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
-                            }}>{getSourceDisplay(s)}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </>
-                )}
-              </div>
+              :<SearchPicker
+                value={source} search={sourceSearch} placeholder="Search repositories..." icon="code"
+                isOpen={showSources} options={filteredSources}
+                getDisplay={getSourceDisplay} getVal={s => s === null ? "" : s.name}
+                onSearch={v => { setSourceSearch(v); setShowSources(true); }}
+                onHide={() => {
+                  setShowSources(false);
+                  if (srcObj) setSourceSearch(getSourceDisplay(srcObj));
+                  else if (source === "") setSourceSearch("No repo (repoless)");
+                }}
+                onSelect={s => {
+                  const sName = s === null ? "" : s.name;
+                  setSource(sName); setSourceSearch(getSourceDisplay(s)); setShowSources(false);
+                }}
+              />
             }
           </Field>
 
           {source&&(
             <Field label="STARTING BRANCH">
-              <div style={{position:"relative"}}>
-                <input
-                  value={branch}
-                  onChange={e=>{setBranch(e.target.value); setShowBranches(true);}}
-                  onFocus={()=>setShowBranches(true)}
-                  placeholder={defaultBranch || "main"}
-                  style={{...inputSt, paddingRight:36}}
-                />
-                <div style={{position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", display:"flex", alignItems:"center", pointerEvents:"none"}}>
-                  <Ic n="branch" s={14} c={showBranches?T.green:T.muted}/>
-                </div>
-
-                {showBranches && (
-                  <>
-                    <div
-                      style={{position:"fixed", inset:0, zIndex:100}}
-                      onClick={()=>{
-                        setShowBranches(false);
-                        setBranch(branch); // Trigger re-render/reset if needed
-                      }}
-                    />
-                    <div style={{
-                      position:"absolute", top:"100%", left:0, right:0, zIndex:101,
-                      marginTop:4, background:T.surfaceHi, border:`1px solid ${T.borderHi}`,
-                      borderRadius:6, maxHeight:200, overflowY:"auto",
-                      boxShadow:"0 10px 25px rgba(0,0,0,0.5)",
-                    }}>
-                      {filteredBranches.length === 0 && (
-                        <div style={{padding:"12px", textAlign:"center", fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.muted}}>
-                          NO RESULTS FOUND
-                        </div>
-                      )}
-                      {filteredBranches.map(b => (
-                        <button
-                          key={b}
-                          onClick={()=>{setBranch(b); setShowBranches(false);}}
-                          style={{
-                            width:"100%", padding:"10px 12px", background:"none", border:"none",
-                            textAlign:"left", cursor:"pointer", display:"flex", alignItems:"center", gap:8,
-                            borderBottom:`1px solid ${T.border}`, transition:"background .1s",
-                          }}
-                          onMouseEnter={e=>e.currentTarget.style.background=T.dim}
-                          onMouseLeave={e=>e.currentTarget.style.background="none"}
-                        >
-                          <Ic n="branch" s={12} c={b===branch?T.green:T.muted}/>
-                          <span style={{
-                            flex:1, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:13,
-                            color:b===branch?T.green:T.text, fontWeight:b===branch?600:400,
-                            overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
-                          }}>{b}</span>
-                          {b===defaultBranch && (
-                            <span style={{
-                              fontFamily:"'JetBrains Mono',monospace", fontSize:8,
-                              color:T.green, background:T.greenDim, padding:"1px 5px", borderRadius:3,
-                            }}>DEFAULT</span>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  </>
+              <SearchPicker
+                value={branch} search={branch} placeholder={defaultBranch || "main"} icon="branch"
+                isOpen={showBranches} options={filteredBranches}
+                getDisplay={b => b} getVal={b => b}
+                onSearch={v => { setBranch(v); setShowBranches(true); }}
+                onHide={() => { setShowBranches(false); setBranch(branch); }}
+                onSelect={b => { setBranch(b); setShowBranches(false); }}
+                renderExtra={b => b === defaultBranch && (
+                  <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:8, color:T.green, background:T.greenDim, padding:"1px 5px", borderRadius:3}}>DEFAULT</span>
                 )}
-              </div>
+              />
               <div style={{
                 marginTop:5, display:"flex", gap:6, alignItems:"center",
                 fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:T.muted,
@@ -2269,12 +2246,7 @@ const FILTER_LABELS = { AWAITING_PLAN_APPROVAL:"APPROVE", ALL:"ALL" };
 
 const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selectedId, isDesktop, onNew, onNetwork, pollInterval, setPollInterval, sessionLimit, setSessionLimit, layoutMode, setLayoutMode, countdown, plan, planId, setPlanId, todayCount, customDaily, setCustomDaily }) => {
   const [filter,setFilter] = useState("ALL");
-  const [scrolled,setScrolled] = useState(false);
-
-  const handleScroll = useCallback(e => {
-    const s = e.target.scrollTop > 40;
-    if (s !== scrolled) setScrolled(s);
-  }, [scrolled]);
+  const [scrolled, handleScroll] = useScrollThreshold();
   const filtered = filter==="ALL" ? sessions : sessions.filter(s=>s.state===filter);
   const active   = sessions.filter(s=>ACTIVE_STATES.has(s.state)).length;
 
@@ -2348,19 +2320,15 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
           transition:"all .2s ease",
         }}>
           <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,color:T.muted,letterSpacing:"0.08em",flexShrink:0,paddingRight:2}}>AUTO</span>
-          {POLL_OPTIONS.map(opt => {
-            const isAct = opt.ms === pollInterval;
-            const c = isAct ? (opt.ms===0 ? T.red : T.green) : T.muted;
-            return (
-              <button key={opt.label} onClick={()=>setPollInterval(opt.ms)} style={{
-                flexShrink:0,padding:"3px 9px",borderRadius:20,border:"none",
-                background:isAct?(opt.ms===0?T.redDim:T.greenDim):"transparent",
-                outline:`1px solid ${isAct?(opt.ms===0?T.red+"60":T.green+"60"):T.border}`,
-                color:c,fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:isAct?700:400,
-                letterSpacing:"0.05em",cursor:"pointer",transition:"all .12s",
-              }}>{opt.label}</button>
-            );
-          })}
+          {POLL_OPTIONS.map(opt => (
+            <PickerBtn
+              key={opt.label}
+              label={opt.label}
+              isAct={opt.ms === pollInterval}
+              onClick={()=>setPollInterval(opt.ms)}
+              activeColor={opt.ms === 0 ? T.red : T.green}
+            />
+          ))}
         </div>
 
         {/* ── Limit picker ── */}
@@ -2372,18 +2340,14 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
           transition:"all .2s ease",
         }}>
           <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,color:T.muted,letterSpacing:"0.08em",flexShrink:0,paddingRight:2}}>LIMIT</span>
-          {LIMIT_OPTIONS.map(opt => {
-            const isAct = opt.val === sessionLimit;
-            return (
-              <button key={opt.label} onClick={()=>setSessionLimit(opt.val)} style={{
-                flexShrink:0,padding:"3px 9px",borderRadius:20,border:"none",
-                background:isAct?T.greenDim:"transparent",
-                outline:`1px solid ${isAct?T.green+"60":T.border}`,
-                color:isAct?T.green:T.muted,fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:isAct?700:400,
-                letterSpacing:"0.05em",cursor:"pointer",transition:"all .12s",
-              }}>{opt.label}</button>
-            );
-          })}
+          {LIMIT_OPTIONS.map(opt => (
+            <PickerBtn
+              key={opt.label}
+              label={opt.label}
+              isAct={opt.val === sessionLimit}
+              onClick={()=>setSessionLimit(opt.val)}
+            />
+          ))}
         </div>
 
         {/* ── Layout picker ── */}
@@ -2395,18 +2359,15 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
           transition:"all .2s ease",
         }}>
           <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,color:T.muted,letterSpacing:"0.08em",flexShrink:0,paddingRight:2}}>VIEW</span>
-          {LAYOUT_OPTIONS.map(opt => {
-            const isAct = opt.id === layoutMode;
-            return (
-              <button key={opt.id} onClick={()=>setLayoutMode(opt.id)} style={{
-                flexShrink:0,padding:"3px 9px",borderRadius:20,border:"none",
-                background:isAct?T.blueDim:"transparent",
-                outline:`1px solid ${isAct?T.blue+"60":T.border}`,
-                color:isAct?T.blue:T.muted,fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:isAct?700:400,
-                letterSpacing:"0.05em",cursor:"pointer",transition:"all .12s",
-              }}>{opt.label}</button>
-            );
-          })}
+          {LAYOUT_OPTIONS.map(opt => (
+            <PickerBtn
+              key={opt.id}
+              label={opt.label}
+              isAct={opt.id === layoutMode}
+              onClick={()=>setLayoutMode(opt.id)}
+              activeColor={T.blue}
+            />
+          ))}
         </div>
 
         {/* ── Daily quota bar ── */}
@@ -2419,14 +2380,12 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
             <div style={{display:"flex",justifyContent:"space-between",marginBottom:4,alignItems:"center"}}>
               <div style={{display:"flex",gap:5,alignItems:"center",overflowX:"auto",scrollbarWidth:"none",padding:"4px 0"}}>
                 {PLANS.map(p=>(
-                  <button key={p.id} onClick={()=>setPlanId&&setPlanId(p.id)} style={{
-                    flexShrink:0,padding:"2px 8px",borderRadius:20,border:"none",cursor:"pointer",
-                    background:p.id===planId?T.greenDim:"transparent",
-                    outline:`1px solid ${p.id===planId?T.green+"60":T.border}`,
-                    color:p.id===planId?T.green:T.muted,
-                    fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:p.id===planId?700:400,
-                    transition:"all .12s",letterSpacing:"0.05em",
-                  }}>{p.label}</button>
+                  <PickerBtn
+                    key={p.id}
+                    label={p.label}
+                    isAct={p.id===planId}
+                    onClick={()=>setPlanId&&setPlanId(p.id)}
+                  />
                 ))}
               </div>
               <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:todayCount>=plan.daily?T.red:T.muted,flexShrink:0,marginLeft:8}}>
@@ -2516,13 +2475,9 @@ function JulesClient() {
   const [actPollInterval,setActPollIntervalRaw] = useState(loadActPollMs);
   const [sessionLimit,setSessionLimitRaw] = useState(loadLimit);
   const [layoutMode,setLayoutModeRaw]     = useState(loadLayout);
-  const [countdown,setCountdown]   = useState(0);
   const [planId,setPlanIdRaw]      = useState(loadPlan);
   const [customDaily,setCustomDailyRaw] = useState(loadCustomDaily);
   const [todayCount,setTodayCount] = useState(loadTodayCount);
-  const pollRef      = useRef(null);
-  const countdownRef = useRef(null);
-  const nextRefAt    = useRef(0);
 
   const windowIsDesktop = useIsDesktop();
   const isDesktop = useMemo(() => {
@@ -2583,31 +2538,8 @@ function JulesClient() {
     finally { if (!quiet) setRefreshing(false); }
   }, [apiKey, sessionLimit]);
 
-  // Schedule auto-poll + countdown whenever apiKey or pollInterval changes
-  useEffect(() => {
-    clearInterval(pollRef.current);
-    clearInterval(countdownRef.current);
-    if (!apiKey) return;
-    fetchSessions();
-    if (pollInterval === 0) { setCountdown(0); return; }
-
-    const schedule = () => {
-      nextRefAt.current = Date.now() + pollInterval;
-      setCountdown(Math.ceil(pollInterval / 1000));
-      pollRef.current = setTimeout(async () => {
-        await fetchSessions(true);
-        schedule();
-      }, pollInterval);
-    };
-    schedule();
-
-    countdownRef.current = setInterval(() => {
-      const remaining = Math.max(0, Math.ceil((nextRefAt.current - Date.now()) / 1000));
-      setCountdown(remaining);
-    }, 1000);
-
-    return () => { clearTimeout(pollRef.current); clearInterval(countdownRef.current); };
-  }, [apiKey, pollInterval, fetchSessions]);
+  useEffect(() => { if (apiKey) fetchSessions(); }, [apiKey, fetchSessions]);
+  const countdown = useAutoPoll(apiKey ? pollInterval : 0, useCallback(() => fetchSessions(true), [fetchSessions]));
 
   const handleSessionUpdate = useCallback(updated => {
     setSessions(prev => prev.map(s=>s.id===updated.id?updated:s));
