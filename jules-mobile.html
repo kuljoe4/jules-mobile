@@ -543,6 +543,36 @@ const Field = ({label,children,style:s={}}) => (
   </div>
 );
 
+const Markdown = memo(({ text }) => {
+  if (!text) return null;
+  const parts = text.split(/```/g);
+  return parts.map((part, i) => {
+    if (i % 2 === 1) { // Code block
+      const lines = part.split("\n");
+      let lang = lines[0].trim();
+      let content = lines.slice(1).join("\n").trim();
+      if (!content && lines.length > 0) { content = lines.join("\n").trim(); lang = ""; }
+
+      return (
+        <div key={i} style={{
+          margin:"8px 0", background:"#040507", border:`1px solid ${T.border}`,
+          borderRadius:6, overflow:"hidden", fontFamily:"'JetBrains Mono',monospace", fontSize:11,
+        }}>
+          {lang && (
+            <div style={{padding:"3px 10px", background:T.surface, borderBottom:`1px solid ${T.border}`, fontSize:9, color:T.muted, textTransform:"uppercase", letterSpacing:"0.05em"}}>
+              {lang}
+            </div>
+          )}
+          <div style={{padding:"10px", color:T.text, whiteSpace:"pre-wrap", wordBreak:"break-all"}}>
+            {content}
+          </div>
+        </div>
+      );
+    }
+    return <span key={i} style={{whiteSpace:"pre-wrap", wordBreak:"break-word"}}>{part}</span>;
+  });
+});
+
 const inputSt = {
   width:"100%",background:T.surfaceHi,border:`1px solid ${T.border}`,borderRadius:6,
   padding:"10px 12px",color:T.text,fontFamily:"'IBM Plex Sans',sans-serif",fontSize:13,
@@ -627,8 +657,7 @@ const ChatBubble = memo(({ act, type, onMediaClick }) => {
         <div style={{
           fontSize:13,color:T.text,lineHeight:1.55,
           fontFamily:"'IBM Plex Sans',sans-serif",
-          whiteSpace:"pre-wrap",wordBreak:"break-word",
-        }}>{text}</div>
+        }}><Markdown text={text}/></div>
         <MediaArtifacts artifacts={act.artifacts} ts={act.createTime} onMediaClick={onMediaClick}/>
         <div style={{
           marginTop:5,fontFamily:"'JetBrains Mono',monospace",fontSize:8,
@@ -684,12 +713,29 @@ const TimelineEvent = memo(({ act, onMediaClick }) => {
       );
       break;
     }
-    case "progressUpdated":
+    case "progressUpdated": {
+      const isReview = (act.progressUpdated?.title || "").toLowerCase().includes("review");
       title = act.progressUpdated?.title || "Progress";
       detail = act.progressUpdated?.description && (
-        <div style={{fontSize:11,color:T.muted,marginTop:3,fontFamily:"'IBM Plex Sans',sans-serif",lineHeight:1.4}}>{act.progressUpdated.description}</div>
+        <div style={{
+          fontSize:11, color:isReview?T.text:T.muted, marginTop:3,
+          lineHeight:1.5, padding:isReview?"10px 14px":"0",
+          background:isReview?"rgba(77,166,255,0.04)":"transparent",
+          border:isReview?`1px solid ${T.blue}15`:"none", borderRadius:isReview?8:0,
+          boxShadow:isReview?"inset 0 0 12px rgba(77,166,255,0.02)":"none",
+        }}>
+          {isReview && (
+            <div style={{display:"flex", alignItems:"center", gap:6, marginBottom:8}}>
+              <span style={{padding:"2px 6px", borderRadius:3, background:T.blueDim, color:T.blue, fontSize:8, fontWeight:700, letterSpacing:"0.05em"}}>REVIEW</span>
+              <div style={{height:1, flex:1, background:`linear-gradient(90deg, ${T.blue}30, transparent)`}}/>
+            </div>
+          )}
+          <Markdown text={act.progressUpdated.description}/>
+        </div>
       );
+      if (isReview) ic.c = T.blue;
       break;
+    }
     case "sessionCompleted": title = "Session completed"; break;
     case "sessionFailed":
       title = "Session failed";
@@ -1097,19 +1143,76 @@ const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFeedback,
 // ─── Diff Viewer ──────────────────────────────────────────────────────────────
 const DiffViewer = ({ patch }) => {
   if (!patch) return (
-    <div style={{textAlign:"center",padding:"40px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted}}>
+    <div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted}}>
       No diff available yet
     </div>
   );
+
+  const lines = patch.split("\n");
+  const groups = [];
+  let currentGroup = null;
+
+  lines.forEach((line, i) => {
+    if (line.startsWith("--- ") || line.startsWith("diff --git")) {
+      // New file group (skip standard git prefixes for a cleaner view later)
+      return;
+    }
+    if (line.startsWith("+++ ")) {
+      const file = line.slice(4).replace(/^b\//, "");
+      currentGroup = { file, hunks: [] };
+      groups.push(currentGroup);
+      return;
+    }
+    if (!currentGroup) return;
+
+    if (line.startsWith("@@")) {
+      currentGroup.hunks.push({ header: line, lines: [] });
+    } else if (currentGroup.hunks.length > 0) {
+      currentGroup.hunks[currentGroup.hunks.length - 1].lines.push(line);
+    }
+  });
+
   return (
-    <div style={{background:"#040507",border:`1px solid ${T.border}`,borderRadius:6,overflow:"hidden",fontFamily:"'JetBrains Mono',monospace",fontSize:11}}>
-      {patch.split("\n").map((line,i) => {
-        const c = line.startsWith("+")&&!line.startsWith("+++")?T.green:line.startsWith("-")&&!line.startsWith("---")?T.red:line.startsWith("@@")?T.blue:T.muted;
-        const bg = line.startsWith("+")&&!line.startsWith("+++")?"rgba(0,232,122,.06)":line.startsWith("-")&&!line.startsWith("---")?"rgba(255,68,85,.06)":"transparent";
-        return (
-          <div key={i} style={{padding:"1px 10px",color:c,background:bg,whiteSpace:"pre",overflowX:"auto"}}>{line||" "}</div>
-        );
-      })}
+    <div style={{display:"flex", flexDirection:"column", gap:16}}>
+      {groups.map((g, gi) => (
+        <div key={gi} style={{background:"#040507", border:`1px solid ${T.border}`, borderRadius:8, overflow:"hidden"}}>
+          {/* File Header */}
+          <div style={{padding:"8px 12px", background:T.surface, borderBottom:`1px solid ${T.border}`, display:"flex", alignItems:"center", gap:8}}>
+            <Ic n="code" s={12} c={T.green}/>
+            <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:700, color:T.text}}>{g.file}</span>
+          </div>
+
+          {/* Hunks */}
+          <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, lineHeight:1.5}}>
+            {g.hunks.map((h, hi) => (
+              <div key={hi}>
+                <div style={{padding:"4px 12px", background:"rgba(77,166,255,.05)", color:T.blue, fontSize:10, borderBottom:`1px solid ${T.border}40`}}>
+                  {h.header}
+                </div>
+                {h.lines.map((line, li) => {
+                  const isAdd = line.startsWith("+");
+                  const isRem = line.startsWith("-");
+                  const c = isAdd ? T.green : isRem ? T.red : T.muted;
+                  const bg = isAdd ? "rgba(0,232,122,.05)" : isRem ? "rgba(255,68,85,.05)" : "transparent";
+                  const symbol = isAdd ? "+" : isRem ? "-" : " ";
+                  const content = (isAdd || isRem) ? line.slice(1) : line;
+
+                  return (
+                    <div key={li} style={{display:"flex", background:bg, minHeight:20, borderLeft:`2px solid ${isAdd?T.green+'40':isRem?T.red+'40':'transparent'}`}}>
+                      <div style={{width:22, flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", color:c, opacity:0.6, fontSize:10, userSelect:"none", fontWeight:700, fontFamily:"monospace"}}>
+                        {symbol}
+                      </div>
+                      <div style={{padding:"2px 10px", color:isAdd?T.green:isRem?T.red:T.text, whiteSpace:"pre-wrap", wordBreak:"break-all", flex:1, opacity: (isAdd||isRem)?1:0.7}}>
+                        {content || " "}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
   );
 };
@@ -1303,8 +1406,13 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
       nextRefAt.current = Date.now() + pollInterval;
       setCountdown(Math.ceil(pollInterval / 1000));
       pollRef.current = setTimeout(async () => {
-        await Promise.all([loadSession(), loadActivities(lastTsRef.current)]);
-        schedule();
+        try {
+          await Promise.all([loadSession(), loadActivities(lastTsRef.current)]);
+        } catch (e) {
+          console.error("Auto-poll failed:", e);
+        } finally {
+          schedule();
+        }
       }, pollInterval);
     };
     schedule();
