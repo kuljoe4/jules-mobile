@@ -305,26 +305,27 @@ async function resetApp() {
 }
 
 const T = {
-  bg:"#07090c", surface:"#0d1118", surfaceHi:"#131b24",
-  border:"#182030", borderHi:"#243548",
-  green:"#00e87a", greenDim:"rgba(0,232,122,.12)",
-  amber:"#ffb400", amberDim:"rgba(255,180,0,.12)",
-  red:"#ff4455",   redDim:"rgba(255,68,85,.12)",
-  blue:"#4da6ff",  blueDim:"rgba(77,166,255,.12)",
-  purple:"#b388ff",purpleDim:"rgba(179,136,255,.12)",
-  text:"#c5d4e8",  muted:"#4a5e76", dim:"#1e2d3d",
-  userBubble:"rgba(77,166,255,.10)", agentBubble:"rgba(0,232,122,.07)",
+  bg:"#050608", surface:"#0b0e14", surfaceHi:"#11161d",
+  border:"#1a222e", borderHi:"#2a3649",
+  green:"#00f07f", greenDim:"rgba(0,240,127,.14)",
+  amber:"#ffbc00", amberDim:"rgba(255,188,0,.14)",
+  red:"#ff5566",   redDim:"rgba(255,85,102,.14)",
+  blue:"#5fb2ff",  blueDim:"rgba(95,178,255,.14)",
+  purple:"#bf99ff",purpleDim:"rgba(191,153,255,.14)",
+  text:"#ffffff",  textHi:"#f0f4f8", textDim:"#c5d4e8",
+  muted:"#7c8ea6", dim:"#3a4b5f", line:"#18202b",
+  userBubble:"rgba(95,178,255,.12)", agentBubble:"rgba(0,240,127,.09)",
 };
 
 const STATUS_META = {
-  QUEUED:                { label:"QUEUED",   color:T.muted,  bg:T.dim,       pulse:false },
-  PLANNING:              { label:"PLANNING", color:T.amber,  bg:T.amberDim,  pulse:true  },
-  AWAITING_PLAN_APPROVAL:{ label:"APPROVE",  color:T.purple, bg:T.purpleDim, pulse:true  },
-  AWAITING_USER_FEEDBACK:{ label:"INPUT",    color:T.amber,  bg:T.amberDim,  pulse:true  },
-  IN_PROGRESS:           { label:"WORKING",  color:T.green,  bg:T.greenDim,  pulse:true  },
-  PAUSED:                { label:"PAUSED",   color:T.muted,  bg:T.dim,       pulse:false },
-  COMPLETED:             { label:"DONE",     color:T.green,  bg:T.greenDim,  pulse:false },
-  FAILED:                { label:"FAILED",   color:T.red,    bg:T.redDim,    pulse:false },
+  QUEUED:                { label:"QUEUED",   color:T.muted,   bg:"rgba(124,142,166,.1)", pulse:false },
+  PLANNING:              { label:"PLANNING", color:T.amber,   bg:T.amberDim,             pulse:true  },
+  AWAITING_PLAN_APPROVAL:{ label:"APPROVE",  color:T.purple,  bg:T.purpleDim,            pulse:true  },
+  AWAITING_USER_FEEDBACK:{ label:"INPUT",    color:T.amber,   bg:T.amberDim,             pulse:true  },
+  IN_PROGRESS:           { label:"WORKING",  color:T.green,   bg:T.greenDim,             pulse:true  },
+  PAUSED:                { label:"PAUSED",   color:T.muted,   bg:"rgba(124,142,166,.1)", pulse:false },
+  COMPLETED:             { label:"DONE",     color:T.green,   bg:T.greenDim,             pulse:false },
+  FAILED:                { label:"FAILED",   color:T.red,     bg:T.redDim,               pulse:false },
 };
 
 // ─── Network tracker ──────────────────────────────────────────────────────────
@@ -503,10 +504,11 @@ const Pill = ({status,small=false}) => {
   return (
     <span style={{
       display:"inline-flex",alignItems:"center",gap:4,
-      padding:small?"2px 7px":"3px 9px",borderRadius:3,
-      background:m.bg,border:`1px solid ${m.color}30`,
+      padding:small?"2px 8px":"4px 10px",borderRadius:4,
+      background:m.bg,border:`1px solid ${m.color}40`,
       fontFamily:"'JetBrains Mono',monospace",
-      fontSize:small?11:12,fontWeight:700,letterSpacing:"0.07em",color:m.color,flexShrink:0,
+      fontSize:small?10:11,fontWeight:800,letterSpacing:"0.08em",color:m.color,flexShrink:0,
+      boxShadow:`0 2px 8px rgba(0,0,0,0.2)`,
     }}>
       {m.pulse&&<span style={{width:4,height:4,borderRadius:"50%",background:m.color,animation:"dot 1.2s ease-in-out infinite",flexShrink:0}}/>}
       {m.label}
@@ -517,8 +519,8 @@ const Pill = ({status,small=false}) => {
 const Bar = ({pct,status}) => {
   const c = (STATUS_META[status]||STATUS_META.QUEUED).color;
   return (
-    <div style={{height:2,background:T.border,borderRadius:2,overflow:"hidden"}}>
-      <div style={{height:"100%",width:`${pct}%`,borderRadius:2,background:c,boxShadow:`0 0 5px ${c}70`,transition:"width .5s ease",transform:"translateZ(0)"}}/>
+    <div style={{height:3,background:T.line,borderRadius:2,overflow:"hidden"}}>
+      <div style={{height:"100%",width:`${pct}%`,borderRadius:2,background:c,boxShadow:`0 0 8px ${c}60`,transition:"width .5s ease",transform:"translateZ(0)"}}/>
     </div>
   );
 };
@@ -526,19 +528,21 @@ const Bar = ({pct,status}) => {
 const Btn = ({children,onClick,color=T.green,disabled=false,outline=false,sm=false,style:s={}}) => (
   <button onClick={onClick} disabled={disabled} style={{
     background:outline?"transparent":(disabled?T.dim:color),
-    border:`1px solid ${disabled?T.border:color+(outline?"66":"00")}`,
-    borderRadius:5,cursor:disabled?"default":"pointer",
-    padding:sm?"6px 12px":"10px 16px",
+    border:`1px solid ${disabled?T.border:color+(outline?"77":"00")}`,
+    borderRadius:6,cursor:disabled?"default":"pointer",
+    padding:sm?"8px 14px":"12px 18px",
     color:disabled?T.muted:(outline?color:"#000"),
-    fontFamily:"'JetBrains Mono',monospace",fontSize:sm?11:12,fontWeight:700,letterSpacing:"0.08em",
-    transition:"opacity .15s",opacity:disabled?.5:1,
-    display:"flex",alignItems:"center",justifyContent:"center",gap:6,...s,
+    fontFamily:"'JetBrains Mono',monospace",fontSize:sm?11:12,fontWeight:800,letterSpacing:"0.08em",
+    transition:"all .15s",opacity:disabled?.5:1,
+    display:"flex",alignItems:"center",justifyContent:"center",gap:8,
+    boxShadow:outline?"none":(disabled?"none":`0 4px 12px ${color}30`),
+    ...s,
   }}>{children}</button>
 );
 
 const Field = ({label,children,style:s={}}) => (
-  <div style={{marginBottom:20,...s}}>
-    <div style={{marginBottom:8,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted,letterSpacing:"0.1em"}}>{label}</div>
+  <div style={{marginBottom:24,...s}}>
+    <div style={{marginBottom:10,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted,fontWeight:700,letterSpacing:"0.12em"}}>{label}</div>
     {children}
   </div>
 );
@@ -920,23 +924,25 @@ const ChatBubble = memo(({ act, type, onMediaClick }) => {
     }}>
       {/* Avatar */}
       <div style={{
-        width:30,height:30,borderRadius:6,flexShrink:0,
+        width:32,height:32,borderRadius:8,flexShrink:0,
         background:isUser?T.blueDim:T.green,
         border:`1px solid ${isUser?T.blue+"40":"transparent"}`,
         display:"flex",alignItems:"center",justifyContent:"center",
         fontFamily:"'JetBrains Mono',monospace",fontSize:13,fontWeight:900,
         color:isUser?T.blue:"#000",
+        boxShadow:`0 4px 10px rgba(0,0,0,0.2)`,
       }}>{isUser?"U":"J"}</div>
 
       {/* Bubble */}
       <div style={{
-        maxWidth:"80%",
+        maxWidth:"82%",
         background:isUser?T.userBubble:T.agentBubble,
-        border:`1px solid ${isUser?T.blue+"30":T.green+"25"}`,
-        borderRadius:isUser?"12px 12px 2px 12px":"12px 12px 12px 2px",
-        padding:"12px 15px",
+        border:`1px solid ${isUser?T.blue+"40":T.green+"35"}`,
+        borderRadius:isUser?"14px 14px 4px 14px":"14px 14px 14px 4px",
+        padding:"14px 18px",
         opacity:isTemp?0.6:1,
         transition:"opacity .2s",
+        boxShadow:`0 4px 15px rgba(0,0,0,0.15)`,
       }}>
         <div style={{
           fontSize:15,color:T.text,lineHeight:1.55,
@@ -1039,16 +1045,16 @@ const TimelineEvent = memo(({ act, onMediaClick }) => {
       background:isMajor?T.surfaceHi:"transparent",
       border:isMajor?`1px solid ${T.border}`:"none",
     }}>
-      <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:0,flexShrink:0,width:20}}>
-        <div style={{width:20,height:20,borderRadius:4,background:`${ic.c}15`,border:`1px solid ${ic.c}30`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-          <Ic n={ic.n} s={12} c={ic.c}/>
+      <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:0,flexShrink:0,width:24}}>
+        <div style={{width:24,height:24,borderRadius:6,background:`${ic.c}18`,border:`1px solid ${ic.c}40`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,boxShadow:`0 2px 6px rgba(0,0,0,0.15)`}}>
+          <Ic n={ic.n} s={13} c={ic.c}/>
         </div>
         {detail&&<div style={{width:1,flex:1,background:T.border,marginTop:3}}/>}
       </div>
-      <div style={{flex:1,paddingBottom:detail?12:0,minWidth:0}}>
-        <div style={{display:"flex",gap:8,alignItems:"center",height:22}}>
-          <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:12,fontWeight:700,color:ic.c,flex:1,lineHeight:1.3}}>{title}</span>
-          <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted,flexShrink:0}}>{time}</span>
+      <div style={{flex:1,paddingBottom:detail?12:0,minWidth:0,marginTop:1}}>
+        <div style={{display:"flex",gap:10,alignItems:"center",height:22}}>
+          <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:12,fontWeight:800,color:ic.c,flex:1,lineHeight:1.3,letterSpacing:"0.02em"}}>{title}</span>
+          <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted,fontWeight:600,flexShrink:0}}>{time}</span>
         </div>
         {detail}
         <MediaArtifacts artifacts={act.artifacts} ts={act.createTime} onMediaClick={onMediaClick}/>
@@ -1578,10 +1584,10 @@ const SessionCard = memo(({ s, onPress, isSelected }) => {
       borderLeft:`2px solid ${isSelected?T.green:m.color}`,
       borderRadius:6,padding:"11px 13px",marginBottom:6,transition:"all .15s",
     }}>
-      <div style={{display:"flex",alignItems:"flex-start",gap:8,marginBottom:10}}>
+      <div style={{display:"flex",alignItems:"flex-start",gap:10,marginBottom:12}}>
         <div style={{flex:1,minWidth:0}}>
-          {repo&&<div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted,marginBottom:5,letterSpacing:"0.04em",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{repo}</div>}
-          <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:15,fontWeight:500,color:T.text,lineHeight:1.45,overflow:"hidden",textOverflow:"ellipsis",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>{s.title||s.prompt}</div>
+          {repo&&<div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted,fontWeight:600,marginBottom:6,letterSpacing:"0.05em",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{repo}</div>}
+          <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:15,fontWeight:600,color:T.text,lineHeight:1.45,overflow:"hidden",textOverflow:"ellipsis",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>{s.title||s.prompt}</div>
         </div>
         <Pill status={s.state} small/>
       </div>
@@ -1880,10 +1886,10 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
           <div style={{flex:1,minWidth:0,transition:"all .2s ease"}}>
             <div style={{
               fontFamily:"'IBM Plex Sans',sans-serif",
-              fontSize:scrolled?13:16,
-              fontWeight:600,
-              color:T.text,
-              lineHeight:scrolled?1.6:1.3,
+              fontSize:scrolled?13:17,
+              fontWeight:700,
+              color:T.textHi,
+              lineHeight:scrolled?1.6:1.4,
               overflow:"hidden",
               textOverflow:"ellipsis",
               display:"-webkit-box",
@@ -1982,14 +1988,15 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
         {summary && (
           <div style={{
             maxHeight:scrolled?0:500, overflow:"hidden", opacity:scrolled?0:1,
-            marginBottom:scrolled?0:10, padding:scrolled?0:"10px 14px",
-            background:T.surfaceHi, border:`${scrolled?0:1}px solid ${T.border}`,
-            borderRadius:6, transition:"all .25s ease",
+            marginBottom:scrolled?0:12, padding:scrolled?0:"12px 16px",
+            background:T.surfaceHi, border:`${scrolled?0:1}px solid ${T.borderHi}`,
+            borderRadius:8, transition:"all .25s ease",
             pointerEvents:scrolled?"none":"auto",
+            boxShadow:`0 4px 16px rgba(0,0,0,0.3)`,
           }}>
             <div style={{
-              fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.green,
-              fontWeight:700, letterSpacing:"0.06em", marginBottom:6,
+              fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.green,
+              fontWeight:800, letterSpacing:"0.1em", marginBottom:8,
             }}>SESSION SUMMARY</div>
             <div style={{
               fontFamily:"'IBM Plex Sans',sans-serif", fontSize:14, color:T.text,
