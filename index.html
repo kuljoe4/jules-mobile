@@ -491,6 +491,8 @@ const PATHS = {
   branch:"M6 3v12M18 9a3 3 0 100-6 3 3 0 000 6zM6 21a3 3 0 100-6 3 3 0 000 6zM18 9a9 9 0 01-9 9",
   download:"M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4m4-5l5 5 5-5m-5 5V3",
   layout_toggle:"M12 4V2m0 20v-2m8-8h2M2 12h2m13.657-5.657l1.414-1.414m-14.142 14.142l1.414-1.414m0-14.142l-1.414-1.414m14.142 14.142l-1.414-1.414",
+  git_pull:"M18 18a3 3 0 100-6 3 3 0 000 6zM6 18a3 3 0 100-6 3 3 0 000 6zM6 6a3 3 0 100-6 3 3 0 000 6zM6 9v6M13 6h3a2 2 0 012 2v7",
+  git_merge:"M18 18a3 3 0 100-6 3 3 0 000 6zM6 6a3 3 0 100-6 3 3 0 000 6zM6 21V9a9 9 0 009 9",
 };
 const Ic = ({n,s=16,c=T.muted}) => (
   <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
@@ -1004,8 +1006,11 @@ const TimelineEvent = memo(({ act, onMediaClick }) => {
       break;
     }
     case "progressUpdated": {
-      const isReview = (act.progressUpdated?.title || "").toLowerCase().includes("review");
-      title = act.progressUpdated?.title || "Progress";
+      const p = act.progressUpdated;
+      const lowerT = (p?.title || "").toLowerCase();
+      const isReview = lowerT.includes("review");
+      const isMerge = lowerT.includes("merge");
+      title = p?.title || "Progress";
       detail = act.progressUpdated?.description && (
         <div style={{
           fontSize:13, color:isReview?T.text:T.muted, marginTop:6,
@@ -1015,16 +1020,22 @@ const TimelineEvent = memo(({ act, onMediaClick }) => {
           boxShadow:isReview?"inset 0 0 12px rgba(77,166,255,0.02)":"none",
           fontFamily:"'IBM Plex Sans',sans-serif",
         }}>
-          {isReview && (
+          {(isReview || isMerge) && (
             <div style={{display:"flex", alignItems:"center", gap:6, marginBottom:10}}>
-              <span style={{padding:"2px 6px", borderRadius:3, background:T.blueDim, color:T.blue, fontSize:10, fontWeight:700, letterSpacing:"0.05em"}}>REVIEW</span>
-              <div style={{height:1, flex:1, background:`linear-gradient(90deg, ${T.blue}30, transparent)`}}/>
+              <span style={{
+                padding:"2px 6px", borderRadius:3,
+                background:isReview?T.blueDim:T.purpleDim,
+                color:isReview?T.blue:T.purple,
+                fontSize:10, fontWeight:700, letterSpacing:"0.05em"
+              }}>{isReview?"REVIEW":"MERGE"}</span>
+              <div style={{height:1, flex:1, background:`linear-gradient(90deg, ${isReview?T.blue:T.purple}30, transparent)`}}/>
             </div>
           )}
           <Markdown text={act.progressUpdated.description}/>
         </div>
       );
       if (isReview) ic.c = T.blue;
+      if (isMerge) { ic.c = T.purple; ic.n = "git_merge"; }
       break;
     }
     case "sessionCompleted": title = "Session completed"; break;
@@ -1201,6 +1212,87 @@ const ActivityFeed = memo(({ activities, showAll, onShowAll, onMediaClick }) => 
         return <TimelineEvent key={key} act={act} onMediaClick={onMediaClick}/>;
       })}
     </>
+  );
+});
+
+// ─── PR View ──────────────────────────────────────────────────────────────────
+const PRView = memo(({ pr, sourceContext }) => {
+  if (!pr) return (
+    <div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.muted}}>
+      No pull request data found
+    </div>
+  );
+
+  const prNum = pr.number || pr.url?.split("/").pop();
+  const repo = sourceContext?.source?.replace("sources/github/","");
+  const branch = sourceContext?.githubRepoContext?.startingBranch || "main";
+
+  return (
+    <div style={{display:"flex", flexDirection:"column", gap:16}}>
+      <div style={{background:T.surface, border:`1px solid ${T.border}`, borderRadius:8, padding:20}}>
+        <div style={{display:"flex", alignItems:"flex-start", gap:12, marginBottom:16}}>
+          <div style={{
+            width:40, height:40, borderRadius:8, background:pr.merged ? `${T.purple}15` : `${T.blue}15`,
+            display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0
+          }}>
+            <Ic n={pr.merged ? "git_merge" : "git_pull"} s={24} c={pr.merged ? T.purple : T.blue}/>
+          </div>
+          <div style={{flex:1, minWidth:0}}>
+            <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:4}}>
+              <span style={{
+                fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:800,
+                color: pr.merged ? T.purple : T.blue, background: pr.merged ? `${T.purple}15` : `${T.blue}15`,
+                padding:"2px 8px", borderRadius:4, border:`1px solid ${pr.merged ? T.purple : T.blue}30`
+              }}>
+                {pr.merged ? "MERGED" : "OPEN"}
+              </span>
+              <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:12, color:T.muted}}>
+                #{prNum}
+              </span>
+            </div>
+            <h2 style={{fontFamily:"'IBM Plex Sans',sans-serif", fontSize:18, fontWeight:700, color:T.text, lineHeight:1.4, margin:0}}>
+              {pr.title || `Pull Request #${prNum}`}
+            </h2>
+          </div>
+        </div>
+
+        <div style={{display:"flex", flexDirection:"column", gap:12, padding:"16px", background:"#040507", borderRadius:6, border:`1px solid ${T.border}`}}>
+          <div style={{display:"flex", alignItems:"center", gap:8}}>
+            <Ic n="code" s={14} c={T.muted}/>
+            <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:12, color:T.muted}}>Repository:</span>
+            <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:12, color:T.text}}>{repo}</span>
+          </div>
+          <div style={{display:"flex", alignItems:"center", gap:8}}>
+            <Ic n="branch" s={14} c={T.muted}/>
+            <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:12, color:T.muted}}>Branch:</span>
+            <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:12, color:T.text}}>{branch}</span>
+          </div>
+          {pr.url && (
+            <div style={{marginTop:8}}>
+              <a href={pr.url} target="_blank" rel="noopener" style={{
+                display:"inline-flex", alignItems:"center", gap:8, background:T.blue, color:"#000",
+                padding:"8px 16px", borderRadius:6, textDecoration:"none", fontFamily:"'JetBrains Mono',monospace",
+                fontSize:12, fontWeight:800
+              }}>
+                VIEW ON GITHUB ↗
+              </a>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {pr.merged && (
+        <div style={{
+          padding:"14px", background:`${T.purple}0a`, border:`1px solid ${T.purple}20`,
+          borderRadius:8, display:"flex", alignItems:"center", gap:12
+        }}>
+          <Ic n="git_merge" s={20} c={T.purple}/>
+          <div style={{fontFamily:"'IBM Plex Sans',sans-serif", fontSize:14, color:T.textHi}}>
+            This pull request has been successfully merged into the target branch.
+          </div>
+        </div>
+      )}
+    </div>
   );
 });
 
@@ -1576,6 +1668,7 @@ const SessionCard = memo(({ s, onPress, isSelected }) => {
   const m    = STATUS_META[s.state] || STATUS_META.QUEUED;
   const repo = s.sourceContext?.githubRepoContext
     ? s.sourceContext.source?.replace("sources/github/","") : null;
+  const pr   = s.outputs?.find(o=>o.pullRequest)?.pullRequest;
 
   return (
     <button onClick={onPress} style={{
@@ -1594,7 +1687,17 @@ const SessionCard = memo(({ s, onPress, isSelected }) => {
       <Bar pct={pct} status={s.state}/>
       <div style={{display:"flex",alignItems:"center",gap:10,marginTop:6,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted}}>
         <span>{fmtAgo(new Date(s.updateTime||s.createTime).getTime())}</span>
-        {s.outputs?.find(o=>o.pullRequest)&&<span style={{color:T.blue}}>PR→</span>}
+        {pr && (
+          <div style={{
+            display:"flex", alignItems:"center", gap:4, padding:"1px 6px",
+            borderRadius:4, background:pr.merged ? `${T.purple}15` : `${T.blue}15`,
+            border:`1px solid ${pr.merged ? T.purple : T.blue}30`,
+            color: pr.merged ? T.purple : T.blue, fontSize:10, fontWeight:700
+          }}>
+            <Ic n={pr.merged ? "git_merge" : "git_pull"} s={10} c={pr.merged ? T.purple : T.blue}/>
+            <span>PR#{pr.number || pr.url?.split("/").pop()}</span>
+          </div>
+        )}
         <span style={{marginLeft:"auto",fontSize:10,color:T.dim,background:T.surfaceHi,padding:"1px 5px",borderRadius:2}}>{s.id?.slice(0,8)}</span>
       </div>
     </button>
@@ -1860,6 +1963,7 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
   const TABS = [
     { id:"activity", label:"CHAT" },
     ...(latestPlan?[{ id:"plan", label:"PLAN" }]:[]),
+    ...(pr ? [{ id:"pr", label:"PR" }] : []),
     { id:"diff",     label:"DIFF" },
     { id:"bash",     label:"BASH" },
     ...(mediaArtifacts.length>0?[{ id:"media", label:"MEDIA" }]:[]),
@@ -1947,7 +2051,18 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
             </span>
           )}
           {session.url && <a href={session.url} target="_blank" rel="noopener" style={{color:T.muted,textDecoration:"none",flexShrink:0,fontFamily:"'JetBrains Mono',monospace",fontSize:11}}>WEB↗</a>}
-          {pr && <a href={pr.url} target="_blank" rel="noopener" style={{color:T.blue,textDecoration:"none",flexShrink:0}}>PR↗</a>}
+          {pr && (
+            <a href={pr.url} target="_blank" rel="noopener" style={{
+              display:"flex", alignItems:"center", gap:4, padding:"2px 8px", borderRadius:4,
+              background:pr.merged ? `${T.purple}15` : `${T.blue}15`,
+              border:`1px solid ${pr.merged ? T.purple : T.blue}30`,
+              color: pr.merged ? T.purple : T.blue, textDecoration:"none",
+              fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:700, flexShrink:0
+            }}>
+              <Ic n={pr.merged ? "git_merge" : "git_pull"} s={12} c={pr.merged ? T.purple : T.blue}/>
+              #{pr.number || pr.url?.split("/").pop()}
+            </a>
+          )}
 
         </div>
 
@@ -2037,6 +2152,7 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
             busy={busy}
           />
         )}
+        {tab==="pr"&&<PRView pr={pr} sourceContext={session.sourceContext}/>}
         {tab==="diff"&&<DiffViewer patch={diffArtifact?.unidiffPatch||null}/>}
         {tab==="bash"&&(
           bashOutputs.length===0
