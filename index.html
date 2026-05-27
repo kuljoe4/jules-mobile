@@ -537,8 +537,8 @@ const Btn = ({children,onClick,color=T.green,disabled=false,outline=false,sm=fal
 );
 
 const Field = ({label,children,style:s={}}) => (
-  <div style={{marginBottom:16,...s}}>
-    <div style={{marginBottom:5,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted,letterSpacing:"0.1em"}}>{label}</div>
+  <div style={{marginBottom:20,...s}}>
+    <div style={{marginBottom:8,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted,letterSpacing:"0.1em"}}>{label}</div>
     {children}
   </div>
 );
@@ -670,21 +670,21 @@ const Markdown = memo(({ text }) => {
 
       return (
         <div key={i} style={{
-          margin:"8px 0", background:"#040507", border:`1px solid ${T.border}`,
+          margin:"10px 0", background:"#040507", border:`1px solid ${T.border}`,
           borderRadius:6, overflow:"hidden", fontFamily:"'JetBrains Mono',monospace", fontSize:13,
         }}>
           {lang && (
-            <div style={{padding:"3px 10px", background:T.surface, borderBottom:`1px solid ${T.border}`, fontSize:11, color:T.muted, textTransform:"uppercase", letterSpacing:"0.05em"}}>
+            <div style={{padding:"4px 10px", background:T.surface, borderBottom:`1px solid ${T.border}`, fontSize:11, color:T.muted, textTransform:"uppercase", letterSpacing:"0.05em"}}>
               {lang}
             </div>
           )}
-          <div style={{padding:"10px", color:T.text, whiteSpace:"pre-wrap", wordBreak:"break-all"}}>
+          <div style={{padding:"12px", color:T.text, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word"}}>
             {content}
           </div>
         </div>
       );
     }
-    return <span key={i} style={{whiteSpace:"pre-wrap", wordBreak:"break-word"}}>{part}</span>;
+    return <span key={i} style={{whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word"}}>{part}</span>;
   });
 });
 
@@ -978,9 +978,9 @@ const TimelineEvent = memo(({ act, onMediaClick }) => {
       const plan = act.planGenerated?.plan;
       title = "Plan generated";
       detail = plan?.steps && (
-        <div style={{marginTop:7}}>
+        <div style={{marginTop:10}}>
           {plan.steps.map((st,i) => (
-            <div key={st.id||i} style={{display:"flex",gap:8,marginBottom:6,alignItems:"flex-start"}}>
+            <div key={st.id||i} style={{display:"flex",gap:8,marginBottom:10,alignItems:"flex-start"}}>
               <div style={{
                 width:20,height:20,borderRadius:3,flexShrink:0,
                 background:T.purpleDim,border:`1px solid ${T.purple}40`,
@@ -988,8 +988,8 @@ const TimelineEvent = memo(({ act, onMediaClick }) => {
                 fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.purple,
               }}>{i+1}</div>
               <div>
-                <div style={{fontSize:14,color:T.text,fontWeight:500,lineHeight:1.35}}>{st.title}</div>
-                {st.description&&<div style={{fontSize:13,color:T.muted,marginTop:1}}>{st.description}</div>}
+                <div style={{fontSize:14,color:T.text,fontWeight:500,lineHeight:1.45}}>{st.title}</div>
+                {st.description&&<div style={{fontSize:13,color:T.muted,marginTop:4,lineHeight:1.5}}>{st.description}</div>}
               </div>
             </div>
           ))}
@@ -1002,15 +1002,15 @@ const TimelineEvent = memo(({ act, onMediaClick }) => {
       title = act.progressUpdated?.title || "Progress";
       detail = act.progressUpdated?.description && (
         <div style={{
-          fontSize:13, color:isReview?T.text:T.muted, marginTop:3,
-          lineHeight:1.5, padding:isReview?"10px 14px":"0",
+          fontSize:13, color:isReview?T.text:T.muted, marginTop:6,
+          lineHeight:1.6, padding:isReview?"12px 14px":"0",
           background:isReview?`${T.blue}0a`:"transparent",
           border:isReview?`1px solid ${T.blue}15`:"none", borderRadius:isReview?8:0,
           boxShadow:isReview?"inset 0 0 12px rgba(77,166,255,0.02)":"none",
           fontFamily:"'IBM Plex Sans',sans-serif",
         }}>
           {isReview && (
-            <div style={{display:"flex", alignItems:"center", gap:6, marginBottom:8}}>
+            <div style={{display:"flex", alignItems:"center", gap:6, marginBottom:10}}>
               <span style={{padding:"2px 6px", borderRadius:3, background:T.blueDim, color:T.blue, fontSize:10, fontWeight:700, letterSpacing:"0.05em"}}>REVIEW</span>
               <div style={{height:1, flex:1, background:`linear-gradient(90deg, ${T.blue}30, transparent)`}}/>
             </div>
@@ -1025,7 +1025,7 @@ const TimelineEvent = memo(({ act, onMediaClick }) => {
     case "sessionFailed":
       title = "Session failed";
       detail = act.sessionFailed?.reason && (
-        <div style={{fontSize:13,color:T.red,marginTop:3,fontFamily:"'IBM Plex Sans',sans-serif"}}>{act.sessionFailed.reason}</div>
+        <div style={{fontSize:13,color:T.red,marginTop:6,fontFamily:"'IBM Plex Sans',sans-serif",lineHeight:1.5}}>{act.sessionFailed.reason}</div>
       );
       break;
     case "planApproved": title = "Plan approved"; break;
@@ -1045,9 +1045,9 @@ const TimelineEvent = memo(({ act, onMediaClick }) => {
         </div>
         {detail&&<div style={{width:1,flex:1,background:T.border,marginTop:3}}/>}
       </div>
-      <div style={{flex:1,paddingBottom:detail?10:0,minWidth:0}}>
-        <div style={{display:"flex",gap:8,alignItems:"center",height:20}}>
-          <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:12,fontWeight:700,color:ic.c,flex:1}}>{title}</span>
+      <div style={{flex:1,paddingBottom:detail?12:0,minWidth:0}}>
+        <div style={{display:"flex",gap:8,alignItems:"center",height:22}}>
+          <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:12,fontWeight:700,color:ic.c,flex:1,lineHeight:1.3}}>{title}</span>
           <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted,flexShrink:0}}>{time}</span>
         </div>
         {detail}
@@ -1578,10 +1578,10 @@ const SessionCard = memo(({ s, onPress, isSelected }) => {
       borderLeft:`2px solid ${isSelected?T.green:m.color}`,
       borderRadius:6,padding:"11px 13px",marginBottom:6,transition:"all .15s",
     }}>
-      <div style={{display:"flex",alignItems:"flex-start",gap:8,marginBottom:7}}>
+      <div style={{display:"flex",alignItems:"flex-start",gap:8,marginBottom:10}}>
         <div style={{flex:1,minWidth:0}}>
-          {repo&&<div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted,marginBottom:3,letterSpacing:"0.04em",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{repo}</div>}
-          <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:15,fontWeight:500,color:T.text,lineHeight:1.35,overflow:"hidden",textOverflow:"ellipsis",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>{s.title||s.prompt}</div>
+          {repo&&<div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted,marginBottom:5,letterSpacing:"0.04em",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{repo}</div>}
+          <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:15,fontWeight:500,color:T.text,lineHeight:1.45,overflow:"hidden",textOverflow:"ellipsis",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>{s.title||s.prompt}</div>
         </div>
         <Pill status={s.state} small/>
       </div>
@@ -1607,7 +1607,38 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
   const [busy,setBusy]           = useState(false);
   const [err,setErr]             = useState(null);
   const [activeMedia,setActiveMedia] = useState(null);
-  const [scrolled, handleScroll] = useScrollThreshold();
+  const [scrolled, handleScrollBase] = useScrollThreshold();
+  const [composerVisible, setComposerVisible] = useState(true);
+  const lastScrollY = useRef(0);
+  const scrollDir = useRef(0); // 1 = down, -1 = up
+
+  const handleScroll = useCallback(e => {
+    handleScrollBase(e);
+    const y = e.target.scrollTop;
+    const h = e.target.scrollHeight;
+    const vh = e.target.offsetHeight;
+    const diff = y - lastScrollY.current;
+
+    if (Math.abs(diff) > 5) {
+      scrollDir.current = diff > 0 ? 1 : -1;
+    }
+
+    // Smart visibility logic:
+    // 1. Always show if near bottom (within 150px)
+    // 2. Hide if scrolling down deep (> 300px)
+    // 3. Show if scrolling up
+    if (h - y - vh < 150) {
+      setComposerVisible(true);
+    } else if (y > 300) {
+      if (scrollDir.current === 1) setComposerVisible(false);
+      else if (scrollDir.current === -1) setComposerVisible(true);
+    } else {
+      setComposerVisible(true);
+    }
+
+    lastScrollY.current = y;
+  }, [handleScrollBase]);
+
   const txtRef       = useRef(null);
   const feedEndRef   = useRef(null);
   const actMapRef    = useRef(new Map());      // id → activity (dedup)
@@ -1833,11 +1864,12 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
     <div style={{display:"flex",flexDirection:"column",height:"100%",minHeight:0}}>
       {/* ── Header ── */}
       <div style={{
-        padding:scrolled?"6px 16px 0":"12px 16px 0",
+        padding:scrolled?"8px 16px 6px":"12px 16px 0",
         borderBottom:`1px solid ${T.border}`,
         background:T.surface,
         flexShrink:0,
-        transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)",
+        transition:"all .25s cubic-bezier(0.4, 0, 0.2, 1)",
+        zIndex: 5,
       }}>
         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:scrolled?0:8}}>
           {!isDesktop&&(
@@ -1884,8 +1916,9 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
         </div>
 
         <div style={{
-          height:scrolled?0:2, overflow:"hidden", transition:"all .2s ease",
-          marginBottom:scrolled?0:5, opacity:scrolled?0:1
+          height:scrolled?0:2, overflow:"hidden", transition:"all .25s ease",
+          marginBottom:scrolled?0:5, opacity:scrolled?0:1,
+          pointerEvents:scrolled?"none":"auto",
         }}>
           <Bar pct={pct} status={session.state}/>
         </div>
@@ -1898,7 +1931,8 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
           opacity:scrolled?0:1,
           overflow:"hidden",
           fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted,flexWrap:"nowrap",alignItems:"center",
-          transition:"all .2s ease",
+          transition:"all .25s ease",
+          pointerEvents:scrolled?"none":"auto",
         }}>
           <span>{session.id?.slice(0,10)}</span>
           {session.sourceContext?.source&&(
@@ -1947,10 +1981,11 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
 
         {summary && (
           <div style={{
-            height:scrolled?0:"auto", overflow:"hidden", opacity:scrolled?0:1,
+            maxHeight:scrolled?0:500, overflow:"hidden", opacity:scrolled?0:1,
             marginBottom:scrolled?0:10, padding:scrolled?0:"10px 14px",
             background:T.surfaceHi, border:`${scrolled?0:1}px solid ${T.border}`,
-            borderRadius:6, transition:"all .2s ease",
+            borderRadius:6, transition:"all .25s ease",
+            pointerEvents:scrolled?"none":"auto",
           }}>
             <div style={{
               fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.green,
@@ -2058,7 +2093,15 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
 
       {/* ── Composer ── */}
       {canSend&&(
-        <div style={{padding:"10px 16px 14px",borderTop:`1px solid ${T.border}`,background:T.surface,flexShrink:0}}>
+        <div style={{
+          padding:"10px 16px 14px", borderTop:`1px solid ${T.border}`, background:T.surface,
+          flexShrink:0, transition:"transform .3s cubic-bezier(0.4, 0, 0.2, 1), opacity .2s ease, visibility .3s",
+          transform: composerVisible ? "translateY(0)" : "translateY(100%)",
+          opacity: composerVisible ? 1 : 0,
+          visibility: composerVisible ? "visible" : "hidden",
+          position: isDesktop ? "relative" : (composerVisible ? "relative" : "absolute"),
+          bottom: 0, left: 0, right: 0, zIndex: 10,
+        }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
             <MediaPicker files={attachedFiles} setFiles={setAttachedFiles} busy={busy} />
             <button
@@ -2141,8 +2184,28 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
 // ─── New Session ──────────────────────────────────────────────────────────────
 // ─── NewSession draft persistence ────────────────────────────────────────────
 const NS_KEY = "jac_ns_draft";
+const REPO_STATS_KEY = "jac_repo_stats";
+const LAST_SOURCE_KEY = "jac_last_source";
+
 function loadDraft() {
   try { const v=localStorage.getItem(NS_KEY); return v?JSON.parse(v):null; } catch { return null; }
+}
+function loadRepoStats() {
+  try { return JSON.parse(localStorage.getItem(REPO_STATS_KEY)) || {}; } catch { return {}; }
+}
+function incRepoStat(name) {
+  if (!name) return;
+  try {
+    const stats = loadRepoStats();
+    stats[name] = (stats[name] || 0) + 1;
+    localStorage.setItem(REPO_STATS_KEY, JSON.stringify(stats));
+  } catch {}
+}
+function loadLastSource() {
+  try { return localStorage.getItem(LAST_SOURCE_KEY) || ""; } catch { return ""; }
+}
+function saveLastSource(name) {
+  try { localStorage.setItem(LAST_SOURCE_KEY, name || ""); } catch {}
 }
 function saveDraft(d) {
   try { localStorage.setItem(NS_KEY, JSON.stringify(d)); } catch {}
@@ -2192,9 +2255,14 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
   }, [srcObj, source, getSourceDisplay]);
 
   const filteredSources = useMemo(() => {
-    const all = [...sources, null]; // null represents "repoless"
     const search = sourceSearch.toLowerCase();
     const isSelectedMatch = (srcObj && sourceSearch === getSourceDisplay(srcObj)) || (source === "" && sourceSearch === "No repo (repoless)");
+
+    let base = [...sources];
+    const stats = loadRepoStats();
+    base.sort((a,b) => (stats[b.name]||0) - (stats[a.name]||0));
+
+    const all = [...base, null]; // null represents "repoless"
     if (!sourceSearch || isSelectedMatch) return all;
     return all.filter(s => getSourceDisplay(s).toLowerCase().includes(search));
   }, [sources, sourceSearch, getSourceDisplay, srcObj, source]);
@@ -2232,9 +2300,15 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
       try {
         const d = await apiCall(apiKey, "/sources?pageSize=50", { _label:"List sources" });
         const s = d.sources || [];
-        setSources(s);
-        // Only default to first source if no draft source saved
-        if (s.length > 0 && !draft?.source) setSource(s[0].name);
+        const stats = loadRepoStats();
+        const sorted = [...s].sort((a,b) => (stats[b.name]||0) - (stats[a.name]||0));
+        setSources(sorted);
+        // Priority: Draft > Last Used > Top Ranked
+        if (!draft?.source) {
+          const last = loadLastSource();
+          if (last && sorted.some(x => x.name === last)) setSource(last);
+          else if (sorted.length > 0) setSource(sorted[0].name);
+        }
       } catch(e) { setErr(e.message); }
       finally { setLoadSrc(false); }
     })();
@@ -2277,6 +2351,10 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
     try {
       const d = await apiCall(apiKey, "/sessions", { method:"POST", body, _label:"Create session" });
       clearDraft(); // clear after successful submit
+      if (source) {
+        incRepoStat(source);
+        saveLastSource(source);
+      }
       onCreate(d);
     } catch(e) { setErr(e.message); setSub(false); }
   };
@@ -2642,11 +2720,12 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%",minHeight:0}}>
       <div style={{
-        padding:scrolled?"8px 16px 0":"12px 16px 0",
+        padding:scrolled?"8px 16px 8px":"12px 16px 0",
         background:T.surface,
         borderBottom:`1px solid ${T.border}`,
         flexShrink:0,
-        transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)",
+        transition:"all .25s cubic-bezier(0.4, 0, 0.2, 1)",
+        zIndex: 5,
       }}>
         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:scrolled?0:10}}>
           <div style={{
@@ -2706,7 +2785,8 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
           height:scrolled?0:22, overflow:"hidden", opacity:scrolled?0:1,
           marginBottom:scrolled?0:6, flexWrap:"nowrap", overflowX:"auto",
           scrollbarWidth:"none", padding:scrolled?0:"4px 2px",
-          transition:"all .2s ease",
+          transition:"all .25s ease",
+          pointerEvents:scrolled?"none":"auto",
         }}>
           <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted,letterSpacing:"0.08em",flexShrink:0,paddingRight:2}}>AUTO</span>
           {POLL_OPTIONS.map(opt => {
@@ -2730,7 +2810,8 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
           height:scrolled?0:22, overflow:"hidden", opacity:scrolled?0:1,
           marginBottom:scrolled?0:4, flexWrap:"nowrap", overflowX:"auto",
           scrollbarWidth:"none", padding:scrolled?0:"4px 2px",
-          transition:"all .2s ease",
+          transition:"all .25s ease",
+          pointerEvents:scrolled?"none":"auto",
         }}>
           <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted,letterSpacing:"0.08em",flexShrink:0,paddingRight:2}}>LIMIT</span>
           {LIMIT_OPTIONS.map(opt => {
@@ -2753,7 +2834,8 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
           height:scrolled?0:22, overflow:"hidden", opacity:scrolled?0:1,
           marginBottom:scrolled?0:8, flexWrap:"nowrap", overflowX:"auto",
           scrollbarWidth:"none", padding:scrolled?0:"4px 2px",
-          transition:"all .2s ease",
+          transition:"all .25s ease",
+          pointerEvents:scrolled?"none":"auto",
         }}>
           <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted,letterSpacing:"0.08em",flexShrink:0,paddingRight:2}}>VIEW</span>
           {LAYOUT_OPTIONS.map(opt => {
@@ -2773,9 +2855,10 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
         {/* ── Daily quota bar ── */}
         {plan&&(
           <div style={{
-            height:scrolled?0:"auto", overflow:"hidden", opacity:scrolled?0:1,
+            maxHeight:scrolled?0:100, overflow:"hidden", opacity:scrolled?0:1,
             marginBottom:scrolled?0:8, padding:scrolled?0:"4px 2px",
-            transition:"all .2s ease",
+            transition:"all .25s ease",
+            pointerEvents:scrolled?"none":"auto",
           }}>
             <div style={{display:"flex",justifyContent:"space-between",marginBottom:4,alignItems:"center"}}>
               <div style={{display:"flex",gap:5,alignItems:"center",overflowX:"auto",scrollbarWidth:"none",padding:"4px 0"}}>
@@ -2825,7 +2908,11 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
           </div>
         )}
         {/* ── Status filter pills ── */}
-        <div style={{overflowX:"auto",padding:"4px 2px 10px",scrollbarWidth:"none",WebkitOverflowScrolling:"touch"}}>
+        <div style={{
+          overflowX:"auto", padding:scrolled?0:"4px 2px 10px", scrollbarWidth:"none", WebkitOverflowScrolling:"touch",
+          maxHeight:scrolled?0:60, opacity:scrolled?0:1, transition:"all .25s ease",
+          pointerEvents:scrolled?"none":"auto",
+        }}>
           <div style={{display:"flex",gap:5,minWidth:"max-content",padding:"4px 0"}}>
             {FILTERS.map(f => {
               const cnt = f==="ALL" ? sessions.length : sessions.filter(s=>s.state===f).length;
