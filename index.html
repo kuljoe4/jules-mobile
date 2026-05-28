@@ -366,6 +366,12 @@ async function apiCall(apiKey, path, opts={}) {
 const fmtBytes = b => b<1?`${(b*1024).toFixed(0)}B`:b<1024?`${b.toFixed(1)}KB`:`${(b/1024).toFixed(2)}MB`;
 const fmtAgo = ts => { const d=Date.now()-ts; if(d<60000)return`${Math.floor(d/1000)}s ago`; if(d<3600000)return`${Math.floor(d/60000)}m ago`; if(d<86400000)return`${Math.floor(d/3600000)}h ago`; return`${Math.floor(d/86400000)}d ago`; };
 const fmtTime = ts => new Date(ts).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
+const getPRStatus = pr => {
+  if (!pr) return { isMerged: false, isClosed: false };
+  const isMerged = pr.merged || pr.state?.toLowerCase() === "merged" || !!pr.merged_at || !!pr.mergedAt;
+  const isClosed = !isMerged && (pr.state?.toLowerCase() === "closed" || pr.closed || !!pr.closedAt);
+  return { isMerged, isClosed };
+};
 const pctFromState = s => ({QUEUED:5,PLANNING:20,AWAITING_PLAN_APPROVAL:35,IN_PROGRESS:65,AWAITING_USER_FEEDBACK:60,COMPLETED:100,FAILED:30,PAUSED:50}[s]||0);
 const getActType = a =>
   a.planGenerated?"planGenerated":a.planApproved?"planApproved":
@@ -506,8 +512,7 @@ const Pill = ({status,small=false,session=null}) => {
   const pr = session?.outputs?.find(o=>o.pullRequest)?.pullRequest;
 
   if (pr) {
-    const isMerged = pr.merged || pr.state?.toLowerCase() === "merged" || !!pr.merged_at || !!pr.mergedAt;
-    const isClosed = pr.state?.toLowerCase() === "closed" || pr.closed || !!pr.closedAt;
+    const { isMerged, isClosed } = getPRStatus(pr);
 
     if (status === "COMPLETED" || isMerged || isClosed) {
       if (isMerged) m = { label:"MERGED", color:T.purple, bg:T.purpleDim, pulse:false };
@@ -1230,12 +1235,35 @@ const ActivityFeed = memo(({ activities, showAll, onShowAll, onMediaClick }) => 
 
 // ─── Source View ──────────────────────────────────────────────────────────────
 const SourceView = memo(({ pr, sourceContext, branchHealth, onSendMessage }) => {
+  const [syncing, setSyncing] = useState(false);
+  const [creatingPr, setCreatingPr] = useState(false);
   const repo = sourceContext?.source?.replace("sources/github/","");
   const branch = sourceContext?.githubRepoContext?.startingBranch || "main";
   const prNum = pr?.number || pr?.url?.split("/").pop();
 
-  const isMerged = pr?.merged || pr?.state?.toLowerCase() === "merged" || !!pr?.merged_at || !!pr?.mergedAt;
-  const isClosed = pr?.state?.toLowerCase() === "closed" || pr?.closed || !!pr?.closedAt;
+  const handleSync = async () => {
+    if (syncing || creatingPr) return;
+    setSyncing(true);
+    try {
+      await onSendMessage("Sync branch and PR status with GitHub");
+      setTimeout(() => setSyncing(false), 2000);
+    } catch {
+      setSyncing(false);
+    }
+  };
+
+  const handleCreatePr = async () => {
+    if (syncing || creatingPr) return;
+    setCreatingPr(true);
+    try {
+      await onSendMessage("Create a pull request for my current changes");
+      setTimeout(() => setCreatingPr(false), 3000);
+    } catch {
+      setCreatingPr(false);
+    }
+  };
+
+  const { isMerged, isClosed } = getPRStatus(pr);
 
   return (
     <div style={{display:"flex", flexDirection:"column", gap:16, animation:"fadeIn .2s ease"}}>
@@ -1293,14 +1321,14 @@ const SourceView = memo(({ pr, sourceContext, branchHealth, onSendMessage }) => 
             )}
             <div style={{display:"flex", gap:8}}>
               {branchHealth?.ahead > 0 && !pr && (
-                <Btn onClick={() => onSendMessage("Create a pull request for my current changes")} color={T.green} sm style={{flex:2}}>
-                  <Ic n="plus" s={12} c="#000"/>
-                  CREATE PULL REQUEST
+                <Btn onClick={handleCreatePr} color={T.green} sm disabled={creatingPr || syncing} style={{flex:2}}>
+                  <Ic n={creatingPr ? "refresh" : "plus"} s={12} c="#000" style={{animation: creatingPr ? "spin 1s linear infinite" : "none"}}/>
+                  {creatingPr ? "CREATING..." : "CREATE PULL REQUEST"}
                 </Btn>
               )}
-              <Btn onClick={() => onSendMessage("Sync branch and PR status with GitHub")} outline sm style={{flex:1, whiteSpace:"nowrap"}}>
-                <Ic n="refresh" s={12} c={T.green}/>
-                SYNC STATUS
+              <Btn onClick={handleSync} outline sm disabled={syncing || creatingPr} style={{flex:1, whiteSpace:"nowrap"}}>
+                <Ic n="refresh" s={12} c={syncing ? T.muted : T.green} style={{animation: syncing ? "spin 1s linear infinite" : "none"}}/>
+                {syncing ? "SYNCING..." : "SYNC STATUS"}
               </Btn>
             </div>
           </div>
@@ -1776,8 +1804,7 @@ const SessionCard = memo(({ s, onPress, isSelected }) => {
       <div style={{display:"flex",alignItems:"center",gap:10,marginTop:6,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted}}>
         <span>{fmtAgo(new Date(s.updateTime||s.createTime).getTime())}</span>
         {pr && (() => {
-          const isMerged = pr.merged || pr.state?.toLowerCase() === "merged" || !!pr.merged_at || !!pr.mergedAt;
-          const isClosed = pr.state?.toLowerCase() === "closed" || pr.closed || !!pr.closedAt;
+          const { isMerged, isClosed } = getPRStatus(pr);
           const c = isMerged ? T.purple : isClosed ? T.red : T.blue;
           return (
             <div style={{
@@ -1983,17 +2010,17 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
   };
 
   // Used by PlanView to send revision requests
-  const handleSendFeedback = useCallback(async (text) => {
+  const handleSendFeedback = useCallback(async (text, stayOnTab=false) => {
     const tempKey = `_temp_${Date.now()}`;
     const tempAct = { id:tempKey, createTime:new Date().toISOString(), userMessaged:{ userMessage:text }, _temp:true };
     actMapRef.current.set(tempKey, tempAct);
     setActivities(prev => [...prev, tempAct]);
     try {
       await apiCall(apiKey, `/sessions/${session.id}:sendMessage`, {
-        method:"POST", body:{ prompt:text }, _label:`Revise plan ${session.id?.slice(0,6)}`,
+        method:"POST", body:{ prompt:text }, _label:`Message → ${session.id?.slice(0,6)}`,
       });
       actMapRef.current.delete(tempKey);
-      setTab("activity"); // switch back to chat to show Jules' response
+      if (!stayOnTab) setTab("activity"); // switch back to chat to show Jules' response
       setTimeout(() => { loadActivities(lastTsRef.current); loadSession(); }, 1500);
     } catch(e) {
       setErr(e.message);
@@ -2182,8 +2209,7 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
             </div>
           )}
           {pr && (() => {
-            const isMerged = pr.merged || pr.state?.toLowerCase() === "merged" || !!pr.merged_at || !!pr.mergedAt;
-            const isClosed = pr.state?.toLowerCase() === "closed" || pr.closed || !!pr.closedAt;
+            const { isMerged, isClosed } = getPRStatus(pr);
             const c = isMerged ? T.purple : isClosed ? T.red : T.blue;
             return (
               <a href={pr.url} target="_blank" rel="noopener" style={{
@@ -2286,7 +2312,7 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
             busy={busy}
           />
         )}
-        {tab==="source"&&<SourceView pr={pr} sourceContext={session.sourceContext} branchHealth={branchHealth} onSendMessage={handleSendFeedback}/>}
+        {tab==="source"&&<SourceView pr={pr} sourceContext={session.sourceContext} branchHealth={branchHealth} onSendMessage={(txt)=>handleSendFeedback(txt, true)}/>}
         {tab==="diff"&&<DiffViewer patch={diffArtifact?.unidiffPatch||null}/>}
         {tab==="bash"&&(
           bashOutputs.length===0
