@@ -506,8 +506,8 @@ const Pill = ({status,small=false,session=null}) => {
   const pr = session?.outputs?.find(o=>o.pullRequest)?.pullRequest;
 
   if (pr) {
-    const isMerged = pr.merged || pr.state?.toLowerCase() === "merged" || !!pr.merged_at;
-    const isClosed = pr.state?.toLowerCase() === "closed" || pr.closed;
+    const isMerged = pr.merged || pr.state?.toLowerCase() === "merged" || !!pr.merged_at || !!pr.mergedAt;
+    const isClosed = pr.state?.toLowerCase() === "closed" || pr.closed || !!pr.closedAt;
 
     if (status === "COMPLETED" || isMerged || isClosed) {
       if (isMerged) m = { label:"MERGED", color:T.purple, bg:T.purpleDim, pulse:false };
@@ -1234,8 +1234,8 @@ const SourceView = memo(({ pr, sourceContext, branchHealth, onSendMessage }) => 
   const branch = sourceContext?.githubRepoContext?.startingBranch || "main";
   const prNum = pr?.number || pr?.url?.split("/").pop();
 
-  const isMerged = pr?.merged || pr?.state?.toLowerCase() === "merged" || !!pr?.merged_at;
-  const isClosed = pr?.state?.toLowerCase() === "closed" || pr?.closed;
+  const isMerged = pr?.merged || pr?.state?.toLowerCase() === "merged" || !!pr?.merged_at || !!pr?.mergedAt;
+  const isClosed = pr?.state?.toLowerCase() === "closed" || pr?.closed || !!pr?.closedAt;
 
   return (
     <div style={{display:"flex", flexDirection:"column", gap:16, animation:"fadeIn .2s ease"}}>
@@ -1253,11 +1253,23 @@ const SourceView = memo(({ pr, sourceContext, branchHealth, onSendMessage }) => 
             <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:15, fontWeight:700, color:T.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>{branch}</div>
           </div>
           {branchHealth && (
-            <div style={{
-              padding:"4px 10px", borderRadius:4, background:`${T.amber}15`, border:`1px solid ${T.amber}40`,
-              fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:800, color:T.amber, flexShrink:0
-            }}>
-              {branchHealth.ahead} COMMITS AHEAD
+            <div style={{ display:"flex", gap:4 }}>
+              {branchHealth.ahead > 0 && (
+                <div style={{
+                  padding:"4px 10px", borderRadius:4, background:`${T.amber}15`, border:`1px solid ${T.amber}40`,
+                  fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:800, color:T.amber, flexShrink:0
+                }}>
+                  {branchHealth.ahead} AHEAD
+                </div>
+              )}
+              {branchHealth.behind > 0 && (
+                <div style={{
+                  padding:"4px 10px", borderRadius:4, background:`${T.blue}15`, border:`1px solid ${T.blue}40`,
+                  fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:800, color:T.blue, flexShrink:0
+                }}>
+                  {branchHealth.behind} BEHIND
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -1268,17 +1280,30 @@ const SourceView = memo(({ pr, sourceContext, branchHealth, onSendMessage }) => 
             <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:12, color:T.muted}}>Repository:</span>
             <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:12, color:T.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>{repo}</span>
           </div>
-          {branchHealth?.ahead > 0 && !pr && (
-            <div style={{marginTop:8, paddingTop:12, borderTop:`1px solid ${T.border}`}}>
-              <div style={{fontFamily:"'IBM Plex Sans',sans-serif", fontSize:13, color:T.muted, marginBottom:10, lineHeight:1.5}}>
-                Branch is ahead of main. Create a pull request to share these changes.
+          <div style={{marginTop:12, paddingTop:16, borderTop:`1px solid ${T.border}`}}>
+            {!pr && (
+              <div style={{fontFamily:"'IBM Plex Sans',sans-serif", fontSize:13, color:T.muted, marginBottom:12, lineHeight:1.5}}>
+                {branchHealth?.ahead > 0
+                  ? "Branch is ahead of main. Create a pull request to share these changes."
+                  : branchHealth?.behind > 0
+                  ? "Branch is behind main. Sync status to see latest changes."
+                  : "Branch status is tracked. Sync to refresh metadata from GitHub."
+                }
               </div>
-              <Btn onClick={() => onSendMessage("Create a pull request for my current changes")} color={T.green} sm style={{width:"100%"}}>
-                <Ic n="plus" s={12} c="#000"/>
-                CREATE PULL REQUEST
+            )}
+            <div style={{display:"flex", gap:8}}>
+              {branchHealth?.ahead > 0 && !pr && (
+                <Btn onClick={() => onSendMessage("Create a pull request for my current changes")} color={T.green} sm style={{flex:2}}>
+                  <Ic n="plus" s={12} c="#000"/>
+                  CREATE PULL REQUEST
+                </Btn>
+              )}
+              <Btn onClick={() => onSendMessage("Sync branch and PR status with GitHub")} outline sm style={{flex:1, whiteSpace:"nowrap"}}>
+                <Ic n="refresh" s={12} c={T.green}/>
+                SYNC STATUS
               </Btn>
             </div>
-          )}
+          </div>
         </div>
       </div>
 
@@ -1751,8 +1776,8 @@ const SessionCard = memo(({ s, onPress, isSelected }) => {
       <div style={{display:"flex",alignItems:"center",gap:10,marginTop:6,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted}}>
         <span>{fmtAgo(new Date(s.updateTime||s.createTime).getTime())}</span>
         {pr && (() => {
-          const isMerged = pr.merged || pr.state?.toLowerCase() === "merged" || !!pr.merged_at;
-          const isClosed = pr.state?.toLowerCase() === "closed" || pr.closed;
+          const isMerged = pr.merged || pr.state?.toLowerCase() === "merged" || !!pr.merged_at || !!pr.mergedAt;
+          const isClosed = pr.state?.toLowerCase() === "closed" || pr.closed || !!pr.closedAt;
           const c = isMerged ? T.purple : isClosed ? T.red : T.blue;
           return (
             <div style={{
@@ -2010,11 +2035,17 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
   , [activities]);
 
   const branchHealth = useMemo(() => {
-    // Look for patterns like "3 commits ahead of main" in activity descriptions
+    // Look for patterns like "3 commits ahead, 0 behind" or "Ahead: 5"
     for (let i = activities.length - 1; i >= 0; i--) {
-      const desc = activities[i].progressUpdated?.description || "";
-      const match = desc.match(/(\d+)\s+commits?\s+ahead/i);
-      if (match) return { ahead: parseInt(match[1]) };
+      const desc = (activities[i].progressUpdated?.description || "").toLowerCase();
+      const aheadMatch = desc.match(/(\d+)\s+commits?\s+ahead|ahead:?\s*(\d+)/);
+      const behindMatch = desc.match(/(\d+)\s+commits?\s+behind|behind:?\s*(\d+)/);
+      if (aheadMatch || behindMatch) {
+        return {
+          ahead: aheadMatch ? parseInt(aheadMatch[1] || aheadMatch[2]) : 0,
+          behind: behindMatch ? parseInt(behindMatch[1] || behindMatch[2]) : 0
+        };
+      }
     }
     return null;
   }, [activities]);
@@ -2129,17 +2160,30 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
           )}
           {session.url && <a href={session.url} target="_blank" rel="noopener" style={{color:T.muted,textDecoration:"none",flexShrink:0,fontFamily:"'JetBrains Mono',monospace",fontSize:11}}>WEB↗</a>}
           {branchHealth && (
-            <div style={{
-              display:"flex", alignItems:"center", gap:4, padding:"2px 8px", borderRadius:4,
-              background:`${T.amber}15`, border:`1px solid ${T.amber}30`,
-              color: T.amber, fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:700, flexShrink:0
-            }}>
-              {branchHealth.ahead} COMMIT{branchHealth.ahead!==1?"S":""} AHEAD
+            <div style={{ display:"flex", gap:4 }}>
+              {branchHealth.ahead > 0 && (
+                <div style={{
+                  display:"flex", alignItems:"center", gap:4, padding:"2px 8px", borderRadius:4,
+                  background:`${T.amber}15`, border:`1px solid ${T.amber}30`,
+                  color: T.amber, fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:700, flexShrink:0
+                }}>
+                  {branchHealth.ahead} AHEAD
+                </div>
+              )}
+              {branchHealth.behind > 0 && (
+                <div style={{
+                  display:"flex", alignItems:"center", gap:4, padding:"2px 8px", borderRadius:4,
+                  background:`${T.blue}15`, border:`1px solid ${T.blue}30`,
+                  color: T.blue, fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:700, flexShrink:0
+                }}>
+                  {branchHealth.behind} BEHIND
+                </div>
+              )}
             </div>
           )}
           {pr && (() => {
-            const isMerged = pr.merged || pr.state?.toLowerCase() === "merged" || !!pr.merged_at;
-            const isClosed = pr.state?.toLowerCase() === "closed" || pr.closed;
+            const isMerged = pr.merged || pr.state?.toLowerCase() === "merged" || !!pr.merged_at || !!pr.mergedAt;
+            const isClosed = pr.state?.toLowerCase() === "closed" || pr.closed || !!pr.closedAt;
             const c = isMerged ? T.purple : isClosed ? T.red : T.blue;
             return (
               <a href={pr.url} target="_blank" rel="noopener" style={{
