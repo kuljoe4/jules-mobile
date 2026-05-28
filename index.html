@@ -501,8 +501,16 @@ const Ic = ({n,s=16,c=T.muted}) => (
 );
 
 // ─── UI Primitives ────────────────────────────────────────────────────────────
-const Pill = ({status,small=false}) => {
-  const m = STATUS_META[status] || STATUS_META.QUEUED;
+const Pill = ({status,small=false,session=null}) => {
+  let m = STATUS_META[status] || STATUS_META.QUEUED;
+  const pr = session?.outputs?.find(o=>o.pullRequest)?.pullRequest;
+
+  if (pr && status === "COMPLETED") {
+    if (pr.merged) m = { label:"MERGED", color:T.purple, bg:T.purpleDim, pulse:false };
+    else if (pr.state?.toUpperCase() === "CLOSED" || pr.closed) m = { label:"CLOSED", color:T.red, bg:T.redDim, pulse:false };
+    else m = { label:"PR OPEN", color:T.blue, bg:T.blueDim, pulse:false };
+  }
+
   return (
     <span style={{
       display:"inline-flex",alignItems:"center",gap:4,
@@ -1232,19 +1240,21 @@ const PRView = memo(({ pr, sourceContext }) => {
       <div style={{background:T.surface, border:`1px solid ${T.border}`, borderRadius:8, padding:20}}>
         <div style={{display:"flex", alignItems:"flex-start", gap:12, marginBottom:16}}>
           <div style={{
-            width:40, height:40, borderRadius:8, background:pr.merged ? `${T.purple}15` : `${T.blue}15`,
+            width:40, height:40, borderRadius:8,
+            background:pr.merged ? `${T.purple}15` : (pr.state?.toUpperCase()==="CLOSED"||pr.closed) ? `${T.red}15` : `${T.blue}15`,
             display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0
           }}>
-            <Ic n={pr.merged ? "git_merge" : "git_pull"} s={24} c={pr.merged ? T.purple : T.blue}/>
+            <Ic n={pr.merged ? "git_merge" : "git_pull"} s={24} c={pr.merged ? T.purple : (pr.state?.toUpperCase()==="CLOSED"||pr.closed) ? T.red : T.blue}/>
           </div>
           <div style={{flex:1, minWidth:0}}>
             <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:4}}>
               <span style={{
                 fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:800,
-                color: pr.merged ? T.purple : T.blue, background: pr.merged ? `${T.purple}15` : `${T.blue}15`,
-                padding:"2px 8px", borderRadius:4, border:`1px solid ${pr.merged ? T.purple : T.blue}30`
+                color: pr.merged ? T.purple : (pr.state?.toUpperCase()==="CLOSED"||pr.closed) ? T.red : T.blue,
+                background: pr.merged ? `${T.purple}15` : (pr.state?.toUpperCase()==="CLOSED"||pr.closed) ? `${T.red}15` : `${T.blue}15`,
+                padding:"2px 8px", borderRadius:4, border:`1px solid ${pr.merged ? T.purple : (pr.state?.toUpperCase()==="CLOSED"||pr.closed) ? T.red : T.blue}30`
               }}>
-                {pr.merged ? "MERGED" : "OPEN"}
+                {pr.merged ? "MERGED" : (pr.state?.toUpperCase()==="CLOSED"||pr.closed) ? "CLOSED" : "OPEN"}
               </span>
               <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:12, color:T.muted}}>
                 #{prNum}
@@ -1289,6 +1299,18 @@ const PRView = memo(({ pr, sourceContext }) => {
           <Ic n="git_merge" s={20} c={T.purple}/>
           <div style={{fontFamily:"'IBM Plex Sans',sans-serif", fontSize:14, color:T.textHi}}>
             This pull request has been successfully merged into the target branch.
+          </div>
+        </div>
+      )}
+
+      {(pr.state?.toUpperCase()==="CLOSED"||pr.closed) && !pr.merged && (
+        <div style={{
+          padding:"14px", background:`${T.red}0a`, border:`1px solid ${T.red}20`,
+          borderRadius:8, display:"flex", alignItems:"center", gap:12
+        }}>
+          <Ic n="x" s={20} c={T.red}/>
+          <div style={{fontFamily:"'IBM Plex Sans',sans-serif", fontSize:14, color:T.textHi}}>
+            This pull request was closed without being merged.
           </div>
         </div>
       )}
@@ -1682,7 +1704,7 @@ const SessionCard = memo(({ s, onPress, isSelected }) => {
           {repo&&<div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted,fontWeight:600,marginBottom:6,letterSpacing:"0.05em",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{repo}</div>}
           <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:15,fontWeight:600,color:T.text,lineHeight:1.45,overflow:"hidden",textOverflow:"ellipsis",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>{s.title||s.prompt}</div>
         </div>
-        <Pill status={s.state} small/>
+        <Pill status={s.state} session={s} small/>
       </div>
       <Bar pct={pct} status={s.state}/>
       <div style={{display:"flex",alignItems:"center",gap:10,marginTop:6,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted}}>
@@ -1690,11 +1712,13 @@ const SessionCard = memo(({ s, onPress, isSelected }) => {
         {pr && (
           <div style={{
             display:"flex", alignItems:"center", gap:4, padding:"1px 6px",
-            borderRadius:4, background:pr.merged ? `${T.purple}15` : `${T.blue}15`,
-            border:`1px solid ${pr.merged ? T.purple : T.blue}30`,
-            color: pr.merged ? T.purple : T.blue, fontSize:10, fontWeight:700
+            borderRadius:4,
+            background:pr.merged ? `${T.purple}15` : (pr.state?.toUpperCase()==="CLOSED"||pr.closed) ? `${T.red}15` : `${T.blue}15`,
+            border:`1px solid ${pr.merged ? T.purple : (pr.state?.toUpperCase()==="CLOSED"||pr.closed) ? T.red : T.blue}30`,
+            color: pr.merged ? T.purple : (pr.state?.toUpperCase()==="CLOSED"||pr.closed) ? T.red : T.blue,
+            fontSize:10, fontWeight:700
           }}>
-            <Ic n={pr.merged ? "git_merge" : "git_pull"} s={10} c={pr.merged ? T.purple : T.blue}/>
+            <Ic n={pr.merged ? "git_merge" : "git_pull"} s={10} c={pr.merged ? T.purple : (pr.state?.toUpperCase()==="CLOSED"||pr.closed) ? T.red : T.blue}/>
             <span>PR#{pr.number || pr.url?.split("/").pop()}</span>
           </div>
         )}
@@ -2021,7 +2045,7 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
                 <Ic n="trash" s={14} c={T.red}/>
               </button>
             )}
-            <Pill status={session.state} small/>
+            <Pill status={session.state} session={session} small/>
           </div>
         </div>
 
@@ -2054,12 +2078,13 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
           {pr && (
             <a href={pr.url} target="_blank" rel="noopener" style={{
               display:"flex", alignItems:"center", gap:4, padding:"2px 8px", borderRadius:4,
-              background:pr.merged ? `${T.purple}15` : `${T.blue}15`,
-              border:`1px solid ${pr.merged ? T.purple : T.blue}30`,
-              color: pr.merged ? T.purple : T.blue, textDecoration:"none",
+              background:pr.merged ? `${T.purple}15` : (pr.state?.toUpperCase()==="CLOSED"||pr.closed) ? `${T.red}15` : `${T.blue}15`,
+              border:`1px solid ${pr.merged ? T.purple : (pr.state?.toUpperCase()==="CLOSED"||pr.closed) ? T.red : T.blue}30`,
+              color: pr.merged ? T.purple : (pr.state?.toUpperCase()==="CLOSED"||pr.closed) ? T.red : T.blue,
+              textDecoration:"none",
               fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:700, flexShrink:0
             }}>
-              <Ic n={pr.merged ? "git_merge" : "git_pull"} s={12} c={pr.merged ? T.purple : T.blue}/>
+              <Ic n={pr.merged ? "git_merge" : "git_pull"} s={12} c={pr.merged ? T.purple : (pr.state?.toUpperCase()==="CLOSED"||pr.closed) ? T.red : T.blue}/>
               #{pr.number || pr.url?.split("/").pop()}
             </a>
           )}
