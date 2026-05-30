@@ -284,8 +284,26 @@ function loadTodayCount() { try { return parseInt(localStorage.getItem(TODAY_KEY
 function incTodayCount()  { try { const k=TODAY_KEY(); localStorage.setItem(k,(parseInt(localStorage.getItem(k))||0)+1); } catch {} }
 function pruneOldKeys()   { try { const t=TODAY_KEY(); for(const k of Object.keys(localStorage)) if(k.startsWith("jac_today_")&&k!==t) localStorage.removeItem(k); } catch {} }
 
+async function clearCacheOnly() {
+  if (!confirm("Clear Service Worker cache? This will redownload all assets on next load.")) return;
+  try {
+    if ("caches" in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+    }
+    alert("Cache cleared.");
+  } catch(e) { alert("Error: " + e.message); }
+}
+
+async function clearDataOnly() {
+  if (!confirm("Clear all settings, keys, and session data? You will be logged out.")) return;
+  localStorage.clear();
+  sessionStorage.clear();
+  location.reload();
+}
+
 async function resetApp() {
-  if (!confirm("Clear all local data, settings, and cache? You will be logged out.")) return;
+  if (!confirm("FULL RESET: Clear all local data, settings, and cache?")) return;
   try {
     localStorage.clear();
     sessionStorage.clear();
@@ -299,9 +317,37 @@ async function resetApp() {
     }
     location.reload(true);
   } catch(e) {
-    alert("Error resetting app: " + e.message);
+    alert("Error: " + e.message);
     location.reload();
   }
+}
+
+async function getStorageInfo() {
+  if (!navigator.storage?.estimate) return { used: 0, quota: 0, cache: 0 };
+  const est = await navigator.storage.estimate();
+
+  if (est.usageDetails && est.usageDetails.caches) {
+    return { used: est.usage || 0, quota: est.quota || 0, cache: est.usageDetails.caches };
+  }
+
+  let cacheSize = 0;
+  try {
+    if ("caches" in window) {
+      const keys = await caches.keys();
+      for (const key of keys) {
+        const cache = await caches.open(key);
+        const reqs = await cache.keys();
+        for (const req of reqs) {
+          const res = await cache.match(req);
+          if (res) {
+            const cl = res.headers.get("content-length");
+            if (cl) cacheSize += parseInt(cl, 10);
+          }
+        }
+      }
+    }
+  } catch(e) {}
+  return { used: est.usage || 0, quota: est.quota || 0, cache: cacheSize };
 }
 
 const T = {
@@ -501,6 +547,8 @@ const PATHS = {
   git_merge:"M18 18a3 3 0 100-6 3 3 0 000 6zM6 6a3 3 0 100-6 3 3 0 000 6zM6 21V9a9 9 0 009 9",
   chevron_down:"M6 9l6 6 6-6",
   chevron_right:"M9 18l6-6-6-6",
+  database:"M3 5V19C3 20.66 6.13 22 10 22C13.87 22 17 20.66 17 19V5M3 5C3 6.66 6.13 8 10 8C13.87 8 17 6.66 17 5M3 5C3 3.34 6.13 2 10 2C13.87 2 17 3.34 17 5M17 12C17 13.66 13.87 15 10 15C6.13 15 3 13.66 3 12",
+  layers:"M12 2L2 7L12 12L22 7L12 2ZM2 17L12 22L22 17M2 12L12 17L22 12",
 };
 const Ic = ({n,s=16,c=T.muted}) => (
   <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
@@ -1723,10 +1771,14 @@ const DiffViewer = ({ patch }) => {
         return (
           <div key={gi} style={{background:"#040507", border:`1px solid ${T.border}`, borderRadius:8, overflow:"hidden"}}>
             <div
+              role="button"
+              tabIndex={0}
+              aria-expanded={!isCollapsed}
               onClick={() => toggleFile(gi)}
+              onKeyDown={e => (e.key === "Enter" || e.key === " ") && toggleFile(gi)}
               style={{
                 padding:"8px 12px", background:T.surface, borderBottom:isCollapsed? "none" : `1px solid ${T.border}`,
-                display:"flex", alignItems:"center", gap:8, cursor:"pointer", userSelect:"none"
+                display:"flex", alignItems:"center", gap:8, cursor:"pointer", userSelect:"none", outline:"none"
               }}
             >
               <Ic n={isCollapsed ? "chevron_right" : "chevron_down"} s={16} c={T.muted}/>
@@ -1735,10 +1787,10 @@ const DiffViewer = ({ patch }) => {
             </div>
 
             <div style={{
-              maxHeight: isCollapsed ? 0 : 10000,
+              maxHeight: isCollapsed ? 0 : 20000,
               opacity: isCollapsed ? 0 : 1,
               overflow: "hidden",
-              transition: "all .25s cubic-bezier(0.4, 0, 0.2, 1)",
+              transition: "all .3s cubic-bezier(0.4, 0, 0.2, 1)",
               fontFamily:"'JetBrains Mono',monospace", fontSize:13, lineHeight:1.5
             }}>
               {g.hunks.map((h, hi) => (
@@ -1816,18 +1868,34 @@ const SetupScreen = ({ onSave }) => {
           autoFocus
         />
         {err&&<div style={{padding:"8px 12px",borderRadius:5,marginBottom:10,background:T.redDim,border:`1px solid ${T.red}40`,fontFamily:"'JetBrains Mono',monospace",fontSize:12,color:T.red}}>{err}</div>}
-        <div style={{display:"flex", gap:10}}>
+        <div style={{display:"flex", gap:10, marginBottom:16}}>
           <Btn onClick={doConnect} disabled={!key.trim()||testing} style={{flex:1}}>
             <Ic n="key" s={12} c="#000"/>
             {testing?"CONNECTING…":"CONNECT"}
           </Btn>
-          <button onClick={resetApp} title="Clear cache and storage" style={{
-            background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:5,
-            padding:"0 12px", cursor:"pointer", display:"flex", alignItems:"center",
+        </div>
+
+        <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:8}}>
+          <button onClick={clearDataOnly} style={{
+            background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:6,
+            padding:"10px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:6,
           }}>
-            <Ic n="trash" s={14} c={T.muted}/>
+            <Ic n="database" s={16} c={T.purple}/>
+            <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:T.muted, fontWeight:700}}>CLEAR DATA</span>
+          </button>
+          <button onClick={clearCacheOnly} style={{
+            background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:6,
+            padding:"10px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:6,
+          }}>
+            <Ic n="layers" s={16} c={T.blue}/>
+            <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:T.muted, fontWeight:700}}>CLEAR CACHE</span>
           </button>
         </div>
+
+        <button onClick={resetApp} style={{
+          width:"100%", background:"none", border:`1px solid ${T.red}30`, borderRadius:6,
+          padding:"8px", cursor:"pointer", color:T.red, fontFamily:"'JetBrains Mono',monospace", fontSize:9, fontWeight:700,
+        }}>FULL SYSTEM RESET</button>
           <div style={{marginTop:16,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted,textAlign:"center",lineHeight:1.7}}>
           Key stored locally for persistence<br/>
           Install Jules GitHub app first via web UI
@@ -1911,10 +1979,10 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
     }
 
     // Smart visibility logic:
-    // 1. Always show if near bottom (within 150px)
+    // 1. Always show if near bottom (within 80px - more strict for stability)
     // 2. Hide if scrolling down deep (> 300px)
     // 3. Show if scrolling up
-    if (h - y - vh < 150) {
+    if (h - y - vh < 80) {
       setComposerVisible(true);
     } else if (y > 300) {
       if (scrollDir.current === 1) setComposerVisible(false);
@@ -2069,7 +2137,17 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
   };
 
   // Used by PlanView to send revision requests
-  const handleSendFeedback = useCallback(async (text, keepTab) => {
+  const handleSendFeedback = useCallback(async (prompt, stayOnTab = false) => {
+    let text = prompt;
+    if (selectedPersonas.size > 0) {
+      const personaPrompts = Array.from(selectedPersonas)
+        .map(id => PERSONAS.find(p => p.id === id)?.prompt)
+        .filter(Boolean);
+      if (personaPrompts.length > 0) {
+        const personaText = `(Roles: ${Array.from(selectedPersonas).map(id => PERSONAS.find(p => p.id === id)?.label).join(", ")})\n\n${personaPrompts.join("\n\n")}`;
+        text = text ? `${text}\n\n${personaText}` : personaText;
+      }
+    }
     const tempKey = `_temp_${Date.now()}`;
     const tempAct = { id:tempKey, createTime:new Date().toISOString(), userMessaged:{ userMessage:text }, _temp:true };
     actMapRef.current.set(tempKey, tempAct);
@@ -2165,7 +2243,7 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
 
 
   return (
-    <div style={{display:"flex",flexDirection:"column",height:"100%",minHeight:0}}>
+    <div style={{display:"flex",flexDirection:"column",height:"100%",minHeight:0,position:"relative"}}>
       {/* ── Header ── */}
       <div style={{
         padding:scrolled?"8px 16px 6px":"12px 16px 0",
@@ -2207,6 +2285,9 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
                 {countdown}s
               </div>
             )}
+            <button onClick={()=>handleSendFeedback("Sync branch and PR status with GitHub", true)} disabled={busy} title="Sync status" style={{background:T.blueDim,border:`1px solid ${T.blue}40`,borderRadius:4,cursor:busy?"default":"pointer",display:"flex",padding:4,transition:"all .2s"}}>
+              <Ic n="refresh" s={scrolled?14:15} c={T.blue}/>
+            </button>
             <button onClick={handleRefresh} disabled={busy} title="Refresh activity" style={{background:"none",border:"none",cursor:busy?"default":"pointer",display:"flex",padding:4,opacity:.8,animation:busy?"spin 1s linear infinite":"none"}}>
               <Ic n="refresh" s={scrolled?14:15} c={T.text}/>
             </button>
@@ -2353,7 +2434,7 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
       </div>
 
       {/* ── Content ── */}
-      <div onScroll={handleScroll} style={{flex:1,overflowY:"auto",padding:"14px 16px",WebkitOverflowScrolling:"touch",minHeight:200}}>
+      <div onScroll={handleScroll} style={{flex:1,overflowY:"auto",padding:"14px 16px",paddingBottom:isDesktop?14:180,WebkitOverflowScrolling:"touch",minHeight:200,position:"relative"}}>
         {tab==="activity"&&(
           activities.length===0
           ?<div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.muted}}>
@@ -2438,11 +2519,12 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
         <div style={{
           padding:"10px 16px 14px", borderTop:`1px solid ${T.border}`, background:T.surface,
           flexShrink:0, transition:"transform .3s cubic-bezier(0.4, 0, 0.2, 1), opacity .2s ease, visibility .3s",
-          transform: composerVisible ? "translateY(0)" : "translateY(100%)",
-          opacity: composerVisible ? 1 : 0,
-          visibility: composerVisible ? "visible" : "hidden",
-          position: isDesktop ? "relative" : (composerVisible ? "relative" : "absolute"),
+          transform: (isDesktop || composerVisible) ? "translateY(0)" : "translateY(100%)",
+          opacity: (isDesktop || composerVisible) ? 1 : 0,
+          visibility: (isDesktop || composerVisible) ? "visible" : "hidden",
+          position: isDesktop ? "relative" : "absolute",
           bottom: 0, left: 0, right: 0, zIndex: 10,
+          boxShadow: isDesktop ? "none" : "0 -8px 24px rgba(0,0,0,0.4)",
         }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
             <MediaPicker files={attachedFiles} setFiles={setAttachedFiles} busy={busy} />
@@ -2976,7 +3058,9 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
 // ─── Network Monitor ──────────────────────────────────────────────────────────
 const NetworkMonitor = ({ onBack, isDesktop }) => {
   const [snap,setSnap] = useState(NET.snapshot());
+  const [storage, setStorage] = useState(null);
   useEffect(() => NET.subscribe(s=>setSnap(s)), []);
+  useEffect(() => { getStorageInfo().then(setStorage); }, []);
   const { total, saved, log } = snap;
   const webEst   = total * 9 + 2.4;
   const reduction= total > 0 ? Math.round(((webEst-total)/webEst)*100) : 0;
@@ -3033,13 +3117,41 @@ const NetworkMonitor = ({ onBack, isDesktop }) => {
           }
 
           <div style={{marginTop:32, borderTop:`1px solid ${T.border}`, paddingTop:24}}>
+            <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.muted, letterSpacing:"0.08em", marginBottom:12}}>STORAGE MANAGEMENT</div>
+
+            <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:16}}>
+              <div style={{background:T.surface, border:`1px solid ${T.border}`, borderRadius:8, padding:14}}>
+                <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:10}}>
+                  <Ic n="database" s={14} c={T.purple}/>
+                  <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700, color:T.text}}>APP DATA</span>
+                </div>
+                <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:16, fontWeight:700, color:T.text, marginBottom:12}}>{storage ? fmtBytes(storage.used/1024) : "..."}</div>
+                <button onClick={clearDataOnly} style={{
+                  width:"100%", padding:"6px", borderRadius:4, background:"rgba(255,85,102,0.1)", border:`1px solid ${T.red}40`,
+                  color:T.red, fontSize:9, fontWeight:800, fontFamily:"'JetBrains Mono',monospace", cursor:"pointer"
+                }}>CLEAR DATA</button>
+              </div>
+
+              <div style={{background:T.surface, border:`1px solid ${T.border}`, borderRadius:8, padding:14}}>
+                <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:10}}>
+                  <Ic n="layers" s={14} c={T.blue}/>
+                  <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700, color:T.text}}>ASSET CACHE</span>
+                </div>
+                <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:16, fontWeight:700, color:T.text, marginBottom:12}}>{storage ? fmtBytes(storage.cache/1024) : "..."}</div>
+                <button onClick={clearCacheOnly} style={{
+                  width:"100%", padding:"6px", borderRadius:4, background:T.surfaceHi, border:`1px solid ${T.border}`,
+                  color:T.muted, fontSize:9, fontWeight:800, fontFamily:"'JetBrains Mono',monospace", cursor:"pointer"
+                }}>CLEAR CACHE</button>
+              </div>
+            </div>
+
             <button onClick={resetApp} style={{
               width:"100%", padding:"12px", borderRadius:6,
               background:"transparent", border:`1px solid ${T.red}40`,
-              color:T.red, fontFamily:"'JetBrains Mono',monospace", fontSize:12,
+              color:T.red, fontFamily:"'JetBrains Mono',monospace", fontSize:11,
               fontWeight:700, letterSpacing:"0.1em", cursor:"pointer",
-            }}>RESET APP & CLEAR CACHE</button>
-            <div style={{marginTop:8, fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.muted, textAlign:"center"}}>
+            }}>FULL SYSTEM RESET</button>
+            <div style={{marginTop:8, fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:T.muted, textAlign:"center", opacity:0.7}}>
               Deletes all local settings, API keys, and Service Worker cache.
             </div>
           </div>
