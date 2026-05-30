@@ -510,6 +510,8 @@ const PATHS = {
   layout_toggle:"M12 4V2m0 20v-2m8-8h2M2 12h2m13.657-5.657l1.414-1.414m-14.142 14.142l1.414-1.414m0-14.142l-1.414-1.414m14.142 14.142l-1.414-1.414",
   git_pull:"M18 18a3 3 0 100-6 3 3 0 000 6zM6 18a3 3 0 100-6 3 3 0 000 6zM6 6a3 3 0 100-6 3 3 0 000 6zM6 9v6M13 6h3a2 2 0 012 2v7",
   git_merge:"M18 18a3 3 0 100-6 3 3 0 000 6zM6 6a3 3 0 100-6 3 3 0 000 6zM6 21V9a9 9 0 009 9",
+  chevron_down:"M6 9l6 6 6-6",
+  chevron_right:"M9 18l6-6-6-6",
 };
 const Ic = ({n,s=16,c=T.muted}) => (
   <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
@@ -1686,77 +1688,116 @@ const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFeedback,
 
 // ─── Diff Viewer ──────────────────────────────────────────────────────────────
 const DiffViewer = ({ patch }) => {
-  if (!patch) return (
+  const [collapsed, setCollapsed] = useState(new Set());
+
+  const groups = useMemo(() => {
+    if (!patch) return [];
+    const lines = patch.split("\n");
+    const grps = [];
+    let currentGroup = null;
+
+    lines.forEach((line) => {
+      if (line.startsWith("--- ") || line.startsWith("diff --git")) return;
+      if (line.startsWith("+++ ")) {
+        const file = line.slice(4).replace(/^b\//, "");
+        currentGroup = { file, hunks: [] };
+        grps.push(currentGroup);
+        return;
+      }
+      if (!currentGroup) return;
+
+      if (line.startsWith("@@")) {
+        currentGroup.hunks.push({ header: line, lines: [] });
+      } else if (currentGroup.hunks.length > 0) {
+        currentGroup.hunks[currentGroup.hunks.length - 1].lines.push(line);
+      }
+    });
+    return grps;
+  }, [patch]);
+
+  if (!patch || groups.length === 0) return (
     <div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.muted}}>
       No diff available yet
     </div>
   );
 
-  const lines = patch.split("\n");
-  const groups = [];
-  let currentGroup = null;
+  const toggleFile = (idx) => {
+    const next = new Set(collapsed);
+    if (next.has(idx)) next.delete(idx);
+    else next.add(idx);
+    setCollapsed(next);
+  };
 
-  lines.forEach((line, i) => {
-    if (line.startsWith("--- ") || line.startsWith("diff --git")) {
-      // New file group (skip standard git prefixes for a cleaner view later)
-      return;
-    }
-    if (line.startsWith("+++ ")) {
-      const file = line.slice(4).replace(/^b\//, "");
-      currentGroup = { file, hunks: [] };
-      groups.push(currentGroup);
-      return;
-    }
-    if (!currentGroup) return;
-
-    if (line.startsWith("@@")) {
-      currentGroup.hunks.push({ header: line, lines: [] });
-    } else if (currentGroup.hunks.length > 0) {
-      currentGroup.hunks[currentGroup.hunks.length - 1].lines.push(line);
-    }
-  });
+  const toggleAll = (doCollapse) => {
+    if (doCollapse) setCollapsed(new Set(groups.map((_, i) => i)));
+    else setCollapsed(new Set());
+  };
 
   return (
     <div style={{display:"flex", flexDirection:"column", gap:16}}>
-      {groups.map((g, gi) => (
-        <div key={gi} style={{background:"#040507", border:`1px solid ${T.border}`, borderRadius:8, overflow:"hidden"}}>
-          {/* File Header */}
-          <div style={{padding:"8px 12px", background:T.surface, borderBottom:`1px solid ${T.border}`, display:"flex", alignItems:"center", gap:8}}>
-            <Ic n="code" s={14} c={T.green}/>
-            <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:13, fontWeight:700, color:T.text}}>{g.file}</span>
-          </div>
-
-          {/* Hunks */}
-          <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:13, lineHeight:1.5}}>
-            {g.hunks.map((h, hi) => (
-              <div key={hi}>
-                <div style={{padding:"4px 12px", background:"rgba(77,166,255,.05)", color:T.blue, fontSize:12, borderBottom:`1px solid ${T.border}40`}}>
-                  {h.header}
-                </div>
-                {h.lines.map((line, li) => {
-                  const isAdd = line.startsWith("+");
-                  const isRem = line.startsWith("-");
-                  const c = isAdd ? T.green : isRem ? T.red : T.muted;
-                  const bg = isAdd ? "rgba(0,232,122,.05)" : isRem ? "rgba(255,68,85,.05)" : "transparent";
-                  const symbol = isAdd ? "+" : isRem ? "-" : " ";
-                  const content = (isAdd || isRem) ? line.slice(1) : line;
-
-                  return (
-                    <div key={li} style={{display:"flex", background:bg, minHeight:20, borderLeft:`2px solid ${isAdd?T.green+'40':isRem?T.red+'40':'transparent'}`}}>
-                      <div style={{width:22, flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", color:c, opacity:0.6, fontSize:12, userSelect:"none", fontWeight:700, fontFamily:"monospace"}}>
-                        {symbol}
-                      </div>
-                      <div style={{padding:"2px 10px", color:isAdd?T.green:isRem?T.red:T.text, whiteSpace:"pre-wrap", wordBreak:"break-all", flex:1, opacity: (isAdd||isRem)?1:0.7}}>
-                        {content || " "}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ))}
-          </div>
+      <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 4px"}}>
+        <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:700, color:T.muted, letterSpacing:"0.05em"}}>
+          {groups.length} FILE{groups.length!==1?'S':''} CHANGED
         </div>
-      ))}
+        <div style={{display:"flex", gap:8}}>
+          <PickerBtn label="EXPAND ALL" isAct={collapsed.size === 0} onClick={() => toggleAll(false)} />
+          <PickerBtn label="COLLAPSE ALL" isAct={collapsed.size === groups.length} onClick={() => toggleAll(true)} />
+        </div>
+      </div>
+
+      {groups.map((g, gi) => {
+        const isCollapsed = collapsed.has(gi);
+        return (
+          <div key={gi} style={{background:"#040507", border:`1px solid ${T.border}`, borderRadius:8, overflow:"hidden"}}>
+            <div
+              onClick={() => toggleFile(gi)}
+              style={{
+                padding:"8px 12px", background:T.surface, borderBottom:isCollapsed? "none" : `1px solid ${T.border}`,
+                display:"flex", alignItems:"center", gap:8, cursor:"pointer", userSelect:"none"
+              }}
+            >
+              <Ic n={isCollapsed ? "chevron_right" : "chevron_down"} s={16} c={T.muted}/>
+              <Ic n="code" s={14} c={T.green}/>
+              <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:13, fontWeight:700, color:T.text, flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>{g.file}</span>
+            </div>
+
+            <div style={{
+              maxHeight: isCollapsed ? 0 : 10000,
+              opacity: isCollapsed ? 0 : 1,
+              overflow: "hidden",
+              transition: "all .25s cubic-bezier(0.4, 0, 0.2, 1)",
+              fontFamily:"'JetBrains Mono',monospace", fontSize:13, lineHeight:1.5
+            }}>
+              {g.hunks.map((h, hi) => (
+                <div key={hi}>
+                  <div style={{padding:"4px 12px", background:"rgba(77,166,255,.05)", color:T.blue, fontSize:12, borderBottom:`1px solid ${T.border}40`}}>
+                    {h.header}
+                  </div>
+                  {h.lines.map((line, li) => {
+                    const isAdd = line.startsWith("+");
+                    const isRem = line.startsWith("-");
+                    const c = isAdd ? T.green : isRem ? T.red : T.muted;
+                    const bg = isAdd ? "rgba(0,232,122,.05)" : isRem ? "rgba(255,68,85,.05)" : "transparent";
+                    const symbol = isAdd ? "+" : isRem ? "-" : " ";
+                    const content = (isAdd || isRem) ? line.slice(1) : line;
+
+                    return (
+                      <div key={li} style={{display:"flex", background:bg, minHeight:20, borderLeft:`2px solid ${isAdd?T.green+'40':isRem?T.red+'40':'transparent'}`}}>
+                        <div style={{width:22, flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", color:c, opacity:0.6, fontSize:12, userSelect:"none", fontWeight:700, fontFamily:"monospace"}}>
+                          {symbol}
+                        </div>
+                        <div style={{padding:"2px 10px", color:isAdd?T.green:isRem?T.red:T.text, whiteSpace:"pre-wrap", wordBreak:"break-all", flex:1, opacity: (isAdd||isRem)?1:0.7}}>
+                          {content || " "}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 };
