@@ -317,17 +317,6 @@ const T = {
   userBubble:"rgba(95,178,255,.12)", agentBubble:"rgba(0,240,127,.09)",
 };
 
-const PERSONAS = [
-  { id: "ui", label: "UI/UX", color: "#ff66cc", prompt: "Please approach this task from the perspective of a UI/UX expert, ensuring that any changes or additions follow modern design principles, accessibility standards, and provide an excellent user experience." },
-  { id: "perf", label: "PERF", color: "#ffbc00", prompt: "Focus on optimization and performance. Ensure the code is efficient, minimizes resource usage, and follows best practices for speed and responsiveness." },
-  { id: "sec", label: "SEC", color: "#ff5566", prompt: "Act as a security auditor. Identify and mitigate potential security vulnerabilities, follow secure coding standards, and ensure data protection." },
-  { id: "front", label: "FRONT", color: "#5fb2ff", prompt: "As a Frontend Engineer, focus on clean, maintainable, and modern frontend code (React/CSS), following modular patterns and state management best practices." },
-  { id: "back", label: "BACK", color: "#bf99ff", prompt: "As a Backend Architect, focus on scalability, robust API design, efficient data structures, and clean server-side logic." },
-  { id: "qa", label: "QA", color: "#00f07f", prompt: "Act as a QA Specialist. Focus on edge cases, robust error handling, and ensure the code is thoroughly testable and reliable." },
-  { id: "a11y", label: "A11Y", color: "#ffffff", prompt: "Focus on accessibility (A11y). Ensure the UI is inclusive, follows WCAG guidelines, and is usable by everyone, including those using assistive technologies." },
-  { id: "sre", label: "SRE", color: "#4da6ff", prompt: "From a Reliability/SRE perspective, ensure the system is stable, has proper logging/monitoring hooks, and handles failures gracefully." },
-];
-
 const STATUS_META = {
   QUEUED:                { label:"QUEUED",   color:T.muted,   bg:"rgba(124,142,166,.1)", pulse:false },
   PLANNING:              { label:"PLANNING", color:T.amber,   bg:T.amberDim,             pulse:true  },
@@ -594,40 +583,6 @@ const PickerBtn = ({ label, isAct, onClick, activeColor=T.green, activeBg=null }
 const Backdrop = ({ onClick, zIndex=100 }) => (
   <div style={{ position:"fixed", inset:0, zIndex }} onClick={onClick}/>
 );
-
-const MultiPersonaPicker = ({ selectedIds, onToggle, style: s = {} }) => {
-  return (
-    <div style={{
-      display: "flex", gap: 6, overflowX: "auto", padding: "4px 2px",
-      scrollbarWidth: "none", WebkitOverflowScrolling: "touch",
-      ...s
-    }}>
-      {PERSONAS.map(p => {
-        const isSelected = selectedIds.has(p.id);
-        return (
-          <button
-            key={p.id}
-            onClick={() => onToggle(p.id)}
-            style={{
-              flexShrink: 0, padding: "5px 12px", borderRadius: 20,
-              background: isSelected ? `${p.color}20` : T.surfaceHi,
-              border: `1px solid ${isSelected ? p.color : T.border}`,
-              color: isSelected ? p.color : T.muted,
-              fontFamily: "'JetBrains Mono',monospace", fontSize: 10,
-              fontWeight: isSelected ? 800 : 500, letterSpacing: "0.05em",
-              cursor: "pointer", transition: "all .15s",
-              display: "flex", alignItems: "center", gap: 6,
-              boxShadow: isSelected ? `0 2px 8px ${p.color}20` : "none",
-            }}
-          >
-            {isSelected && <span style={{ width: 4, height: 4, borderRadius: "50%", background: p.color }} />}
-            {p.label}
-          </button>
-        );
-      })}
-    </div>
-  );
-};
 
 const SearchPicker = ({ value, search, onSearch, onSelect, onHide, options, placeholder, icon, isOpen, getDisplay, getVal, renderExtra }) => {
   return (
@@ -1281,7 +1236,7 @@ const ActivityFeed = memo(({ activities, showAll, onShowAll, onMediaClick }) => 
 });
 
 // ─── Source View ──────────────────────────────────────────────────────────────
-const SourceView = memo(({ pr, sourceContext, branchHealth, onSendMessage }) => {
+const SourceView = memo(({ pr, sourceContext, branchHealth, onSendMessage, activities }) => {
   const [syncing, setSyncing] = useState(false);
   const [creatingPr, setCreatingPr] = useState(false);
   const repo = sourceContext?.source?.replace("sources/github/","");
@@ -1311,6 +1266,19 @@ const SourceView = memo(({ pr, sourceContext, branchHealth, onSendMessage }) => 
   };
 
   const { isMerged, isClosed } = getPRStatus(pr);
+
+  const lastSyncTs = useMemo(() => {
+    if (!activities) return null;
+    for (let i = activities.length - 1; i >= 0; i--) {
+      const act = activities[i];
+      const desc = (act.progressUpdated?.description || "").toLowerCase();
+      const title = (act.progressUpdated?.title || "").toLowerCase();
+      if (title.includes("sync") || title.includes("branch status") || desc.includes("commits ahead")) {
+        return new Date(act.createTime).getTime();
+      }
+    }
+    return null;
+  }, [activities]);
 
   return (
     <div style={{display:"flex", flexDirection:"column", gap:16, animation:"fadeIn .2s ease"}}>
@@ -1378,6 +1346,11 @@ const SourceView = memo(({ pr, sourceContext, branchHealth, onSendMessage }) => 
                 {syncing ? "SYNCING..." : "SYNC STATUS"}
               </Btn>
             </div>
+            {lastSyncTs && (
+              <div style={{marginTop:8, textAlign:"center", fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.muted, opacity:0.8}}>
+                LAST SYNCED: {fmtAgo(lastSyncTs)}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1917,7 +1890,7 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
   const [tab,setTab]             = useState("activity");
   const [msg,setMsg]             = useState("");
   const [attachedFiles,setAttachedFiles] = useState([]);
-  const [selectedPersonas, setSelectedPersonas] = useState(new Set());
+  const [uiUxExpert,setUiUxExpert] = useState(false);
   const [busy,setBusy]           = useState(false);
   const [err,setErr]             = useState(null);
   const [activeMedia,setActiveMedia] = useState(null);
@@ -2034,24 +2007,13 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
     prevLenRef.current = len;
   }, [activities, tab]);
 
-  const togglePersona = (id) => {
-    const next = new Set(selectedPersonas);
-    if (next.has(id)) next.delete(id); else next.add(id);
-    setSelectedPersonas(next);
-  };
-
   // ── Actions ─────────────────────────────────────────────────────────────────
   const handleSend = async () => {
     if ((!msg.trim() && attachedFiles.length === 0) || busy) return;
     let text = msg.trim();
-    if (selectedPersonas.size > 0) {
-      const personaPrompts = Array.from(selectedPersonas)
-        .map(id => PERSONAS.find(p => p.id === id)?.prompt)
-        .filter(Boolean);
-      if (personaPrompts.length > 0) {
-        const personaText = `(Roles: ${Array.from(selectedPersonas).map(id => PERSONAS.find(p => p.id === id)?.label).join(", ")})\n\n${personaPrompts.join("\n\n")}`;
-        text = text ? `${text}\n\n${personaText}` : personaText;
-      }
+    if (uiUxExpert) {
+      const persona = "(Please respond as a UI/UX expert)";
+      text = text ? `${text}\n\n${persona}` : persona;
     }
     const files = [...attachedFiles];
     setMsg("");
@@ -2107,17 +2069,7 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
   };
 
   // Used by PlanView to send revision requests
-  const handleSendFeedback = useCallback(async (prompt) => {
-    let text = prompt;
-    if (selectedPersonas.size > 0) {
-      const personaPrompts = Array.from(selectedPersonas)
-        .map(id => PERSONAS.find(p => p.id === id)?.prompt)
-        .filter(Boolean);
-      if (personaPrompts.length > 0) {
-        const personaText = `(Roles: ${Array.from(selectedPersonas).map(id => PERSONAS.find(p => p.id === id)?.label).join(", ")})\n\n${personaPrompts.join("\n\n")}`;
-        text = text ? `${text}\n\n${personaText}` : personaText;
-      }
-    }
+  const handleSendFeedback = useCallback(async (text, keepTab) => {
     const tempKey = `_temp_${Date.now()}`;
     const tempAct = { id:tempKey, createTime:new Date().toISOString(), userMessaged:{ userMessage:text }, _temp:true };
     actMapRef.current.set(tempKey, tempAct);
@@ -2127,7 +2079,7 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
         method:"POST", body:{ prompt:text }, _label:`Message → ${session.id?.slice(0,6)}`,
       });
       actMapRef.current.delete(tempKey);
-      if (!stayOnTab) setTab("activity"); // switch back to chat to show Jules' response
+      if (keepTab !== true) setTab("activity"); // switch back to chat to show Jules' response
       setTimeout(() => { loadActivities(lastTsRef.current); loadSession(); }, 1500);
     } catch(e) {
       setErr(e.message);
@@ -2135,7 +2087,7 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
       setActivities(prev => prev.filter(a => a.id !== tempKey));
       throw e;
     }
-  }, [apiKey, session.id, loadActivities, loadSession, selectedPersonas]);
+  }, [apiKey, session.id, loadActivities, loadSession]);
 
   const handleDelete = async () => {
     setBusy(true);
@@ -2419,7 +2371,7 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
             busy={busy}
           />
         )}
-        {tab==="source"&&<SourceView pr={pr} sourceContext={session.sourceContext} branchHealth={branchHealth} onSendMessage={(txt)=>handleSendFeedback(txt, true)}/>}
+        {tab==="source"&&<SourceView pr={pr} sourceContext={session.sourceContext} branchHealth={branchHealth} activities={activities} onSendMessage={(txt)=>handleSendFeedback(txt, true)}/>}
         {tab==="diff"&&<DiffViewer patch={diffArtifact?.unidiffPatch||null}/>}
         {tab==="bash"&&(
           bashOutputs.length===0
@@ -2492,9 +2444,21 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
           position: isDesktop ? "relative" : (composerVisible ? "relative" : "absolute"),
           bottom: 0, left: 0, right: 0, zIndex: 10,
         }}>
-          <div style={{ display: "flex", flexDirection:"column", gap: 8, marginBottom: 8 }}>
-            <MultiPersonaPicker selectedIds={selectedPersonas} onToggle={togglePersona} />
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
             <MediaPicker files={attachedFiles} setFiles={setAttachedFiles} busy={busy} />
+            <button
+              onClick={() => setUiUxExpert(!uiUxExpert)}
+              style={{
+                background: uiUxExpert ? T.purpleDim : "transparent",
+                border: `1px solid ${uiUxExpert ? T.purple : T.borderHi}`,
+                borderRadius: 20, padding: "4px 10px",
+                color: uiUxExpert ? T.purple : T.muted,
+                fontFamily: "'JetBrains Mono',monospace", fontSize: 10,
+                fontWeight: 700, cursor: "pointer", transition: "all .2s"
+              }}
+            >
+              UI/UX {uiUxExpert ? "ON" : "OFF"}
+            </button>
           </div>
           <div style={{display:"flex",gap:8,alignItems:"flex-end", marginTop:4}}>
             <textarea
@@ -2607,7 +2571,7 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
   const [title,setTitle]           = useState(draft?.title ?? "");
   const [autoMode,setAutoMode]     = useState(draft?.autoMode ?? true);
   const [reqApproval,setReqApp]    = useState(draft?.reqApproval ?? false);
-  const [selectedPersonas, setSelectedPersonas] = useState(new Set(draft?.selectedPersonas || []));
+  const [uiUxExpert,setUiUxExpert] = useState(draft?.uiUxExpert ?? false);
   const [attachedFiles,setAttachedFiles] = useState([]);
   const [submitting,setSub]        = useState(false);
   const [err,setErr]               = useState(null);
@@ -2663,21 +2627,15 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
     return branches.filter(b => b.toLowerCase().includes(s));
   }, [branches, branch]);
 
-  const togglePersona = (id) => {
-    const next = new Set(selectedPersonas);
-    if (next.has(id)) next.delete(id); else next.add(id);
-    setSelectedPersonas(next);
-  };
-
   // Persist on every change (debounced 400ms)
   const draftRef = useRef(null);
   useEffect(() => {
     clearTimeout(draftRef.current);
     draftRef.current = setTimeout(() => {
-      saveDraft({ source, branch, prompt, title, autoMode, reqApproval, selectedPersonas: Array.from(selectedPersonas) });
+      saveDraft({ source, branch, prompt, title, autoMode, reqApproval, uiUxExpert });
     }, 400);
     return () => clearTimeout(draftRef.current);
-  }, [source, branch, prompt, title, autoMode, reqApproval, selectedPersonas]);
+  }, [source, branch, prompt, title, autoMode, reqApproval, uiUxExpert]);
 
   useEffect(() => {
     (async () => {
@@ -2701,7 +2659,7 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
   const handleClearDraft = () => {
     clearDraft();
     setSource(""); setBranch(""); setPrompt(""); setTitle("");
-    setAutoMode(true); setReqApp(false); setSelectedPersonas(new Set());
+    setAutoMode(true); setReqApp(false);
     setSavedFlash(true);
     setTimeout(() => setSavedFlash(false), 1500);
   };
@@ -2711,13 +2669,8 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
     setSub(true); setErr(null);
 
     let finalPrompt = prompt.trim();
-    if (selectedPersonas.size > 0) {
-      const personaPrompts = Array.from(selectedPersonas)
-        .map(id => PERSONAS.find(p => p.id === id)?.prompt)
-        .filter(Boolean);
-      if (personaPrompts.length > 0) {
-        finalPrompt += "\n\n" + personaPrompts.join("\n\n");
-      }
+    if (uiUxExpert) {
+      finalPrompt += "\n\nPlease approach this task from the perspective of a UI/UX expert, ensuring that any changes or additions follow modern design principles, accessibility standards, and provide an excellent user experience.";
     }
 
     const body = {
@@ -2969,31 +2922,27 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
             <MediaPicker files={attachedFiles} setFiles={setAttachedFiles} busy={submitting} />
           </Field>
 
-          <div style={{marginBottom:16}}>
-            <div style={{marginBottom:8,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted,fontWeight:700,letterSpacing:"0.12em"}}>ROLES & FOCUS</div>
-            <MultiPersonaPicker selectedIds={selectedPersonas} onToggle={togglePersona} style={{marginBottom:12}} />
-
-            <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
-              {[
-                {label:"AUTO PR",    val:autoMode,   set:setAutoMode, hint:"Create PR when done", disabled:!source},
-                {label:"APPROVE PLAN",val:reqApproval,set:setReqApp,  hint:"Review plan first"},
-              ].map(opt=>(
-                <button
-                  key={opt.label}
-                  onClick={()=>!opt.disabled&&opt.set(v=>!v)}
-                  disabled={opt.disabled}
-                  style={{
-                    flex:"1 1 100px",padding:"9px 8px",borderRadius:5,cursor:opt.disabled?"default":"pointer",
-                    background:opt.val?T.greenDim:T.surfaceHi,
-                    border:`1px solid ${opt.val?T.green+"50":T.border}`,
-                    display:"flex",flexDirection:"column",alignItems:"center",gap:3,
-                    opacity:opt.disabled?0.4:1,
-                  }}>
-                  <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,fontWeight:700,color:opt.val?T.green:T.muted,letterSpacing:"0.08em"}}>{opt.label}</div>
-                  <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted}}>{opt.hint}</div>
-                </button>
-              ))}
-            </div>
+          <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap"}}>
+            {[
+              {label:"AUTO PR",    val:autoMode,   set:setAutoMode, hint:"Create PR when done", disabled:!source},
+              {label:"APPROVE PLAN",val:reqApproval,set:setReqApp,  hint:"Review plan first"},
+              {label:"UI/UX EXPERT",val:uiUxExpert,set:setUiUxExpert,hint:"Apply design focus"},
+            ].map(opt=>(
+              <button
+                key={opt.label}
+                onClick={()=>!opt.disabled&&opt.set(v=>!v)}
+                disabled={opt.disabled}
+                style={{
+                  flex:"1 1 100px",padding:"9px 8px",borderRadius:5,cursor:opt.disabled?"default":"pointer",
+                  background:opt.val?T.greenDim:T.surfaceHi,
+                  border:`1px solid ${opt.val?T.green+"50":T.border}`,
+                  display:"flex",flexDirection:"column",alignItems:"center",gap:3,
+                  opacity:opt.disabled?0.4:1,
+                }}>
+                <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,fontWeight:700,color:opt.val?T.green:T.muted,letterSpacing:"0.08em"}}>{opt.label}</div>
+                <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted}}>{opt.hint}</div>
+              </button>
+            ))}
           </div>
 
           <div style={{padding:"8px 12px",borderRadius:5,marginBottom:10,background:T.greenDim,border:`1px solid ${T.green}30`,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.green,lineHeight:1.7}}>
