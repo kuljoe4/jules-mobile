@@ -2530,7 +2530,7 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
       </div>
 
       {/* ── Content ── */}
-      <div onScroll={handleScroll} style={{flex:1,overflowY:"auto",padding:"14px 16px",paddingBottom:isDesktop?80:180,WebkitOverflowScrolling:"touch",minHeight:200,position:"relative"}}>
+      <div onScroll={handleScroll} style={{flex:1,overflowY:"auto",padding:"14px 16px",paddingBottom:isDesktop?80:220,WebkitOverflowScrolling:"touch",minHeight:200,position:"relative"}}>
         {tab==="activity"&&(
           activities.length===0
           ?<div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.muted}}>
