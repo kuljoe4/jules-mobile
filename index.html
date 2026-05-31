@@ -2751,6 +2751,7 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
   const [title,setTitle]           = useState(draft?.title ?? "");
   const [autoMode,setAutoMode]     = useState(draft?.autoMode ?? true);
   const [reqApproval,setReqApp]    = useState(draft?.reqApproval ?? false);
+  const [selectedPersonas, setSelectedPersonas] = useState(new Set(draft?.selectedPersonas || []));
   const [uiUxExpert,setUiUxExpert] = useState(draft?.uiUxExpert ?? false);
   const [attachedFiles,setAttachedFiles] = useState([]);
   const [submitting,setSub]        = useState(false);
@@ -2807,12 +2808,18 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
     return branches.filter(b => b.toLowerCase().includes(s));
   }, [branches, branch]);
 
+  const togglePersona = (id) => {
+    const next = new Set(selectedPersonas);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    setSelectedPersonas(next);
+  };
+
   // Persist on every change (debounced 400ms)
   const draftRef = useRef(null);
   useEffect(() => {
     clearTimeout(draftRef.current);
     draftRef.current = setTimeout(() => {
-      saveDraft({ source, branch, prompt, title, autoMode, reqApproval, uiUxExpert });
+      saveDraft({ source, branch, prompt, title, autoMode, reqApproval, selectedPersonas: Array.from(selectedPersonas), uiUxExpert });
     }, 400);
     return () => clearTimeout(draftRef.current);
   }, [source, branch, prompt, title, autoMode, reqApproval, uiUxExpert]);
@@ -2839,7 +2846,7 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
   const handleClearDraft = () => {
     clearDraft();
     setSource(""); setBranch(""); setPrompt(""); setTitle("");
-    setAutoMode(true); setReqApp(false);
+    setAutoMode(true); setReqApp(false); setSelectedPersonas(new Set()); setUiUxExpert(false);
     setSavedFlash(true);
     setTimeout(() => setSavedFlash(false), 1500);
   };
@@ -2849,7 +2856,14 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
     setSub(true); setErr(null);
 
     let finalPrompt = prompt.trim();
-    if (uiUxExpert) {
+    if (selectedPersonas.size > 0) {
+      const personaPrompts = Array.from(selectedPersonas)
+        .map(id => PERSONAS.find(p => p.id === id)?.prompt)
+        .filter(Boolean);
+      if (personaPrompts.length > 0) {
+        finalPrompt += "\n\n" + personaPrompts.join("\n\n");
+      }
+    } else if (uiUxExpert) {
       finalPrompt += "\n\nPlease approach this task from the perspective of a UI/UX expert, ensuring that any changes or additions follow modern design principles, accessibility standards, and provide an excellent user experience.";
     }
 
@@ -3102,27 +3116,32 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
             <MediaPicker files={attachedFiles} setFiles={setAttachedFiles} busy={submitting} />
           </Field>
 
-          <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap"}}>
-            {[
-              {label:"AUTO PR",    val:autoMode,   set:setAutoMode, hint:"Create PR when done", disabled:!source},
-              {label:"APPROVE PLAN",val:reqApproval,set:setReqApp,  hint:"Review plan first"},
-              {label:"UI/UX EXPERT",val:uiUxExpert,set:setUiUxExpert,hint:"Apply design focus"},
-            ].map(opt=>(
-              <button
-                key={opt.label}
-                onClick={()=>!opt.disabled&&opt.set(v=>!v)}
-                disabled={opt.disabled}
-                style={{
-                  flex:"1 1 100px",padding:"9px 8px",borderRadius:5,cursor:opt.disabled?"default":"pointer",
-                  background:opt.val?T.greenDim:T.surfaceHi,
-                  border:`1px solid ${opt.val?T.green+"50":T.border}`,
-                  display:"flex",flexDirection:"column",alignItems:"center",gap:3,
-                  opacity:opt.disabled?0.4:1,
-                }}>
-                <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,fontWeight:700,color:opt.val?T.green:T.muted,letterSpacing:"0.08em"}}>{opt.label}</div>
-                <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted}}>{opt.hint}</div>
-              </button>
-            ))}
+          <div style={{marginBottom:16}}>
+            <div style={{marginBottom:8,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted,fontWeight:700,letterSpacing:"0.12em"}}>ROLES & FOCUS</div>
+            <MultiPersonaPicker selectedIds={selectedPersonas} onToggle={togglePersona} style={{marginBottom:12}} />
+
+            <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+              {[
+                {label:"AUTO PR",    val:autoMode,   set:setAutoMode, hint:"Create PR when done", disabled:!source},
+                {label:"APPROVE PLAN",val:reqApproval,set:setReqApp,  hint:"Review plan first"},
+                {label:"UI/UX EXPERT",val:uiUxExpert,set:setUiUxExpert,hint:"Apply design focus"},
+              ].map(opt=>(
+                <button
+                  key={opt.label}
+                  onClick={()=>!opt.disabled&&opt.set(v=>!v)}
+                  disabled={opt.disabled}
+                  style={{
+                    flex:"1 1 100px",padding:"9px 8px",borderRadius:5,cursor:opt.disabled?"default":"pointer",
+                    background:opt.val?T.greenDim:T.surfaceHi,
+                    border:`1px solid ${opt.val?T.green+"50":T.border}`,
+                    display:"flex",flexDirection:"column",alignItems:"center",gap:3,
+                    opacity:opt.disabled?0.4:1,
+                  }}>
+                  <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,fontWeight:700,color:opt.val?T.green:T.muted,letterSpacing:"0.08em"}}>{opt.label}</div>
+                  <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted}}>{opt.hint}</div>
+                </button>
+              ))}
+            </div>
           </div>
 
           <div style={{padding:"8px 12px",borderRadius:5,marginBottom:10,background:T.greenDim,border:`1px solid ${T.green}30`,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.green,lineHeight:1.7}}>
