@@ -352,6 +352,51 @@ async function getStorageInfo() {
   return { used: est.usage || 0, quota: est.quota || 0, cache: cacheSize };
 }
 
+const PERSONAS = [
+  { id: "ui", label: "UI/UX", color: "#ff66cc", prompt: "Please approach this task from the perspective of a UI/UX expert, ensuring that any changes or additions follow modern design principles, accessibility standards, and provide an excellent user experience." },
+  { id: "perf", label: "PERF", color: "#ffbc00", prompt: "Focus on optimization and performance. Ensure the code is efficient, minimizes resource usage, and follows best practices for speed and responsiveness." },
+  { id: "sec", label: "SEC", color: "#ff5566", prompt: "Act as a security auditor. Identify and mitigate potential security vulnerabilities, follow secure coding standards, and ensure data protection." },
+  { id: "front", label: "FRONT", color: "#5fb2ff", prompt: "As a Frontend Engineer, focus on clean, maintainable, and modern frontend code (React/CSS), following modular patterns and state management best practices." },
+  { id: "back", label: "BACK", color: "#bf99ff", prompt: "As a Backend Architect, focus on scalability, robust API design, efficient data structures, and clean server-side logic." },
+  { id: "qa", label: "QA", color: "#00f07f", prompt: "Act as a QA Specialist. Focus on edge cases, robust error handling, and ensure the code is thoroughly testable and reliable." },
+  { id: "a11y", label: "A11Y", color: "#ffffff", prompt: "Focus on accessibility (A11y). Ensure the UI is inclusive, follows WCAG guidelines, and is usable by everyone, including those using assistive technologies." },
+  { id: "sre", label: "SRE", color: "#4da6ff", prompt: "From a Reliability/SRE perspective, ensure the system is stable, has proper logging/monitoring hooks, and handles failures gracefully." },
+];
+
+const MultiPersonaPicker = ({ selectedIds, onToggle, style: s = {} }) => {
+  return (
+    <div style={{
+      display: "flex", gap: 6, overflowX: "auto", padding: "4px 2px",
+      scrollbarWidth: "none", WebkitOverflowScrolling: "touch",
+      ...s
+    }}>
+      {PERSONAS.map(p => {
+        const isSelected = selectedIds.has(p.id);
+        return (
+          <button
+            key={p.id}
+            onClick={() => onToggle(p.id)}
+            style={{
+              flexShrink: 0, padding: "5px 12px", borderRadius: 20,
+              background: isSelected ? `${p.color}20` : T.surfaceHi,
+              border: `1px solid ${isSelected ? p.color : T.border}`,
+              color: isSelected ? p.color : T.muted,
+              fontFamily: "'JetBrains Mono',monospace", fontSize: 10,
+              fontWeight: isSelected ? 800 : 500, letterSpacing: "0.05em",
+              cursor: "pointer", transition: "all .15s",
+              display: "flex", alignItems: "center", gap: 6,
+              boxShadow: isSelected ? `0 2px 8px ${p.color}20` : "none",
+            }}
+          >
+            {isSelected && <span style={{ width: 4, height: 4, borderRadius: "50%", background: p.color }} />}
+            {p.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+};
+
 const T = {
   bg:"#050608", surface:"#0b0e14", surfaceHi:"#11161d",
   border:"#1a222e", borderHi:"#2a3649",
@@ -1977,6 +2022,7 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
   const [tab,setTab]             = useState("activity");
   const [msg,setMsg]             = useState("");
   const [attachedFiles,setAttachedFiles] = useState([]);
+  const [selectedPersonas, setSelectedPersonas] = useState(new Set());
   const [uiUxExpert,setUiUxExpert] = useState(false);
   const [busy,setBusy]           = useState(false);
   const [err,setErr]             = useState(null);
@@ -2094,11 +2140,25 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
     prevLenRef.current = len;
   }, [activities, tab]);
 
+  const togglePersona = (id) => {
+    const next = new Set(selectedPersonas);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    setSelectedPersonas(next);
+  };
+
   // ── Actions ─────────────────────────────────────────────────────────────────
   const handleSend = async () => {
     if ((!msg.trim() && attachedFiles.length === 0) || busy) return;
     let text = msg.trim();
-    if (uiUxExpert) {
+    if (selectedPersonas.size > 0) {
+      const personaPrompts = Array.from(selectedPersonas)
+        .map(id => PERSONAS.find(p => p.id === id)?.prompt)
+        .filter(Boolean);
+      if (personaPrompts.length > 0) {
+        const personaText = `(Roles: ${Array.from(selectedPersonas).map(id => PERSONAS.find(p => p.id === id)?.label).join(", ")})\n\n${personaPrompts.join("\n\n")}`;
+        text = text ? `${text}\n\n${personaText}` : personaText;
+      }
+    } else if (uiUxExpert) {
       const persona = "(Please respond as a UI/UX expert)";
       text = text ? `${text}\n\n${persona}` : persona;
     }
@@ -2166,6 +2226,9 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
         const personaText = `(Roles: ${Array.from(selectedPersonas).map(id => PERSONAS.find(p => p.id === id)?.label).join(", ")})\n\n${personaPrompts.join("\n\n")}`;
         text = text ? `${text}\n\n${personaText}` : personaText;
       }
+    } else if (uiUxExpert) {
+      const persona = "(Please respond as a UI/UX expert)";
+      text = text ? `${text}\n\n${persona}` : persona;
     }
     const tempKey = `_temp_${Date.now()}`;
     const tempAct = { id:tempKey, createTime:new Date().toISOString(), userMessaged:{ userMessage:text }, _temp:true };
@@ -2558,21 +2621,24 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
           bottom: 0, left: 0, right: 0, zIndex: 10,
           boxShadow: isDesktop ? "none" : "0 -8px 24px rgba(0,0,0,0.4)",
         }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-            <MediaPicker files={attachedFiles} setFiles={setAttachedFiles} busy={busy} />
-            <button
-              onClick={() => setUiUxExpert(!uiUxExpert)}
-              style={{
-                background: uiUxExpert ? T.purpleDim : "transparent",
-                border: `1px solid ${uiUxExpert ? T.purple : T.borderHi}`,
-                borderRadius: 20, padding: "4px 10px",
-                color: uiUxExpert ? T.purple : T.muted,
-                fontFamily: "'JetBrains Mono',monospace", fontSize: 10,
-                fontWeight: 700, cursor: "pointer", transition: "all .2s"
-              }}
-            >
-              UI/UX {uiUxExpert ? "ON" : "OFF"}
-            </button>
+          <div style={{ display: "flex", flexDirection:"column", gap: 8, marginBottom: 8 }}>
+            <MultiPersonaPicker selectedIds={selectedPersonas} onToggle={togglePersona} />
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+              <MediaPicker files={attachedFiles} setFiles={setAttachedFiles} busy={busy} />
+              <button
+                onClick={() => setUiUxExpert(!uiUxExpert)}
+                style={{
+                  background: uiUxExpert ? T.purpleDim : "transparent",
+                  border: `1px solid ${uiUxExpert ? T.purple : T.borderHi}`,
+                  borderRadius: 20, padding: "4px 10px",
+                  color: uiUxExpert ? T.purple : T.muted,
+                  fontFamily: "'JetBrains Mono',monospace", fontSize: 10,
+                  fontWeight: 700, cursor: "pointer", transition: "all .2s"
+                }}
+              >
+                UI/UX {uiUxExpert ? "ON" : "OFF"}
+              </button>
+            </div>
           </div>
           <div style={{display:"flex",gap:8,alignItems:"flex-end", marginTop:4}}>
             <textarea
