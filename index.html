@@ -1970,7 +1970,7 @@ const SetupScreen = ({ onSave }) => {
 };
 
 // ─── Session Card ─────────────────────────────────────────────────────────────
-const SessionCard = memo(({ s, onPress, isSelected }) => {
+const SessionCard = memo(({ s, onPress, isSelected, index }) => {
   const pct  = pctFromState(s.state);
   const m    = STATUS_META[s.state] || STATUS_META.QUEUED;
   const repo = s.sourceContext?.githubRepoContext
@@ -1985,6 +1985,7 @@ const SessionCard = memo(({ s, onPress, isSelected }) => {
       borderRadius:6,padding:"11px 13px",marginBottom:6,transition:"all .15s",
     }}>
       <div style={{display:"flex",alignItems:"flex-start",gap:10,marginBottom:12}}>
+        <div style={{width:22,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted,fontWeight:700,paddingTop:2}}>{index}.</div>
         <div style={{flex:1,minWidth:0}}>
           {repo&&<div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted,fontWeight:600,marginBottom:6,letterSpacing:"0.05em",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{repo}</div>}
           <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:15,fontWeight:600,color:T.text,lineHeight:1.45,overflow:"hidden",textOverflow:"ellipsis",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>{s.title||s.prompt}</div>
@@ -2043,17 +2044,19 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
       scrollDir.current = diff > 0 ? 1 : -1;
     }
 
-    // Smart visibility logic:
+    // Smart visibility logic (mobile only):
     // 1. Always show if near bottom (within 80px - more strict for stability)
     // 2. Hide if scrolling down deep (> 300px)
     // 3. Show if scrolling up
-    if (h - y - vh < 80) {
-      setComposerVisible(true);
-    } else if (y > 300) {
-      if (scrollDir.current === 1) setComposerVisible(false);
-      else if (scrollDir.current === -1) setComposerVisible(true);
-    } else {
-      setComposerVisible(true);
+    if (!isDesktop) {
+      if (h - y - vh < 80) {
+        setComposerVisible(true);
+      } else if (y > 300) {
+        if (scrollDir.current === 1) setComposerVisible(false);
+        else if (scrollDir.current === -1) setComposerVisible(true);
+      } else {
+        setComposerVisible(true);
+      }
     }
 
     lastScrollY.current = y;
@@ -3599,7 +3602,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
             {filter==="ALL"?"No sessions yet":"No sessions with this status"}
           </div>
         )}
-        {filtered.map(s=><SessionCard key={s.id||s.name} s={s} onPress={()=>onSelect(s)} isSelected={isDesktop&&s.id===selectedId}/>)}
+        {filtered.map((s,i)=><SessionCard key={s.id||s.name} index={i+1} s={s} onPress={()=>onSelect(s)} isSelected={isDesktop&&s.id===selectedId}/>)}
       </div>
     </div>
   );
