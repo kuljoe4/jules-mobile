@@ -84,13 +84,15 @@
         const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}"><rect width="${size}" height="${size}" rx="${rx}" fill="#07090c"/><text x="${size/2}" y="${y}" font-size="${fs}" text-anchor="middle" fill="#00e87a" font-weight="900" font-family="monospace">J</text></svg>`;
         return { src:"data:image/svg+xml;base64,"+btoa(svg), sizes:`${size}x${size}`, type:"image/svg+xml", purpose:"maskable any" };
       };
+      const isMobile = window.innerWidth < 768;
       const manifest = {
         name:"Jules Agent Client", short_name:"Jules",
         description:"Monitor and control Jules AI coding sessions",
         start_url: location.href.split("?")[0],
         scope: location.href.split("?")[0].replace(/[^/]*$/, ""),
         display:"standalone", background_color:"#07090c", theme_color:"#00e87a",
-        orientation:"natural", categories:["developer","productivity"],
+        orientation: isMobile ? "portrait" : "natural",
+        categories:["developer","productivity"],
         icons:[ mkIcon(192,24), mkIcon(512,64) ],
       };
       // data: URI — Chrome validates manifests here starting Chromium 93
