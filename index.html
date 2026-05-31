@@ -2044,19 +2044,17 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
       scrollDir.current = diff > 0 ? 1 : -1;
     }
 
-    // Smart visibility logic (mobile only):
+    // Smart visibility logic:
     // 1. Always show if near bottom (within 80px - more strict for stability)
     // 2. Hide if scrolling down deep (> 300px)
     // 3. Show if scrolling up
-    if (!isDesktop) {
-      if (h - y - vh < 80) {
-        setComposerVisible(true);
-      } else if (y > 300) {
-        if (scrollDir.current === 1) setComposerVisible(false);
-        else if (scrollDir.current === -1) setComposerVisible(true);
-      } else {
-        setComposerVisible(true);
-      }
+    if (h - y - vh < 80) {
+      setComposerVisible(true);
+    } else if (y > 300) {
+      if (scrollDir.current === 1) setComposerVisible(false);
+      else if (scrollDir.current === -1) setComposerVisible(true);
+    } else {
+      setComposerVisible(true);
     }
 
     lastScrollY.current = y;
@@ -2532,7 +2530,7 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
       </div>
 
       {/* ── Content ── */}
-      <div onScroll={handleScroll} style={{flex:1,overflowY:"auto",padding:"14px 16px",paddingBottom:isDesktop?14:180,WebkitOverflowScrolling:"touch",minHeight:200,position:"relative"}}>
+      <div onScroll={handleScroll} style={{flex:1,overflowY:"auto",padding:"14px 16px",paddingBottom:isDesktop?80:180,WebkitOverflowScrolling:"touch",minHeight:200,position:"relative"}}>
         {tab==="activity"&&(
           activities.length===0
           ?<div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.muted}}>
