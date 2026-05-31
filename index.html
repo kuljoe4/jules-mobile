@@ -90,7 +90,7 @@
         start_url: location.href.split("?")[0],
         scope: location.href.split("?")[0].replace(/[^/]*$/, ""),
         display:"standalone", background_color:"#07090c", theme_color:"#00e87a",
-        orientation:"any", categories:["developer","productivity"],
+        orientation:"natural", categories:["developer","productivity"],
         icons:[ mkIcon(192,24), mkIcon(512,64) ],
       };
       // data: URI — Chrome validates manifests here starting Chromium 93
@@ -257,9 +257,9 @@ function loadLayout() {
   try {
     const v = localStorage.getItem(LAYOUT_KEY);
     if (v && LAYOUT_OPTIONS.some(o => o.id === v)) return v;
-    // Default to locked based on current width if no preference
-    return window.innerWidth >= 768 ? "desktop" : "mobile";
-  } catch { return "mobile"; }
+    // Default to auto
+    return "auto";
+  } catch { return "auto"; }
 }
 function saveLayout(v) { try { localStorage.setItem(LAYOUT_KEY,v); } catch {} }
 
@@ -515,9 +515,23 @@ const PWABanner = () => {
 
 // ─── Responsive hook ──────────────────────────────────────────────────────────
 function useIsDesktop() {
-  const [v, setV] = useState(() => window.innerWidth >= 768);
+  // Capture initial state to avoid layout shift on rotation for "auto" mode
+  // unless the threshold is significantly crossed (e.g. tablet/desktop vs phone)
+  const [v, setV] = useState(() => window.innerWidth >= 1024);
+
   useEffect(() => {
-    const h = () => setV(window.innerWidth >= 768);
+    const h = () => {
+      // Only switch if we cross the major "tablet/desktop" threshold
+      // 1024px is a safe bet for "not a phone in portrait"
+      const current = window.innerWidth >= 1024;
+      setV(prev => {
+        // If we were mobile and stayed under 1024, or were desktop and stayed over 768, keep it.
+        // This provides some hysteresis and stability.
+        if (prev && window.innerWidth < 768) return false;
+        if (!prev && window.innerWidth >= 1024) return true;
+        return prev;
+      });
+    };
     window.addEventListener("resize", h);
     return () => window.removeEventListener("resize", h);
   }, []);
@@ -549,6 +563,9 @@ const PATHS = {
   chevron_right:"M9 18l6-6-6-6",
   database:"M3 5V19C3 20.66 6.13 22 10 22C13.87 22 17 20.66 17 19V5M3 5C3 6.66 6.13 8 10 8C13.87 8 17 6.66 17 5M3 5C3 3.34 6.13 2 10 2C13.87 2 17 3.34 17 5M17 12C17 13.66 13.87 15 10 15C6.13 15 3 13.66 3 12",
   layers:"M12 2L2 7L12 12L22 7L12 2ZM2 17L12 22L22 17M2 12L12 17L22 12",
+  search:"M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z",
+  archive:"M21 8v13H3V8M1 3h22v5H1V3m10 8h2",
+  unarchive:"M21 8v13H3V8M1 3h22v5H1V3m7 11l4-4 4 4m-4-4v10",
 };
 const Ic = ({n,s=16,c=T.muted}) => (
   <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
@@ -1951,7 +1968,7 @@ const SessionCard = memo(({ s, onPress, isSelected }) => {
 });
 
 // ─── Session Detail ───────────────────────────────────────────────────────────
-const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessionUpdate, isDesktop, pollInterval, setPollInterval }) => {
+const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessionUpdate, isDesktop, pollInterval, setPollInterval, isArchived, onArchive, onUnarchive }) => {
   const [session,setSession]     = useState(initSession);
   const [activities,setActivities] = useState([]);
   const [showAll,setShowAll]     = useState(false);
@@ -2292,9 +2309,22 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
               <Ic n="refresh" s={scrolled?14:15} c={T.text}/>
             </button>
             {!scrolled && (
-              <button onClick={() => { if(confirm("Delete this session?")) handleDelete(); }} disabled={busy} title="Delete session" style={{background:T.redDim, border:`1px solid ${T.red}30`, borderRadius:4, cursor:"pointer", display:"flex", alignItems:"center", padding:4, transition:"opacity .2s"}}>
-                <Ic n="trash" s={14} c={T.red}/>
-              </button>
+              <>
+                <button
+                  onClick={() => isArchived ? onUnarchive(session.id) : onArchive(session.id)}
+                  title={isArchived ? "Unarchive session" : "Archive session"}
+                  style={{
+                    background:isArchived ? T.purpleDim : T.surfaceHi,
+                    border:`1px solid ${isArchived ? T.purple+"40" : T.borderHi}`,
+                    borderRadius:4, cursor:"pointer", display:"flex", alignItems:"center", padding:4, transition:"all .2s"
+                  }}
+                >
+                  <Ic n={isArchived ? "unarchive" : "archive"} s={14} c={isArchived ? T.purple : T.muted}/>
+                </button>
+                <button onClick={() => { if(confirm("Delete this session?")) handleDelete(); }} disabled={busy} title="Delete session" style={{background:T.redDim, border:`1px solid ${T.red}30`, borderRadius:4, cursor:"pointer", display:"flex", alignItems:"center", padding:4, transition:"opacity .2s"}}>
+                  <Ic n="trash" s={14} c={T.red}/>
+                </button>
+              </>
             )}
             <Pill status={session.state} session={session} small/>
           </div>
@@ -3165,10 +3195,21 @@ const NetworkMonitor = ({ onBack, isDesktop }) => {
 const FILTERS = ["ALL","QUEUED","PLANNING","AWAITING_PLAN_APPROVAL","IN_PROGRESS","COMPLETED","FAILED"];
 const FILTER_LABELS = { AWAITING_PLAN_APPROVAL:"APPROVE", ALL:"ALL" };
 
-const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selectedId, isDesktop, onNew, onNetwork, pollInterval, setPollInterval, sessionLimit, setSessionLimit, layoutMode, setLayoutMode, countdown, plan, planId, setPlanId, todayCount, customDaily, setCustomDaily }) => {
+const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selectedId, isDesktop, onNew, onNetwork, pollInterval, setPollInterval, sessionLimit, setSessionLimit, layoutMode, setLayoutMode, countdown, plan, planId, setPlanId, todayCount, customDaily, setCustomDaily, searchQuery, setSearchQuery, archivedIds, showArchived, setShowArchived }) => {
   const [filter,setFilter] = useState("ALL");
   const [scrolled, handleScroll] = useScrollThreshold();
-  const filtered = filter==="ALL" ? sessions : sessions.filter(s=>s.state===filter);
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  const baseFiltered = useMemo(() => {
+    let list = sessions.filter(s => archivedIds.has(s.id) === showArchived);
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter(s => (s.title||"").toLowerCase().includes(q) || (s.prompt||"").toLowerCase().includes(q) || (s.id||"").toLowerCase().includes(q));
+    }
+    return list;
+  }, [sessions, archivedIds, showArchived, searchQuery]);
+
+  const filtered = filter==="ALL" ? baseFiltered : baseFiltered.filter(s=>s.state===filter);
   const active   = sessions.filter(s=>ACTIVE_STATES.has(s.state)).length;
 
   return (
@@ -3198,6 +3239,14 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
             )}
           </div>
           <div style={{marginLeft:"auto",display:"flex",gap:6,alignItems:"center",flexShrink:0}}>
+            <button onClick={() => setSearchOpen(!searchOpen)} title="Search sessions" style={{
+              width:30,height:30,borderRadius:5,
+              background:searchOpen||searchQuery?T.blueDim:"transparent",
+              border:`1px solid ${searchOpen||searchQuery?T.blue+"40":T.border}`,
+              display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"
+            }}>
+              <Ic n="search" s={15} c={searchOpen||searchQuery?T.blue:T.muted}/>
+            </button>
             {isDesktop&&(
               <>
                 <button onClick={onNew} title="New Session" style={{width:30,height:30,borderRadius:5,background:T.greenDim,border:`1px solid ${T.green}40`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}>
@@ -3232,6 +3281,42 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
             </button>
           </div>
         </div>
+
+        {/* ── Search Bar ── */}
+        {(searchOpen || searchQuery) && (
+          <div style={{
+            height:scrolled?0:42, overflow:"hidden", opacity:scrolled?0:1,
+            transition:"all .25s ease", marginBottom:scrolled?0:8,
+            padding:scrolled?0:"4px 2px", pointerEvents:scrolled?"none":"auto",
+          }}>
+            <div style={{position:"relative", display:"flex", alignItems:"center"}}>
+              <div style={{position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", pointerEvents:"none"}}>
+                <Ic n="search" s={14} c={T.blue}/>
+              </div>
+              <input
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Search by title, prompt or ID..."
+                style={{
+                  ...inputSt, paddingLeft:34, paddingRight:34,
+                  borderColor:T.blue+"40", background:T.surfaceHi,
+                }}
+                autoFocus
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  style={{
+                    position:"absolute", right:10, top:"50%", transform:"translateY(-50%)",
+                    background:"none", border:"none", cursor:"pointer", padding:4
+                  }}
+                >
+                  <Ic n="x" s={14} c={T.muted}/>
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* ── Interval picker ── */}
         <div style={{
@@ -3282,6 +3367,34 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
           })}
         </div>
 
+        {/* ── View Toggle (Active/Archive) ── */}
+        {isDesktop && (
+          <div style={{
+            display:"flex", gap:4, alignItems:"center",
+            height:scrolled?0:22, overflow:"hidden", opacity:scrolled?0:1,
+            marginBottom:scrolled?0:8, padding:scrolled?0:"4px 2px",
+            transition:"all .25s ease", pointerEvents:scrolled?"none":"auto",
+          }}>
+            <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.muted, letterSpacing:"0.08em", flexShrink:0, paddingRight:2}}>SESSIONS</span>
+            <button onClick={() => setShowArchived(false)} style={{
+              flexShrink:0, padding:"3px 9px", borderRadius:20, border:"none",
+              background:!showArchived ? T.greenDim : "transparent",
+              outline:`1px solid ${!showArchived ? T.green+"60" : T.border}`,
+              color:!showArchived ? T.green : T.muted,
+              fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:!showArchived?700:400,
+              letterSpacing:"0.05em", cursor:"pointer", transition:"all .12s",
+            }}>ACTIVE</button>
+            <button onClick={() => setShowArchived(true)} style={{
+              flexShrink:0, padding:"3px 9px", borderRadius:20, border:"none",
+              background:showArchived ? T.purpleDim : "transparent",
+              outline:`1px solid ${showArchived ? T.purple+"60" : T.border}`,
+              color:showArchived ? T.purple : T.muted,
+              fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:showArchived?700:400,
+              letterSpacing:"0.05em", cursor:"pointer", transition:"all .12s",
+            }}>ARCHIVED</button>
+          </div>
+        )}
+
         {/* ── Layout picker ── */}
         <div style={{
           display:"flex",gap:4,alignItems:"center",
@@ -3291,7 +3404,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
           transition:"all .25s ease",
           pointerEvents:scrolled?"none":"auto",
         }}>
-          <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted,letterSpacing:"0.08em",flexShrink:0,paddingRight:2}}>VIEW</span>
+          <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted,letterSpacing:"0.08em",flexShrink:0,paddingRight:2}}>LAYOUT</span>
           {LAYOUT_OPTIONS.map(opt => {
             const isAct = opt.id === layoutMode;
             return (
@@ -3422,6 +3535,13 @@ function JulesClient() {
   const [customDaily,setCustomDailyRaw] = useState(loadCustomDaily);
   const [todayCount,setTodayCount] = useState(loadTodayCount);
 
+  const [archivedIds, setArchivedIds] = useState(() => {
+    try { return new Set(JSON.parse(localStorage.getItem("jac_archived") || "[]")); }
+    catch { return new Set(); }
+  });
+  const [showArchived, setShowArchived] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
   const windowIsDesktop = useIsDesktop();
   const isDesktop = useMemo(() => {
     if (layoutMode === "mobile") return false;
@@ -3439,6 +3559,27 @@ function JulesClient() {
 
   useEffect(() => NET.subscribe(s=>setNetSnap(s)), []);
   useEffect(() => { pruneOldKeys(); }, []);
+
+  useEffect(() => {
+    try { localStorage.setItem("jac_archived", JSON.stringify(Array.from(archivedIds))); }
+    catch {}
+  }, [archivedIds]);
+
+  const handleArchive = useCallback(id => {
+    setArchivedIds(prev => {
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+  }, []);
+
+  const handleUnarchive = useCallback(id => {
+    setArchivedIds(prev => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  }, []);
 
   const setPollInterval = useCallback(ms => {
     savePollMs(ms);
@@ -3537,6 +3678,9 @@ function JulesClient() {
             countdown={countdown}
             plan={plan} planId={planId} setPlanId={setPlanId} todayCount={todayCount}
             customDaily={customDaily} setCustomDaily={setCustomDaily}
+            searchQuery={searchQuery} setSearchQuery={setSearchQuery}
+            archivedIds={archivedIds} showArchived={showArchived} setShowArchived={setShowArchived}
+            onArchive={handleArchive} onUnarchive={handleUnarchive}
           />
         </div>
         {/* Main panel */}
@@ -3553,7 +3697,9 @@ function JulesClient() {
             <SessionDetail key={selected.id} session={selected} apiKey={apiKey}
               onBack={()=>setDesktop("empty")} onDelete={handleDelete}
               onSessionUpdate={handleSessionUpdate} isDesktop
-              pollInterval={actPollInterval} setPollInterval={setActPollInterval}/>
+              pollInterval={actPollInterval} setPollInterval={setActPollInterval}
+              isArchived={archivedIds.has(selected.id)}
+              onArchive={handleArchive} onUnarchive={handleUnarchive}/>
           )}
           {desktopView==="new"&&(
             <NewSession apiKey={apiKey} onBack={()=>setDesktop("empty")} onCreate={handleCreate} isDesktop plan={plan} todayCount={todayCount}/>
@@ -3578,13 +3724,18 @@ function JulesClient() {
             layoutMode={layoutMode} setLayoutMode={setLayoutMode}
             countdown={countdown}
             plan={plan} planId={planId} setPlanId={setPlanId} todayCount={todayCount}
-            customDaily={customDaily} setCustomDaily={setCustomDaily}/>
+            customDaily={customDaily} setCustomDaily={setCustomDaily}
+            searchQuery={searchQuery} setSearchQuery={setSearchQuery}
+            archivedIds={archivedIds} showArchived={showArchived} setShowArchived={setShowArchived}
+            onArchive={handleArchive} onUnarchive={handleUnarchive} />
         )}
         {mobileScreen==="detail"&&selected&&(
           <SessionDetail key={selected.id} session={selected} apiKey={apiKey}
             onBack={()=>{ setMobile("list"); fetchSessions(true); }}
             onDelete={handleDelete} onSessionUpdate={handleSessionUpdate} isDesktop={false}
-            pollInterval={actPollInterval} setPollInterval={setActPollInterval}/>
+            pollInterval={actPollInterval} setPollInterval={setActPollInterval}
+            isArchived={archivedIds.has(selected.id)}
+            onArchive={handleArchive} onUnarchive={handleUnarchive}/>
         )}
         {mobileScreen==="new"&&(
           <NewSession apiKey={apiKey} onBack={()=>setMobile("list")} onCreate={s=>{ setSessions(prev=>[s,...prev]); incTodayCount(); setTodayCount(loadTodayCount()); setMobile("list"); }} isDesktop={false} plan={plan} todayCount={todayCount}/>
@@ -3595,14 +3746,18 @@ function JulesClient() {
       </div>
       <nav style={{display:"flex",borderTop:`1px solid ${T.border}`,background:T.surface,transform:"translateZ(0)",flexShrink:0}}>
         {[
-          {id:"list",   n:"tasks", label:"SESSIONS"},
-          {id:"new",    n:"plus",  label:"NEW"},
-          {id:"network",n:"wifi",  label:"NET"},
-        ].map(({id,n,label})=>{
-          const isAct = mobileScreen===id||(mobileScreen==="detail"&&id==="list");
+          {id:"list",   n:"tasks", label:"SESSIONS", onClick:() => { setShowArchived(false); setMobile("list"); }},
+          {id:"archive",n:"archive", label:"ARCHIVE", onClick:() => { setShowArchived(true); setMobile("list"); }},
+          {id:"new",    n:"plus",  label:"NEW", onClick:() => setMobile("new")},
+          {id:"network",n:"wifi",  label:"NET", onClick:() => setMobile("network")},
+        ].map(({id,n,label,onClick})=>{
+          const isAct = (id === "list" && !showArchived && (mobileScreen === "list" || mobileScreen === "detail")) ||
+                        (id === "archive" && showArchived && (mobileScreen === "list" || mobileScreen === "detail")) ||
+                        (mobileScreen === id && id !== "list" && id !== "archive");
+
           const hasAlert = id==="list"&&sessions.some(s=>["AWAITING_PLAN_APPROVAL","AWAITING_USER_FEEDBACK"].includes(s.state));
           return (
-            <button key={id} onClick={()=>setMobile(id)} style={{flex:1,padding:"11px 0 13px",background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
+            <button key={id} onClick={onClick} style={{flex:1,padding:"11px 0 13px",background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
               <div style={{position:"relative"}}>
                 <Ic n={n} s={22} c={isAct?T.green:T.muted}/>
                 {hasAlert&&<div style={{position:"absolute",top:-2,right:-4,width:7,height:7,borderRadius:"50%",background:T.purple,border:`1.5px solid ${T.surface}`,animation:"dot 1.5s ease-in-out infinite"}}/>}
@@ -3637,7 +3792,7 @@ function Shell({ children, desktop=false }) {
       fontFamily:"'IBM Plex Sans',sans-serif",overflow:"hidden",
       ...(desktop
         ? { minHeight:"100vh", flexDirection:"row" }
-        : { maxWidth:430, height:"100dvh", margin:"0 auto", flexDirection:"column" }
+        : { width:"100%", height:"100dvh", flexDirection:"column" }
       ),
     }}>
       <style>{`
@@ -3650,6 +3805,25 @@ function Shell({ children, desktop=false }) {
         @keyframes spin{to{transform:rotate(360deg);}}
         ::selection{background:${T.greenDim};color:${T.green};}
         textarea::placeholder,input::placeholder{color:${T.muted};}
+        @media screen and (max-width: 1023px) and (orientation: landscape) {
+          body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+          }
+          body > #root { display: none; }
+          body::after {
+            content: "PLEASE ROTATE YOUR DEVICE TO PORTRAIT MODE";
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            font-weight: 700;
+            color: ${T.green};
+            padding: 40px;
+            letter-spacing: 0.1em;
+            line-height: 1.6;
+          }
+        }
       `}</style>
       <PWABanner/>
       {children}
