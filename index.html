@@ -1577,6 +1577,7 @@ const SessionCard = memo(({ s, onPress, isSelected, index }) => {
   const pct  = pctFromState(s.state);
   const m    = STATUS_META[s.state] || STATUS_META.QUEUED;
   const repo = s.sourceContext?.githubRepoContext ? s.sourceContext.source?.replace("sources/github/","") : null;
+  const pr   = s.outputs?.find(o=>o.githubPullRequest)?.githubPullRequest;
 
   return (
     <button onClick={onPress} style={{
@@ -1606,6 +1607,12 @@ const SessionCard = memo(({ s, onPress, isSelected, index }) => {
       <Bar pct={pct} status={s.state}/>
       <div style={{display:"flex",alignItems:"center",gap:10,marginTop:6,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted}}>
         <span>{fmtAgo(new Date(s.updateTime||s.createTime).getTime())}</span>
+        {pr && (
+          <div style={{display:"flex", alignItems:"center", gap:4, color:T.green, fontWeight:700, fontSize:10}}>
+            <Ic n="git_pull" s={12} c={T.green}/>
+            PR #{pr.number}
+          </div>
+        )}
         <span style={{marginLeft:"auto",fontSize:10,color:T.dim,background:T.surfaceHi,padding:"1px 5px",borderRadius:2}}>{s.id?.slice(0,8)}</span>
       </div>
     </button>
@@ -1878,6 +1885,7 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
   , [activities]);
 
   const summary = session.outputs?.find(o=>o.sessionSummary)?.sessionSummary;
+  const pr      = session.outputs?.find(o=>o.githubPullRequest)?.githubPullRequest;
   const m       = STATUS_META[session.state] || STATUS_META.QUEUED;
   const pct     = pctFromState(session.state);
   const canSend = true; // Always allow follow-up messages
@@ -1991,7 +1999,16 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
             </span>
           )}
           {session.url && <a href={session.url} target="_blank" rel="noopener" style={{color:T.muted,textDecoration:"none",flexShrink:0,fontFamily:"'JetBrains Mono',monospace",fontSize:11}}>WEB↗</a>}
-
+          {pr && (
+            <a href={pr.url} target="_blank" rel="noopener" style={{
+              color:T.green, textDecoration:"none", flexShrink:0,
+              fontFamily:"'JetBrains Mono',monospace", fontSize:11,
+              fontWeight:700, display:"flex", alignItems:"center", gap:4
+            }}>
+              <Ic n="git_pull" s={13} c={T.green}/>
+              PR #{pr.number}
+            </a>
+          )}
         </div>
 
         {session.state==="AWAITING_PLAN_APPROVAL"&&(
