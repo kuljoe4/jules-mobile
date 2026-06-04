@@ -919,16 +919,17 @@ const TimelineEvent = memo(({ act, onMediaClick }) => {
       detail = plan?.steps && (
         <div style={{marginTop:10}}>
           {plan.steps.map((st,i) => (
-            <div key={st.id||i} style={{display:"flex",gap:8,marginBottom:10,alignItems:"flex-start"}}>
+            <div key={st.id||i} style={{display:"flex",gap:8,marginBottom:12,alignItems:"flex-start"}}>
               <div style={{
                 width:20,height:20,borderRadius:3,flexShrink:0,
                 background:T.purpleDim,border:`1px solid ${T.purple}40`,
                 display:"flex",alignItems:"center",justifyContent:"center",
                 fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.purple,
+                marginTop: 1,
               }}>{i+1}</div>
-              <div>
-                <div style={{fontSize:14,color:T.text,fontWeight:500,lineHeight:1.45}}>{st.title}</div>
-                {st.description&&<div style={{fontSize:13,color:T.muted,marginTop:4,lineHeight:1.5}}>{st.description}</div>}
+              <div style={{flex: 1, minWidth: 0}}>
+                <div style={{fontSize:14,color:T.text,fontWeight:700,lineHeight:1.5,wordBreak:"break-word",marginBottom:4}}>{st.title}</div>
+                {st.description&&<div style={{fontSize:13,color:T.muted,lineHeight:1.6,wordBreak:"break-word"}}>{st.description}</div>}
               </div>
             </div>
           ))}
@@ -994,7 +995,7 @@ const TimelineEvent = memo(({ act, onMediaClick }) => {
         {detail&&<div style={{width:1,flex:1,background:T.border,marginTop:3}}/>}
       </div>
       <div style={{flex:1,paddingBottom:detail?12:0,minWidth:0,marginTop:1}}>
-        <div style={{display:"flex",gap:10,alignItems:"center",height:22}}>
+        <div style={{display:"flex",gap:10,alignItems:"center",height:22,marginBottom:detail?12:0}}>
           <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:12,fontWeight:800,color:ic.c,flex:1,lineHeight:1.3,letterSpacing:"0.02em"}}>{title}</span>
           <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted,fontWeight:600,flexShrink:0}}>{time}</span>
         </div>
@@ -2627,18 +2628,24 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
       <div style={{padding:"12px 16px 0",borderBottom:`1px solid ${T.border}`,background:T.surface,flexShrink:0}}>
         <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
           {!isDesktop&&<button onClick={onBack} style={{background:"none",border:"none",cursor:"pointer",display:"flex"}}><Ic n="back" s={18} c={T.text}/></button>}
-          <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.text,letterSpacing:"0.05em",fontWeight:700}}>APP SETTINGS</div>
+          <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.text,letterSpacing:"0.05em",fontWeight:700,flex:1}}>APP SETTINGS</div>
+          {isDesktop && (
+            <button onClick={onBack} title="Close Settings" style={{background:"none",border:"none",cursor:"pointer",display:"flex",padding:4,opacity:0.6}}>
+              <Ic n="x" s={18} c={T.text}/>
+            </button>
+          )}
         </div>
-        <div style={{display:"flex", gap:20}}>
+        <div style={{display:"flex", gap:24}}>
           {TABS.map(t => (
             <button key={t.id} onClick={() => setTab(t.id)} style={{
-              padding:"8px 0", background:"none", border:"none", cursor:"pointer",
+              padding:"10px 0", background:"none", border:"none", cursor:"pointer",
               borderBottom:`2px solid ${tab===t.id?T.green:"transparent"}`,
               color:tab===t.id?T.green:T.muted, fontFamily:"'JetBrains Mono',monospace",
-              fontSize:11, fontWeight:700, letterSpacing:"0.05em", transition:"all .2s",
-              display:"flex", alignItems:"center", gap:6
+              fontSize:11, fontWeight:800, letterSpacing:"0.08em", transition:"all .2s",
+              display:"flex", alignItems:"center", gap:8,
+              opacity: tab===t.id ? 1 : 0.6
             }}>
-              <Ic n={t.ic} s={12} c={tab===t.id?T.green:T.muted} />
+              <Ic n={t.ic} s={13} c={tab===t.id?T.green:T.muted} />
               {t.label}
             </button>
           ))}
@@ -2832,8 +2839,11 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
             </div>
           )}
 
-          <div style={{marginTop:60, paddingBottom:40, textAlign:"center"}}>
-            <Btn onClick={onBack} outline sm style={{margin:"0 auto", opacity:0.6}}>CLOSE SETTINGS</Btn>
+          <div style={{marginTop:60, paddingBottom:60, textAlign:"center"}}>
+            <Btn onClick={onBack} outline sm style={{margin:"0 auto", borderColor:T.borderHi, color:T.muted}}>
+              <Ic n="back" s={12} c={T.muted} />
+              EXIT SETTINGS
+            </Btn>
           </div>
         </div>
       </div>
@@ -3027,8 +3037,14 @@ function JulesClient() {
   const [apiKey,setApiKey]     = useState(() => { try { return localStorage.getItem("jac_key")||""; } catch { return ""; } });
   const [sessions,setSessions] = useState([]);
   const [selected,setSelected] = useState(null);
-  const [mobileScreen,setMobile]   = useState("list");
+  const [mobileScreen,setMobileRaw] = useState("list");
+  const [lastSessionScreen, setLastSessionScreen] = useState("list");
   const [desktopView,setDesktop]   = useState("empty");
+
+  const setMobile = useCallback(s => {
+    setMobileRaw(s);
+    if (s === "list" || s === "detail") setLastSessionScreen(s);
+  }, []);
   const [refreshing,setRefreshing] = useState(false);
   const [netSnap,setNetSnap]       = useState(NET.snapshot());
   const [pollInterval,setPollIntervalRaw] = useState(loadPollMs);
@@ -3254,8 +3270,16 @@ function JulesClient() {
       </div>
       <nav style={{display:"flex",borderTop:`1px solid ${T.border}`,background:T.surface,transform:"translateZ(0)",flexShrink:0}}>
         {[
-          {id:"list",    n:"tasks", label:"SESSIONS", onClick:() => { setShowArchived(false); setMobile("list"); }},
-          {id:"archive", n:"archive", label:"ARCHIVE", onClick:() => { setShowArchived(true); setMobile("list"); }},
+          {id:"list",    n:"tasks", label:"SESSIONS", onClick:() => {
+            const wasDetail = lastSessionScreen === "detail" && selected && !archivedIds.has(selected.id);
+            setShowArchived(false);
+            setMobile(wasDetail ? "detail" : "list");
+          }},
+          {id:"archive", n:"archive", label:"ARCHIVE", onClick:() => {
+            const wasDetail = lastSessionScreen === "detail" && selected && archivedIds.has(selected.id);
+            setShowArchived(true);
+            setMobile(wasDetail ? "detail" : "list");
+          }},
           {id:"new",     n:"plus",  label:"NEW", onClick:() => setMobile("new")},
           {id:"settings",n:"settings", label:"SETTINGS", onClick:() => setMobile("settings")},
         ].map(({id,n,label,onClick})=>{
