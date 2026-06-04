@@ -441,6 +441,30 @@ async function apiCall(apiKey, path, opts={}) {
 
 // ─── Utils ────────────────────────────────────────────────────────────────────
 const fmtBytes = b => b<1?`${(b*1024).toFixed(0)}B`:b<1024?`${b.toFixed(1)}KB`:`${(b/1024).toFixed(2)}MB`;
+const getPR = (s) => {
+  if (!s) return null;
+  const findInOutputs = (outputs) => {
+    if (!outputs || !Array.isArray(outputs)) return null;
+    const prObj = outputs.find(o => o.githubPullRequest)?.githubPullRequest;
+    if (prObj) return prObj;
+    // Some versions put the URL directly in a string or as a nested field
+    for (const o of outputs) {
+      if (o.pullRequestUrl || o.prUrl) return { url: o.pullRequestUrl || o.prUrl, number: (o.pullRequestUrl || o.prUrl).split("/").pop() };
+    }
+    return null;
+  };
+
+  // 1. Standard locations
+  let pr = findInOutputs(s.outputs) || s.githubPullRequest || s.pullRequest || s.sourceContext?.githubRepoContext?.pullRequest || s.github_pull_request;
+  if (pr && typeof pr === 'object' && pr.url) return pr;
+
+  // 2. Scan all string fields for GitHub PR links (last resort)
+  const str = JSON.stringify(s);
+  const m = str.match(/https:\/\/github\.com\/[^\/]+\/[^\/]+\/pull\/(\d+)/);
+  if (m) return { url: m[0], number: m[1] };
+
+  return null;
+};
 const fmtAgo = ts => { const d=Date.now()-ts; if(d<60000)return`${Math.floor(d/1000)}s ago`; if(d<3600000)return`${Math.floor(d/60000)}m ago`; if(d<86400000)return`${Math.floor(d/3600000)}h ago`; return`${Math.floor(d/86400000)}d ago`; };
 const fmtTime = ts => new Date(ts).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
 const pctFromState = s => ({QUEUED:5,PLANNING:20,AWAITING_PLAN_APPROVAL:35,IN_PROGRESS:65,AWAITING_USER_FEEDBACK:60,COMPLETED:100,FAILED:30,PAUSED:50}[s]||0);
@@ -964,6 +988,22 @@ const TimelineEvent = memo(({ act, onMediaClick }) => {
             </div>
           )}
           <Markdown text={act.progressUpdated.description}/>
+          {(() => {
+            const m = act.progressUpdated.description?.match(/https:\/\/github\.com\/[^\/]+\/[^\/]+\/pull\/(\d+)/);
+            if (m) return (
+              <div style={{marginTop:12}}>
+                <a href={m[0]} target="_blank" rel="noopener" style={{
+                  display:"inline-flex", alignItems:"center", gap:6, padding:"6px 12px",
+                  background:T.greenDim, border:`1px solid ${T.green}40`, borderRadius:6,
+                  color:T.green, textDecoration:"none", fontFamily:"'JetBrains Mono',monospace",
+                  fontSize:12, fontWeight:800
+                }}>
+                  <Ic n="git_pull" s={14} c={T.green}/>
+                  OPEN PULL REQUEST #{m[1]} ↗
+                </a>
+              </div>
+            );
+          })()}
         </div>
       );
       if (isReview) ic.c = T.blue;
@@ -1593,7 +1633,7 @@ const SessionCard = memo(({ s, onPress, isSelected, index }) => {
   const pct  = pctFromState(s.state);
   const m    = STATUS_META[s.state] || STATUS_META.QUEUED;
   const repo = s.sourceContext?.githubRepoContext ? s.sourceContext.source?.replace("sources/github/","") : null;
-  const pr   = s.outputs?.find(o=>o.githubPullRequest)?.githubPullRequest;
+  const pr   = getPR(s);
 
   return (
     <button onClick={onPress} style={{
@@ -1616,21 +1656,22 @@ const SessionCard = memo(({ s, onPress, isSelected, index }) => {
         <div style={{width:22,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted,fontWeight:700,paddingTop:2}}>{index}.</div>
         <div style={{flex:1,minWidth:0}}>
           {repo&&<div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted,fontWeight:600,marginBottom:6,letterSpacing:"0.05em",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{repo}</div>}
-          <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:15,fontWeight:600,color:T.text,lineHeight:1.45,overflow:"hidden",textOverflow:"ellipsis",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>{s.title||s.prompt}</div>
+          <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:15,fontWeight:600,color:T.text,lineHeight:1.45,overflow:"hidden",textOverflow:"ellipsis",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",marginBottom:pr?8:0}}>{s.title||s.prompt}</div>
+          {pr && (
+            <div style={{
+              display:"inline-flex", alignItems:"center", gap:5,
+              background:T.greenDim, border:`1px solid ${T.green}50`, borderRadius:4,
+              padding:"3px 8px", color:T.green, fontFamily:"'JetBrains Mono',monospace",
+              fontSize:11, fontWeight:900, boxShadow:`0 2px 8px ${T.green}20`,
+              marginBottom:4
+            }}>
+              <Ic n="git_pull" s={12} c={T.green}/>
+              PULL REQUEST #{pr.number}
+            </div>
+          )}
         </div>
         <div style={{display:"flex", flexDirection:"column", alignItems:"flex-end", gap:6, flexShrink:0}}>
           <Pill status={s.state} small/>
-          {pr && (
-            <div style={{
-              display:"flex", alignItems:"center", gap:4,
-              background:T.greenDim, border:`1px solid ${T.green}50`, borderRadius:4,
-              padding:"3px 7px", color:T.green, fontFamily:"'JetBrains Mono',monospace",
-              fontSize:11, fontWeight:900, boxShadow:`0 2px 6px ${T.green}15`,
-            }}>
-              <Ic n="git_pull" s={12} c={T.green}/>
-              PR #{pr.number}
-            </div>
-          )}
         </div>
       </div>
       <Bar pct={pct} status={s.state}/>
@@ -1908,7 +1949,24 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
   , [activities]);
 
   const summary = session.outputs?.find(o=>o.sessionSummary)?.sessionSummary;
-  const pr      = session.outputs?.find(o=>o.githubPullRequest)?.githubPullRequest;
+  const pr = useMemo(() => {
+    // 1. Check session object directly
+    const spr = getPR(session);
+    if (spr) return spr;
+    // 2. Scan activities for PRs
+    for (const a of activities) {
+      const apr = getPR(a) || getPR(a.sessionCompleted) || getPR(a.progressUpdated);
+      if (apr) return apr;
+      // Deep scan artifacts
+      if (a.artifacts) {
+        for (const art of a.artifacts) {
+          const arpr = getPR(art);
+          if (arpr) return arpr;
+        }
+      }
+    }
+    return null;
+  }, [session, activities]);
   const m       = STATUS_META[session.state] || STATUS_META.QUEUED;
   const pct     = pctFromState(session.state);
   const canSend = true; // Always allow follow-up messages
@@ -1997,10 +2055,11 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
                 background:T.greenDim, border:`1px solid ${T.green}40`, borderRadius:4,
                 padding:scrolled?"2px 6px":"4px 8px", display:"flex", alignItems:"center", gap:4,
                 color:T.green, textDecoration:"none", fontFamily:"'JetBrains Mono',monospace",
-                fontSize:scrolled?10:11, fontWeight:800, transition:"all .2s"
+                fontSize:scrolled?10:11, fontWeight:900, transition:"all .2s",
+                boxShadow:`0 2px 8px ${T.green}20`,
               }}>
                 <Ic n="git_pull" s={scrolled?12:13} c={T.green}/>
-                PR #{pr.number}
+                #{pr.number}
               </a>
             )}
             <Pill status={session.state} small/>
@@ -2042,17 +2101,22 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
             pointerEvents:scrolled?"none":"auto",
           }}>
             <a href={pr.url} target="_blank" rel="noopener" style={{
-              display:"flex", alignItems:"center", gap:10, padding:"10px 14px",
-              background:T.greenDim, border:`1px solid ${T.green}40`, borderRadius:8,
-              color:T.green, textDecoration:"none", transition:"transform .15s",
-              boxShadow:`0 4px 12px ${T.green}20`,
+              display:"flex", alignItems:"center", gap:10, padding:"12px 14px",
+              background:`linear-gradient(135deg, ${T.green}18, ${T.green}08)`,
+              border:`1px solid ${T.green}50`, borderRadius:10,
+              color:T.green, textDecoration:"none", transition:"all .2s",
+              boxShadow:`0 8px 24px -4px ${T.green}30, inset 0 0 12px ${T.green}10`,
             }}>
-              <div style={{width:32, height:32, borderRadius:6, background:T.green, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0}}>
-                <Ic n="git_pull" s={18} c="#000"/>
+              <div style={{
+                width:36, height:36, borderRadius:8, background:T.green,
+                display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0,
+                boxShadow:`0 0 15px ${T.green}60`,
+              }}>
+                <Ic n="git_pull" s={20} c="#000"/>
               </div>
               <div style={{flex:1}}>
-                <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:13, fontWeight:900, letterSpacing:"0.05em"}}>PULL REQUEST CREATED</div>
-                <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, opacity:0.8}}>View and merge PR #{pr.number} on GitHub</div>
+                <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:14, fontWeight:900, letterSpacing:"0.04em", color:"#fff"}}>PULL REQUEST CREATED</div>
+                <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.green, fontWeight:700, opacity:0.9}}>View PR #{pr.number} on GitHub ↗</div>
               </div>
               <Ic n="chevron_right" s={16} c={T.green}/>
             </a>
