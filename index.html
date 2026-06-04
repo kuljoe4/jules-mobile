@@ -248,22 +248,6 @@ function loadLimit() {
 }
 function saveLimit(v) { try { localStorage.setItem(LIMIT_KEY,v); } catch {} }
 
-// ─── Layout Mode ──────────────────────────────────────────────────────────────
-const LAYOUT_KEY = "jac_layout";
-const LAYOUT_OPTIONS = [
-  { id:"auto",    label:"AUTO"    },
-  { id:"mobile",  label:"MOBILE"  },
-  { id:"desktop", label:"DESKTOP" },
-];
-function loadLayout() {
-  try {
-    const v = localStorage.getItem(LAYOUT_KEY);
-    if (v && LAYOUT_OPTIONS.some(o => o.id === v)) return v;
-    // Default to auto
-    return "auto";
-  } catch { return "auto"; }
-}
-function saveLayout(v) { try { localStorage.setItem(LAYOUT_KEY,v); } catch {} }
 
 // ─── Plan limits (from jules.google/docs/usage-limits) ───────────────────────
 const PLAN_KEY = "jac_plan";
@@ -607,6 +591,7 @@ const PATHS = {
   search:"M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z",
   archive:"M21 8v13H3V8M1 3h22v5H1V3m10 8h2",
   unarchive:"M21 8v13H3V8M1 3h22v5H1V3m7 11l4-4 4 4m-4-4v10",
+  settings:"M12 15a3 3 0 100-6 3 3 0 000 6zM19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H4a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V4a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H20a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z",
 };
 const Ic = ({n,s=16,c=T.muted}) => (
   <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
@@ -1632,7 +1617,10 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
   const [activities,setActivities] = useState([]);
   const [showAll,setShowAll]     = useState(false);
   const [tab,setTab]             = useState("activity");
-  const [msg,setMsg]             = useState("");
+  const [msg,setMsg]             = useState(() => {
+    try { return localStorage.getItem(`jac_draft_${initSession.id}`) || ""; }
+    catch { return ""; }
+  });
   const [selectedPersonas, setSelectedPersonas] = useState(new Set());
   const [busy,setBusy]           = useState(false);
   const [err,setErr]             = useState(null);
@@ -1756,6 +1744,19 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
     setSelectedPersonas(next);
   };
 
+  // Persist draft follow-up message
+  const draftRef = useRef(null);
+  useEffect(() => {
+    clearTimeout(draftRef.current);
+    draftRef.current = setTimeout(() => {
+      try {
+        if (msg.trim()) localStorage.setItem(`jac_draft_${session.id}`, msg);
+        else localStorage.removeItem(`jac_draft_${session.id}`);
+      } catch {}
+    }, 400);
+    return () => clearTimeout(draftRef.current);
+  }, [msg, session.id]);
+
   // ── Actions ─────────────────────────────────────────────────────────────────
   const handleSend = async () => {
     if (!msg.trim() || busy) return;
@@ -1791,6 +1792,8 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
         },
         _label:`Message → ${session.id?.slice(0,6)}`,
       });
+      // Success: clear local draft
+      try { localStorage.removeItem(`jac_draft_${session.id}`); } catch {}
       // Remove temp, fetch real activities
       actMapRef.current.delete(tempKey);
       setTimeout(() => { loadActivities(); loadSession(); }, 1200);
@@ -1936,12 +1939,6 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
           </div>
 
           <div style={{display:"flex",gap:8,alignItems:"center",flexShrink:0}}>
-            {pollInterval > 0 && (
-              <div style={{padding:"2px 7px",borderRadius:20,background:T.greenDim,border:`1px solid ${T.green}30`,fontFamily:"'JetBrains Mono',monospace",fontSize:scrolled?9:10,color:T.green,display:"flex",alignItems:"center",gap:4,flexShrink:0,transition:"all .2s ease"}}>
-                <span style={{width:3,height:3,borderRadius:"50%",background:T.green,animation:"dot 2s ease-in-out infinite"}}/>
-                {countdown}s
-              </div>
-            )}
             <button onClick={handleRefresh} disabled={busy} title="Refresh activity" style={{background:"none",border:"none",cursor:busy?"default":"pointer",display:"flex",padding:4,opacity:.8,animation:busy?"spin 1s linear infinite":"none"}}>
               <Ic n="refresh" s={scrolled?14:15} c={T.text}/>
             </button>
@@ -2011,24 +2008,6 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
         )}
 
         {err&&<div style={{marginBottom:8,padding:"6px 10px",borderRadius:4,background:T.redDim,border:`1px solid ${T.red}40`,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.red}}>{err}</div>}
-
-        {/* ── Interval picker ── */}
-        <div style={{display:"flex",gap:4,alignItems:"center",marginBottom:10,flexWrap:"nowrap",overflowX:"auto",scrollbarWidth:"none",padding:"4px 2px"}}>
-          <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted,letterSpacing:"0.08em",flexShrink:0,paddingRight:2}}>AUTO</span>
-          {POLL_OPTIONS.map(opt => {
-            const isAct = opt.ms === pollInterval;
-            const c = isAct ? (opt.ms===0 ? T.red : T.green) : T.muted;
-            return (
-              <button key={opt.label} onClick={()=>setPollInterval(opt.ms)} style={{
-                flexShrink:0,padding:"3px 9px",borderRadius:20,border:"none",
-                background:isAct?(opt.ms===0?T.redDim:T.greenDim):"transparent",
-                outline:`1px solid ${isAct?(opt.ms===0?T.red+"60":T.green+"60"):T.border}`,
-                color:c,fontFamily:"'JetBrains Mono',monospace",fontSize:11,fontWeight:isAct?700:400,
-                letterSpacing:"0.05em",cursor:"pointer",transition:"all .12s",
-              }}>{opt.label}</button>
-            );
-          })}
-        </div>
 
         {summary && (
           <div style={{
@@ -2242,6 +2221,7 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
   const [defaultBranch,setDefault] = useState("");   // e.g. "main"
   const [prompt,setPrompt]         = useState(draft?.prompt ?? "");
   const [title,setTitle]           = useState(draft?.title ?? "");
+  const [autoMode,setAutoMode]     = useState(draft?.autoMode ?? true);
   const [reqApproval,setReqApp]    = useState(draft?.reqApproval ?? false);
   const [selectedPersonas, setSelectedPersonas] = useState(new Set(draft?.selectedPersonas || []));
   const [submitting,setSub]        = useState(false);
@@ -2300,15 +2280,20 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
     setSelectedPersonas(next);
   };
 
+  // Auto-disable AUTO PR for repoless sessions
+  useEffect(() => {
+    if (!source && autoMode) setAutoMode(false);
+  }, [source, autoMode]);
+
   // Persist on every change (debounced 400ms)
   const draftRef = useRef(null);
   useEffect(() => {
     clearTimeout(draftRef.current);
     draftRef.current = setTimeout(() => {
-      saveDraft({ source, branch, prompt, title, reqApproval, selectedPersonas: Array.from(selectedPersonas) });
+      saveDraft({ source, branch, prompt, title, autoMode, reqApproval, selectedPersonas: Array.from(selectedPersonas) });
     }, 400);
     return () => clearTimeout(draftRef.current);
-  }, [source, branch, prompt, title, reqApproval]);
+  }, [source, branch, prompt, title, autoMode, reqApproval]);
 
   useEffect(() => {
     (async () => {
@@ -2332,7 +2317,7 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
   const handleClearDraft = () => {
     clearDraft();
     setSource(""); setBranch(""); setPrompt(""); setTitle("");
-    setReqApp(false); setSelectedPersonas(new Set());
+    setAutoMode(true); setReqApp(false); setSelectedPersonas(new Set());
     setSavedFlash(true);
     setTimeout(() => setSavedFlash(false), 1500);
   };
@@ -2356,6 +2341,7 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
       ...(title.trim()&&{title:title.trim()}),
       ...(source&&{
         sourceContext:{ source, githubRepoContext:{ startingBranch:branch||defaultBranch||"main" } },
+        ...(autoMode&&{automationMode:"AUTO_CREATE_PR"}),
       }),
       requirePlanApproval: reqApproval,
     };
@@ -2568,6 +2554,7 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
 
             <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
               {[
+                {label:"AUTO PR",    val:autoMode,   set:setAutoMode, hint:"Create PR when done", disabled:!source},
                 {label:"APPROVE PLAN",val:reqApproval,set:setReqApp,  hint:"Review plan first"},
               ].map(opt=>(
                 <button
@@ -2616,105 +2603,237 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
   );
 };
 
-// ─── Network Monitor ──────────────────────────────────────────────────────────
-const NetworkMonitor = ({ onBack, isDesktop }) => {
-  const [snap,setSnap] = useState(NET.snapshot());
+// ─── Settings View ────────────────────────────────────────────────────────────
+const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPollInterval, setActPollInterval, sessionLimit, setSessionLimit, planId, setPlanId, customDaily, setCustomDaily, plan, todayCount }) => {
+  const [tab, setTab] = useState("general");
+  const [snap, setSnap] = useState(NET.snapshot());
   const [storage, setStorage] = useState(null);
-  useEffect(() => NET.subscribe(s=>setSnap(s)), []);
+
+  useEffect(() => NET.subscribe(s => setSnap(s)), []);
   useEffect(() => { getStorageInfo().then(setStorage); }, []);
+
   const { total, saved, log } = snap;
-  const webEst   = total * 9 + 2.4;
-  const reduction= total > 0 ? Math.round(((webEst-total)/webEst)*100) : 0;
+  const webEst = total * 9 + 2.4;
+  const reduction = total > 0 ? Math.round(((webEst - total) / webEst) * 100) : 0;
+
+  const TABS = [
+    { id: "general", label: "GENERAL", ic: "settings" },
+    { id: "network", label: "NETWORK", ic: "wifi" },
+    { id: "storage", label: "STORAGE", ic: "database" },
+  ];
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%",minHeight:0}}>
-      <div style={{padding:"12px 16px",borderBottom:`1px solid ${T.border}`,background:T.surface,display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
-        {!isDesktop&&<button onClick={onBack} style={{background:"none",border:"none",cursor:"pointer",display:"flex"}}><Ic n="back" s={18} c={T.text}/></button>}
-        <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.text,letterSpacing:"0.05em",fontWeight:700}}>NETWORK MONITOR</div>
+      <div style={{padding:"12px 16px 0",borderBottom:`1px solid ${T.border}`,background:T.surface,flexShrink:0}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+          {!isDesktop&&<button onClick={onBack} style={{background:"none",border:"none",cursor:"pointer",display:"flex"}}><Ic n="back" s={18} c={T.text}/></button>}
+          <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.text,letterSpacing:"0.05em",fontWeight:700}}>APP SETTINGS</div>
+        </div>
+        <div style={{display:"flex", gap:20}}>
+          {TABS.map(t => (
+            <button key={t.id} onClick={() => setTab(t.id)} style={{
+              padding:"8px 0", background:"none", border:"none", cursor:"pointer",
+              borderBottom:`2px solid ${tab===t.id?T.green:"transparent"}`,
+              color:tab===t.id?T.green:T.muted, fontFamily:"'JetBrains Mono',monospace",
+              fontSize:11, fontWeight:700, letterSpacing:"0.05em", transition:"all .2s",
+              display:"flex", alignItems:"center", gap:6
+            }}>
+              <Ic n={t.ic} s={12} c={tab===t.id?T.green:T.muted} />
+              {t.label}
+            </button>
+          ))}
+        </div>
       </div>
-      <div style={{flex:1,overflowY:"auto",padding:"16px 24px",WebkitOverflowScrolling:"touch",minHeight:0}}>
-        <div style={{maxWidth:640,margin:"0 auto"}}>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
-            {[
-              {l:"TRANSFERRED",v:fmtBytes(total),c:T.green},
-              {l:"WEB EQUIV.",  v:fmtBytes(webEst),c:T.amber},
-              {l:"REQUESTS",   v:log.length,c:T.blue},
-              {l:"DATA SAVED", v:`${reduction}%`,c:T.purple},
-            ].map(s=>(
-              <div key={s.l} style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:6,padding:"12px 14px"}}>
-                <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted,letterSpacing:"0.1em",marginBottom:4}}>{s.l}</div>
-                <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:24,fontWeight:700,color:s.c}}>{s.v}</div>
-              </div>
-            ))}
-          </div>
-          <div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:6,padding:"14px",marginBottom:14}}>
-            <div style={{display:"flex",justifyContent:"space-between",marginBottom:8,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted}}>
-              <span>SESSION USAGE</span><span style={{color:T.green}}>{fmtBytes(total)}</span>
-            </div>
-            <div style={{height:6,background:T.border,borderRadius:3,overflow:"hidden"}}>
-              <div style={{height:"100%",width:`${Math.min(100,(total/500)*100)}%`,background:`linear-gradient(90deg,${T.green},${T.amber})`,borderRadius:3,boxShadow:`0 0 8px ${T.green}60`,transition:"width .4s ease",transform:"translateZ(0)"}}/>
-            </div>
-            <div style={{display:"flex",justifyContent:"space-between",marginTop:5,fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted}}>
-              <span>0</span><span>500KB budget</span>
-            </div>
-          </div>
-          <div style={{background:T.amberDim,border:`1px solid ${T.amber}30`,borderRadius:6,padding:"12px 14px",marginBottom:16,fontFamily:"'JetBrains Mono',monospace",fontSize:12,color:T.amber,lineHeight:1.7}}>
-            ⚡ WEB EQUIV. WOULD COST: {fmtBytes(webEst)}<br/>
-            <span style={{color:T.muted}}>Diff-only payloads · smart polling · no JS bundle overhead</span>
-          </div>
-          <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted,letterSpacing:"0.08em",marginBottom:8}}>REQUEST LOG</div>
-          {log.length===0
-            ?<div style={{textAlign:"center",padding:"20px",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.muted}}>No requests yet</div>
-            :log.map(r=>(
-              <div key={r.id} style={{display:"flex",gap:10,alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${T.border}`}}>
-                <div style={{width:5,height:5,borderRadius:"50%",background:T.green,flexShrink:0}}/>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:14,color:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.label}</div>
-                  <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted}}>{fmtAgo(r.ts)}</div>
+
+      <div style={{flex:1,overflowY:"auto",padding:"20px 24px",WebkitOverflowScrolling:"touch",minHeight:0}}>
+        <div style={{maxWidth:560,margin:"0 auto"}}>
+
+          {tab === "general" && (
+            <div style={{animation:"fadeIn .2s ease", display:"flex", flexDirection:"column", gap:24}}>
+              <div style={{background:T.surfaceHi, padding:20, borderRadius:12, border:`1px solid ${T.border}`}}>
+                <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:16}}>
+                  <Ic n="refresh" s={16} c={T.green}/>
+                  <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:12, fontWeight:700, color:T.text}}>POLLING & REFRESH</span>
                 </div>
-                <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:12,color:T.green,flexShrink:0}}>{fmtBytes(r.bytes)}</div>
-              </div>
-            ))
-          }
 
-          <div style={{marginTop:32, borderTop:`1px solid ${T.border}`, paddingTop:24}}>
-            <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.muted, letterSpacing:"0.08em", marginBottom:12}}>STORAGE MANAGEMENT</div>
-
-            <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:16}}>
-              <div style={{background:T.surface, border:`1px solid ${T.border}`, borderRadius:8, padding:14}}>
-                <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:10}}>
-                  <Ic n="database" s={14} c={T.purple}/>
-                  <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700, color:T.text}}>APP DATA</span>
+                <div style={{marginBottom:20}}>
+                  <div style={{fontSize:11, color:T.muted, marginBottom:8, fontFamily:"'JetBrains Mono',monospace", fontWeight:700}}>SESSION LIST</div>
+                  <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                    {POLL_OPTIONS.map(opt => {
+                      const isAct = opt.ms === pollInterval;
+                      const c = isAct ? (opt.ms===0 ? T.red : T.green) : T.muted;
+                      return (
+                        <PickerBtn key={opt.label} label={opt.label} isAct={isAct} activeColor={c} onClick={()=>setPollInterval(opt.ms)} />
+                      );
+                    })}
+                  </div>
                 </div>
-                <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:16, fontWeight:700, color:T.text, marginBottom:12}}>{storage ? fmtBytes(storage.used/1024) : "..."}</div>
-                <button onClick={clearDataOnly} style={{
-                  width:"100%", padding:"6px", borderRadius:4, background:"rgba(255,85,102,0.1)", border:`1px solid ${T.red}40`,
-                  color:T.red, fontSize:9, fontWeight:800, fontFamily:"'JetBrains Mono',monospace", cursor:"pointer"
-                }}>CLEAR DATA</button>
+
+                <div style={{marginBottom:20}}>
+                  <div style={{fontSize:11, color:T.muted, marginBottom:8, fontFamily:"'JetBrains Mono',monospace", fontWeight:700}}>SESSION DETAIL</div>
+                  <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                    {POLL_OPTIONS.map(opt => {
+                      const isAct = opt.ms === actPollInterval;
+                      const c = isAct ? (opt.ms===0 ? T.red : T.green) : T.muted;
+                      return (
+                        <PickerBtn key={opt.label} label={opt.label} isAct={isAct} activeColor={c} onClick={()=>setActPollInterval(opt.ms)} />
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{fontSize:11, color:T.muted, marginBottom:8, fontFamily:"'JetBrains Mono',monospace", fontWeight:700}}>FETCH LIMIT</div>
+                  <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                    {LIMIT_OPTIONS.map(opt => {
+                      const isAct = opt.val === sessionLimit;
+                      return (
+                        <PickerBtn key={opt.label} label={opt.label} isAct={isAct} onClick={()=>setSessionLimit(opt.val)} />
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
 
-              <div style={{background:T.surface, border:`1px solid ${T.border}`, borderRadius:8, padding:14}}>
-                <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:10}}>
-                  <Ic n="layers" s={14} c={T.blue}/>
-                  <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700, color:T.text}}>ASSET CACHE</span>
+              <div style={{background:T.surfaceHi, padding:20, borderRadius:12, border:`1px solid ${T.border}`}}>
+                <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:16}}>
+                  <Ic n="tasks" s={16} c={T.purple}/>
+                  <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:12, fontWeight:700, color:T.text}}>PLAN & QUOTA</span>
                 </div>
-                <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:16, fontWeight:700, color:T.text, marginBottom:12}}>{storage ? fmtBytes(storage.cache/1024) : "..."}</div>
-                <button onClick={clearCacheOnly} style={{
-                  width:"100%", padding:"6px", borderRadius:4, background:T.surfaceHi, border:`1px solid ${T.border}`,
-                  color:T.muted, fontSize:9, fontWeight:800, fontFamily:"'JetBrains Mono',monospace", cursor:"pointer"
-                }}>CLEAR CACHE</button>
+
+                <div style={{display:"flex",gap:4,flexWrap:"wrap",marginBottom:16}}>
+                  {PLANS.map(p=>(
+                    <PickerBtn key={p.id} label={p.label} isAct={p.id===planId} onClick={()=>setPlanId(p.id)} />
+                  ))}
+                </div>
+
+                {planId==="custom" && (
+                  <div style={{display:"flex", alignItems:"center", gap:10, marginBottom:16, background:T.surface, padding:12, borderRadius:8, border:`1px solid ${T.border}`}}>
+                    <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.muted, fontWeight:700}}>DAILY LIMIT:</span>
+                    <input
+                      type="number"
+                      value={customDaily}
+                      onChange={e=>setCustomDaily(Math.max(1, parseInt(e.target.value)||1))}
+                      style={{...inputSt, width:80, padding:"6px 10px", fontSize:14}}
+                    />
+                  </div>
+                )}
+
+                <div style={{background:T.surface, padding:16, borderRadius:8, border:`1px solid ${T.border}`}}>
+                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:10,alignItems:"center"}}>
+                    <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted,fontWeight:700}}>DAILY USAGE</span>
+                    <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:12,color:todayCount>=plan.daily?T.red:T.green,fontWeight:800}}>
+                      {todayCount} / {plan.daily} <span style={{fontSize:10, opacity:0.7}}>SESSIONS</span>
+                    </span>
+                  </div>
+                  <div style={{height:4,background:T.line,borderRadius:2,overflow:"hidden"}}>
+                    <div style={{
+                      height:"100%",borderRadius:2,transition:"width .5s cubic-bezier(0.4, 0, 0.2, 1)",
+                      width:`${Math.min(100,(todayCount/plan.daily)*100)}%`,
+                      background:todayCount>=plan.daily?T.red:todayCount/plan.daily>0.8?T.amber:T.green,
+                      boxShadow:`0 0 10px ${todayCount>=plan.daily?T.red:T.green}30`,
+                    }}/>
+                  </div>
+                  <div style={{marginTop:12,fontSize:11,color:T.muted,fontFamily:"'IBM Plex Sans',sans-serif",lineHeight:1.6, opacity:0.8}}>
+                    {plan.model} · {plan.concurrent} concurrent max
+                    {todayCount>=plan.daily && <div style={{color:T.red,marginTop:4,fontWeight:600}}>⛔ Daily limit reached. Resets at midnight UTC.</div>}
+                  </div>
+                </div>
               </div>
             </div>
+          )}
 
-            <button onClick={resetApp} style={{
-              width:"100%", padding:"12px", borderRadius:6,
-              background:"transparent", border:`1px solid ${T.red}40`,
-              color:T.red, fontFamily:"'JetBrains Mono',monospace", fontSize:11,
-              fontWeight:700, letterSpacing:"0.1em", cursor:"pointer",
-            }}>FULL SYSTEM RESET</button>
-            <div style={{marginTop:8, fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:T.muted, textAlign:"center", opacity:0.7}}>
-              Deletes all local settings, API keys, and Service Worker cache.
+          {tab === "network" && (
+            <div style={{animation:"fadeIn .2s ease", display:"flex", flexDirection:"column", gap:20}}>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+                {[
+                  {l:"TRANSFERRED",v:fmtBytes(total),c:T.green, desc:"Total data downloaded"},
+                  {l:"DATA SAVED", v:`${reduction}%`,c:T.purple, desc:"Bandwidth efficiency"},
+                  {l:"WEB EQUIV.",  v:fmtBytes(webEst),c:T.amber, desc:"Simulated standard web cost"},
+                  {l:"REQUESTS",   v:log.length,c:T.blue, desc:"Total API calls made"},
+                ].map(s=>(
+                  <div key={s.l} style={{background:T.surfaceHi,border:`1px solid ${T.border}`,borderRadius:12,padding:16}}>
+                    <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted,letterSpacing:"0.1em",marginBottom:6,fontWeight:700}}>{s.l}</div>
+                    <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:22,fontWeight:900,color:s.c,marginBottom:4}}>{s.v}</div>
+                    <div style={{fontSize:9, color:T.dim, fontFamily:"'IBM Plex Sans',sans-serif", lineHeight:1.2}}>{s.desc}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{background:T.amberDim,border:`1px solid ${T.amber}20`,borderRadius:12,padding:16,fontFamily:"'IBM Plex Sans',sans-serif",fontSize:12,color:T.amber,lineHeight:1.6, display:"flex", gap:12, alignItems:"center"}}>
+                <span style={{fontSize:20}}>⚡</span>
+                <div>Smart delta-polling is active. Bandwidth is conserved by only fetching session changes.</div>
+              </div>
+
+              <div style={{marginTop:8}}>
+                <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted,letterSpacing:"0.08em",marginBottom:12,fontWeight:700}}>RECENT ACTIVITY LOG</div>
+                <div style={{background:T.surfaceHi, borderRadius:12, border:`1px solid ${T.border}`, overflow:"hidden"}}>
+                  {log.length===0
+                    ?<div style={{textAlign:"center",padding:"32px",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.muted}}>No requests recorded</div>
+                    :log.map((r,i)=>(
+                      <div key={r.id} style={{display:"flex",gap:12,alignItems:"center",padding:"12px 16px",borderBottom:i<log.length-1?`1px solid ${T.border}`:"none"}}>
+                        <div style={{width:6,height:6,borderRadius:"50%",background:T.green,flexShrink:0,boxShadow:`0 0 6px ${T.green}40`}}/>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontWeight:500}}>{r.label}</div>
+                          <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted,marginTop:2}}>{fmtAgo(r.ts)}</div>
+                        </div>
+                        <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.green,flexShrink:0,fontWeight:700}}>{fmtBytes(r.bytes)}</div>
+                      </div>
+                    ))
+                  }
+                </div>
+              </div>
             </div>
+          )}
+
+          {tab === "storage" && (
+            <div style={{animation:"fadeIn .2s ease", display:"flex", flexDirection:"column", gap:24}}>
+              <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:12}}>
+                <div style={{background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:12, padding:18, display:"flex", flexDirection:"column"}}>
+                  <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:12}}>
+                    <Ic n="database" s={14} c={T.purple}/>
+                    <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:700, color:T.muted}}>APP DATA</span>
+                  </div>
+                  <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:24, fontWeight:900, color:T.text, marginBottom:16}}>{storage ? fmtBytes(storage.used/1024) : "..."}<span style={{fontSize:10, color:T.dim, marginLeft:4, fontWeight:500}}>USED</span></div>
+                  <button onClick={clearDataOnly} style={{
+                    width:"100%", padding:"10px", borderRadius:8, background:`${T.purple}15`, border:`1px solid ${T.purple}30`,
+                    color:T.purple, fontSize:10, fontWeight:800, fontFamily:"'JetBrains Mono',monospace", cursor:"pointer",
+                    transition:"all .2s"
+                  }} onMouseEnter={e=>e.currentTarget.style.background=`${T.purple}25`} onMouseLeave={e=>e.currentTarget.style.background=`${T.purple}15`}>CLEAR DATA</button>
+                </div>
+
+                <div style={{background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:12, padding:18, display:"flex", flexDirection:"column"}}>
+                  <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:12}}>
+                    <Ic n="layers" s={14} c={T.blue}/>
+                    <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:700, color:T.muted}}>CACHE</span>
+                  </div>
+                  <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:24, fontWeight:900, color:T.text, marginBottom:16}}>{storage ? fmtBytes(storage.cache/1024) : "..."}<span style={{fontSize:10, color:T.dim, marginLeft:4, fontWeight:500}}>TOTAL</span></div>
+                  <button onClick={clearCacheOnly} style={{
+                    width:"100%", padding:"10px", borderRadius:8, background:`${T.blue}15`, border:`1px solid ${T.blue}30`,
+                    color:T.blue, fontSize:10, fontWeight:800, fontFamily:"'JetBrains Mono',monospace", cursor:"pointer",
+                    transition:"all .2s"
+                  }} onMouseEnter={e=>e.currentTarget.style.background=`${T.blue}25`} onMouseLeave={e=>e.currentTarget.style.background=`${T.blue}15`}>CLEAR CACHE</button>
+                </div>
+              </div>
+
+              <div style={{background:"rgba(255,85,102,0.03)", border:`1px dashed ${T.red}30`, borderRadius:12, padding:24, textAlign:"center"}}>
+                <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:12, color:T.red, fontWeight:800, marginBottom:8, letterSpacing:"0.1em"}}>DANGER ZONE</div>
+                <div style={{fontFamily:"'IBM Plex Sans',sans-serif", fontSize:13, color:T.muted, marginBottom:20, lineHeight:1.6}}>
+                  This will perform a full system purge, including API keys and all local session data. Use with caution.
+                </div>
+                <button onClick={resetApp} style={{
+                  width:"100%", maxWidth:240, padding:"12px 20px", borderRadius:8,
+                  background:T.red, border:"none",
+                  color:"#000", fontFamily:"'JetBrains Mono',monospace", fontSize:12,
+                  fontWeight:900, letterSpacing:"0.1em", cursor:"pointer",
+                  boxShadow:`0 8px 24px ${T.red}40`, transition:"transform .2s"
+                }} onMouseEnter={e=>e.currentTarget.style.transform="scale(1.02)"} onMouseLeave={e=>e.currentTarget.style.transform="scale(1)"}>FULL SYSTEM RESET</button>
+              </div>
+            </div>
+          )}
+
+          <div style={{marginTop:60, paddingBottom:40, textAlign:"center"}}>
+            <Btn onClick={onBack} outline sm style={{margin:"0 auto", opacity:0.6}}>CLOSE SETTINGS</Btn>
           </div>
         </div>
       </div>
@@ -2722,11 +2841,12 @@ const NetworkMonitor = ({ onBack, isDesktop }) => {
   );
 };
 
+
 // ─── Session List ─────────────────────────────────────────────────────────────
 const FILTERS = ["ALL","QUEUED","PLANNING","AWAITING_PLAN_APPROVAL","IN_PROGRESS","COMPLETED","FAILED"];
 const FILTER_LABELS = { AWAITING_PLAN_APPROVAL:"APPROVE", ALL:"ALL" };
 
-const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selectedId, isDesktop, onNew, onNetwork, pollInterval, setPollInterval, sessionLimit, setSessionLimit, layoutMode, setLayoutMode, countdown, plan, planId, setPlanId, todayCount, customDaily, setCustomDaily, searchQuery, setSearchQuery, archivedIds, showArchived, setShowArchived }) => {
+const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selectedId, isDesktop, onNew, onNetwork, onSettings, pollInterval, sessionLimit, countdown, plan, todayCount, searchQuery, setSearchQuery, archivedIds, showArchived, setShowArchived }) => {
   const [filter,setFilter] = useState("ALL");
   const [scrolled, handleScroll] = useScrollThreshold();
   const [searchOpen, setSearchOpen] = useState(false);
@@ -2779,33 +2899,12 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
               <Ic n="search" s={15} c={searchOpen||searchQuery?T.blue:T.muted}/>
             </button>
             {isDesktop&&(
-              <>
-                <button onClick={onNew} title="New Session" style={{width:30,height:30,borderRadius:5,background:T.greenDim,border:`1px solid ${T.green}40`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}>
-                  <Ic n="plus" s={15} c={T.green}/>
-                </button>
-                <button onClick={onNetwork} title="Network Monitor" style={{width:30,height:30,borderRadius:5,background:T.surfaceHi,border:`1px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}>
-                  <Ic n="wifi" s={15} c={T.muted}/>
-                </button>
-              </>
+              <button onClick={onNew} title="New Session" style={{width:30,height:30,borderRadius:5,background:T.greenDim,border:`1px solid ${T.green}40`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}>
+                <Ic n="plus" s={15} c={T.green}/>
+              </button>
             )}
-            {/* Countdown badge */}
-            {pollInterval > 0 && (
-              <div style={{padding:"3px 8px",borderRadius:20,background:T.greenDim,border:`1px solid ${T.green}30`,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.green,display:"flex",alignItems:"center",gap:4,flexShrink:0}}>
-                <span style={{width:4,height:4,borderRadius:"50%",background:T.green,animation:"dot 2s ease-in-out infinite"}}/>
-                {fmtBytes(netSnap.total)}
-                <span style={{color:T.muted,margin:"0 1px"}}>·</span>
-                <span style={{color:T.amber}}>{countdown}s</span>
-              </div>
-            )}
-            {pollInterval === 0 && (
-              <div style={{padding:"3px 8px",borderRadius:20,background:T.dim,border:`1px solid ${T.border}`,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted,display:"flex",alignItems:"center",gap:4,flexShrink:0}}>
-                {fmtBytes(netSnap.total)}
-                <span style={{color:T.dim,margin:"0 1px"}}>·</span>
-                <span>PAUSED</span>
-              </div>
-            )}
-            <button onClick={()=>setLayoutMode(isDesktop?"mobile":"desktop")} title="Toggle Layout" style={{background:"none",border:"none",cursor:"pointer",display:"flex",padding:3}}>
-              <Ic n="layout_toggle" s={16} c={layoutMode==="auto"?T.muted:T.green}/>
+            <button onClick={onSettings} title="Settings" style={{width:30,height:30,borderRadius:5,background:T.surfaceHi,border:`1px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}>
+              <Ic n="settings" s={15} c={T.muted}/>
             </button>
             <button onClick={onRefresh} disabled={refreshing} title="Refresh now" style={{background:"none",border:"none",cursor:refreshing?"default":"pointer",display:"flex",padding:3,animation:refreshing?"spin 1s linear infinite":"none",transformOrigin:"center"}}>
               <Ic n="refresh" s={15} c={refreshing?T.green:T.muted}/>
@@ -2849,54 +2948,6 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
           </div>
         )}
 
-        {/* ── Interval picker ── */}
-        <div style={{
-          display:"flex",gap:4,alignItems:"center",
-          height:scrolled?0:22, overflow:"hidden", opacity:scrolled?0:1,
-          marginBottom:scrolled?0:6, flexWrap:"nowrap", overflowX:"auto",
-          scrollbarWidth:"none", padding:scrolled?0:"4px 2px",
-          transition:"all .25s ease",
-          pointerEvents:scrolled?"none":"auto",
-        }}>
-          <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted,letterSpacing:"0.08em",flexShrink:0,paddingRight:2}}>AUTO</span>
-          {POLL_OPTIONS.map(opt => {
-            const isAct = opt.ms === pollInterval;
-            const c = isAct ? (opt.ms===0 ? T.red : T.green) : T.muted;
-            return (
-              <button key={opt.label} onClick={()=>setPollInterval(opt.ms)} style={{
-                flexShrink:0,padding:"3px 9px",borderRadius:20,border:"none",
-                background:isAct?(opt.ms===0?T.redDim:T.greenDim):"transparent",
-                outline:`1px solid ${isAct?(opt.ms===0?T.red+"60":T.green+"60"):T.border}`,
-                color:c,fontFamily:"'JetBrains Mono',monospace",fontSize:11,fontWeight:isAct?700:400,
-                letterSpacing:"0.05em",cursor:"pointer",transition:"all .12s",
-              }}>{opt.label}</button>
-            );
-          })}
-        </div>
-
-        {/* ── Limit picker ── */}
-        <div style={{
-          display:"flex",gap:4,alignItems:"center",
-          height:scrolled?0:22, overflow:"hidden", opacity:scrolled?0:1,
-          marginBottom:scrolled?0:4, flexWrap:"nowrap", overflowX:"auto",
-          scrollbarWidth:"none", padding:scrolled?0:"4px 2px",
-          transition:"all .25s ease",
-          pointerEvents:scrolled?"none":"auto",
-        }}>
-          <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted,letterSpacing:"0.08em",flexShrink:0,paddingRight:2}}>LIMIT</span>
-          {LIMIT_OPTIONS.map(opt => {
-            const isAct = opt.val === sessionLimit;
-            return (
-              <button key={opt.label} onClick={()=>setSessionLimit(opt.val)} style={{
-                flexShrink:0,padding:"3px 9px",borderRadius:20,border:"none",
-                background:isAct?T.greenDim:"transparent",
-                outline:`1px solid ${isAct?T.green+"60":T.border}`,
-                color:isAct?T.green:T.muted,fontFamily:"'JetBrains Mono',monospace",fontSize:11,fontWeight:isAct?700:400,
-                letterSpacing:"0.05em",cursor:"pointer",transition:"all .12s",
-              }}>{opt.label}</button>
-            );
-          })}
-        </div>
 
         {/* ── View Toggle (Active/Archive) ── */}
         {isDesktop && (
@@ -2926,85 +2977,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
           </div>
         )}
 
-        {/* ── Layout picker ── */}
-        <div style={{
-          display:"flex",gap:4,alignItems:"center",
-          height:scrolled?0:22, overflow:"hidden", opacity:scrolled?0:1,
-          marginBottom:scrolled?0:8, flexWrap:"nowrap", overflowX:"auto",
-          scrollbarWidth:"none", padding:scrolled?0:"4px 2px",
-          transition:"all .25s ease",
-          pointerEvents:scrolled?"none":"auto",
-        }}>
-          <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted,letterSpacing:"0.08em",flexShrink:0,paddingRight:2}}>LAYOUT</span>
-          {LAYOUT_OPTIONS.map(opt => {
-            const isAct = opt.id === layoutMode;
-            return (
-              <button key={opt.id} onClick={()=>setLayoutMode(opt.id)} style={{
-                flexShrink:0,padding:"3px 9px",borderRadius:20,border:"none",
-                background:isAct?T.blueDim:"transparent",
-                outline:`1px solid ${isAct?T.blue+"60":T.border}`,
-                color:isAct?T.blue:T.muted,fontFamily:"'JetBrains Mono',monospace",fontSize:11,fontWeight:isAct?700:400,
-                letterSpacing:"0.05em",cursor:"pointer",transition:"all .12s",
-              }}>{opt.label}</button>
-            );
-          })}
-        </div>
 
-        {/* ── Daily quota bar ── */}
-        {plan&&(
-          <div style={{
-            maxHeight:scrolled?0:100, overflow:"hidden", opacity:scrolled?0:1,
-            marginBottom:scrolled?0:8, padding:scrolled?0:"4px 2px",
-            transition:"all .25s ease",
-            pointerEvents:scrolled?"none":"auto",
-          }}>
-            <div style={{display:"flex",justifyContent:"space-between",marginBottom:4,alignItems:"center"}}>
-              <div style={{display:"flex",gap:5,alignItems:"center",overflowX:"auto",scrollbarWidth:"none",padding:"4px 0"}}>
-                {PLANS.map(p=>(
-                  <button key={p.id} onClick={()=>setPlanId&&setPlanId(p.id)} style={{
-                    flexShrink:0,padding:"2px 8px",borderRadius:20,border:"none",cursor:"pointer",
-                    background:p.id===planId?T.greenDim:"transparent",
-                    outline:`1px solid ${p.id===planId?T.green+"60":T.border}`,
-                    color:p.id===planId?T.green:T.muted,
-                    fontFamily:"'JetBrains Mono',monospace",fontSize:10,fontWeight:p.id===planId?700:400,
-                    transition:"all .12s",letterSpacing:"0.05em",
-                  }}>{p.label}</button>
-                ))}
-              </div>
-              <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:todayCount>=plan.daily?T.red:T.muted,flexShrink:0,marginLeft:8}}>
-                {todayCount}/{plan.daily} <span style={{color:T.dim}}>today</span>
-              </span>
-            </div>
-            {planId==="custom" && (
-              <div style={{display:"flex", alignItems:"center", gap:6, marginBottom:6}}>
-                <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.muted}}>DAILY LIMIT:</span>
-                <input
-                  type="number"
-                  value={customDaily}
-                  onChange={e=>setCustomDaily(Math.max(1, parseInt(e.target.value)||1))}
-                  style={{
-                    background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:4,
-                    padding:"2px 6px", color:T.green, fontFamily:"'JetBrains Mono',monospace",
-                    fontSize:11, width:50, outline:"none",
-                  }}
-                />
-              </div>
-            )}
-            <div style={{height:3,background:T.border,borderRadius:2,overflow:"hidden"}}>
-              <div style={{
-                height:"100%",borderRadius:2,transition:"width .4s ease",transform:"translateZ(0)",
-                width:`${Math.min(100,(todayCount/plan.daily)*100)}%`,
-                background:todayCount>=plan.daily?T.red:todayCount/plan.daily>0.8?T.amber:T.green,
-                boxShadow:`0 0 4px ${todayCount>=plan.daily?T.red:T.green}60`,
-              }}/>
-            </div>
-            {todayCount>=plan.daily&&(
-              <div style={{marginTop:4,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.red}}>
-                ⛔ Daily limit reached — resets in ~{Math.ceil((new Date(new Date().toISOString().slice(0,10)+"T00:00:00Z").getTime()+86400000-Date.now())/3600000)}h
-              </div>
-            )}
-          </div>
-        )}
         {/* ── Status filter pills ── */}
         <div style={{
           overflowX:"auto", padding:scrolled?0:"4px 2px 10px", scrollbarWidth:"none", WebkitOverflowScrolling:"touch",
@@ -3061,7 +3034,6 @@ function JulesClient() {
   const [pollInterval,setPollIntervalRaw] = useState(loadPollMs);
   const [actPollInterval,setActPollIntervalRaw] = useState(loadActPollMs);
   const [sessionLimit,setSessionLimitRaw] = useState(loadLimit);
-  const [layoutMode,setLayoutModeRaw]     = useState(loadLayout);
   const [planId,setPlanIdRaw]      = useState(loadPlan);
   const [customDaily,setCustomDailyRaw] = useState(loadCustomDaily);
   const [todayCount,setTodayCount] = useState(loadTodayCount);
@@ -3073,12 +3045,7 @@ function JulesClient() {
   const [showArchived, setShowArchived] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const windowIsDesktop = useIsDesktop();
-  const isDesktop = useMemo(() => {
-    if (layoutMode === "mobile") return false;
-    if (layoutMode === "desktop") return true;
-    return windowIsDesktop;
-  }, [layoutMode, windowIsDesktop]);
+  const isDesktop = useIsDesktop();
 
   const setPlanId = useCallback(id => { savePlan(id); setPlanIdRaw(id); }, []);
   const setCustomDaily = useCallback(v => { saveCustomDaily(v); setCustomDailyRaw(v); }, []);
@@ -3127,11 +3094,6 @@ function JulesClient() {
     setSessionLimitRaw(v);
   }, []);
 
-  const setLayoutMode = useCallback(v => {
-    saveLayout(v);
-    setLayoutModeRaw(v);
-  }, []);
-
   const fetchSessions = useCallback(async (quiet=false) => {
     if (!apiKey) return;
     if (!quiet) setRefreshing(true);
@@ -3162,6 +3124,7 @@ function JulesClient() {
 
   const handleDelete = useCallback(id => {
     setSessions(prev => prev.filter(s=>s.id!==id));
+    try { localStorage.removeItem(`jac_draft_${id}`); } catch {}
     setSelected(null);
     setDesktop("empty");
     setMobile("list");
@@ -3203,15 +3166,13 @@ function JulesClient() {
             sessions={sessions} onSelect={handleSelect} onRefresh={()=>fetchSessions()}
             refreshing={refreshing} netSnap={netSnap} selectedId={selected?.id}
             isDesktop onNew={()=>setDesktop("new")} onNetwork={()=>setDesktop("network")}
-            pollInterval={pollInterval} setPollInterval={setPollInterval}
-            sessionLimit={sessionLimit} setSessionLimit={setSessionLimit}
-            layoutMode={layoutMode} setLayoutMode={setLayoutMode}
+            onSettings={()=>setDesktop("settings")}
+            pollInterval={pollInterval}
+            sessionLimit={sessionLimit}
             countdown={countdown}
-            plan={plan} planId={planId} setPlanId={setPlanId} todayCount={todayCount}
-            customDaily={customDaily} setCustomDaily={setCustomDaily}
+            plan={plan} todayCount={todayCount}
             searchQuery={searchQuery} setSearchQuery={setSearchQuery}
             archivedIds={archivedIds} showArchived={showArchived} setShowArchived={setShowArchived}
-            onArchive={handleArchive} onUnarchive={handleUnarchive}
           />
         </div>
         {/* Main panel */}
@@ -3238,6 +3199,15 @@ function JulesClient() {
           {desktopView==="network"&&(
             <NetworkMonitor onBack={()=>setDesktop("empty")} isDesktop/>
           )}
+          {desktopView==="settings"&&(
+            <SettingsView onBack={()=>setDesktop("empty")} isDesktop
+              pollInterval={pollInterval} setPollInterval={setPollInterval}
+              actPollInterval={actPollInterval} setActPollInterval={setActPollInterval}
+              sessionLimit={sessionLimit} setSessionLimit={setSessionLimit}
+              planId={planId} setPlanId={setPlanId}
+              customDaily={customDaily} setCustomDaily={setCustomDaily}
+              plan={plan} todayCount={todayCount} />
+          )}
         </div>
       </Shell>
     );
@@ -3250,15 +3220,13 @@ function JulesClient() {
         {mobileScreen==="list"&&(
           <SessionList sessions={sessions} onSelect={handleSelect} onRefresh={()=>fetchSessions()}
             refreshing={refreshing} netSnap={netSnap} selectedId={null} isDesktop={false}
-            pollInterval={pollInterval} setPollInterval={setPollInterval}
-            sessionLimit={sessionLimit} setSessionLimit={setSessionLimit}
-            layoutMode={layoutMode} setLayoutMode={setLayoutMode}
+            onSettings={()=>setMobile("settings")}
+            pollInterval={pollInterval}
+            sessionLimit={sessionLimit}
             countdown={countdown}
-            plan={plan} planId={planId} setPlanId={setPlanId} todayCount={todayCount}
-            customDaily={customDaily} setCustomDaily={setCustomDaily}
+            plan={plan} todayCount={todayCount}
             searchQuery={searchQuery} setSearchQuery={setSearchQuery}
-            archivedIds={archivedIds} showArchived={showArchived} setShowArchived={setShowArchived}
-            onArchive={handleArchive} onUnarchive={handleUnarchive} />
+            archivedIds={archivedIds} showArchived={showArchived} setShowArchived={setShowArchived} />
         )}
         {mobileScreen==="detail"&&selected&&(
           <SessionDetail key={selected.id} session={selected} apiKey={apiKey}
@@ -3274,13 +3242,22 @@ function JulesClient() {
         {mobileScreen==="network"&&(
           <NetworkMonitor onBack={()=>setMobile("list")} isDesktop={false}/>
         )}
+        {mobileScreen==="settings"&&(
+          <SettingsView onBack={()=>setMobile("list")} isDesktop={false}
+            pollInterval={pollInterval} setPollInterval={setPollInterval}
+            actPollInterval={actPollInterval} setActPollInterval={setActPollInterval}
+            sessionLimit={sessionLimit} setSessionLimit={setSessionLimit}
+            planId={planId} setPlanId={setPlanId}
+            customDaily={customDaily} setCustomDaily={setCustomDaily}
+            plan={plan} todayCount={todayCount} />
+        )}
       </div>
       <nav style={{display:"flex",borderTop:`1px solid ${T.border}`,background:T.surface,transform:"translateZ(0)",flexShrink:0}}>
         {[
-          {id:"list",   n:"tasks", label:"SESSIONS", onClick:() => { setShowArchived(false); setMobile("list"); }},
-          {id:"archive",n:"archive", label:"ARCHIVE", onClick:() => { setShowArchived(true); setMobile("list"); }},
-          {id:"new",    n:"plus",  label:"NEW", onClick:() => setMobile("new")},
-          {id:"network",n:"wifi",  label:"NET", onClick:() => setMobile("network")},
+          {id:"list",    n:"tasks", label:"SESSIONS", onClick:() => { setShowArchived(false); setMobile("list"); }},
+          {id:"archive", n:"archive", label:"ARCHIVE", onClick:() => { setShowArchived(true); setMobile("list"); }},
+          {id:"new",     n:"plus",  label:"NEW", onClick:() => setMobile("new")},
+          {id:"settings",n:"settings", label:"SETTINGS", onClick:() => setMobile("settings")},
         ].map(({id,n,label,onClick})=>{
           const isAct = (id === "list" && !showArchived && (mobileScreen === "list" || mobileScreen === "detail")) ||
                         (id === "archive" && showArchived && (mobileScreen === "list" || mobileScreen === "detail")) ||
