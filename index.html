@@ -1622,13 +1622,13 @@ const SessionCard = memo(({ s, onPress, isSelected, index }) => {
           <Pill status={s.state} small/>
           {pr && (
             <div style={{
-              display:"flex", alignItems:"center", gap:3,
-              background:T.greenDim, border:`1px solid ${T.green}40`, borderRadius:4,
-              padding:"2px 6px", color:T.green, fontFamily:"'JetBrains Mono',monospace",
-              fontSize:10, fontWeight:800,
+              display:"flex", alignItems:"center", gap:4,
+              background:T.greenDim, border:`1px solid ${T.green}50`, borderRadius:4,
+              padding:"3px 7px", color:T.green, fontFamily:"'JetBrains Mono',monospace",
+              fontSize:11, fontWeight:900, boxShadow:`0 2px 6px ${T.green}15`,
             }}>
-              <Ic n="git_pull" s={11} c={T.green}/>
-              #{pr.number}
+              <Ic n="git_pull" s={12} c={T.green}/>
+              PR #{pr.number}
             </div>
           )}
         </div>
@@ -2035,6 +2035,30 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
           {session.url && <a href={session.url} target="_blank" rel="noopener" style={{color:T.muted,textDecoration:"none",flexShrink:0,fontFamily:"'JetBrains Mono',monospace",fontSize:11}}>WEB↗</a>}
         </div>
 
+        {pr && (
+          <div style={{
+            maxHeight:scrolled?0:60, opacity:scrolled?0:1, overflow:"hidden",
+            marginBottom:scrolled?0:10, transition:"all .25s ease",
+            pointerEvents:scrolled?"none":"auto",
+          }}>
+            <a href={pr.url} target="_blank" rel="noopener" style={{
+              display:"flex", alignItems:"center", gap:10, padding:"10px 14px",
+              background:T.greenDim, border:`1px solid ${T.green}40`, borderRadius:8,
+              color:T.green, textDecoration:"none", transition:"transform .15s",
+              boxShadow:`0 4px 12px ${T.green}20`,
+            }}>
+              <div style={{width:32, height:32, borderRadius:6, background:T.green, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0}}>
+                <Ic n="git_pull" s={18} c="#000"/>
+              </div>
+              <div style={{flex:1}}>
+                <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:13, fontWeight:900, letterSpacing:"0.05em"}}>PULL REQUEST CREATED</div>
+                <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, opacity:0.8}}>View and merge PR #{pr.number} on GitHub</div>
+              </div>
+              <Ic n="chevron_right" s={16} c={T.green}/>
+            </a>
+          </div>
+        )}
+
         {session.state==="AWAITING_PLAN_APPROVAL"&&(
           <div style={{marginBottom:8,padding:"7px 10px",background:T.purpleDim,border:`1px solid ${T.purple}40`,borderRadius:5,display:"flex",alignItems:"center",gap:8,cursor:"pointer"}} onClick={()=>setTab("plan")}>
             <span style={{width:6,height:6,borderRadius:"50%",background:T.purple,animation:"dot 1.2s ease-in-out infinite",flexShrink:0}}/>
@@ -2068,6 +2092,16 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
               fontFamily:"'IBM Plex Sans',sans-serif", fontSize:14, color:T.text,
               lineHeight:1.55, whiteSpace:"pre-wrap",
             }}>{summary.summary}</div>
+            {pr && (
+              <a href={pr.url} target="_blank" rel="noopener" style={{
+                display:"inline-flex", alignItems:"center", gap:6, marginTop:12,
+                color:T.green, textDecoration:"none", fontFamily:"'JetBrains Mono',monospace",
+                fontSize:12, fontWeight:700, borderBottom:`1px solid ${T.green}40`
+              }}>
+                <Ic n="git_pull" s={13} c={T.green}/>
+                VIEW PULL REQUEST #{pr.number}
+              </a>
+            )}
           </div>
         )}
 
