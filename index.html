@@ -970,7 +970,23 @@ const TimelineEvent = memo(({ act, onMediaClick }) => {
       if (isMerge) { ic.c = T.purple; ic.n = "git_merge"; }
       break;
     }
-    case "sessionCompleted": title = "Session completed"; break;
+    case "sessionCompleted":
+      title = "Session completed";
+      const pr = act.sessionCompleted?.outputs?.find(o => o.githubPullRequest)?.githubPullRequest;
+      detail = pr && (
+        <div style={{marginTop:8}}>
+          <a href={pr.url} target="_blank" rel="noopener" style={{
+            display:"inline-flex", alignItems:"center", gap:6, padding:"6px 12px",
+            background:T.greenDim, border:`1px solid ${T.green}40`, borderRadius:6,
+            color:T.green, textDecoration:"none", fontFamily:"'JetBrains Mono',monospace",
+            fontSize:12, fontWeight:700
+          }}>
+            <Ic n="git_pull" s={14} c={T.green}/>
+            VIEW PULL REQUEST #{pr.number}
+          </a>
+        </div>
+      );
+      break;
     case "sessionFailed":
       title = "Session failed";
       detail = act.sessionFailed?.reason && (
@@ -1602,17 +1618,24 @@ const SessionCard = memo(({ s, onPress, isSelected, index }) => {
           {repo&&<div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted,fontWeight:600,marginBottom:6,letterSpacing:"0.05em",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{repo}</div>}
           <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:15,fontWeight:600,color:T.text,lineHeight:1.45,overflow:"hidden",textOverflow:"ellipsis",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>{s.title||s.prompt}</div>
         </div>
-        <Pill status={s.state} small/>
+        <div style={{display:"flex", flexDirection:"column", alignItems:"flex-end", gap:6, flexShrink:0}}>
+          <Pill status={s.state} small/>
+          {pr && (
+            <div style={{
+              display:"flex", alignItems:"center", gap:3,
+              background:T.greenDim, border:`1px solid ${T.green}40`, borderRadius:4,
+              padding:"2px 6px", color:T.green, fontFamily:"'JetBrains Mono',monospace",
+              fontSize:10, fontWeight:800,
+            }}>
+              <Ic n="git_pull" s={11} c={T.green}/>
+              #{pr.number}
+            </div>
+          )}
+        </div>
       </div>
       <Bar pct={pct} status={s.state}/>
       <div style={{display:"flex",alignItems:"center",gap:10,marginTop:6,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted}}>
         <span>{fmtAgo(new Date(s.updateTime||s.createTime).getTime())}</span>
-        {pr && (
-          <div style={{display:"flex", alignItems:"center", gap:4, color:T.green, fontWeight:700, fontSize:10}}>
-            <Ic n="git_pull" s={12} c={T.green}/>
-            PR #{pr.number}
-          </div>
-        )}
         <span style={{marginLeft:"auto",fontSize:10,color:T.dim,background:T.surfaceHi,padding:"1px 5px",borderRadius:2}}>{s.id?.slice(0,8)}</span>
       </div>
     </button>
@@ -1969,6 +1992,17 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
                 </button>
               </>
             )}
+            {pr && (
+              <a href={pr.url} target="_blank" rel="noopener" style={{
+                background:T.greenDim, border:`1px solid ${T.green}40`, borderRadius:4,
+                padding:scrolled?"2px 6px":"4px 8px", display:"flex", alignItems:"center", gap:4,
+                color:T.green, textDecoration:"none", fontFamily:"'JetBrains Mono',monospace",
+                fontSize:scrolled?10:11, fontWeight:800, transition:"all .2s"
+              }}>
+                <Ic n="git_pull" s={scrolled?12:13} c={T.green}/>
+                PR #{pr.number}
+              </a>
+            )}
             <Pill status={session.state} small/>
           </div>
         </div>
@@ -1999,16 +2033,6 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
             </span>
           )}
           {session.url && <a href={session.url} target="_blank" rel="noopener" style={{color:T.muted,textDecoration:"none",flexShrink:0,fontFamily:"'JetBrains Mono',monospace",fontSize:11}}>WEB↗</a>}
-          {pr && (
-            <a href={pr.url} target="_blank" rel="noopener" style={{
-              color:T.green, textDecoration:"none", flexShrink:0,
-              fontFamily:"'JetBrains Mono',monospace", fontSize:11,
-              fontWeight:700, display:"flex", alignItems:"center", gap:4
-            }}>
-              <Ic n="git_pull" s={13} c={T.green}/>
-              PR #{pr.number}
-            </a>
-          )}
         </div>
 
         {session.state==="AWAITING_PLAN_APPROVAL"&&(
