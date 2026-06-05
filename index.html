@@ -609,6 +609,7 @@ const PATHS = {
   git_pull:"M18 18a3 3 0 100-6 3 3 0 000 6zM6 18a3 3 0 100-6 3 3 0 000 6zM6 6a3 3 0 100-6 3 3 0 000 6zM6 9v6M13 6h3a2 2 0 012 2v7",
   git_merge:"M18 18a3 3 0 100-6 3 3 0 000 6zM6 6a3 3 0 100-6 3 3 0 000 6zM6 21V9a9 9 0 009 9",
   chevron_down:"M6 9l6 6 6-6",
+  chevron_up:"M18 15l-6-6-6 6",
   chevron_right:"M9 18l6-6-6-6",
   database:"M3 5V19C3 20.66 6.13 22 10 22C13.87 22 17 20.66 17 19V5M3 5C3 6.66 6.13 8 10 8C13.87 8 17 6.66 17 5M3 5C3 3.34 6.13 2 10 2C13.87 2 17 3.34 17 5M17 12C17 13.66 13.87 15 10 15C6.13 15 3 13.66 3 12",
   layers:"M12 2L2 7L12 12L22 7L12 2ZM2 17L12 22L22 17M2 12L12 17L22 12",
@@ -1699,8 +1700,12 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
   const [activeMedia,setActiveMedia] = useState(null);
   const [scrolled, handleScrollBase] = useScrollThreshold();
   const [composerVisible, setComposerVisible] = useState(true);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const [showScrollBottom, setShowScrollBottom] = useState(false);
   const lastScrollY = useRef(0);
   const scrollDir = useRef(0); // 1 = down, -1 = up
+
+  const contentRef = useRef(null);
 
   const handleScroll = useCallback(e => {
     handleScrollBase(e);
@@ -1725,6 +1730,9 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
     } else {
       setComposerVisible(true);
     }
+
+    setShowScrollTop(y > 300);
+    setShowScrollBottom(h - y - vh > 300);
 
     lastScrollY.current = y;
   }, [handleScrollBase]);
@@ -1885,6 +1893,19 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
     } catch(e) { setErr(e.message); }
     finally { setBusy(false); }
   };
+
+  useEffect(() => {
+    const el = contentRef.current;
+    if (el) {
+      const check = () => {
+        setShowScrollTop(el.scrollTop > 300);
+        setShowScrollBottom(el.scrollHeight - el.scrollTop - el.offsetHeight > 300);
+      };
+      check();
+      window.addEventListener("resize", check);
+      return () => window.removeEventListener("resize", check);
+    }
+  }, [activities, tab]);
 
   // Used by PlanView to send revision requests
   const handleSendFeedback = useCallback(async (prompt, stayOnTab = false) => {
@@ -2183,7 +2204,7 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
       </div>
 
       {/* ── Content ── */}
-      <div onScroll={handleScroll} style={{flex:1,overflowY:"auto",padding:"14px 16px",paddingBottom:isDesktop?80:220,WebkitOverflowScrolling:"touch",minHeight:200,position:"relative"}}>
+      <div ref={contentRef} onScroll={handleScroll} style={{flex:1,overflowY:"auto",padding:"14px 16px",paddingBottom:isDesktop?80:220,WebkitOverflowScrolling:"touch",minHeight:200,position:"relative"}}>
         {tab==="activity"&&(
           activities.length===0
           ?<div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.muted}}>
@@ -2311,6 +2332,51 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
           <div style={{marginTop:4,fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted}}>↵ send · shift+↵ newline</div>
         </div>
       )}
+
+      {/* ── Refined Floating Scroll Actions ── */}
+      <div style={{
+        position:"absolute", right:16,
+        bottom: (isDesktop || composerVisible) ? (isDesktop ? 100 : 220) : 20,
+        display:"flex", flexDirection:"column", gap:12, zIndex:100, pointerEvents:"none",
+        transition:"bottom .3s cubic-bezier(0.4, 0, 0.2, 1)",
+      }}>
+        <button
+          onClick={() => contentRef.current?.scrollTo({ top: 0, behavior: "smooth" })}
+          style={{
+            width:40, height:40, borderRadius:"50%", background:T.surfaceHi,
+            border:`1px solid ${T.borderHi}`, color:T.green, cursor:"pointer",
+            display:"flex", alignItems:"center", justifyContent:"center",
+            boxShadow:"0 8px 24px rgba(0,0,0,0.5)", pointerEvents:"auto",
+            opacity:showScrollTop?1:0, transform:showScrollTop?"scale(1)":"scale(0.8)",
+            transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)",
+            visibility:showScrollTop?"visible":"hidden",
+            outline:"none",
+          }}
+          onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.1)"; e.currentTarget.style.borderColor = T.green; }}
+          onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.borderColor = T.borderHi; }}
+          title="Scroll to top"
+        >
+          <Ic n="chevron_up" s={24} c={T.green}/>
+        </button>
+        <button
+          onClick={() => contentRef.current?.scrollTo({ top: contentRef.current.scrollHeight, behavior: "smooth" })}
+          style={{
+            width:40, height:40, borderRadius:"50%", background:T.surfaceHi,
+            border:`1px solid ${T.borderHi}`, color:T.green, cursor:"pointer",
+            display:"flex", alignItems:"center", justifyContent:"center",
+            boxShadow:"0 8px 24px rgba(0,0,0,0.5)", pointerEvents:"auto",
+            opacity:showScrollBottom?1:0, transform:showScrollBottom?"scale(1)":"scale(0.8)",
+            transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)",
+            visibility:showScrollBottom?"visible":"hidden",
+            outline:"none",
+          }}
+          onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.1)"; e.currentTarget.style.borderColor = T.green; }}
+          onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.borderColor = T.borderHi; }}
+          title="Scroll to bottom"
+        >
+          <Ic n="chevron_down" s={24} c={T.green}/>
+        </button>
+      </div>
     </div>
   );
 };
