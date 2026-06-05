@@ -1700,8 +1700,8 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
   const [activeMedia,setActiveMedia] = useState(null);
   const [scrolled, handleScrollBase] = useScrollThreshold();
   const [composerVisible, setComposerVisible] = useState(true);
-  const [showScrollTop, setShowScrollTop] = useState(false);
-  const [showScrollBottom, setShowScrollBottom] = useState(false);
+  const [showScroll, setShowScroll] = useState(false);
+  const [scrollDirMode, setScrollDirMode] = useState("bottom"); // "top" or "bottom"
   const lastScrollY = useRef(0);
   const scrollDir = useRef(0); // 1 = down, -1 = up
 
@@ -1731,8 +1731,9 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
       setComposerVisible(true);
     }
 
-    setShowScrollTop(y > 300);
-    setShowScrollBottom(h - y - vh > 300);
+    const canScroll = h - vh > 200;
+    setShowScroll(canScroll && (y > 100 || h - y - vh > 100));
+    setScrollDirMode(y > (h - vh) / 2 ? "top" : "bottom");
 
     lastScrollY.current = y;
   }, [handleScrollBase]);
@@ -1898,8 +1899,12 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
     const el = contentRef.current;
     if (el) {
       const check = () => {
-        setShowScrollTop(el.scrollTop > 300);
-        setShowScrollBottom(el.scrollHeight - el.scrollTop - el.offsetHeight > 300);
+        const y = el.scrollTop;
+        const h = el.scrollHeight;
+        const vh = el.offsetHeight;
+        const canScroll = h - vh > 200;
+        setShowScroll(canScroll && (y > 100 || h - y - vh > 100));
+        setScrollDirMode(y > (h - vh) / 2 ? "top" : "bottom");
       };
       check();
       window.addEventListener("resize", check);
@@ -2290,44 +2295,31 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
       <div style={{
         position:"absolute", right:16,
         bottom: (isDesktop || composerVisible) ? (isDesktop ? 100 : 220) : 20,
-        display:"flex", flexDirection:"column", gap:12, zIndex:100, pointerEvents:"none",
+        zIndex:100, pointerEvents:"none",
         transition:"bottom .3s cubic-bezier(0.4, 0, 0.2, 1)",
       }}>
         <button
-          onClick={() => contentRef.current?.scrollTo({ top: 0, behavior: "smooth" })}
+          onClick={() => {
+            const el = contentRef.current;
+            if (!el) return;
+            if (scrollDirMode === "top") el.scrollTo({ top: 0, behavior: "smooth" });
+            else el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+          }}
           style={{
             width:40, height:40, borderRadius:"50%", background:T.surfaceHi,
             border:`1px solid ${T.borderHi}`, color:T.green, cursor:"pointer",
             display:"flex", alignItems:"center", justifyContent:"center",
             boxShadow:"0 8px 24px rgba(0,0,0,0.5)", pointerEvents:"auto",
-            opacity:showScrollTop?1:0, transform:showScrollTop?"scale(1)":"scale(0.8)",
+            opacity:showScroll?1:0, transform:showScroll?"scale(1)":"scale(0.8)",
             transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)",
-            visibility:showScrollTop?"visible":"hidden",
+            visibility:showScroll?"visible":"hidden",
             outline:"none",
           }}
           onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.1)"; e.currentTarget.style.borderColor = T.green; }}
           onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.borderColor = T.borderHi; }}
-          title="Scroll to top"
+          title={scrollDirMode === "top" ? "Scroll to top" : "Scroll to bottom"}
         >
-          <Ic n="chevron_up" s={24} c={T.green}/>
-        </button>
-        <button
-          onClick={() => contentRef.current?.scrollTo({ top: contentRef.current.scrollHeight, behavior: "smooth" })}
-          style={{
-            width:40, height:40, borderRadius:"50%", background:T.surfaceHi,
-            border:`1px solid ${T.borderHi}`, color:T.green, cursor:"pointer",
-            display:"flex", alignItems:"center", justifyContent:"center",
-            boxShadow:"0 8px 24px rgba(0,0,0,0.5)", pointerEvents:"auto",
-            opacity:showScrollBottom?1:0, transform:showScrollBottom?"scale(1)":"scale(0.8)",
-            transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)",
-            visibility:showScrollBottom?"visible":"hidden",
-            outline:"none",
-          }}
-          onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.1)"; e.currentTarget.style.borderColor = T.green; }}
-          onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.borderColor = T.borderHi; }}
-          title="Scroll to bottom"
-        >
-          <Ic n="chevron_down" s={24} c={T.green}/>
+          <Ic n={scrollDirMode === "top" ? "chevron_up" : "chevron_down"} s={24} c={T.green}/>
         </button>
       </div>
     </div>
