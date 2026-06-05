@@ -1940,10 +1940,6 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
     return null;
   }, [activities]);
 
-  const bashOutputs = useMemo(() =>
-    activities.flatMap(a => (a.artifacts||[]).filter(x=>x.bashOutput).map(x=>({...x.bashOutput,ts:a.createTime})))
-  , [activities]);
-
   const mediaArtifacts = useMemo(() =>
     activities.flatMap(a => (a.artifacts||[]).filter(x=>x.media?.data).map(x=>({...x.media,ts:a.createTime})))
   , [activities]);
@@ -1987,7 +1983,6 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
     { id:"activity", label:"CHAT" },
     ...(latestPlan?[{ id:"plan", label:"PLAN" }]:[]),
     { id:"diff",     label:"DIFF" },
-    { id:"bash",     label:"BASH" },
     ...(mediaArtifacts.length>0?[{ id:"media", label:"MEDIA" }]:[]),
   ];
 
@@ -2094,34 +2089,6 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
           {session.url && <a href={session.url} target="_blank" rel="noopener" style={{color:T.muted,textDecoration:"none",flexShrink:0,fontFamily:"'JetBrains Mono',monospace",fontSize:11}}>WEB↗</a>}
         </div>
 
-        {pr && (
-          <div style={{
-            maxHeight:scrolled?0:60, opacity:scrolled?0:1, overflow:"hidden",
-            marginBottom:scrolled?0:10, transition:"all .25s ease",
-            pointerEvents:scrolled?"none":"auto",
-          }}>
-            <a href={pr.url} target="_blank" rel="noopener" style={{
-              display:"flex", alignItems:"center", gap:10, padding:"12px 14px",
-              background:`linear-gradient(135deg, ${T.green}18, ${T.green}08)`,
-              border:`1px solid ${T.green}50`, borderRadius:10,
-              color:T.green, textDecoration:"none", transition:"all .2s",
-              boxShadow:`0 8px 24px -4px ${T.green}30, inset 0 0 12px ${T.green}10`,
-            }}>
-              <div style={{
-                width:36, height:36, borderRadius:8, background:T.green,
-                display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0,
-                boxShadow:`0 0 15px ${T.green}60`,
-              }}>
-                <Ic n="git_pull" s={20} c="#000"/>
-              </div>
-              <div style={{flex:1}}>
-                <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:14, fontWeight:900, letterSpacing:"0.04em", color:"#fff"}}>PULL REQUEST CREATED</div>
-                <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.green, fontWeight:700, opacity:0.9}}>View PR #{pr.number} on GitHub ↗</div>
-              </div>
-              <Ic n="chevron_right" s={16} c={T.green}/>
-            </a>
-          </div>
-        )}
 
         {session.state==="AWAITING_PLAN_APPROVAL"&&(
           <div style={{marginBottom:8,padding:"7px 10px",background:T.purpleDim,border:`1px solid ${T.purple}40`,borderRadius:5,display:"flex",alignItems:"center",gap:8,cursor:"pointer"}} onClick={()=>setTab("plan")}>
@@ -2202,20 +2169,6 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
           />
         )}
         {tab==="diff"&&<DiffViewer patch={diffArtifact?.unidiffPatch||null}/>}
-        {tab==="bash"&&(
-          bashOutputs.length===0
-          ?<div style={{textAlign:"center",padding:"40px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.muted}}>No bash output</div>
-          :bashOutputs.map((b,i)=>(
-            <div key={i} style={{marginBottom:12,background:"#040507",border:`1px solid ${T.border}`,borderRadius:6,overflow:"hidden"}}>
-              <div style={{padding:"5px 10px",background:T.surface,borderBottom:`1px solid ${T.border}`,display:"flex",gap:8,alignItems:"center"}}>
-                <Ic n="terminal" s={11} c={T.muted}/>
-                <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:12,color:T.muted,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{b.command}</span>
-                <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:b.exitCode===0?T.green:T.red,flexShrink:0}}>exit:{b.exitCode}</span>
-              </div>
-              <div style={{padding:"8px 10px",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.text,whiteSpace:"pre-wrap",lineHeight:1.5,maxHeight:300,overflowY:"auto"}}>{b.output}</div>
-            </div>
-          ))
-        )}
         {tab==="media"&&(
           mediaArtifacts.length===0
           ?<div style={{textAlign:"center",padding:"40px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.muted}}>No media artifacts</div>
