@@ -1933,7 +1933,7 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
         method:"POST", body:{ prompt:text }, _label:`Message → ${session.id?.slice(0,6)}`,
       });
       actMapRef.current.delete(tempKey);
-      if (keepTab !== true) setTab("activity"); // switch back to chat to show Jules' response
+      if (stayOnTab !== true) setTab("activity"); // switch back to chat to show Jules' response
       setTimeout(() => { loadActivities(lastTsRef.current); loadSession(); }, 1500);
     } catch(e) {
       setErr(e.message);
