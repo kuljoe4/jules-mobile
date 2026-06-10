@@ -199,7 +199,7 @@
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"
   onload="__splashMsg('COMPILING UI…','transforming jsx · '+__splashElapsed(),72)"
   onerror="__splashMsg('CDN ERROR','babel failed to load',0)"></script>
-<script type="text/babel">
+<script type="text/babel" data-presets="env,react">
 // Signal that Babel compilation is done and React is about to mount
 if (window.__splashMsg) __splashMsg("MOUNTING APP…", "building component tree · " + __splashElapsed(), 88);
 
@@ -285,7 +285,7 @@ async function clearCacheOnly() {
       await Promise.all(keys.map(k => caches.delete(k)));
     }
     alert("Cache cleared.");
-  } catch(e) { alert("Error: " + e.message); }
+  } catch { alert("Error: " + e.message); }
 }
 
 async function clearDataOnly() {
@@ -309,7 +309,7 @@ async function resetApp() {
       await Promise.all(regs.map(r => r.unregister()));
     }
     location.reload(true);
-  } catch(e) {
+  } catch {
     alert("Error: " + e.message);
     location.reload();
   }
@@ -339,7 +339,7 @@ async function getStorageInfo() {
         }
       }
     }
-  } catch(e) {}
+  } catch {}
   return { used: est.usage || 0, quota: est.quota || 0, cache: cacheSize };
 }
 
@@ -854,7 +854,7 @@ const useAutoPoll = (interval, fn) => {
     nextRefAt.current = Date.now() + interval;
     setCountdown(Math.ceil(interval / 1000));
     pollRef.current = setTimeout(async () => {
-      try { await fn(); } catch(e) { console.error("Poll failed", e); }
+      try { await fn(); } catch { console.error("Poll failed", e); }
       finally { schedule(); }
     }, interval);
   }, [interval, fn]);
@@ -1687,7 +1687,7 @@ const SetupScreen = ({ onSave }) => {
     try {
       await apiCall(key.trim(), "/sources?pageSize=1", { _label:"Test auth" });
       onSave(key.trim());
-    } catch(e) { setErr(e.message); }
+    } catch { setErr(e.message); }
     finally { setTesting(false); }
   };
 
@@ -2023,7 +2023,7 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
       // Remove temp, fetch real activities
       actMapRef.current.delete(tempKey);
       setTimeout(() => { loadActivities(); loadSession(); }, 1200);
-    } catch(e) {
+    } catch {
       setErr(e.message);
       setMsg(text);
       actMapRef.current.delete(tempKey);
@@ -2036,7 +2036,7 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
     try {
       await apiCall(apiKey, `/sessions/${session.id}:approvePlan`, { method:"POST", body:{}, _label:`Approve ${session.id?.slice(0,6)}` });
       await loadSession(); await loadActivities(lastTsRef.current);
-    } catch(e) { setErr(e.message); }
+    } catch { setErr(e.message); }
     finally { setBusy(false); }
   };
 
@@ -2080,7 +2080,7 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
       actMapRef.current.delete(tempKey);
       if (stayOnTab !== true) setTab("activity"); // switch back to chat to show Jules' response
       setTimeout(() => { loadActivities(lastTsRef.current); loadSession(); }, 1500);
-    } catch(e) {
+    } catch {
       setErr(e.message);
       actMapRef.current.delete(tempKey);
       setActivities(prev => prev.filter(a => a.id !== tempKey));
@@ -2093,14 +2093,14 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
     try {
       await apiCall(apiKey, `/sessions/${session.id}`, { method:"DELETE", _label:`Delete ${session.id?.slice(0,6)}` });
       onDelete(session.id);
-    } catch(e) { setErr(e.message); setBusy(false); }
+    } catch { setErr(e.message); setBusy(false); }
   };
 
   const handleRefresh = async () => {
     setBusy(true); setErr(null);
     try {
       await Promise.all([loadSession(), loadActivities(null)]);
-    } catch(e) { setErr(e.message); }
+    } catch { setErr(e.message); }
     finally { setBusy(false); }
   };
 
@@ -2652,7 +2652,7 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
           if (last && sorted.some(x => x.name === last)) setSource(last);
           else if (sorted.length > 0) setSource(sorted[0].name);
         }
-      } catch(e) { setErr(e.message); }
+      } catch { setErr(e.message); }
       finally { setLoadSrc(false); }
     })();
   }, []);
@@ -2696,7 +2696,7 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
         saveLastSource(source);
       }
       onCreate(d);
-    } catch(e) { setErr(e.message); setSub(false); }
+    } catch { setErr(e.message); setSub(false); }
   };
 
   const payloadEst = (JSON.stringify({prompt,title,source,branch}).length/1024).toFixed(1);
@@ -3446,7 +3446,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
 
 // ─── Main App ─────────────────────────────────────────────────────────────────
 function JulesClient() {
-  const [apiKey,setApiKey]     = useState(() => { try { return localStorage.getItem("jac_key")||""; } catch { return ""; } });
+  const [apiKey,setApiKey]     = useState(() => { try { return localStorage.getItem("jac_key")||""; } catch (e) { return ""; } });
   const [sessions,setSessions] = useState([]);
   const [activitiesMap, setActivitiesMap] = useState({});
   const [selected,setSelected] = useState(null);

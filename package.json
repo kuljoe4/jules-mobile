@@ -1,0 +1,10 @@
+{
+  "name": "jules-mobile",
+  "version": "1.0.0",
+  "description": "Jules AI coding agent client",
+  "type": "module",
+  "scripts": {
+    "build": "node build.js",
+    "dev": "npm run build && npx http-server dist -p 8080 -c-1 -o"
+  }
+}
