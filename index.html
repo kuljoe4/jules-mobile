@@ -3175,6 +3175,17 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
   const filtered = filter==="ALL" ? baseFiltered : baseFiltered.filter(s=>s.state===filter);
   const active   = sessions.filter(s=>ACTIVE_STATES.has(s.state)).length;
 
+  const quotaUsed = useMemo(() => {
+    const limit = plan?.daily || 15;
+    const window = sessions.slice(0, limit);
+    return window.filter(s => {
+      const pr = getPR(s);
+      const b = getBranchInfo(s, activitiesMap[s.id] || []);
+      const isComplete = pr || b?.isNew || s.state === "COMPLETED";
+      return isComplete || ACTIVE_STATES.has(s.state);
+    }).length;
+  }, [sessions, plan, activitiesMap]);
+
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%",minHeight:0}}>
       <div style={{
@@ -3296,7 +3307,20 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
           maxHeight:scrolled?0:60, opacity:scrolled?0:1, transition:"all .25s ease",
           pointerEvents:scrolled?"none":"auto",
         }}>
-          <div style={{display:"flex",gap:5,minWidth:"max-content",padding:"4px 0"}}>
+          <div style={{display:"flex",gap:5,minWidth:"max-content",padding:"4px 0", alignItems:"center"}}>
+            {/* Quota Indicator */}
+            <div style={{
+              display:"flex", alignItems:"center", gap:6, padding:"4px 10px",
+              borderRadius:20, background:`${T.green}10`, border:`1px solid ${T.green}30`,
+              marginRight:8, flexShrink:0
+            }}>
+              <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:800, color:T.green}}>
+                {quotaUsed}/{plan?.daily || 15}
+              </span>
+              <div style={{width:1, height:10, background:T.green, opacity:0.3}}/>
+              <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700, color:T.muted, letterSpacing:"0.05em"}}>USED</span>
+            </div>
+
             {FILTERS.map(f => {
               const cnt = f==="ALL" ? sessions.length : sessions.filter(s=>s.state===f).length;
               if (cnt===0 && f!=="ALL") return null;
