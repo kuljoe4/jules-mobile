@@ -6,5 +6,11 @@
   "scripts": {
     "build": "node build.js",
     "dev": "npm run build && npx http-server dist -p 8080 -c-1 -o"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.29.7",
+    "@babel/helper-string-parser": "^7.29.7",
+    "@babel/preset-env": "^7.29.7",
+    "@babel/preset-react": "^7.29.7"
   }
 }
