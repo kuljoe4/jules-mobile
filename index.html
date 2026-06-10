@@ -521,10 +521,20 @@ const getBranchInfo = (s, activities = []) => {
     if (m) working = m[1];
   }
 
-  const repo = s.sourceContext?.source?.replace("sources/github/","");
-  const repoUrl = repo ? `https://github.com/${repo}` : null;
+  let repo = s.sourceContext?.source?.replace("sources/github/","");
 
-  return { base, working: working || base, repo, repoUrl, isNew: working && working !== base };
+  // Fallback: extract from PR if found
+  if (!repo || repo.startsWith("sources/")) {
+    const pr = getPR(s);
+    if (pr && pr.url) {
+      const m = pr.url.match(/https:\/\/github\.com\/([^\/]+\/[^\/]+)\/pull/);
+      if (m) repo = m[1];
+    }
+  }
+
+  const repoUrl = repo && !repo.startsWith("sources/") ? `https://github.com/${repo}` : null;
+
+  return { base, working: working || base, repo: repoUrl ? repo : null, repoUrl, isNew: working && working !== base };
 };
 
 const getAheadCount = (activities = []) => {
@@ -2242,6 +2252,7 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
             </span>
           )}
           {session.url && <a href={session.url} target="_blank" rel="noopener" style={{color:T.muted,textDecoration:"none",flexShrink:0,fontFamily:"'JetBrains Mono',monospace",fontSize:11}}>WEB↗</a>}
+          {b?.repo && <a href={`https://github.com/${b.repo}/branches`} target="_blank" rel="noopener" style={{color:T.muted,textDecoration:"none",flexShrink:0,fontFamily:"'JetBrains Mono',monospace",fontSize:11}}>BRANCHES↗</a>}
         </div>
 
 
