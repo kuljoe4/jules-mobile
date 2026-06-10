@@ -476,12 +476,13 @@ const getBranchInfo = (s, activities = []) => {
   // Scan activities for "pushed to <branch>" or similar
   for (const a of activities) {
     const desc = a.progressUpdated?.description || "";
-    // Match common Jules patterns for branch names
-    const m = desc.match(/push(?:ing|ed).* to ([^\s\.\(\)]+)/i) ||
-              desc.match(/branch ([^\s\.\(\)]+)/i) ||
-              desc.match(/created.* branch ([^\s\.\(\)]+)/i);
-    if (m && m[1] !== "main" && m[1] !== "master") {
-      working = m[1].replace(/['"`\.]/g, "");
+    // Match common Jules patterns for branch names, skipping filler words
+    const m = desc.match(/push(?:ing|ed).* to (?:the |a )?([^\s\.\(\)\`]+)/i) ||
+              desc.match(/branch (?:named )?([^\s\.\(\)\`]+)/i) ||
+              desc.match(/created.* branch ([^\s\.\(\)\`]+)/i);
+    if (m) {
+      const bname = m[1].replace(/['"`\.]/g, "");
+      if (bname !== "main" && bname !== "master") working = bname;
     }
   }
 
@@ -1137,7 +1138,7 @@ const TimelineEvent = memo(({ act, onMediaClick }) => {
         {detail&&<div style={{width:1,flex:1,background:T.border,marginTop:3}}/>}
       </div>
       <div style={{flex:1,paddingBottom:detail?12:0,minWidth:0,marginTop:1}}>
-        <div style={{display:"flex",gap:10,alignItems:"center",minHeight:22,marginBottom:detail?20:0}}>
+        <div style={{display:"flex",gap:10,alignItems:"center",minHeight:22,marginBottom:detail?12:0}}>
           <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:12,fontWeight:800,color:ic.c,flex:1,lineHeight:1.3,letterSpacing:"0.02em"}}>{title}</span>
           <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted,fontWeight:600,flexShrink:0}}>{time}</span>
         </div>
@@ -1400,7 +1401,7 @@ const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFeedback,
                 }}>{i+1}</div>
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:15,fontWeight:500,
-                    color:T.text,lineHeight:1.35,marginBottom:st.description?6:0}}>
+                    color:T.text,lineHeight:1.35,marginBottom:st.description?10:0}}>
                     {st.title}
                   </div>
                   {st.description&&(
@@ -3419,15 +3420,15 @@ function JulesClient() {
       const d = await apiCall(apiKey, `/sessions?pageSize=${sessionLimit}`, { _label:"List sessions" });
       const raw = d.sessions || [];
 
-      // For active/recent sessions, fetch a few activities to find branch info
-      const recentIds = raw.slice(0, 10).map(s => s.id);
-      const actsPromises = recentIds.map(id =>
+      // For active/recent sessions without a PR, fetch activities to find branch info
+      const targetIds = raw.filter(s => !getPR(s)).slice(0, 10).map(s => s.id);
+      const actsPromises = targetIds.map(id =>
         apiCall(apiKey, `/sessions/${id}/activities?pageSize=5`, { _label:`Acts light ${id.slice(0,6)}` })
           .catch(() => ({}))
       );
       const actsResults = await Promise.all(actsPromises);
       const newMap = {};
-      recentIds.forEach((id, i) => { newMap[id] = actsResults[i].activities || []; });
+      targetIds.forEach((id, i) => { newMap[id] = actsResults[i].activities || []; });
       setActivitiesMap(prev => ({ ...prev, ...newMap }));
 
       // Sort: Active first, then by latest update/create time
