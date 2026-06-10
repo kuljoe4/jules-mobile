@@ -968,25 +968,28 @@ const TimelineEvent = memo(({ act, onMediaClick }) => {
       const lowerT = (p?.title || "").toLowerCase();
       const isReview = lowerT.includes("review");
       const isMerge = lowerT.includes("merge");
+      const isResearch = lowerT.includes("research");
+      const highlight = isReview || isMerge || isResearch;
       title = p?.title || "Progress";
       detail = act.progressUpdated?.description && (
         <div style={{
-          fontSize:13, color:isReview?T.text:T.muted, marginTop:6,
-          lineHeight:1.6, padding:isReview?"12px 14px":"0",
-          background:isReview?`${T.blue}0a`:"transparent",
-          border:isReview?`1px solid ${T.blue}15`:"none", borderRadius:isReview?8:0,
-          boxShadow:isReview?"inset 0 0 12px rgba(77,166,255,0.02)":"none",
+          fontSize:13, color:highlight?T.text:T.muted, marginTop:6,
+          lineHeight:1.6, padding:highlight?"12px 14px":"0",
+          background:isReview?`${T.blue}0a`:isMerge?`${T.purple}0a`:isResearch?`${T.amber}0a`:"transparent",
+          border:isReview?`1px solid ${T.blue}15`:isMerge?`1px solid ${T.purple}15`:isResearch?`1px solid ${T.amber}15`:"none",
+          borderRadius:highlight?8:0,
+          boxShadow:highlight?"inset 0 0 12px rgba(255,255,255,0.01)":"none",
           fontFamily:"'IBM Plex Sans',sans-serif",
         }}>
-          {(isReview || isMerge) && (
+          {highlight && (
             <div style={{display:"flex", alignItems:"center", gap:6, marginBottom:10}}>
               <span style={{
                 padding:"2px 6px", borderRadius:3,
-                background:isReview?T.blueDim:T.purpleDim,
-                color:isReview?T.blue:T.purple,
+                background:isReview?T.blueDim:isMerge?T.purpleDim:T.amberDim,
+                color:isReview?T.blue:isMerge?T.purple:T.amber,
                 fontSize:10, fontWeight:700, letterSpacing:"0.05em"
-              }}>{isReview?"REVIEW":"MERGE"}</span>
-              <div style={{height:1, flex:1, background:`linear-gradient(90deg, ${isReview?T.blue:T.purple}30, transparent)`}}/>
+              }}>{isReview?"REVIEW":isMerge?"MERGE":"RESEARCH"}</span>
+              <div style={{height:1, flex:1, background:`linear-gradient(90deg, ${isReview?T.blue:isMerge?T.purple:T.amber}30, transparent)`}}/>
             </div>
           )}
           <Markdown text={act.progressUpdated.description}/>
@@ -1010,6 +1013,7 @@ const TimelineEvent = memo(({ act, onMediaClick }) => {
       );
       if (isReview) ic.c = T.blue;
       if (isMerge) { ic.c = T.purple; ic.n = "git_merge"; }
+      if (isResearch) { ic.c = T.amber; ic.n = "search"; }
       break;
     }
     case "sessionCompleted":
