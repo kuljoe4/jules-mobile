@@ -2007,6 +2007,7 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
 
   const TABS = [
     { id:"activity", label:"CHAT" },
+    { id:"prompt",   label:"PROMPT" },
     ...(latestPlan?[{ id:"plan", label:"PLAN" }]:[]),
     { id:"diff",     label:"DIFF" },
     ...(mediaArtifacts.length>0?[{ id:"media", label:"MEDIA" }]:[]),
@@ -2183,6 +2184,25 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
             {ACTIVE_STATES.has(session.state)?"Waiting for activity…":"No activities yet"}
           </div>
           :<ActivityFeed activities={activities} showAll={showAll} onShowAll={()=>setShowAll(true)} onMediaClick={setActiveMedia}/>
+        )}
+        {tab==="prompt"&&(
+          <div style={{padding:"4px 0 20px"}}>
+            <div style={{
+              fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.green,
+              fontWeight:800, letterSpacing:"0.1em", marginBottom:12,
+            }}>ORIGINAL PROMPT</div>
+            <div style={{
+              background:T.surfaceHi, border:`1px solid ${T.border}`,
+              borderRadius:10, padding:"20px", boxShadow:`0 10px 30px rgba(0,0,0,0.2)`
+            }}>
+              <div style={{
+                fontSize:16, color:T.text, lineHeight:1.6,
+                fontFamily:"'IBM Plex Sans',sans-serif",
+              }}>
+                <Markdown text={session.prompt}/>
+              </div>
+            </div>
+          </div>
         )}
         {tab==="plan"&&(
           <PlanView
