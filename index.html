@@ -466,6 +466,51 @@ const getPR = (s) => {
 
   return null;
 };
+
+const getBranchInfo = (s, activities = []) => {
+  if (!s) return null;
+  const context = s.sourceContext?.githubRepoContext;
+  const base = context?.startingBranch || "main";
+
+  let working = null;
+  // Scan activities for "pushed to <branch>" or similar
+  for (const a of activities) {
+    const desc = a.progressUpdated?.description || "";
+    // Match common Jules patterns for branch names
+    const m = desc.match(/push(?:ing|ed).* to ([^\s\.\(\)]+)/i) ||
+              desc.match(/branch ([^\s\.\(\)]+)/i) ||
+              desc.match(/created.* branch ([^\s\.\(\)]+)/i);
+    if (m && m[1] !== "main" && m[1] !== "master") {
+      working = m[1].replace(/['"`\.]/g, "");
+    }
+  }
+
+  // Fallback: search for tree links which often contain the branch
+  if (!working) {
+    const str = JSON.stringify(s) + JSON.stringify(activities);
+    const m = str.match(/https:\/\/github\.com\/[^\/]+\/[^\/]+\/tree\/([a-zA-Z0-9\-_]+)/);
+    if (m) working = m[1];
+  }
+
+  const repo = s.sourceContext?.source?.replace("sources/github/","");
+  const repoUrl = repo ? `https://github.com/${repo}` : null;
+
+  return { base, working: working || base, repo, repoUrl, isNew: working && working !== base };
+};
+
+const getAheadCount = (activities = []) => {
+  let count = 0;
+  for (const a of activities) {
+    const desc = (a.progressUpdated?.description || "").toLowerCase();
+    const m = desc.match(/pushed (\d+) commit/);
+    if (m) count += parseInt(m[1], 10);
+    else if (desc.includes("pushed a commit") || desc.includes("pushed 1 commit")) count += 1;
+    // Jules often says "Applied changes and pushed"
+    else if (desc.includes("pushed") && (desc.includes("change") || desc.includes("fix"))) count += 1;
+  }
+  return count;
+};
+
 const fmtAgo = ts => { const d=Date.now()-ts; if(d<60000)return`${Math.floor(d/1000)}s ago`; if(d<3600000)return`${Math.floor(d/60000)}m ago`; if(d<86400000)return`${Math.floor(d/3600000)}h ago`; return`${Math.floor(d/86400000)}d ago`; };
 const fmtTime = ts => new Date(ts).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
 const pctFromState = s => ({QUEUED:5,PLANNING:20,AWAITING_PLAN_APPROVAL:35,IN_PROGRESS:65,AWAITING_USER_FEEDBACK:60,COMPLETED:100,FAILED:30,PAUSED:50}[s]||0);
@@ -926,10 +971,13 @@ const ChatBubble = memo(({ act, type, onMediaClick }) => {
 const TimelineEvent = memo(({ act, onMediaClick }) => {
   const type = getActType(act);
   const isMajor = ["sessionCompleted", "sessionFailed", "planGenerated", "planApproved"].includes(type);
+  const desc = act.progressUpdated?.description || "";
+  const isPush = type === "progressUpdated" && (desc.toLowerCase().includes("pushed") || desc.toLowerCase().includes("pushing"));
+
   const IC_MAP = {
     planGenerated:{n:"plan",c:T.purple},
     planApproved:{n:"approve",c:T.green},
-    progressUpdated:{n:"refresh",c:T.muted},
+    progressUpdated:{n:isPush?"branch":"refresh",c:isPush?T.blue:T.muted},
     sessionCompleted:{n:"check",c:T.green},
     sessionFailed:{n:"x",c:T.red},
     system:{n:"code",c:T.muted},
@@ -969,42 +1017,74 @@ const TimelineEvent = memo(({ act, onMediaClick }) => {
       const isReview = lowerT.includes("review");
       const isMerge = lowerT.includes("merge");
       const isResearch = lowerT.includes("research");
-      const highlight = isReview || isMerge || isResearch;
+      const isPush = lowerT.includes("pushed") || lowerT.includes("pushing");
+      const highlight = isReview || isMerge || isResearch || isPush;
       title = p?.title || "Progress";
       detail = act.progressUpdated?.description && (
         <div style={{
-          fontSize:13, color:highlight?T.text:T.muted, marginTop:6,
+          fontSize:13, color:highlight?T.text:T.muted,
           lineHeight:1.6, padding:highlight?"12px 14px":"0",
-          background:isReview?`${T.blue}0a`:isMerge?`${T.purple}0a`:isResearch?`${T.amber}0a`:"transparent",
-          border:isReview?`1px solid ${T.blue}15`:isMerge?`1px solid ${T.purple}15`:isResearch?`1px solid ${T.amber}15`:"none",
+          background:isReview?`${T.blue}0a`:isMerge?`${T.purple}0a`:isResearch?`${T.amber}0a`:isPush?`${T.blue}0a`:"transparent",
+          border:isReview?`1px solid ${T.blue}15`:isMerge?`1px solid ${T.purple}15`:isResearch?`1px solid ${T.amber}15`:isPush?`1px solid ${T.blue}15`:"none",
           borderRadius:highlight?8:0,
           boxShadow:highlight?"inset 0 0 12px rgba(255,255,255,0.01)":"none",
           fontFamily:"'IBM Plex Sans',sans-serif",
         }}>
           {highlight && (
-            <div style={{display:"flex", alignItems:"center", gap:6, marginBottom:10}}>
+            <div style={{display:"flex", alignItems:"center", gap:6, marginBottom:12}}>
               <span style={{
                 padding:"2px 6px", borderRadius:3,
-                background:isReview?T.blueDim:isMerge?T.purpleDim:T.amberDim,
-                color:isReview?T.blue:isMerge?T.purple:T.amber,
+                background:isReview?T.blueDim:(isMerge?T.purpleDim:(isResearch?T.amberDim:(isPush?T.blueDim:T.muted))),
+                color:isReview?T.blue:(isMerge?T.purple:(isResearch?T.amber:(isPush?T.blue:T.muted))),
                 fontSize:10, fontWeight:700, letterSpacing:"0.05em"
-              }}>{isReview?"REVIEW":isMerge?"MERGE":"RESEARCH"}</span>
-              <div style={{height:1, flex:1, background:`linear-gradient(90deg, ${isReview?T.blue:isMerge?T.purple:T.amber}30, transparent)`}}/>
+              }}>{isReview?"REVIEW":isMerge?"MERGE":isResearch?"RESEARCH":isPush?"PUSH":"EVENT"}</span>
+              <div style={{height:1, flex:1, background:`linear-gradient(90deg, ${isReview?T.blue:(isMerge?T.purple:(isResearch?T.amber:(isPush?T.blue:T.muted)))}30, transparent)`}}/>
             </div>
           )}
           <Markdown text={act.progressUpdated.description}/>
           {(() => {
-            const m = act.progressUpdated.description?.match(/https:\/\/github\.com\/[^\/]+\/[^\/]+\/pull\/(\d+)/);
-            if (m) return (
+            const prMatch = act.progressUpdated.description?.match(/https:\/\/github\.com\/[^\/]+\/[^\/]+\/pull\/(\d+)/);
+            const commitMatch = act.progressUpdated.description?.match(/https:\/\/github\.com\/[^\/]+\/[^\/]+\/commit\/([a-f0-9]{7,40})/);
+            const branchMatch = act.progressUpdated.description?.match(/https:\/\/github\.com\/[^\/]+\/[^\/]+\/tree\/([a-zA-Z0-9\-_]+)/);
+
+            if (prMatch) return (
               <div style={{marginTop:12}}>
-                <a href={m[0]} target="_blank" rel="noopener" style={{
+                <a href={prMatch[0]} target="_blank" rel="noopener" style={{
                   display:"inline-flex", alignItems:"center", gap:6, padding:"6px 12px",
                   background:T.greenDim, border:`1px solid ${T.green}40`, borderRadius:6,
                   color:T.green, textDecoration:"none", fontFamily:"'JetBrains Mono',monospace",
                   fontSize:12, fontWeight:800
                 }}>
                   <Ic n="git_pull" s={14} c={T.green}/>
-                  OPEN PULL REQUEST #{m[1]} ↗
+                  OPEN PULL REQUEST #{prMatch[1]} ↗
+                </a>
+              </div>
+            );
+
+            if (commitMatch) return (
+              <div style={{marginTop:12}}>
+                <a href={commitMatch[0]} target="_blank" rel="noopener" style={{
+                  display:"inline-flex", alignItems:"center", gap:6, padding:"6px 12px",
+                  background:T.blueDim, border:`1px solid ${T.blue}40`, borderRadius:6,
+                  color:T.blue, textDecoration:"none", fontFamily:"'JetBrains Mono',monospace",
+                  fontSize:12, fontWeight:800
+                }}>
+                  <Ic n="code" s={14} c={T.blue}/>
+                  VIEW COMMIT {commitMatch[1].slice(0,7)} ↗
+                </a>
+              </div>
+            );
+
+            if (branchMatch) return (
+              <div style={{marginTop:12}}>
+                <a href={branchMatch[0]} target="_blank" rel="noopener" style={{
+                  display:"inline-flex", alignItems:"center", gap:6, padding:"6px 12px",
+                  background:T.blueDim, border:`1px solid ${T.blue}40`, borderRadius:6,
+                  color:T.blue, textDecoration:"none", fontFamily:"'JetBrains Mono',monospace",
+                  fontSize:12, fontWeight:800
+                }}>
+                  <Ic n="branch" s={14} c={T.blue}/>
+                  BROWSE BRANCH {branchMatch[1]} ↗
                 </a>
               </div>
             );
@@ -1057,7 +1137,7 @@ const TimelineEvent = memo(({ act, onMediaClick }) => {
         {detail&&<div style={{width:1,flex:1,background:T.border,marginTop:3}}/>}
       </div>
       <div style={{flex:1,paddingBottom:detail?12:0,minWidth:0,marginTop:1}}>
-        <div style={{display:"flex",gap:10,alignItems:"center",height:22,marginBottom:detail?12:0}}>
+        <div style={{display:"flex",gap:10,alignItems:"center",minHeight:22,marginBottom:detail?20:0}}>
           <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:12,fontWeight:800,color:ic.c,flex:1,lineHeight:1.3,letterSpacing:"0.02em"}}>{title}</span>
           <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted,fontWeight:600,flexShrink:0}}>{time}</span>
         </div>
@@ -1320,7 +1400,7 @@ const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFeedback,
                 }}>{i+1}</div>
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:15,fontWeight:500,
-                    color:T.text,lineHeight:1.35,marginBottom:st.description?3:0}}>
+                    color:T.text,lineHeight:1.35,marginBottom:st.description?6:0}}>
                     {st.title}
                   </div>
                   {st.description&&(
@@ -1635,11 +1715,13 @@ const SetupScreen = ({ onSave }) => {
 };
 
 // ─── Session Card ─────────────────────────────────────────────────────────────
-const SessionCard = memo(({ s, onPress, isSelected, index }) => {
+const SessionCard = memo(({ s, onPress, isSelected, index, activities = [] }) => {
   const pct  = pctFromState(s.state);
   const m    = STATUS_META[s.state] || STATUS_META.QUEUED;
   const repo = s.sourceContext?.githubRepoContext ? s.sourceContext.source?.replace("sources/github/","") : null;
   const pr   = getPR(s);
+  const b    = useMemo(() => getBranchInfo(s, activities), [s, activities]);
+  const ahead = useMemo(() => getAheadCount(activities), [activities]);
 
   return (
     <button onClick={onPress} style={{
@@ -1662,19 +1744,34 @@ const SessionCard = memo(({ s, onPress, isSelected, index }) => {
         <div style={{width:22,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted,fontWeight:700,paddingTop:2}}>{index}.</div>
         <div style={{flex:1,minWidth:0}}>
           {repo&&<div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted,fontWeight:600,marginBottom:6,letterSpacing:"0.05em",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{repo}</div>}
-          <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:15,fontWeight:600,color:T.text,lineHeight:1.45,overflow:"hidden",textOverflow:"ellipsis",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",marginBottom:pr?8:0}}>{s.title||s.prompt}</div>
-          {pr && (
-            <div style={{
-              display:"inline-flex", alignItems:"center", gap:5,
-              background:T.greenDim, border:`1px solid ${T.green}50`, borderRadius:4,
-              padding:"3px 8px", color:T.green, fontFamily:"'JetBrains Mono',monospace",
-              fontSize:11, fontWeight:900, boxShadow:`0 2px 8px ${T.green}20`,
-              marginBottom:4
-            }}>
-              <Ic n="git_pull" s={12} c={T.green}/>
-              PULL REQUEST #{pr.number}
-            </div>
-          )}
+          <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:15,fontWeight:600,color:T.text,lineHeight:1.45,overflow:"hidden",textOverflow:"ellipsis",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",marginBottom:pr||b?.isNew?8:0}}>{s.title||s.prompt}</div>
+          <div style={{display:"flex", gap:6, flexWrap:"wrap", marginTop:pr||b?.isNew?8:0}}>
+            {pr && (
+              <div style={{
+                display:"inline-flex", alignItems:"center", gap:5,
+                background:T.greenDim, border:`1px solid ${T.green}50`, borderRadius:4,
+                padding:"3px 8px", color:T.green, fontFamily:"'JetBrains Mono',monospace",
+                fontSize:11, fontWeight:900, boxShadow:`0 2px 8px ${T.green}20`,
+                marginBottom:4
+              }}>
+                <Ic n="git_pull" s={12} c={T.green}/>
+                PR #{pr.number}
+              </div>
+            )}
+            {!pr && b?.isNew && (
+              <div style={{
+                display:"inline-flex", alignItems:"center", gap:5,
+                background:T.blueDim, border:`1px solid ${T.blue}50`, borderRadius:4,
+                padding:"3px 8px", color:T.blue, fontFamily:"'JetBrains Mono',monospace",
+                fontSize:11, fontWeight:900, boxShadow:`0 2px 8px ${T.blue}20`,
+                marginBottom:4
+              }}>
+                <Ic n="branch" s={12} c={T.blue}/>
+                {b.working}
+                {ahead > 0 && <span style={{marginLeft:2, opacity:0.8}}>+{ahead}</span>}
+              </div>
+            )}
+          </div>
         </div>
         <div style={{display:"flex", flexDirection:"column", alignItems:"flex-end", gap:6, flexShrink:0}}>
           <Pill status={s.state} small/>
@@ -1975,6 +2072,9 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
     activities.flatMap(a => (a.artifacts||[]).filter(x=>x.media?.data).map(x=>({...x.media,ts:a.createTime})))
   , [activities]);
 
+  const b = useMemo(() => getBranchInfo(session, activities), [session, activities]);
+  const ahead = useMemo(() => getAheadCount(activities), [activities]);
+
   const summary = session.outputs?.find(o=>o.sessionSummary)?.sessionSummary;
   const pr = useMemo(() => {
     // 1. Check session object directly
@@ -2114,8 +2214,10 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
         }}>
           <span>{session.id?.slice(0,10)}</span>
           {session.sourceContext?.source&&(
-            <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-              ⎇ {session.sourceContext.githubRepoContext?.startingBranch||"main"}
+            <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:4}}>
+              <Ic n="branch" s={11} c={T.muted}/>
+              {b?.working || session.sourceContext.githubRepoContext?.startingBranch || "main"}
+              {ahead > 0 && <span style={{color:T.blue, fontWeight:800}}>+{ahead}</span>}
             </span>
           )}
           {session.url && <a href={session.url} target="_blank" rel="noopener" style={{color:T.muted,textDecoration:"none",flexShrink:0,fontFamily:"'JetBrains Mono',monospace",fontSize:11}}>WEB↗</a>}
@@ -2133,6 +2235,30 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
         {session.state==="AWAITING_USER_FEEDBACK"&&(
           <div style={{marginBottom:10,padding:"8px 10px",background:T.amberDim,border:`1px solid ${T.amber}40`,borderRadius:5,fontFamily:"'JetBrains Mono',monospace",fontSize:12,color:T.amber}}>
             ⚡ Jules needs your input — reply below
+          </div>
+        )}
+
+        {!pr && b?.isNew && ahead > 0 && (
+          <div style={{
+            marginBottom:10, padding:"10px 14px", background:T.blueDim,
+            border:`1px solid ${T.blue}40`, borderRadius:8, display:"flex",
+            alignItems:"center", gap:12, boxShadow:`0 4px 12px ${T.blue}10`
+          }}>
+            <div style={{flex:1}}>
+              <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.blue, fontWeight:800, letterSpacing:"0.05em", marginBottom:2}}>BRANCH AHEAD</div>
+              <div style={{fontFamily:"'IBM Plex Sans',sans-serif", fontSize:13, color:T.textDim}}>
+                {ahead} commit{ahead!==1?'s':''} pushed to <span style={{color:T.blue, fontWeight:600}}>{b.working}</span>. No PR created yet.
+              </div>
+            </div>
+            {b.repoUrl && (
+              <a href={`${b.repoUrl}/compare/${b.base}...${b.working}`} target="_blank" rel="noopener" style={{
+                background:T.blue, color:"#000", border:"none", borderRadius:6,
+                padding:"6px 12px", fontFamily:"'JetBrains Mono',monospace",
+                fontSize:11, fontWeight:800, textDecoration:"none", flexShrink:0
+              }}>
+                CREATE PR ↗
+              </a>
+            )}
           </div>
         )}
 
@@ -3031,7 +3157,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
 const FILTERS = ["ALL","QUEUED","PLANNING","AWAITING_PLAN_APPROVAL","IN_PROGRESS","COMPLETED","FAILED"];
 const FILTER_LABELS = { AWAITING_PLAN_APPROVAL:"APPROVE", ALL:"ALL" };
 
-const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selectedId, isDesktop, onNew, onNetwork, onSettings, pollInterval, sessionLimit, countdown, plan, todayCount, searchQuery, setSearchQuery, archivedIds, showArchived, setShowArchived }) => {
+const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selectedId, isDesktop, onNew, onNetwork, onSettings, pollInterval, sessionLimit, countdown, plan, todayCount, searchQuery, setSearchQuery, archivedIds, showArchived, setShowArchived, activitiesMap = {} }) => {
   const [filter,setFilter] = useState("ALL");
   const [scrolled, handleScroll] = useScrollThreshold();
   const [searchOpen, setSearchOpen] = useState(false);
@@ -3201,7 +3327,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
             {filter==="ALL"?"No sessions yet":"No sessions with this status"}
           </div>
         )}
-        {filtered.map((s,i)=><SessionCard key={s.id||s.name} index={i+1} s={s} onPress={()=>onSelect(s)} isSelected={isDesktop&&s.id===selectedId}/>)}
+        {filtered.map((s,i)=><SessionCard key={s.id||s.name} index={i+1} s={s} onPress={()=>onSelect(s)} isSelected={isDesktop&&s.id===selectedId} activities={activitiesMap[s.id] || []}/>)}
       </div>
     </div>
   );
@@ -3211,6 +3337,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
 function JulesClient() {
   const [apiKey,setApiKey]     = useState(() => { try { return localStorage.getItem("jac_key")||""; } catch { return ""; } });
   const [sessions,setSessions] = useState([]);
+  const [activitiesMap, setActivitiesMap] = useState({});
   const [selected,setSelected] = useState(null);
   const [mobileScreen,setMobileRaw] = useState("list");
   const [lastSessionScreen, setLastSessionScreen] = useState("list");
@@ -3291,6 +3418,18 @@ function JulesClient() {
     try {
       const d = await apiCall(apiKey, `/sessions?pageSize=${sessionLimit}`, { _label:"List sessions" });
       const raw = d.sessions || [];
+
+      // For active/recent sessions, fetch a few activities to find branch info
+      const recentIds = raw.slice(0, 10).map(s => s.id);
+      const actsPromises = recentIds.map(id =>
+        apiCall(apiKey, `/sessions/${id}/activities?pageSize=5`, { _label:`Acts light ${id.slice(0,6)}` })
+          .catch(() => ({}))
+      );
+      const actsResults = await Promise.all(actsPromises);
+      const newMap = {};
+      recentIds.forEach((id, i) => { newMap[id] = actsResults[i].activities || []; });
+      setActivitiesMap(prev => ({ ...prev, ...newMap }));
+
       // Sort: Active first, then by latest update/create time
       const sorted = [...raw].sort((a, b) => {
         const aActive = ACTIVE_STATES.has(a.state);
@@ -3364,6 +3503,7 @@ function JulesClient() {
             plan={plan} todayCount={todayCount}
             searchQuery={searchQuery} setSearchQuery={setSearchQuery}
             archivedIds={archivedIds} showArchived={showArchived} setShowArchived={setShowArchived}
+            activitiesMap={activitiesMap}
           />
         </div>
         {/* Main panel */}
@@ -3417,7 +3557,8 @@ function JulesClient() {
             countdown={countdown}
             plan={plan} todayCount={todayCount}
             searchQuery={searchQuery} setSearchQuery={setSearchQuery}
-            archivedIds={archivedIds} showArchived={showArchived} setShowArchived={setShowArchived} />
+            archivedIds={archivedIds} showArchived={showArchived} setShowArchived={setShowArchived}
+            activitiesMap={activitiesMap} />
         )}
         {mobileScreen==="detail"&&selected&&(
           <SessionDetail key={selected.id} session={selected} apiKey={apiKey}
