@@ -2252,13 +2252,22 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
               </div>
             </div>
             {b.repoUrl && (
-              <a href={`${b.repoUrl}/compare/${b.base}...${b.working}`} target="_blank" rel="noopener" style={{
-                background:T.blue, color:"#000", border:"none", borderRadius:6,
-                padding:"6px 12px", fontFamily:"'JetBrains Mono',monospace",
-                fontSize:11, fontWeight:800, textDecoration:"none", flexShrink:0
-              }}>
-                CREATE PR ↗
-              </a>
+              <div style={{display:"flex", gap:8}}>
+                <a href={`${b.repoUrl}/branches`} target="_blank" rel="noopener" style={{
+                  background:"transparent", color:T.blue, border:`1px solid ${T.blue}40`, borderRadius:6,
+                  padding:"6px 10px", fontFamily:"'JetBrains Mono',monospace",
+                  fontSize:10, fontWeight:700, textDecoration:"none", flexShrink:0
+                }}>
+                  BRANCHES
+                </a>
+                <a href={`${b.repoUrl}/compare/${b.base}...${b.working}`} target="_blank" rel="noopener" style={{
+                  background:T.blue, color:"#000", border:"none", borderRadius:6,
+                  padding:"6px 12px", fontFamily:"'JetBrains Mono',monospace",
+                  fontSize:11, fontWeight:800, textDecoration:"none", flexShrink:0
+                }}>
+                  CREATE PR ↗
+                </a>
+              </div>
             )}
           </div>
         )}
@@ -3176,15 +3185,25 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
   const active   = sessions.filter(s=>ACTIVE_STATES.has(s.state)).length;
 
   const quotaUsed = useMemo(() => {
-    const limit = plan?.daily || 15;
-    const window = sessions.slice(0, limit);
-    return window.filter(s => {
+    // Adjust "today" for UTC+1
+    const now = new Date();
+    const utc1 = new Date(now.getTime() + (1 * 60 * 60 * 1000));
+    const today = utc1.toISOString().slice(0,10);
+
+    const todaySessions = sessions.filter(s => {
+      if (!s.createTime) return false;
+      const cDate = new Date(s.createTime);
+      const cUtc1 = new Date(cDate.getTime() + (1 * 60 * 60 * 1000));
+      return cUtc1.toISOString().slice(0,10) === today;
+    });
+
+    return todaySessions.filter(s => {
       const pr = getPR(s);
       const b = getBranchInfo(s, activitiesMap[s.id] || []);
-      const isComplete = pr || b?.isNew || s.state === "COMPLETED";
-      return isComplete || ACTIVE_STATES.has(s.state);
+      const isProductive = pr || b?.isNew || s.state === "COMPLETED";
+      return isProductive || ACTIVE_STATES.has(s.state);
     }).length;
-  }, [sessions, plan, activitiesMap]);
+  }, [sessions, activitiesMap]);
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%",minHeight:0}}>
@@ -3309,11 +3328,14 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
         }}>
           <div style={{display:"flex",gap:5,minWidth:"max-content",padding:"4px 0", alignItems:"center"}}>
             {/* Quota Indicator */}
-            <div style={{
-              display:"flex", alignItems:"center", gap:6, padding:"4px 10px",
-              borderRadius:20, background:`${T.green}10`, border:`1px solid ${T.green}30`,
-              marginRight:8, flexShrink:0
-            }}>
+            <div
+              title="Resets at 00:00 UTC+1"
+              style={{
+                display:"flex", alignItems:"center", gap:6, padding:"4px 10px",
+                borderRadius:20, background:`${T.green}10`, border:`1px solid ${T.green}30`,
+                marginRight:8, flexShrink:0, cursor:"help"
+              }}
+            >
               <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:800, color:T.green}}>
                 {quotaUsed}/{plan?.daily || 15}
               </span>
