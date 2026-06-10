@@ -1,1 +1,6 @@
 Jules api key
+node_modules/
+dist/
+.temp-*.js*
+.temp-*.jsx
+*.log
