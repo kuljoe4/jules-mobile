@@ -251,6 +251,13 @@ function saveLimit(v) { try { localStorage.setItem(LIMIT_KEY,v); } catch {} }
 
 // ─── Plan limits (from jules.google/docs/usage-limits) ───────────────────────
 const PLAN_KEY = "jac_plan";
+const TZ_KEY   = "jac_tz_offset";
+
+function loadTzOffset() {
+  try { const v = localStorage.getItem(TZ_KEY); return v !== null ? parseInt(v) : 1; } catch { return 1; }
+}
+function saveTzOffset(v) { try { localStorage.setItem(TZ_KEY, v); } catch {} }
+
 const PLANS = [
   { id:"free",  label:"Free",  daily:15,  concurrent:3,  model:"Gemini 2.5 Pro" },
   { id:"pro",   label:"Pro",   daily:100, concurrent:15, model:"Gemini 3 Pro" },
@@ -457,7 +464,7 @@ const getPR = (s) => {
 
   // 1. Standard locations
   let pr = findInOutputs(s.outputs) || s.githubPullRequest || s.pullRequest || s.sourceContext?.githubRepoContext?.pullRequest || s.github_pull_request;
-  if (pr && typeof pr === 'object' && pr.url) return pr;
+  if (pr && typeof pr === 'object' && pr.url) return { ...pr, number: pr.number || pr.url.split("/").pop() };
 
   // 2. Scan all string fields for GitHub PR links (last resort)
   const str = JSON.stringify(s);
@@ -465,6 +472,27 @@ const getPR = (s) => {
   if (m) return { url: m[0], number: m[1] };
 
   return null;
+};
+
+const getPRInfo = (s, activities = []) => {
+  const pr = getPR(s);
+  if (!pr) return null;
+
+  let state = "open";
+  // Deep scan activities for merge or close events
+  for (const a of activities) {
+    const desc = (a.progressUpdated?.description || "").toLowerCase();
+    const title = (a.progressUpdated?.title || "").toLowerCase();
+    if (desc.includes("merged pull request") || title.includes("merged pull request")) {
+      state = "merged";
+      break;
+    }
+    if (desc.includes("closed pull request") || title.includes("closed pull request")) {
+      state = "closed";
+    }
+  }
+
+  return { ...pr, state };
 };
 
 const getBranchInfo = (s, activities = []) => {
@@ -1720,7 +1748,7 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [] }) =>
   const pct  = pctFromState(s.state);
   const m    = STATUS_META[s.state] || STATUS_META.QUEUED;
   const repo = s.sourceContext?.githubRepoContext ? s.sourceContext.source?.replace("sources/github/","") : null;
-  const pr   = getPR(s);
+  const pri  = useMemo(() => getPRInfo(s, activities), [s, activities]);
   const b    = useMemo(() => getBranchInfo(s, activities), [s, activities]);
   const ahead = useMemo(() => getAheadCount(activities), [activities]);
 
@@ -1745,21 +1773,25 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [] }) =>
         <div style={{width:22,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted,fontWeight:700,paddingTop:2}}>{index}.</div>
         <div style={{flex:1,minWidth:0}}>
           {repo&&<div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted,fontWeight:600,marginBottom:6,letterSpacing:"0.05em",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{repo}</div>}
-          <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:15,fontWeight:600,color:T.text,lineHeight:1.45,overflow:"hidden",textOverflow:"ellipsis",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",marginBottom:pr||b?.isNew?8:0}}>{s.title||s.prompt}</div>
-          <div style={{display:"flex", gap:6, flexWrap:"wrap", marginTop:pr||b?.isNew?8:0}}>
-            {pr && (
+          <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:15,fontWeight:600,color:T.text,lineHeight:1.45,overflow:"hidden",textOverflow:"ellipsis",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",marginBottom:pri||b?.isNew?8:0}}>{s.title||s.prompt}</div>
+          <div style={{display:"flex", gap:6, flexWrap:"wrap", marginTop:pri||b?.isNew?8:0}}>
+            {pri && (
               <div style={{
                 display:"inline-flex", alignItems:"center", gap:5,
-                background:T.greenDim, border:`1px solid ${T.green}50`, borderRadius:4,
-                padding:"3px 8px", color:T.green, fontFamily:"'JetBrains Mono',monospace",
-                fontSize:11, fontWeight:900, boxShadow:`0 2px 8px ${T.green}20`,
+                background:pri.state==="merged"?T.purpleDim:pri.state==="closed"?T.dim:T.greenDim,
+                border:`1px solid ${pri.state==="merged"?T.purple:pri.state==="closed"?T.muted:T.green}50`,
+                borderRadius:4, padding:"3px 8px",
+                color:pri.state==="merged"?T.purple:pri.state==="closed"?T.muted:T.green,
+                fontFamily:"'JetBrains Mono',monospace",
+                fontSize:11, fontWeight:900,
+                boxShadow:`0 2px 8px ${pri.state==="merged"?T.purple:pri.state==="closed"?"transparent":T.green}20`,
                 marginBottom:4
               }}>
-                <Ic n="git_pull" s={12} c={T.green}/>
-                PR #{pr.number}
+                <Ic n={pri.state==="merged"?"git_merge":"git_pull"} s={12} c={pri.state==="merged"?T.purple:pri.state==="closed"?T.muted:T.green}/>
+                {pri.state.toUpperCase()} #{pri.number}
               </div>
             )}
-            {!pr && b?.isNew && (
+            {(!pri || pri.state === "closed") && b?.isNew && (
               <div style={{
                 display:"inline-flex", alignItems:"center", gap:5,
                 background:T.blueDim, border:`1px solid ${T.blue}50`, borderRadius:4,
@@ -2077,24 +2109,8 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
   const ahead = useMemo(() => getAheadCount(activities), [activities]);
 
   const summary = session.outputs?.find(o=>o.sessionSummary)?.sessionSummary;
-  const pr = useMemo(() => {
-    // 1. Check session object directly
-    const spr = getPR(session);
-    if (spr) return spr;
-    // 2. Scan activities for PRs
-    for (const a of activities) {
-      const apr = getPR(a) || getPR(a.sessionCompleted) || getPR(a.progressUpdated);
-      if (apr) return apr;
-      // Deep scan artifacts
-      if (a.artifacts) {
-        for (const art of a.artifacts) {
-          const arpr = getPR(art);
-          if (arpr) return arpr;
-        }
-      }
-    }
-    return null;
-  }, [session, activities]);
+  const pri = useMemo(() => getPRInfo(session, activities), [session, activities]);
+  const pr = pri;
   const m       = STATUS_META[session.state] || STATUS_META.QUEUED;
   const pct     = pctFromState(session.state);
   const canSend = true; // Always allow follow-up messages
@@ -2180,14 +2196,18 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
             )}
             {pr && (
               <a href={pr.url} target="_blank" rel="noopener" style={{
-                background:T.greenDim, border:`1px solid ${T.green}40`, borderRadius:4,
-                padding:scrolled?"2px 6px":"4px 8px", display:"flex", alignItems:"center", gap:4,
-                color:T.green, textDecoration:"none", fontFamily:"'JetBrains Mono',monospace",
+                background:pr.state==="merged"?T.purpleDim:pr.state==="closed"?T.dim:T.greenDim,
+                border:`1px solid ${pr.state==="merged"?T.purple:pr.state==="closed"?T.muted:T.green}40`,
+                borderRadius:4, padding:scrolled?"2px 6px":"4px 8px",
+                display:"flex", alignItems:"center", gap:4,
+                color:pr.state==="merged"?T.purple:pr.state==="closed"?T.muted:T.green,
+                textDecoration:"none", fontFamily:"'JetBrains Mono',monospace",
                 fontSize:scrolled?10:11, fontWeight:900, transition:"all .2s",
-                boxShadow:`0 2px 8px ${T.green}20`,
+                boxShadow:pr.state==="closed"?"none":`0 2px 8px ${pr.state==="merged"?T.purple:T.green}20`,
               }}>
-                <Ic n="git_pull" s={scrolled?12:13} c={T.green}/>
+                <Ic n={pr.state==="merged"?"git_merge":"git_pull"} s={scrolled?12:13} c={pr.state==="merged"?T.purple:pr.state==="closed"?T.muted:T.green}/>
                 #{pr.number}
+                {!scrolled && <span style={{fontSize:9, opacity:0.7, marginLeft:2}}>{pr.state.toUpperCase()}</span>}
               </a>
             )}
             <Pill status={session.state} small/>
@@ -2239,7 +2259,7 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
           </div>
         )}
 
-        {!pr && b?.isNew && ahead > 0 && (
+        {(pr?.state === "closed" || !pr) && b?.isNew && ahead > 0 && (
           <div style={{
             marginBottom:10, padding:"10px 14px", background:T.blueDim,
             border:`1px solid ${T.blue}40`, borderRadius:8, display:"flex",
@@ -2916,7 +2936,7 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
 };
 
 // ─── Settings View ────────────────────────────────────────────────────────────
-const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPollInterval, setActPollInterval, sessionLimit, setSessionLimit, planId, setPlanId, customDaily, setCustomDaily, plan, todayCount }) => {
+const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPollInterval, setActPollInterval, sessionLimit, setSessionLimit, tzOffset, setTzOffset, planId, setPlanId, customDaily, setCustomDaily, plan, todayCount }) => {
   const [tab, setTab] = useState("general");
   const [snap, setSnap] = useState(NET.snapshot());
   const [storage, setStorage] = useState(null);
@@ -3000,7 +3020,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
                   </div>
                 </div>
 
-                <div>
+                <div style={{marginBottom:20}}>
                   <div style={{fontSize:11, color:T.muted, marginBottom:8, fontFamily:"'JetBrains Mono',monospace", fontWeight:700}}>FETCH LIMIT</div>
                   <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
                     {LIMIT_OPTIONS.map(opt => {
@@ -3009,6 +3029,28 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
                         <PickerBtn key={opt.label} label={opt.label} isAct={isAct} onClick={()=>setSessionLimit(opt.val)} />
                       );
                     })}
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{fontSize:11, color:T.muted, marginBottom:8, fontFamily:"'JetBrains Mono',monospace", fontWeight:700}}>QUOTA RESET OFFSET (UTC)</div>
+                  <div style={{display:"flex", alignItems:"center", gap:10, background:T.surface, padding:8, borderRadius:8, border:`1px solid ${T.border}`}}>
+                    <input
+                      type="range" min="-12" max="14" step="1"
+                      value={tzOffset}
+                      onChange={e=>setTzOffset(parseInt(e.target.value))}
+                      style={{flex:1, height:4, accentColor:T.green}}
+                    />
+                    <div style={{
+                      minWidth:60, textAlign:"center", padding:"4px 8px", borderRadius:4,
+                      background:T.surfaceHi, border:`1px solid ${T.borderHi}`,
+                      fontFamily:"'JetBrains Mono',monospace", fontSize:12, fontWeight:800, color:T.green
+                    }}>
+                      UTC{tzOffset>=0?'+':''}{tzOffset}
+                    </div>
+                  </div>
+                  <div style={{marginTop:6, fontSize:10, color:T.muted, fontFamily:"'IBM Plex Sans',sans-serif"}}>
+                    Daily quota resets at 00:00 in this timezone.
                   </div>
                 </div>
               </div>
@@ -3167,7 +3209,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
 const FILTERS = ["ALL","QUEUED","PLANNING","AWAITING_PLAN_APPROVAL","IN_PROGRESS","COMPLETED","FAILED"];
 const FILTER_LABELS = { AWAITING_PLAN_APPROVAL:"APPROVE", ALL:"ALL" };
 
-const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selectedId, isDesktop, onNew, onNetwork, onSettings, pollInterval, sessionLimit, countdown, plan, todayCount, searchQuery, setSearchQuery, archivedIds, showArchived, setShowArchived, activitiesMap = {} }) => {
+const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selectedId, isDesktop, onNew, onNetwork, onSettings, pollInterval, sessionLimit, tzOffset = 1, countdown, plan, todayCount, searchQuery, setSearchQuery, archivedIds, showArchived, setShowArchived, activitiesMap = {} }) => {
   const [filter,setFilter] = useState("ALL");
   const [scrolled, handleScroll] = useScrollThreshold();
   const [searchOpen, setSearchOpen] = useState(false);
@@ -3185,25 +3227,25 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
   const active   = sessions.filter(s=>ACTIVE_STATES.has(s.state)).length;
 
   const quotaUsed = useMemo(() => {
-    // Adjust "today" for UTC+1
     const now = new Date();
-    const utc1 = new Date(now.getTime() + (1 * 60 * 60 * 1000));
-    const today = utc1.toISOString().slice(0,10);
+    const offsetMs = tzOffset * 60 * 60 * 1000;
+    const localNow = new Date(now.getTime() + offsetMs);
+    const today = localNow.toISOString().slice(0,10);
 
     const todaySessions = sessions.filter(s => {
       if (!s.createTime) return false;
       const cDate = new Date(s.createTime);
-      const cUtc1 = new Date(cDate.getTime() + (1 * 60 * 60 * 1000));
-      return cUtc1.toISOString().slice(0,10) === today;
+      const cLocal = new Date(cDate.getTime() + offsetMs);
+      return cLocal.toISOString().slice(0,10) === today;
     });
 
     return todaySessions.filter(s => {
-      const pr = getPR(s);
+      const pri = getPRInfo(s, activitiesMap[s.id] || []);
       const b = getBranchInfo(s, activitiesMap[s.id] || []);
-      const isProductive = pr || b?.isNew || s.state === "COMPLETED";
+      const isProductive = (pri && pri.state !== "closed") || b?.isNew || s.state === "COMPLETED";
       return isProductive || ACTIVE_STATES.has(s.state);
     }).length;
-  }, [sessions, activitiesMap]);
+  }, [sessions, activitiesMap, tzOffset]);
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%",minHeight:0}}>
@@ -3322,14 +3364,25 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
 
         {/* ── Status filter pills ── */}
         <div style={{
-          overflowX:"auto", padding:scrolled?0:"4px 2px 10px", scrollbarWidth:"none", WebkitOverflowScrolling:"touch",
+          position: "relative",
           maxHeight:scrolled?0:60, opacity:scrolled?0:1, transition:"all .25s ease",
           pointerEvents:scrolled?"none":"auto",
+        }}>
+          {/* Scroll Fade Affordance */}
+          {!scrolled && (
+            <div style={{
+              position:"absolute", right:0, top:0, bottom:10, width:40,
+              background:`linear-gradient(to left, ${T.bg}, transparent)`,
+              pointerEvents:"none", zIndex:2,
+            }}/>
+          )}
+        <div style={{
+          overflowX:"auto", padding:scrolled?0:"4px 2px 10px", scrollbarWidth:"none", WebkitOverflowScrolling:"touch",
         }}>
           <div style={{display:"flex",gap:5,minWidth:"max-content",padding:"4px 0", alignItems:"center"}}>
             {/* Quota Indicator */}
             <div
-              title="Resets at 00:00 UTC+1"
+              title={`Resets at 00:00 UTC${tzOffset>=0?'+':''}${tzOffset}`}
               style={{
                 display:"flex", alignItems:"center", gap:6, padding:"4px 10px",
                 borderRadius:20, background:`${T.green}10`, border:`1px solid ${T.green}30`,
@@ -3399,6 +3452,7 @@ function JulesClient() {
   const [pollInterval,setPollIntervalRaw] = useState(loadPollMs);
   const [actPollInterval,setActPollIntervalRaw] = useState(loadActPollMs);
   const [sessionLimit,setSessionLimitRaw] = useState(loadLimit);
+  const [tzOffset, setTzOffsetRaw] = useState(loadTzOffset);
   const [planId,setPlanIdRaw]      = useState(loadPlan);
   const [customDaily,setCustomDailyRaw] = useState(loadCustomDaily);
   const [todayCount,setTodayCount] = useState(loadTodayCount);
@@ -3457,6 +3511,11 @@ function JulesClient() {
   const setSessionLimit = useCallback(v => {
     saveLimit(v);
     setSessionLimitRaw(v);
+  }, []);
+
+  const setTzOffset = useCallback(v => {
+    saveTzOffset(v);
+    setTzOffsetRaw(v);
   }, []);
 
   const fetchSessions = useCallback(async (quiet=false) => {
@@ -3546,6 +3605,7 @@ function JulesClient() {
             onSettings={()=>setDesktop("settings")}
             pollInterval={pollInterval}
             sessionLimit={sessionLimit}
+            tzOffset={tzOffset}
             countdown={countdown}
             plan={plan} todayCount={todayCount}
             searchQuery={searchQuery} setSearchQuery={setSearchQuery}
@@ -3582,6 +3642,7 @@ function JulesClient() {
               pollInterval={pollInterval} setPollInterval={setPollInterval}
               actPollInterval={actPollInterval} setActPollInterval={setActPollInterval}
               sessionLimit={sessionLimit} setSessionLimit={setSessionLimit}
+              tzOffset={tzOffset} setTzOffset={setTzOffset}
               planId={planId} setPlanId={setPlanId}
               customDaily={customDaily} setCustomDaily={setCustomDaily}
               plan={plan} todayCount={todayCount} />
@@ -3601,6 +3662,7 @@ function JulesClient() {
             onSettings={()=>setMobile("settings")}
             pollInterval={pollInterval}
             sessionLimit={sessionLimit}
+            tzOffset={tzOffset}
             countdown={countdown}
             plan={plan} todayCount={todayCount}
             searchQuery={searchQuery} setSearchQuery={setSearchQuery}
@@ -3626,6 +3688,7 @@ function JulesClient() {
             pollInterval={pollInterval} setPollInterval={setPollInterval}
             actPollInterval={actPollInterval} setActPollInterval={setActPollInterval}
             sessionLimit={sessionLimit} setSessionLimit={setSessionLimit}
+            tzOffset={tzOffset} setTzOffset={setTzOffset}
             planId={planId} setPlanId={setPlanId}
             customDaily={customDaily} setCustomDaily={setCustomDaily}
             plan={plan} todayCount={todayCount} />
