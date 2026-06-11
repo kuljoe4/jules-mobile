@@ -474,23 +474,23 @@ const T = {
   brandLight:"#22d3ee",
   brandDark:"#0891b2",
   brandDim:"rgba(6, 182, 212, 0.12)",
-  indigo:"#6366f1", indigoDim:"rgba(99,102,241,0.12)",
+  indigo:"#818cf8", indigoDim:"rgba(129,140,248,0.12)",
   amber:"#ffbc00", amberDim:"rgba(255,188,0,0.12)",
   red:"#ff5566",   redDim:"rgba(255,85,102,0.12)",
-  blue:"#38bdf8",  blueDim:"rgba(56,189,248,0.12)",
-  purple:"#818cf8",purpleDim:"rgba(129,140,248,0.12)",
-  text:"#ffffff",  textHi:"#f8fafc", textDim:"#c5d4e8",
-  muted:"#64748b", dim:"#1e293b", line:"#111827",
+  blue:"#7dd3fc",  blueDim:"rgba(125,211,252,0.12)",
+  purple:"#a5b4fc",purpleDim:"rgba(165,180,252,0.12)",
+  text:"#ffffff",  textHi:"#f8fafc", textDim:"#e2e8f0",
+  muted:"#cbd5e1", dim:"#94a3b8", line:"#111827",
   userBubble:"rgba(99,102,241,0.08)", agentBubble:"rgba(6, 182, 212, 0.06)",
 };
 
 const STATUS_META = {
-  QUEUED:                { label:"QUEUED",   color:T.muted,   bg:"rgba(124,142,166,.1)", pulse:false },
+  QUEUED:                { label:"QUEUED",   color:T.textDim,   bg:"rgba(124,142,166,.1)", pulse:false },
   PLANNING:              { label:"PLANNING", color:T.amber,   bg:T.amberDim,             pulse:true  },
   AWAITING_PLAN_APPROVAL:{ label:"APPROVE",  color:T.purple,  bg:T.purpleDim,            pulse:true  },
   AWAITING_USER_FEEDBACK:{ label:"INPUT",    color:T.amber,   bg:T.amberDim,             pulse:true  },
   IN_PROGRESS:           { label:"WORKING",  color:T.brand,   bg:T.brandDim,             pulse:true  },
-  PAUSED:                { label:"PAUSED",   color:T.muted,   bg:"rgba(124,142,166,.1)", pulse:false },
+  PAUSED:                { label:"PAUSED",   color:T.textDim,   bg:"rgba(124,142,166,.1)", pulse:false },
   COMPLETED:             { label:"DONE",     color:T.brandDark, bg:T.brandDim,           pulse:false },
   FAILED:                { label:"FAILED",   color:T.red,     bg:T.redDim,               pulse:false },
 };
@@ -839,7 +839,7 @@ const Btn = ({children,onClick,color=T.brand,disabled=false,outline=false,sm=fal
 
 const Field = ({label,children,style:s={}}) => (
   <div style={{marginBottom:24,...s}}>
-    <div style={{marginBottom:10,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted,fontWeight:700,letterSpacing:"0.12em"}}>{label}</div>
+    <div style={{marginBottom:10,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.textDim,fontWeight:700,letterSpacing:"0.12em"}}>{label}</div>
     {children}
   </div>
 );
@@ -883,7 +883,7 @@ const SearchPicker = ({ value, search, onSearch, onSelect, onHide, options, plac
             boxShadow:"0 10px 25px rgba(0,0,0,0.5)",
           }}>
             {options.length === 0 && (
-              <div style={{padding:"12px", textAlign:"center", fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.muted}}>
+              <div style={{padding:"12px", textAlign:"center", fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.textDim}}>
                 NO RESULTS FOUND
               </div>
             )}
@@ -1010,7 +1010,7 @@ const ExpandableContent = memo(({ text, limit = 300, showCopy = false }) => {
         )}
         {showCopy && (
           <>
-            <div style={{ color: T.muted, fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 600, opacity: 0.6 }}>{fmtChars(text?.length || 0)}</div>
+            <div style={{ color: T.textDim, fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 600, opacity: 0.8 }}>{fmtChars(text?.length || 0)}</div>
             <button
               onClick={handleCopy}
               style={{
@@ -1045,7 +1045,7 @@ const Markdown = memo(({ text }) => {
           borderRadius:6, overflow:"hidden", fontFamily:"'JetBrains Mono',monospace", fontSize:13,
         }}>
           {lang && (
-            <div style={{padding:"4px 10px", background:T.surface, borderBottom:`1px solid ${T.border}`, fontSize:11, color:T.muted, textTransform:"uppercase", letterSpacing:"0.05em"}}>
+            <div style={{padding:"4px 10px", background:T.surface, borderBottom:`1px solid ${T.border}`, fontSize:11, color:T.textDim, textTransform:"uppercase", letterSpacing:"0.05em"}}>
               {lang}
             </div>
           )}
@@ -1222,7 +1222,7 @@ const ChatBubble = memo(({ act, type, onMediaClick, onEdit }) => {
         }}>
           <span style={{fontWeight:700,letterSpacing:"0.06em"}}>{isUser?"YOU":"JULES"}</span>
           <span>·</span>
-          <span style={{opacity:0.6}}>{fmtChars(text?.length||0)}</span>
+          <span style={{opacity:0.8}}>{fmtChars(text?.length||0)}</span>
           <span>·</span>
           <span>{isTemp?"sending…":time}</span>
           {!isUser && !isTemp && (
@@ -1295,7 +1295,7 @@ const TimelineEvent = memo(({ act, onMediaClick }) => {
               }}>{i+1}</div>
               <div style={{flex: 1, minWidth: 0}}>
                 <div style={{fontSize:14,color:T.text,fontWeight:700,lineHeight:1.5,wordBreak:"break-word",marginBottom:4}}>{st.title}</div>
-                {st.description&&<div style={{fontSize:13,color:T.muted,lineHeight:1.6,wordBreak:"break-word"}}>{st.description}</div>}
+                {st.description&&<div style={{fontSize:13,color:T.textDim,lineHeight:1.6,wordBreak:"break-word"}}>{st.description}</div>}
               </div>
             </div>
           ))}
@@ -1436,7 +1436,7 @@ const TimelineEvent = memo(({ act, onMediaClick }) => {
             fontWeight:isMajor?900:800, color:ic.c, flex:1, lineHeight:1.3,
             letterSpacing:"0.04em", textTransform:isMajor?"uppercase":"none"
           }}>{title}</span>
-          <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted,fontWeight:600,flexShrink:0}}>{time}</span>
+          <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.textDim,fontWeight:600,flexShrink:0}}>{time}</span>
         </div>
         {detail}
         <MediaArtifacts artifacts={act.artifacts} ts={act.createTime} onMediaClick={onMediaClick}/>
@@ -1485,7 +1485,7 @@ const MediaModal = ({ media, onClose }) => {
           <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:13, color:T.text, fontWeight:700 }}>
             MEDIA ARTIFACT
           </div>
-          <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.muted }}>
+          <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.textDim }}>
             {media.mimeType} · {fmtTime(new Date(media.ts).getTime())}
           </div>
         </div>
@@ -1544,7 +1544,7 @@ const MediaModal = ({ media, onClose }) => {
       {/* Footer / Hint */}
       <div style={{
         padding:20, textAlign:"center", fontFamily:"'JetBrains Mono',monospace",
-        fontSize:11, color:T.muted, letterSpacing:"0.05em",
+        fontSize:11, color:T.textDim, letterSpacing:"0.05em",
       }}>
         TAP OUTSIDE TO CLOSE
       </div>
@@ -1585,7 +1585,7 @@ const ActivityFeed = memo(({ activities, showAll, onShowAll, onMediaClick, onEdi
           background:T.surfaceHi,border:`1px solid ${T.border}`,
           borderRadius:6,padding:"8px 12px",cursor:"pointer",
           fontFamily:"'JetBrains Mono',monospace",fontSize:11,
-          color:T.muted,textAlign:"center",letterSpacing:"0.08em",
+          color:T.textDim,textAlign:"center",letterSpacing:"0.08em",
         }}>
           ↑ SHOW {hidden} EARLIER {hidden===1?"EVENT":"EVENTS"}
         </button>
@@ -1656,7 +1656,7 @@ const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFeedback,
   };
 
   if (!plan) return (
-    <div style={{textAlign:"center",padding:"50px 24px",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.muted}}>
+    <div style={{textAlign:"center",padding:"50px 24px",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>
       {session.state === "PLANNING" ? "Jules is generating a plan…" : "No plan available"}
     </div>
   );
@@ -1677,12 +1677,12 @@ const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFeedback,
             color:approved?T.brand:pendingApproval?T.purple:T.muted,letterSpacing:"0.06em"}}>
             {approved?"✓ PLAN APPROVED":pendingApproval?"PLAN READY FOR REVIEW":"PLAN PREVIEW"}
           </div>
-          <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted}}>
+          <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.textDim}}>
             {steps.length} step{steps.length!==1?"s":""}
           </span>
         </div>
         {pendingApproval&&!approved&&(
-          <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:14,color:T.muted,lineHeight:1.5}}>
+          <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:14,color:T.textDim,lineHeight:1.5}}>
             Review each step below. Tap a step to add feedback, then request a revision or approve.
           </div>
         )}
@@ -1717,7 +1717,7 @@ const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFeedback,
                     {st.title}
                   </div>
                   {st.description&&(
-                    <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:13,color:T.muted,lineHeight:1.45}}>
+                    <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:13,color:T.textDim,lineHeight:1.45}}>
                       {st.description}
                     </div>
                   )}
@@ -1761,7 +1761,7 @@ const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFeedback,
                   />
                   <button onClick={()=>setActiveNote(null)} style={{
                     marginTop:5,padding:"4px 10px",borderRadius:4,border:`1px solid ${T.border}`,
-                    background:"transparent",cursor:"pointer",color:T.muted,
+                    background:"transparent",cursor:"pointer",color:T.textDim,
                     fontFamily:"'JetBrains Mono',monospace",fontSize:11,
                   }}>DONE</button>
                 </div>
@@ -1777,7 +1777,7 @@ const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFeedback,
           background:T.surface,border:`1px solid ${T.border}`,
           borderRadius:7,padding:"12px 14px",
         }}>
-          <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted,
+          <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.textDim,
             letterSpacing:"0.08em",marginBottom:6}}>OVERALL FEEDBACK (optional)</div>
           <textarea
             value={globalNote}
@@ -1820,7 +1820,7 @@ const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFeedback,
               {busy?"APPROVING…":"APPROVE PLAN"}
             </Btn>
           </div>
-          <div style={{marginTop:7,fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted,textAlign:"center",lineHeight:1.6}}>
+          <div style={{marginTop:7,fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.textDim,textAlign:"center",lineHeight:1.6}}>
             Revise → Jules rewrites the plan · Approve → Jules starts executing
           </div>
         </div>
@@ -1859,7 +1859,7 @@ const DiffViewer = ({ patch }) => {
   }, [patch]);
 
   if (!patch || groups.length === 0) return (
-    <div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.muted}}>
+    <div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>
       No diff available yet
     </div>
   );
@@ -1879,7 +1879,7 @@ const DiffViewer = ({ patch }) => {
   return (
     <div style={{display:"flex", flexDirection:"column", gap:16}}>
       <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 4px"}}>
-        <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:700, color:T.muted, letterSpacing:"0.05em"}}>
+        <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:700, color:T.textDim, letterSpacing:"0.05em"}}>
           {groups.length} FILE{groups.length!==1?'S':''} CHANGED
         </div>
         <div style={{display:"flex", gap:8}}>
@@ -1930,7 +1930,7 @@ const DiffViewer = ({ patch }) => {
 
                     return (
                       <div key={li} style={{display:"flex", background:bg, minHeight:20, borderLeft:`2px solid ${isAdd?T.brand+'40':isRem?T.red+'40':'transparent'}`}}>
-                        <div style={{width:22, flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", color:c, opacity:0.6, fontSize:12, userSelect:"none", fontWeight:700, fontFamily:"monospace"}}>
+                        <div style={{width:22, flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", color:c, opacity:0.8, fontSize:12, userSelect:"none", fontWeight:700, fontFamily:"monospace"}}>
                           {symbol}
                         </div>
                         <div style={{padding:"2px 10px", color:isAdd?T.brand:isRem?T.red:T.text, whiteSpace:"pre-wrap", wordBreak:"break-all", flex:1, opacity: (isAdd||isRem)?1:0.7}}>
@@ -1976,7 +1976,7 @@ const SetupScreen = ({ onSave }) => {
             margin:"0 auto 16px",boxShadow:`0 8px 32px ${T.brand}20`,
           }}>J</div>
           <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:16,fontWeight:700,color:T.text,marginBottom:6}}>JULES AGENT CLIENT</div>
-          <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:15,color:T.muted,lineHeight:1.6}}>
+          <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:15,color:T.textDim,lineHeight:1.6}}>
             Enter your Jules API key from<br/>
             <a href="https://jules.google.com" target="_blank" rel="noopener" style={{color:T.brandLight,fontFamily:"'JetBrains Mono',monospace",fontSize:13,textDecoration:"none",borderBottom:`1px solid ${T.brandDark}40`}}>jules.google.com → Settings → API</a>
           </div>
@@ -2003,14 +2003,14 @@ const SetupScreen = ({ onSave }) => {
             padding:"10px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:6,
           }}>
             <Ic n="database" s={16} c={T.purple}/>
-            <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:T.muted, fontWeight:700}}>CLEAR DATA</span>
+            <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:T.textDim, fontWeight:700}}>CLEAR DATA</span>
           </button>
           <button onClick={clearCacheOnly} style={{
             background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:6,
             padding:"10px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:6,
           }}>
             <Ic n="layers" s={16} c={T.blue}/>
-            <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:T.muted, fontWeight:700}}>CLEAR CACHE</span>
+            <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:T.textDim, fontWeight:700}}>CLEAR CACHE</span>
           </button>
         </div>
 
@@ -2018,7 +2018,7 @@ const SetupScreen = ({ onSave }) => {
           width:"100%", background:"none", border:`1px solid ${T.red}30`, borderRadius:6,
           padding:"8px", cursor:"pointer", color:T.red, fontFamily:"'JetBrains Mono',monospace", fontSize:9, fontWeight:700,
         }}>FULL SYSTEM RESET</button>
-          <div style={{marginTop:16,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted,textAlign:"center",lineHeight:1.7}}>
+          <div style={{marginTop:16,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.textDim,textAlign:"center",lineHeight:1.7}}>
           Key stored locally for persistence<br/>
           Install Jules GitHub app first via web UI
         </div>
@@ -2049,8 +2049,8 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [] }) =>
       <div style={{display:"flex",alignItems:"flex-start",gap:8}}>
         <div style={{flex:1,minWidth:0}}>
           <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:2}}>
-            {repo&&<div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.muted,fontWeight:600,letterSpacing:"0.05em",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap", flex:1}}>{repo}</div>}
-            <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.muted, opacity:0.6, flexShrink:0}}>{fmtAgo(new Date(s.updateTime||s.createTime).getTime())}</span>
+            {repo&&<div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.textDim,fontWeight:600,letterSpacing:"0.05em",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap", flex:1}}>{repo}</div>}
+            <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.textDim, opacity:0.8, flexShrink:0}}>{fmtAgo(new Date(s.updateTime||s.createTime).getTime())}</span>
           </div>
           <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:14,fontWeight:600,color:isSelected?T.text:T.textDim,lineHeight:1.3,overflow:"hidden",textOverflow:"ellipsis",display:"-webkit-box",WebkitLineClamp:1,WebkitBoxOrient:"vertical"}}>{s.title||s.prompt}</div>
           <div style={{display:"flex", gap:4, flexWrap:"wrap", marginTop:4}}>
@@ -2522,7 +2522,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
               }}>
                 <Ic n={pr.state==="merged"?"git_merge":"git_pull"} s={scrolled?12:13} c={pr.state==="merged"?T.purple:pr.state==="closed"?T.muted:T.brand}/>
                 #{pr.number}
-                {!scrolled && <span style={{fontSize:9, opacity:0.7, marginLeft:2}}>{pr.state.toUpperCase()}</span>}
+                {!scrolled && <span style={{fontSize:9, opacity:0.9, marginLeft:2}}>{pr.state.toUpperCase()}</span>}
               </a>
             )}
             <Pill status={session.state} small/>
@@ -2544,7 +2544,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
           marginBottom:scrolled?0:10,
           opacity:scrolled?0:1,
           overflow:"hidden",
-          fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted,flexWrap:"nowrap",alignItems:"center",
+          fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.textDim,flexWrap:"nowrap",alignItems:"center",
           transition:"all .25s ease",
           pointerEvents:scrolled?"none":"auto",
         }}>
@@ -2556,8 +2556,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
               {ahead > 0 && <span style={{color:T.blue, fontWeight:800}}>+{ahead}</span>}
             </span>
           )}
-          {session.url && <a href={session.url} target="_blank" rel="noopener" style={{color:T.muted,textDecoration:"none",flexShrink:0,fontFamily:"'JetBrains Mono',monospace",fontSize:11}}>WEB↗</a>}
-          {b?.repo && <a href={`https://github.com/${b.repo}/branches`} target="_blank" rel="noopener" style={{color:T.muted,textDecoration:"none",flexShrink:0,fontFamily:"'JetBrains Mono',monospace",fontSize:11}}>BRANCHES↗</a>}
+          {session.url && <a href={session.url} target="_blank" rel="noopener" style={{color:T.textDim,textDecoration:"none",flexShrink:0,fontFamily:"'JetBrains Mono',monospace",fontSize:11}}>WEB↗</a>}
+          {b?.repo && <a href={`https://github.com/${b.repo}/branches`} target="_blank" rel="noopener" style={{color:T.textDim,textDecoration:"none",flexShrink:0,fontFamily:"'JetBrains Mono',monospace",fontSize:11}}>BRANCHES↗</a>}
         </div>
 
 
@@ -2657,7 +2657,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
       <div ref={contentRef} onScroll={handleScroll} style={{flex:1,overflowY:"auto",padding:"14px 16px",paddingBottom:isDesktop?80:220,WebkitOverflowScrolling:"touch",minHeight:200,position:"relative"}}>
         {tab==="activity"&&(
           activities.length===0
-          ?<div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.muted}}>
+          ?<div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>
             {ACTIVE_STATES.has(session.state)?"Waiting for activity…":"No activities yet"}
           </div>
           :<ActivityFeed activities={activities} showAll={showAll} onShowAll={()=>setShowAll(true)} onMediaClick={setActiveMedia} onEditMessage={(text) => {
@@ -2708,7 +2708,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                 }}>
                   FOLLOW-UP #{i+1}
                   <div style={{height:1, flex:1, background:T.brandDim}}/>
-                  <span style={{color:T.muted, fontSize:10}}>{fmtTime(new Date(a.createTime).getTime())}</span>
+                  <span style={{color:T.textDim, fontSize:10}}>{fmtTime(new Date(a.createTime).getTime())}</span>
                 </div>
                 <div style={{
                   background:T.surfaceHi, border:`1px solid ${T.border}`,
@@ -2741,7 +2741,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
         {tab==="diff"&&<DiffViewer patch={diffArtifact?.unidiffPatch||null}/>}
         {tab==="media"&&(
           mediaArtifacts.length===0
-          ?<div style={{textAlign:"center",padding:"40px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.muted}}>No media artifacts</div>
+          ?<div style={{textAlign:"center",padding:"40px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>No media artifacts</div>
           :<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:12}}>
             {mediaArtifacts.map((m,i)=>{
               const isVideo = (m.mimeType || "").includes("video") || (m.mimeType || "").includes("webm");
@@ -2770,7 +2770,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                     <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.text, fontWeight:700, marginBottom:2 }}>
                       {m.mimeType.split("/")[1]?.toUpperCase() || "IMAGE"}
                     </div>
-                    <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.muted }}>
+                    <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.textDim }}>
                       {fmtTime(new Date(m.ts).getTime())}
                     </div>
                   </div>
@@ -2845,7 +2845,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                 </button>
               </div>
             )}
-            <div style={{ position: "absolute", bottom: -18, left: 2, fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: T.muted, opacity: 0.6 }}>
+            <div style={{ position: "absolute", bottom: -18, left: 2, fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: T.textDim, opacity: 0.8 }}>
               {fmtChars(msg.length)}
             </div>
             <button
@@ -2862,7 +2862,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
               <Ic n="send" s={14} c={msg.trim()&&!busy?"#000":T.muted}/>
             </button>
           </div>
-          <div style={{marginTop:4,fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted}}>↵ send · shift+↵ newline</div>
+          <div style={{marginTop:4,fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.textDim}}>↵ send · shift+↵ newline</div>
         </div>
       )}
 
@@ -3104,7 +3104,7 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
           </button>
         )}
         {savedFlash&&(
-          <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted,padding:"3px 9px"}}>CLEARED</span>
+          <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.textDim,padding:"3px 9px"}}>CLEARED</span>
         )}
       </div>
       <div style={{flex:1,overflowY:"auto",padding:"18px 24px",WebkitOverflowScrolling:"touch",minHeight:0}}>
@@ -3113,7 +3113,7 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
 
           <Field label="REPOSITORY (SOURCE)">
             {loadingSrc
-              ?<div style={{...inputSt,color:T.muted,fontSize:13}}>Loading sources…</div>
+              ?<div style={{...inputSt,color:T.textDim,fontSize:13}}>Loading sources…</div>
               :sources.length===0
               ?<div style={{padding:"10px 12px",borderRadius:6,background:T.amberDim,border:`1px solid ${T.amber}40`,fontFamily:"'IBM Plex Sans',sans-serif",fontSize:14,color:T.amber}}>
                 No sources found. Connect a repo at <span style={{fontFamily:"'JetBrains Mono',monospace"}}>jules.google.com</span> first.
@@ -3148,7 +3148,7 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
                       boxShadow:"0 10px 25px rgba(0,0,0,0.5)",
                     }}>
                       {filteredSources.length === 0 && (
-                        <div style={{padding:"12px", textAlign:"center", fontFamily:"'JetBrains Mono',monospace", fontSize:12, color:T.muted}}>
+                        <div style={{padding:"12px", textAlign:"center", fontFamily:"'JetBrains Mono',monospace", fontSize:12, color:T.textDim}}>
                           NO RESULTS FOUND
                         </div>
                       )}
@@ -3215,7 +3215,7 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
                       boxShadow:"0 10px 25px rgba(0,0,0,0.5)",
                     }}>
                       {filteredBranches.length === 0 && (
-                        <div style={{padding:"12px", textAlign:"center", fontFamily:"'JetBrains Mono',monospace", fontSize:12, color:T.muted}}>
+                        <div style={{padding:"12px", textAlign:"center", fontFamily:"'JetBrains Mono',monospace", fontSize:12, color:T.textDim}}>
                           NO RESULTS FOUND
                         </div>
                       )}
@@ -3251,7 +3251,7 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
               </div>
               <div style={{
                 marginTop:5, display:"flex", gap:6, alignItems:"center",
-                fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.muted,
+                fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.textDim,
               }}>
                 <span>{branches.length || 0} branch{branches.length!==1?"es":""}</span>
                 {defaultBranch && <span>· default: <span style={{color:T.brand}}>{defaultBranch}</span></span>}
@@ -3259,7 +3259,7 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
                   <button onClick={()=>setBranch(defaultBranch)} style={{
                     marginLeft:4, padding:"1px 7px", borderRadius:3,
                     background:"transparent", border:`1px solid ${T.border}`,
-                    color:T.muted, cursor:"pointer",
+                    color:T.textDim, cursor:"pointer",
                     fontFamily:"'JetBrains Mono',monospace", fontSize:10,
                   }}>reset</button>
                 )}
@@ -3273,7 +3273,7 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
 
           <Field label="TASK PROMPT *">
             <div style={{ position: "relative" }}>
-              <div style={{ position: "absolute", top: -18, right: 0, fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: T.muted, opacity: 0.6 }}>
+              <div style={{ position: "absolute", top: -18, right: 0, fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: T.textDim, opacity: 0.8 }}>
                 {fmtChars(prompt.length)}
               </div>
               <textarea value={prompt} onChange={e=>setPrompt(e.target.value)}
@@ -3302,7 +3302,7 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
           </Field>
 
           <div style={{marginBottom:16}}>
-            <div style={{marginBottom:8,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted,fontWeight:700,letterSpacing:"0.12em"}}>ROLES & FOCUS</div>
+            <div style={{marginBottom:8,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.textDim,fontWeight:700,letterSpacing:"0.12em"}}>ROLES & FOCUS</div>
             <MultiPersonaPicker personas={personas} selectedIds={selectedPersonas} onToggle={togglePersona} style={{marginBottom:12}} />
 
             <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
@@ -3322,14 +3322,14 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
                     opacity:opt.disabled?0.4:1,
                   }}>
                   <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,fontWeight:700,color:opt.val?T.brand:T.muted,letterSpacing:"0.08em"}}>{opt.label}</div>
-                  <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted}}>{opt.hint}</div>
+                  <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.textDim}}>{opt.hint}</div>
                 </button>
               ))}
             </div>
           </div>
 
           <div style={{padding:"8px 12px",borderRadius:5,marginBottom:10,background:T.brandDim,border:`1px solid ${T.brand}30`,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.brand,lineHeight:1.7}}>
-            ⚡ PAYLOAD: ~{payloadEst}KB<span style={{color:T.muted}}> · web baseline ~180KB</span>
+            ⚡ PAYLOAD: ~{payloadEst}KB<span style={{color:T.textDim}}> · web baseline ~180KB</span>
           </div>
 
           {plan&&(
@@ -3374,7 +3374,7 @@ const NetworkMonitor = ({ onBack, isDesktop }) => {
         {!isDesktop&&<button onClick={onBack} style={{background:"none",border:"none",cursor:"pointer",display:"flex"}}><Ic n="back" s={18} c={T.text}/></button>}
         <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.text,letterSpacing:"0.05em",fontWeight:700,flex:1}}>NETWORK & STORAGE</div>
         {isDesktop && (
-          <button onClick={onBack} title="Close" style={{background:"none",border:"none",cursor:"pointer",display:"flex",padding:4,opacity:0.6}}>
+          <button onClick={onBack} title="Close" style={{background:"none",border:"none",cursor:"pointer",display:"flex",padding:4,opacity:0.8}}>
             <Ic n="x" s={18} c={T.text}/>
           </button>
         )}
@@ -3391,9 +3391,9 @@ const NetworkMonitor = ({ onBack, isDesktop }) => {
                 {l:"REQUESTS",   v:log.length,c:T.blue, desc:"Total API calls made"},
               ].map(s=>(
                 <div key={s.l} style={{background:T.surfaceHi,border:`1px solid ${T.border}`,borderRadius:12,padding:16}}>
-                  <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted,letterSpacing:"0.1em",marginBottom:6,fontWeight:700}}>{s.l}</div>
+                  <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.textDim,letterSpacing:"0.1em",marginBottom:6,fontWeight:700}}>{s.l}</div>
                   <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:22,fontWeight:900,color:s.c,marginBottom:4}}>{s.v}</div>
-                  <div style={{fontSize:9, color:T.dim, fontFamily:"'IBM Plex Sans',sans-serif", lineHeight:1.2}}>{s.desc}</div>
+                  <div style={{fontSize:9, color:T.textDim, fontFamily:"'IBM Plex Sans',sans-serif", lineHeight:1.2}}>{s.desc}</div>
                 </div>
               ))}
             </div>
@@ -3402,9 +3402,9 @@ const NetworkMonitor = ({ onBack, isDesktop }) => {
               <div style={{background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:12, padding:18, display:"flex", flexDirection:"column"}}>
                 <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:12}}>
                   <Ic n="database" s={14} c={T.purple}/>
-                  <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:700, color:T.muted}}>APP DATA</span>
+                  <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:700, color:T.textDim}}>APP DATA</span>
                 </div>
-                <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:24, fontWeight:900, color:T.text, marginBottom:16}}>{storage ? fmtBytes((storage.local||0)/1024) : "..."}<span style={{fontSize:10, color:T.dim, marginLeft:4, fontWeight:500}}>USED</span></div>
+                <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:24, fontWeight:900, color:T.text, marginBottom:16}}>{storage ? fmtBytes((storage.local||0)/1024) : "..."}<span style={{fontSize:10, color:T.textDim, marginLeft:4, fontWeight:500}}>USED</span></div>
                 <button onClick={clearDataOnly} style={{
                   width:"100%", padding:"10px", borderRadius:8, background:`${T.purple}15`, border:`1px solid ${T.purple}30`,
                   color:T.purple, fontSize:10, fontWeight:800, fontFamily:"'JetBrains Mono',monospace", cursor:"pointer",
@@ -3415,9 +3415,9 @@ const NetworkMonitor = ({ onBack, isDesktop }) => {
               <div style={{background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:12, padding:18, display:"flex", flexDirection:"column"}}>
                 <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:12}}>
                   <Ic n="layers" s={14} c={T.blue}/>
-                  <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:700, color:T.muted}}>CACHE</span>
+                  <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:700, color:T.textDim}}>CACHE</span>
                 </div>
-                <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:24, fontWeight:900, color:T.text, marginBottom:16}}>{storage ? fmtBytes((storage.cache||0)/1024) : "..."}<span style={{fontSize:10, color:T.dim, marginLeft:4, fontWeight:500}}>TOTAL</span></div>
+                <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:24, fontWeight:900, color:T.text, marginBottom:16}}>{storage ? fmtBytes((storage.cache||0)/1024) : "..."}<span style={{fontSize:10, color:T.textDim, marginLeft:4, fontWeight:500}}>TOTAL</span></div>
                 <button onClick={clearCacheOnly} style={{
                   width:"100%", padding:"10px", borderRadius:8, background:`${T.blue}15`, border:`1px solid ${T.blue}30`,
                   color:T.blue, fontSize:10, fontWeight:800, fontFamily:"'JetBrains Mono',monospace", cursor:"pointer",
@@ -3427,16 +3427,16 @@ const NetworkMonitor = ({ onBack, isDesktop }) => {
             </div>
 
             <div style={{marginTop:8}}>
-              <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted,letterSpacing:"0.08em",marginBottom:12,fontWeight:700}}>RECENT ACTIVITY LOG</div>
+              <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.textDim,letterSpacing:"0.08em",marginBottom:12,fontWeight:700}}>RECENT ACTIVITY LOG</div>
               <div style={{background:T.surfaceHi, borderRadius:12, border:`1px solid ${T.border}`, overflow:"hidden"}}>
                 {log.length===0
-                  ?<div style={{textAlign:"center",padding:"32px",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.muted}}>No requests recorded</div>
+                  ?<div style={{textAlign:"center",padding:"32px",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>No requests recorded</div>
                   :log.map((r,i)=>(
                     <div key={r.id} style={{display:"flex",gap:12,alignItems:"center",padding:"12px 16px",borderBottom:i<log.length-1?`1px solid ${T.border}`:"none"}}>
                       <div style={{width:6,height:6,borderRadius:"50%",background:T.brand,flexShrink:0,boxShadow:`0 0 6px ${T.brand}40`}}/>
                       <div style={{flex:1,minWidth:0}}>
                         <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontWeight:500}}>{r.label}</div>
-                        <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted,marginTop:2}}>{fmtAgo(r.ts)}</div>
+                        <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.textDim,marginTop:2}}>{fmtAgo(r.ts)}</div>
                       </div>
                       <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.brand,flexShrink:0,fontWeight:700}}>{fmtBytes(r.bytes)}</div>
                     </div>
@@ -3466,7 +3466,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
   const TABS = [
     { id: "general", label: "GENERAL", ic: "settings" },
     { id: "personas",label: "PERSONAS", ic: "tasks" },
-    { id: "network", label: "NETWORK", ic: "wifi" },
+    { id: "network", label: "NETWORK", ic: "layers" },
     { id: "storage", label: "STORAGE", ic: "database" },
   ];
 
@@ -3477,7 +3477,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
           {!isDesktop&&<button onClick={onBack} style={{background:"none",border:"none",cursor:"pointer",display:"flex"}}><Ic n="back" s={18} c={T.text}/></button>}
           <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.text,letterSpacing:"0.05em",fontWeight:700,flex:1}}>APP SETTINGS</div>
           {isDesktop && (
-            <button onClick={onBack} title="Close Settings" style={{background:"none",border:"none",cursor:"pointer",display:"flex",padding:4,opacity:0.6}}>
+            <button onClick={onBack} title="Close Settings" style={{background:"none",border:"none",cursor:"pointer",display:"flex",padding:4,opacity:0.8}}>
               <Ic n="x" s={18} c={T.text}/>
             </button>
           )}
@@ -3511,7 +3511,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
                 </div>
 
                 <div style={{marginBottom:20}}>
-                  <div style={{fontSize:11, color:T.muted, marginBottom:8, fontFamily:"'JetBrains Mono',monospace", fontWeight:700}}>SESSION LIST</div>
+                  <div style={{fontSize:11, color:T.textDim, marginBottom:8, fontFamily:"'JetBrains Mono',monospace", fontWeight:700}}>SESSION LIST</div>
                   <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
                     {POLL_OPTIONS.map(opt => {
                       const isAct = opt.ms === pollInterval;
@@ -3524,7 +3524,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
                 </div>
 
                 <div style={{marginBottom:20}}>
-                  <div style={{fontSize:11, color:T.muted, marginBottom:8, fontFamily:"'JetBrains Mono',monospace", fontWeight:700}}>ACTIVE SESSIONS (IN-PROGRESS)</div>
+                  <div style={{fontSize:11, color:T.textDim, marginBottom:8, fontFamily:"'JetBrains Mono',monospace", fontWeight:700}}>ACTIVE SESSIONS (IN-PROGRESS)</div>
                   <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
                     {POLL_OPTIONS.map(opt => {
                       const isAct = opt.ms === activePollInterval;
@@ -3534,13 +3534,13 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
                       );
                     })}
                   </div>
-                  <div style={{marginTop:6, fontSize:10, color:T.muted, fontFamily:"'IBM Plex Sans',sans-serif"}}>
+                  <div style={{marginTop:6, fontSize:10, color:T.textDim, fontFamily:"'IBM Plex Sans',sans-serif"}}>
                     Boost polling frequency automatically when any session is active.
                   </div>
                 </div>
 
                 <div style={{marginBottom:20}}>
-                  <div style={{fontSize:11, color:T.muted, marginBottom:8, fontFamily:"'JetBrains Mono',monospace", fontWeight:700}}>SESSION DETAIL</div>
+                  <div style={{fontSize:11, color:T.textDim, marginBottom:8, fontFamily:"'JetBrains Mono',monospace", fontWeight:700}}>SESSION DETAIL</div>
                   <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
                     {POLL_OPTIONS.map(opt => {
                       const isAct = opt.ms === actPollInterval;
@@ -3553,7 +3553,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
                 </div>
 
                 <div style={{marginBottom:20}}>
-                  <div style={{fontSize:11, color:T.muted, marginBottom:8, fontFamily:"'JetBrains Mono',monospace", fontWeight:700}}>FETCH LIMIT</div>
+                  <div style={{fontSize:11, color:T.textDim, marginBottom:8, fontFamily:"'JetBrains Mono',monospace", fontWeight:700}}>FETCH LIMIT</div>
                   <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
                     {LIMIT_OPTIONS.map(opt => {
                       const isAct = opt.val === sessionLimit;
@@ -3565,7 +3565,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
                 </div>
 
                 <div>
-                  <div style={{fontSize:11, color:T.muted, marginBottom:8, fontFamily:"'JetBrains Mono',monospace", fontWeight:700}}>QUOTA RESET OFFSET (UTC)</div>
+                  <div style={{fontSize:11, color:T.textDim, marginBottom:8, fontFamily:"'JetBrains Mono',monospace", fontWeight:700}}>QUOTA RESET OFFSET (UTC)</div>
                   <div style={{display:"flex", alignItems:"center", gap:10, background:T.surface, padding:8, borderRadius:8, border:`1px solid ${T.border}`}}>
                     <input
                       type="range" min="-12" max="14" step="1"
@@ -3581,13 +3581,13 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
                       UTC{tzOffset>=0?'+':''}{tzOffset}
                     </div>
                   </div>
-                  <div style={{marginTop:6, fontSize:10, color:T.muted, fontFamily:"'IBM Plex Sans',sans-serif"}}>
+                  <div style={{marginTop:6, fontSize:10, color:T.textDim, fontFamily:"'IBM Plex Sans',sans-serif"}}>
                     Daily quota resets at {resetHour < 10 ? '0' : ''}{resetHour}:00 in this timezone.
                   </div>
                 </div>
 
                 <div style={{marginTop:20}}>
-                  <div style={{fontSize:11, color:T.muted, marginBottom:8, fontFamily:"'JetBrains Mono',monospace", fontWeight:700}}>QUOTA RESET HOUR</div>
+                  <div style={{fontSize:11, color:T.textDim, marginBottom:8, fontFamily:"'JetBrains Mono',monospace", fontWeight:700}}>QUOTA RESET HOUR</div>
                   <div style={{display:"flex", alignItems:"center", gap:10, background:T.surface, padding:8, borderRadius:8, border:`1px solid ${T.border}`}}>
                     <input
                       type="range" min="0" max="23" step="1"
@@ -3603,7 +3603,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
                       {resetHour < 10 ? '0' : ''}{resetHour}:00
                     </div>
                   </div>
-                  <div style={{marginTop:6, fontSize:10, color:T.muted, fontFamily:"'IBM Plex Sans',sans-serif"}}>
+                  <div style={{marginTop:6, fontSize:10, color:T.textDim, fontFamily:"'IBM Plex Sans',sans-serif"}}>
                     Choose the exact hour of day for the session counter to reset.
                   </div>
                 </div>
@@ -3623,7 +3623,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
 
                 {planId==="custom" && (
                   <div style={{display:"flex", alignItems:"center", gap:10, marginBottom:16, background:T.surface, padding:12, borderRadius:8, border:`1px solid ${T.border}`}}>
-                    <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.muted, fontWeight:700}}>DAILY LIMIT:</span>
+                    <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.textDim, fontWeight:700}}>DAILY LIMIT:</span>
                     <input
                       type="number"
                       value={customDaily}
@@ -3635,9 +3635,9 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
 
                 <div style={{background:T.surface, padding:16, borderRadius:8, border:`1px solid ${T.border}`}}>
                   <div style={{display:"flex",justifyContent:"space-between",marginBottom:10,alignItems:"center"}}>
-                    <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted,fontWeight:700}}>DAILY USAGE</span>
+                    <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.textDim,fontWeight:700}}>DAILY USAGE</span>
                     <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:12,color:todayCount>=plan.daily?T.red:T.brand,fontWeight:800}}>
-                      {todayCount} / {plan.daily} <span style={{fontSize:10, opacity:0.7}}>SESSIONS</span>
+                      {todayCount} / {plan.daily} <span style={{fontSize:10, opacity:0.9}}>SESSIONS</span>
                     </span>
                   </div>
                   <div style={{height:4,background:T.line,borderRadius:2,overflow:"hidden"}}>
@@ -3648,7 +3648,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
                       boxShadow:`0 0 10px ${todayCount>=plan.daily?T.red:T.brand}30`,
                     }}/>
                   </div>
-                  <div style={{marginTop:12,fontSize:11,color:T.muted,fontFamily:"'IBM Plex Sans',sans-serif",lineHeight:1.6, opacity:0.8}}>
+                  <div style={{marginTop:12,fontSize:11,color:T.textDim,fontFamily:"'IBM Plex Sans',sans-serif",lineHeight:1.6, opacity:0.8}}>
                     {plan.model} · {plan.concurrent} concurrent max
                     {todayCount>=plan.daily && <div style={{color:T.red,marginTop:4,fontWeight:600}}>⛔ Daily limit reached. Resets at {resetHour < 10 ? '0' : ''}{resetHour}:00 UTC{tzOffset >= 0 ? '+' : ''}{tzOffset}.</div>}
                   </div>
@@ -3667,9 +3667,9 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
                   {l:"REQUESTS",   v:log.length,c:T.blue, desc:"Total API calls made"},
                 ].map(s=>(
                   <div key={s.l} style={{background:T.surfaceHi,border:`1px solid ${T.border}`,borderRadius:12,padding:16}}>
-                    <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted,letterSpacing:"0.1em",marginBottom:6,fontWeight:700}}>{s.l}</div>
+                    <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.textDim,letterSpacing:"0.1em",marginBottom:6,fontWeight:700}}>{s.l}</div>
                     <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:22,fontWeight:900,color:s.c,marginBottom:4}}>{s.v}</div>
-                    <div style={{fontSize:9, color:T.dim, fontFamily:"'IBM Plex Sans',sans-serif", lineHeight:1.2}}>{s.desc}</div>
+                    <div style={{fontSize:9, color:T.textDim, fontFamily:"'IBM Plex Sans',sans-serif", lineHeight:1.2}}>{s.desc}</div>
                   </div>
                 ))}
               </div>
@@ -3680,16 +3680,16 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
               </div>
 
               <div style={{marginTop:8}}>
-                <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted,letterSpacing:"0.08em",marginBottom:12,fontWeight:700}}>RECENT ACTIVITY LOG</div>
+                <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.textDim,letterSpacing:"0.08em",marginBottom:12,fontWeight:700}}>RECENT ACTIVITY LOG</div>
                 <div style={{background:T.surfaceHi, borderRadius:12, border:`1px solid ${T.border}`, overflow:"hidden"}}>
                   {log.length===0
-                    ?<div style={{textAlign:"center",padding:"32px",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.muted}}>No requests recorded</div>
+                    ?<div style={{textAlign:"center",padding:"32px",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>No requests recorded</div>
                     :log.map((r,i)=>(
                       <div key={r.id} style={{display:"flex",gap:12,alignItems:"center",padding:"12px 16px",borderBottom:i<log.length-1?`1px solid ${T.border}`:"none"}}>
                         <div style={{width:6,height:6,borderRadius:"50%",background:T.brand,flexShrink:0,boxShadow:`0 0 6px ${T.brand}40`}}/>
                         <div style={{flex:1,minWidth:0}}>
                           <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontWeight:500}}>{r.label}</div>
-                          <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted,marginTop:2}}>{fmtAgo(r.ts)}</div>
+                          <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.textDim,marginTop:2}}>{fmtAgo(r.ts)}</div>
                         </div>
                         <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.brand,flexShrink:0,fontWeight:700}}>{fmtBytes(r.bytes)}</div>
                       </div>
@@ -3703,7 +3703,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
           {tab === "personas" && (
             <div style={{animation:"fadeIn .2s ease", display:"flex", flexDirection:"column", gap:16}}>
               <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:4}}>
-                <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.muted, fontWeight:700, letterSpacing:"0.05em"}}>CUSTOM ROLE PROMPTS</div>
+                <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.textDim, fontWeight:700, letterSpacing:"0.05em"}}>CUSTOM ROLE PROMPTS</div>
                 <button onClick={() => { if(confirm("Reset all personas to defaults?")) { setPersonas(resetPersonas()); } }} style={{background:"none", border:"none", cursor:"pointer", color:T.red, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700}}>RESET ALL</button>
               </div>
               {personas.map(p => (
@@ -3720,7 +3720,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
                       }
                     }} style={{background:T.dim, border:"none", borderRadius:4, padding:"3px 8px", cursor:"pointer", color:T.brand, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700}}>EDIT PROMPT</button>
                   </div>
-                  <div style={{fontSize:13, color:T.muted, lineHeight:1.5, fontFamily:"'IBM Plex Sans',sans-serif"}}>{p.prompt}</div>
+                  <div style={{fontSize:13, color:T.textDim, lineHeight:1.5, fontFamily:"'IBM Plex Sans',sans-serif"}}>{p.prompt}</div>
                 </div>
               ))}
             </div>
@@ -3732,9 +3732,9 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
                 <div style={{background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:12, padding:18, display:"flex", flexDirection:"column"}}>
                   <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:12}}>
                     <Ic n="database" s={14} c={T.purple}/>
-                    <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:700, color:T.muted}}>APP DATA</span>
+                    <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:700, color:T.textDim}}>APP DATA</span>
                   </div>
-                  <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:24, fontWeight:900, color:T.text, marginBottom:16}}>{storage ? fmtBytes((storage.local||0)/1024) : "..."}<span style={{fontSize:10, color:T.dim, marginLeft:4, fontWeight:500}}>USED</span></div>
+                  <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:24, fontWeight:900, color:T.text, marginBottom:16}}>{storage ? fmtBytes((storage.local||0)/1024) : "..."}<span style={{fontSize:10, color:T.textDim, marginLeft:4, fontWeight:500}}>USED</span></div>
                   <button onClick={clearDataOnly} style={{
                     width:"100%", padding:"10px", borderRadius:8, background:`${T.purple}15`, border:`1px solid ${T.purple}30`,
                     color:T.purple, fontSize:10, fontWeight:800, fontFamily:"'JetBrains Mono',monospace", cursor:"pointer",
@@ -3745,9 +3745,9 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
                 <div style={{background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:12, padding:18, display:"flex", flexDirection:"column"}}>
                   <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:12}}>
                     <Ic n="layers" s={14} c={T.blue}/>
-                    <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:700, color:T.muted}}>CACHE</span>
+                    <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:700, color:T.textDim}}>CACHE</span>
                   </div>
-                  <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:24, fontWeight:900, color:T.text, marginBottom:16}}>{storage ? fmtBytes((storage.cache||0)/1024) : "..."}<span style={{fontSize:10, color:T.dim, marginLeft:4, fontWeight:500}}>TOTAL</span></div>
+                  <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:24, fontWeight:900, color:T.text, marginBottom:16}}>{storage ? fmtBytes((storage.cache||0)/1024) : "..."}<span style={{fontSize:10, color:T.textDim, marginLeft:4, fontWeight:500}}>TOTAL</span></div>
                   <button onClick={clearCacheOnly} style={{
                     width:"100%", padding:"10px", borderRadius:8, background:`${T.blue}15`, border:`1px solid ${T.blue}30`,
                     color:T.blue, fontSize:10, fontWeight:800, fontFamily:"'JetBrains Mono',monospace", cursor:"pointer",
@@ -3762,13 +3762,13 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
                   <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:12, fontWeight:700, color:T.text}}>SESSION CACHING</span>
                 </div>
                 <div>
-                  <div style={{fontSize:11, color:T.muted, marginBottom:12, fontFamily:"'JetBrains Mono',monospace", fontWeight:700}}>CACHE RECENT SESSION ACTIVITY (MAX)</div>
+                  <div style={{fontSize:11, color:T.textDim, marginBottom:12, fontFamily:"'JetBrains Mono',monospace", fontWeight:700}}>CACHE RECENT SESSION ACTIVITY (MAX)</div>
                   <div style={{display:"flex", alignItems:"center", gap:12}}>
                     {[0, 3, 5, 10, 20].map(v => (
                       <PickerBtn key={v} label={v === 0 ? "OFF" : v} isAct={cacheLimit === v} onClick={() => setCacheLimit(v)} />
                     ))}
                   </div>
-                  <div style={{marginTop:8, fontSize:10, color:T.muted, fontFamily:"'IBM Plex Sans',sans-serif", lineHeight:1.4}}>
+                  <div style={{marginTop:8, fontSize:10, color:T.textDim, fontFamily:"'IBM Plex Sans',sans-serif", lineHeight:1.4}}>
                     Store full activity history for up to {cacheLimit} recently viewed sessions in local storage to eliminate loading latency.
                   </div>
                 </div>
@@ -3776,7 +3776,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
 
               <div style={{background:"rgba(255,85,102,0.03)", border:`1px dashed ${T.red}30`, borderRadius:12, padding:24, textAlign:"center"}}>
                 <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:12, color:T.red, fontWeight:800, marginBottom:8, letterSpacing:"0.1em"}}>DANGER ZONE</div>
-                <div style={{fontFamily:"'IBM Plex Sans',sans-serif", fontSize:13, color:T.muted, marginBottom:20, lineHeight:1.6}}>
+                <div style={{fontFamily:"'IBM Plex Sans',sans-serif", fontSize:13, color:T.textDim, marginBottom:20, lineHeight:1.6}}>
                   This will perform a full system purge, including API keys and all local session data. Use with caution.
                 </div>
                 <button onClick={resetApp} style={{
@@ -3791,7 +3791,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
           )}
 
           <div style={{marginTop:60, paddingBottom:60, textAlign:"center"}}>
-            <Btn onClick={onBack} outline sm style={{margin:"0 auto", borderColor:T.borderHi, color:T.muted}}>
+            <Btn onClick={onBack} outline sm style={{margin:"0 auto", borderColor:T.borderHi, color:T.textDim}}>
               <Ic n="back" s={12} c={T.muted} />
               EXIT SETTINGS
             </Btn>
@@ -3807,7 +3807,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
 const FILTERS = ["ALL","QUEUED","PLANNING","AWAITING_PLAN_APPROVAL","IN_PROGRESS","COMPLETED","FAILED"];
 const FILTER_LABELS = { AWAITING_PLAN_APPROVAL:"APPROVE", ALL:"ALL" };
 
-const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selectedId, isDesktop, onNew, onNetwork, onSettings, pollInterval, sessionLimit, tzOffset = 1, resetHour = 10, countdown, plan, todayCount, searchQuery, setSearchQuery, archivedIds, showArchived, setShowArchived, activitiesMap = {} }) => {
+const SessionList = ({ sessions, onSelect, onRefresh, refreshing, selectedId, isDesktop, onNew,  onSettings, pollInterval, sessionLimit, tzOffset = 1, resetHour = 10, countdown, plan, todayCount, searchQuery, setSearchQuery, archivedIds, showArchived, setShowArchived, activitiesMap = {} }) => {
   const [filter,setFilter] = useState("ALL");
   const [scrolled, handleScroll] = useScrollThreshold();
   const [searchOpen, setSearchOpen] = useState(false);
@@ -3834,7 +3834,6 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
           <div style={{marginLeft:"auto",display:"flex",gap:6,alignItems:"center",flexShrink:0}}>
             <button onClick={() => setSearchOpen(!searchOpen)} title="Search sessions" style={{width:30,height:30,borderRadius:5,background:searchOpen||searchQuery?T.blueDim:"transparent",border:`1px solid ${searchOpen||searchQuery?T.blue+"40":T.border}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="search" s={15} c={searchOpen||searchQuery?T.blue:T.muted}/></button>
             {isDesktop&&<button onClick={onNew} title="New Session" style={{width:30,height:30,borderRadius:5,background:T.brandDim,border:`1px solid ${T.brand}40`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="plus" s={15} c={T.brand}/></button>}
-            <button onClick={onNetwork} title="Network Monitor" style={{width:30,height:30,borderRadius:5,background:T.surfaceHi,border:`1px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="wifi" s={15} c={T.muted}/></button>
             <button onClick={onSettings} title="Settings" style={{width:30,height:30,borderRadius:5,background:T.surfaceHi,border:`1px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="settings" s={15} c={T.muted}/></button>
             <button onClick={onRefresh} disabled={refreshing} title="Refresh now" style={{background:"none",border:"none",cursor:refreshing?"default":"pointer",display:"flex",padding:3,animation:refreshing?"spin 1s linear infinite":"none",transformOrigin:"center"}}><Ic n="refresh" s={15} c={refreshing?T.brand:T.muted}/></button>
           </div>
@@ -3850,7 +3849,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
         )}
         {isDesktop && (
           <div style={{display:"flex", gap:4, alignItems:"center", height:scrolled?0:22, overflow:"hidden", opacity:scrolled?0:1, marginBottom:scrolled?0:8, padding:scrolled?0:"4px 2px", transition:"all .25s ease", pointerEvents:scrolled?"none":"auto"}}>
-            <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.muted, letterSpacing:"0.08em", flexShrink:0, paddingRight:2}}>SESSIONS</span>
+            <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.textDim, letterSpacing:"0.08em", flexShrink:0, paddingRight:2}}>SESSIONS</span>
             <button onClick={() => setShowArchived(false)} style={{flexShrink:0, padding:"3px 9px", borderRadius:20, border:"none", background:!showArchived ? T.brandDim : "transparent", outline:`1px solid ${!showArchived ? T.brand+"60" : T.border}`, color:!showArchived ? T.brand : T.muted, fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:!showArchived?700:400, letterSpacing:"0.05em", cursor:"pointer", transition:"all .12s"}}>ACTIVE</button>
             <button onClick={() => setShowArchived(true)} style={{flexShrink:0, padding:"3px 9px", borderRadius:20, border:"none", background:showArchived ? T.purpleDim : "transparent", outline:`1px solid ${showArchived ? T.purple+"60" : T.border}`, color:showArchived ? T.purple : T.muted, fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:showArchived?700:400, letterSpacing:"0.05em", cursor:"pointer", transition:"all .12s"}}>ARCHIVED</button>
           </div>
@@ -3878,8 +3877,8 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
         </div>
       </div>
       <div onScroll={handleScroll} style={{flex:1,overflowY:"auto",padding:"10px 12px",WebkitOverflowScrolling:"touch",minHeight:200}}>
-        {refreshing&&sessions.length===0&&<div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.muted}}>Loading sessions…</div>}
-        {!refreshing&&filtered.length===0&&<div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.muted}}>{filter==="ALL"?"No sessions yet":"No sessions with this status"}</div>}
+        {refreshing&&sessions.length===0&&<div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>Loading sessions…</div>}
+        {!refreshing&&filtered.length===0&&<div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>{filter==="ALL"?"No sessions yet":"No sessions with this status"}</div>}
         {filtered.map((s,i)=><SessionCard key={s.id||s.name} index={i+1} s={s} onPress={()=>onSelect(s)} isSelected={isDesktop&&s.id===selectedId} activities={activitiesMap[s.id] || []}/>)}
       </div>
     </div>
@@ -4144,8 +4143,8 @@ function JulesClient() {
         <div style={{width:320,flexShrink:0,borderRight:`1px solid ${T.border}`,display:"flex",flexDirection:"column",height:"100vh",overflow:"hidden"}}>
           <SessionList
             sessions={sessions} onSelect={handleSelect} onRefresh={()=>fetchSessions()}
-            refreshing={refreshing} netSnap={netSnap} selectedId={selected?.id}
-            isDesktop onNew={()=>setDesktop("new")} onNetwork={()=>setDesktop("network")}
+            refreshing={refreshing} selectedId={selected?.id}
+            isDesktop onNew={()=>setDesktop("new")}
             onSettings={()=>setDesktop("settings")}
             pollInterval={pollInterval}
             sessionLimit={sessionLimit}
@@ -4163,7 +4162,7 @@ function JulesClient() {
           {desktopView==="empty"&&(
             <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:14,padding:32}}>
               <div style={{width:48,height:48,borderRadius:11,background:T.brandDim,border:`1px solid ${T.brand}25`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace",fontSize:26,fontWeight:900,color:T.brand}}>J</div>
-              <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.muted,textAlign:"center",lineHeight:2}}>
+              <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim,textAlign:"center",lineHeight:2}}>
                 SELECT A SESSION ←{"\u00A0"}{"\u00A0"}OR{"\u00A0"}{"\u00A0"}NEW ↖
               </div>
             </div>
@@ -4207,7 +4206,7 @@ function JulesClient() {
       <div style={{flex:1,overflow:"hidden",display:"flex",flexDirection:"column",minHeight:0}}>
         {mobileScreen==="list"&&(
           <SessionList sessions={sessions} onSelect={handleSelect} onRefresh={()=>fetchSessions()}
-            refreshing={refreshing} netSnap={netSnap} selectedId={null} isDesktop={false}
+            refreshing={refreshing} selectedId={null} isDesktop={false}
             onSettings={()=>setMobile("settings")}
             pollInterval={pollInterval}
             sessionLimit={sessionLimit}
