@@ -433,7 +433,7 @@ const MultiPersonaPicker = ({ personas, selectedIds, onToggle, style: s = {} }) 
               fontWeight: isSelected ? 800 : 500, letterSpacing: "0.05em",
               cursor: "pointer", transition: "all .15s",
               display: "flex", alignItems: "center", gap: 6,
-              boxShadow: isSelected ? `0 2px 8px ${p.color}20` : "none",
+              boxShadow: "none",
             }}
           >
             {isSelected && <span style={{ width: 4, height: 4, borderRadius: "50%", background: p.color }} />}
@@ -1029,7 +1029,65 @@ const Markdown = memo(({ text }) => {
         </div>
       );
     }
-    return <span key={i} style={{whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word"}}>{part}</span>;
+
+    // Process lists and bold text in standard text parts
+    const lines = part.split("\n");
+    return (
+      <span key={i} style={{whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word"}}>
+        {lines.map((line, li) => {
+          const trimmed = line.trim();
+          if (!trimmed && li > 0 && li < lines.length - 1) return <div key={li} style={{height: 12}} />;
+          if (!trimmed) return <div key={li} />;
+
+          const isListItem = trimmed.startsWith("- ") || trimmed.startsWith("* ");
+          const isNumItem = /^\d+\.\s/.test(trimmed);
+          const isHeader = trimmed.endsWith(":") && !isListItem && !isNumItem && trimmed.length < 80;
+
+          // Support for **bold** text
+          const processBold = (txt) => {
+            if (typeof txt !== 'string' || !txt.includes("**")) return txt;
+            const segments = txt.split("**");
+            return segments.map((seg, si) => si % 2 === 1 ? <strong key={si} style={{color:T.textHi, fontWeight:700}}>{seg}</strong> : seg);
+          };
+
+          let content = line;
+
+          if (isListItem) {
+            const bullet = trimmed.startsWith("- ") ? "- " : "* ";
+            const rest = trimmed.substring(bullet.length);
+            content = (
+              <div style={{display:"flex", gap:12, marginBottom:8, paddingLeft:4, alignItems:"flex-start"}}>
+                <div style={{width:6, height:6, borderRadius:"50%", background:T.brand, marginTop:7, flexShrink:0, boxShadow:`0 0 10px ${T.brand}60`}}/>
+                <span style={{flex:1, color:T.text, lineHeight:1.6}}>{processBold(rest)}</span>
+              </div>
+            );
+          } else if (isNumItem) {
+            const match = trimmed.match(/^(\d+\.\s)(.*)/);
+            const num = match[1];
+            const rest = match[2];
+            content = (
+              <div style={{display:"flex", gap:8, marginBottom:8, paddingLeft:2, alignItems:"flex-start"}}>
+                <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:900, color:T.brandLight, flexShrink:0, width:22}}>{num}</span>
+                <span style={{flex:1, color:T.text, lineHeight:1.6}}>{processBold(rest)}</span>
+              </div>
+            );
+          } else if (isHeader) {
+            content = (
+              <div style={{
+                fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:900,
+                color:T.brandLight, letterSpacing:"0.08em", marginTop:li===0?0:22, marginBottom:12,
+                textTransform:"uppercase", borderBottom:`2px solid ${T.brand}25`,
+                display:"inline-block", paddingBottom:4
+              }}>{processBold(trimmed)}</div>
+            );
+          } else {
+            content = <div style={{lineHeight:1.6, color:T.textDim, marginBottom:4}}>{processBold(line)}</div>;
+          }
+
+          return <div key={li}>{content}</div>;
+        })}
+      </span>
+    );
   });
 });
 
@@ -1228,24 +1286,24 @@ const TimelineEvent = memo(({ act, onMediaClick }) => {
       title = p?.title || "Progress";
       detail = act.progressUpdated?.description && (
         <div style={{
-          fontSize:13, color:highlight?T.text:T.muted,
-          lineHeight:isReview?1.7:1.6, padding:highlight?"14px 16px":"0",
-          background:isReview?`linear-gradient(165deg, ${T.blue}0d, transparent)` : isMerge?`${T.purple}0a`:isResearch?`${T.amber}0a`:isPush?`${T.blue}0a`:"transparent",
-          border:isReview?`1px solid ${T.blue}30`:isMerge?`1px solid ${T.purple}15`:isResearch?`1px solid ${T.amber}15`:isPush?`1px solid ${T.blue}15`:"none",
-          borderRadius:highlight?10:0,
-          boxShadow:isReview?`0 4px 20px ${T.blue}08` : (highlight?"inset 0 0 12px rgba(255,255,255,0.01)":"none"),
+          fontSize:14, color:highlight?T.text:T.muted,
+          lineHeight:isReview?1.75:1.6, padding:highlight?"20px 24px":"0",
+          background:isReview?`linear-gradient(165deg, ${T.brand}0d, ${T.surface}44)` : isMerge?`${T.purple}0a`:isResearch?`${T.amber}0a`:isPush?`${T.blue}0a`:"transparent",
+          border:isReview?`1px solid ${T.brand}35`:isMerge?`1px solid ${T.purple}15`:isResearch?`1px solid ${T.amber}15`:isPush?`1px solid ${T.blue}15`:"none",
+          borderRadius:highlight?12:0,
+          boxShadow:isReview?`0 16px 48px ${T.brandDark}15, inset 0 0 20px ${T.brand}05` : (highlight?"inset 0 0 12px rgba(255,255,255,0.01)":"none"),
           fontFamily:"'IBM Plex Sans',sans-serif",
-          letterSpacing:isReview?"0.01em":"0",
+          letterSpacing:isReview?"0.015em":"0",
         }}>
           {highlight && (
             <div style={{display:"flex", alignItems:"center", gap:6, marginBottom:12}}>
               <span style={{
                 padding:"2px 6px", borderRadius:3,
-                background:isReview?T.blueDim:(isMerge?T.purpleDim:(isResearch?T.amberDim:(isPush?T.blueDim:T.muted))),
-                color:isReview?T.blue:(isMerge?T.purple:(isResearch?T.amber:(isPush?T.blue:T.muted))),
-                fontSize:10, fontWeight:700, letterSpacing:"0.05em"
+                background:isReview?T.brandDim:(isMerge?T.purpleDim:(isResearch?T.amberDim:(isPush?T.blueDim:T.muted))),
+                color:isReview?T.brandLight:(isMerge?T.purple:(isResearch?T.amber:(isPush?T.blue:T.muted))),
+                fontSize:10, fontWeight:800, letterSpacing:"0.05em"
               }}>{isReview?"REVIEW":isMerge?"MERGE":isResearch?"RESEARCH":isPush?"PUSH":"EVENT"}</span>
-              <div style={{height:1, flex:1, background:`linear-gradient(90deg, ${isReview?T.blue:(isMerge?T.purple:(isResearch?T.amber:(isPush?T.blue:T.muted)))}30, transparent)`}}/>
+              <div style={{height:1, flex:1, background:`linear-gradient(90deg, ${isReview?T.brandLight:(isMerge?T.purple:(isResearch?T.amber:(isPush?T.blue:T.muted)))}30, transparent)`}}/>
             </div>
           )}
           <Markdown text={act.progressUpdated.description}/>
@@ -1298,7 +1356,7 @@ const TimelineEvent = memo(({ act, onMediaClick }) => {
           })()}
         </div>
       );
-      if (isReview) ic.c = T.blue;
+      if (isReview) { ic.c = T.brand; ic.n = "tasks"; }
       if (isMerge) { ic.c = T.purple; ic.n = "git_merge"; }
       if (isResearch) { ic.c = T.amber; ic.n = "search"; }
       break;
@@ -1345,7 +1403,11 @@ const TimelineEvent = memo(({ act, onMediaClick }) => {
       </div>
       <div style={{flex:1,paddingBottom:detail?12:0,minWidth:0,marginTop:1}}>
         <div style={{display:"flex",gap:10,alignItems:"center",minHeight:22,marginBottom:detail?12:0}}>
-          <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:12,fontWeight:800,color:ic.c,flex:1,lineHeight:1.3,letterSpacing:"0.02em"}}>{title}</span>
+          <span style={{
+            fontFamily:"'JetBrains Mono',monospace", fontSize:isMajor?13:12,
+            fontWeight:isMajor?900:800, color:ic.c, flex:1, lineHeight:1.3,
+            letterSpacing:"0.04em", textTransform:isMajor?"uppercase":"none"
+          }}>{title}</span>
           <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted,fontWeight:600,flexShrink:0}}>{time}</span>
         </div>
         {detail}
@@ -2026,7 +2088,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   const [busy,setBusy]           = useState(false);
   const [err,setErr]             = useState(null);
   const [activeMedia,setActiveMedia] = useState(null);
-  const [scrolled, handleScrollBase] = useScrollThreshold();
+  const [scrolled, handleScrollBase] = useScrollThreshold(10);
   const [composerVisible, setComposerVisible] = useState(true);
   const [expanded, setExpanded] = useState(false);
   const [showScroll, setShowScroll] = useState(false);
@@ -2362,8 +2424,9 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
         borderBottom:`1px solid ${T.border}`,
         background:T.surface,
         flexShrink:0,
-        transition:"all .25s cubic-bezier(0.4, 0, 0.2, 1)",
+        transition:"padding .2s ease-out, background .2s ease-out",
         zIndex: 5,
+        contain: "layout",
       }}>
         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:scrolled?0:8}}>
           {!isDesktop&&(
@@ -3727,7 +3790,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%",minHeight:0}}>
-      <div style={{padding:scrolled?"8px 16px 8px":"12px 16px 0",background:T.surface,borderBottom:`1px solid ${T.border}`,flexShrink:0,transition:"all .25s cubic-bezier(0.4, 0, 0.2, 1)",zIndex: 5}}>
+      <div style={{padding:scrolled?"8px 16px 8px":"12px 16px 0",background:T.surface,borderBottom:`1px solid ${T.border}`,flexShrink:0,transition:"padding .2s ease-out, background .2s ease-out",zIndex: 5, contain: "layout"}}>
         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:scrolled?0:10}}>
           <div style={{width:scrolled?20:32,height:scrolled?20:32,borderRadius:6,background:T.brand,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace",fontSize:scrolled?11:18,fontWeight:900,color:"#000",boxShadow:scrolled?"none":`0 0 12px ${T.brandDark}40`,flexShrink:0,transition:"all .2s ease"}}>J</div>
           <div style={{minWidth:0, transition:"all .2s ease"}}>
@@ -3816,7 +3879,23 @@ function JulesClient() {
   const [cacheLimit, setCacheLimitRaw] = useState(loadCacheLimit);
   const [planId,setPlanIdRaw]      = useState(loadPlan);
   const [customDaily,setCustomDailyRaw] = useState(loadCustomDaily);
-  const [todayCount,setTodayCount] = useState(loadTodayCount);
+  const [localTodayCount, setLocalTodayCount] = useState(loadTodayCount);
+  const todayCount = useMemo(() => {
+    // Current counting logic: local counter + sessions created in the current quota bucket that don't have a PR yet.
+    // Bucket is defined by the resetHour setting.
+    const now = new Date();
+    now.setHours(now.getHours() - resetHour);
+    const bucketStartStr = now.toISOString().slice(0, 10);
+
+    const sessionCount = sessions.filter(s => {
+      if (!s.createTime) return false;
+      const sd = new Date(s.createTime);
+      sd.setHours(sd.getHours() - resetHour);
+      const sessionBucketStr = sd.toISOString().slice(0, 10);
+      return sessionBucketStr === bucketStartStr && !getPR(s);
+    }).length;
+    return Math.max(localTodayCount, sessionCount);
+  }, [localTodayCount, sessions, resetHour]);
   const [lastFetchTime, setLastFetchTime] = useState(null);
 
   const [archivedIds, setArchivedIds] = useState(() => {
@@ -3843,7 +3922,7 @@ function JulesClient() {
   useEffect(() => {
     const handleStorage = (e) => {
       if (e.key === "jac_key") setApiKey(e.newValue || "");
-      if (e.key === TODAY_KEY()) setTodayCount(parseInt(e.newValue) || 0);
+      if (e.key === TODAY_KEY()) setLocalTodayCount(parseInt(e.newValue) || 0);
       if (e.key === "jac_archived") {
         try { setArchivedIds(new Set(JSON.parse(e.newValue || "[]"))); } catch {}
       }
@@ -3901,7 +3980,7 @@ function JulesClient() {
   const setResetHour = useCallback(v => {
     saveResetHour(v);
     setResetHourRaw(v);
-    setTodayCount(loadTodayCount());
+    setLocalTodayCount(loadTodayCount());
   }, []);
 
   const setCacheLimit = useCallback(v => {
@@ -4006,7 +4085,7 @@ function JulesClient() {
     setSessions(prev => [s, ...prev]);
     setSelected(s);
     incTodayCount();
-    setTodayCount(loadTodayCount());
+    setLocalTodayCount(loadTodayCount());
     if (isDesktop) setDesktop("detail"); else setMobile("list");
   }, [isDesktop]);
 
@@ -4117,7 +4196,7 @@ function JulesClient() {
             onArchive={handleArchive} onUnarchive={handleUnarchive}/>
         )}
         {mobileScreen==="new"&&(
-          <NewSession apiKey={apiKey} personas={personas} onBack={()=>setMobile("list")} onCreate={s=>{ setSessions(prev=>[s,...prev]); incTodayCount(); setTodayCount(loadTodayCount()); setMobile("list"); }} isDesktop={false} plan={plan} todayCount={todayCount}/>
+          <NewSession apiKey={apiKey} personas={personas} onBack={()=>setMobile("list")} onCreate={s=>{ setSessions(prev=>[s,...prev]); incTodayCount(); setLocalTodayCount(loadTodayCount()); setMobile("list"); }} isDesktop={false} plan={plan} todayCount={todayCount}/>
         )}
 
         {mobileScreen==="network"&&( <NetworkMonitor onBack={()=>setMobile("list")} isDesktop={false}/> )} {mobileScreen==="settings"&&(
