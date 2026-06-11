@@ -46,7 +46,13 @@ async function build() {
       ''
     );
 
-    // 6. Write production HTML
+    // 6. Remove Babel from Service Worker PRE cache
+    optimizedHtml = optimizedHtml.replace(
+      /,"https:\/\/unpkg\.com\/@babel\/standalone\/babel\.min\.js"/,
+      ''
+    );
+
+    // 7. Write production HTML
     const distDir = path.join(__dirname, 'dist');
     if (!fs.existsSync(distDir)) {
       fs.mkdirSync(distDir, { recursive: true });
