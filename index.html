@@ -509,6 +509,7 @@ async function apiCall(apiKey, path, opts={}) {
 
 // ─── Utils ────────────────────────────────────────────────────────────────────
 const fmtBytes = b => b<1?`${(b*1024).toFixed(0)}B`:b<1024?`${b.toFixed(1)}KB`:`${(b/1024).toFixed(2)}MB`;
+const fmtChars = n => n<1000?`${n}c`: `${(n/1000).toFixed(1)}kc`;
 const getPR = (s) => {
   if (!s) return null;
   const findInOutputs = (outputs) => {
@@ -986,17 +987,20 @@ const ExpandableContent = memo(({ text, limit = 300, showCopy = false }) => {
           </button>
         )}
         {showCopy && (
-          <button
-            onClick={handleCopy}
-            style={{
-              background: "none", border: "none", color: copied ? T.brand : T.muted, cursor: "pointer",
-              fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 700,
-              padding: 0, display: "flex", alignItems:"center", gap: 4, transition: "color .2s"
-            }}
-          >
-            <Ic n="copy" s={12} c={copied ? T.brand : T.muted} />
-            {copied ? "COPIED" : "COPY"}
-          </button>
+          <>
+            <div style={{ color: T.muted, fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 600, opacity: 0.6 }}>{fmtChars(text?.length || 0)}</div>
+            <button
+              onClick={handleCopy}
+              style={{
+                background: "none", border: "none", color: copied ? T.brand : T.muted, cursor: "pointer",
+                fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 700,
+                padding: 0, display: "flex", alignItems:"center", gap: 4, transition: "color .2s"
+              }}
+            >
+              <Ic n="copy" s={12} c={copied ? T.brand : T.muted} />
+              {copied ? "COPIED" : "COPY"}
+            </button>
+          </>
         )}
       </div>
     </div>
@@ -1137,6 +1141,8 @@ const ChatBubble = memo(({ act, type, onMediaClick, onEdit }) => {
           display:"flex",gap:6,justifyContent:isUser?"flex-end":"flex-start",alignItems:"center",
         }}>
           <span style={{fontWeight:700,letterSpacing:"0.06em"}}>{isUser?"YOU":"JULES"}</span>
+          <span>·</span>
+          <span style={{opacity:0.6}}>{fmtChars(text?.length||0)}</span>
           <span>·</span>
           <span>{isTemp?"sending…":time}</span>
           {!isUser && !isTemp && (
@@ -2754,6 +2760,9 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                 </button>
               </div>
             )}
+            <div style={{ position: "absolute", bottom: -18, left: 2, fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: T.muted, opacity: 0.6 }}>
+              {fmtChars(msg.length)}
+            </div>
             <button
               onClick={handleSend}
               disabled={!msg.trim()||busy}
@@ -3178,7 +3187,10 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
           </Field>
 
           <Field label="TASK PROMPT *">
-            <div style={{position:"relative"}}>
+            <div style={{ position: "relative" }}>
+              <div style={{ position: "absolute", top: -18, right: 0, fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: T.muted, opacity: 0.6 }}>
+                {fmtChars(prompt.length)}
+              </div>
               <textarea value={prompt} onChange={e=>setPrompt(e.target.value)}
                 placeholder="Describe the coding task for Jules to execute…"
                 rows={6} style={{
