@@ -10,6 +10,7 @@
     <meta name="apple-mobile-web-app-title" content="Jules">
     <meta name="application-name" content="Jules Agent">
     <meta name="description" content="Jules AI coding agent client — monitor sessions, review plans, send messages">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%2307090c%22/><text y=%22.9em%22 x=%2250%25%22 font-size=%2270%22 text-anchor=%22middle%22 fill=%22%2300e87a%22 font-family=%22monospace%22 font-weight=%22900%22>J</text></svg>">
     <title>Jules Agent</title>
     <!-- DNS preconnect for CDN resources -->
     <link rel="preconnect" href="https://unpkg.com" crossorigin>
@@ -2051,9 +2052,10 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
         setShowScroll(canScroll && (y > 100 || h - y - vh > 100));
         setScrollDirMode(y > (h - vh) / 2 ? "top" : "bottom");
       };
-      check();
+      // Use requestAnimationFrame to avoid forced synchronous layout during effect
+      const raf = requestAnimationFrame(check);
       window.addEventListener("resize", check);
-      return () => window.removeEventListener("resize", check);
+      return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", check); };
     }
   }, [activities, tab]);
 
@@ -2947,6 +2949,100 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
 };
 
 // ─── Settings View ────────────────────────────────────────────────────────────
+const NetworkMonitor = ({ onBack, isDesktop }) => {
+  const [snap, setSnap] = useState(NET.snapshot());
+  const [storage, setStorage] = useState(null);
+
+  useEffect(() => NET.subscribe(s => setSnap(s)), []);
+  useEffect(() => { getStorageInfo().then(setStorage); }, []);
+
+  const { total, saved, log } = snap;
+  const webEst = total * 9 + 2.4;
+  const reduction = total > 0 ? Math.round(((webEst - total) / webEst) * 100) : 0;
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",height:"100%",minHeight:0}}>
+      <div style={{padding:"12px 16px",borderBottom:`1px solid ${T.border}`,background:T.surface,display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
+        {!isDesktop&&<button onClick={onBack} style={{background:"none",border:"none",cursor:"pointer",display:"flex"}}><Ic n="back" s={18} c={T.text}/></button>}
+        <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.text,letterSpacing:"0.05em",fontWeight:700,flex:1}}>NETWORK & STORAGE</div>
+        {isDesktop && (
+          <button onClick={onBack} title="Close" style={{background:"none",border:"none",cursor:"pointer",display:"flex",padding:4,opacity:0.6}}>
+            <Ic n="x" s={18} c={T.text}/>
+          </button>
+        )}
+      </div>
+
+      <div style={{flex:1,overflowY:"auto",padding:"20px 24px",WebkitOverflowScrolling:"touch",minHeight:0}}>
+        <div style={{maxWidth:560,margin:"0 auto"}}>
+          <div style={{animation:"fadeIn .2s ease", display:"flex", flexDirection:"column", gap:20}}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+              {[
+                {l:"TRANSFERRED",v:fmtBytes(total),c:T.green, desc:"Total data downloaded"},
+                {l:"DATA SAVED", v:`${reduction}%`,c:T.purple, desc:"Bandwidth efficiency"},
+                {l:"WEB EQUIV.",  v:fmtBytes(webEst),c:T.amber, desc:"Simulated standard web cost"},
+                {l:"REQUESTS",   v:log.length,c:T.blue, desc:"Total API calls made"},
+              ].map(s=>(
+                <div key={s.l} style={{background:T.surfaceHi,border:`1px solid ${T.border}`,borderRadius:12,padding:16}}>
+                  <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted,letterSpacing:"0.1em",marginBottom:6,fontWeight:700}}>{s.l}</div>
+                  <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:22,fontWeight:900,color:s.c,marginBottom:4}}>{s.v}</div>
+                  <div style={{fontSize:9, color:T.dim, fontFamily:"'IBM Plex Sans',sans-serif", lineHeight:1.2}}>{s.desc}</div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:12}}>
+              <div style={{background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:12, padding:18, display:"flex", flexDirection:"column"}}>
+                <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:12}}>
+                  <Ic n="database" s={14} c={T.purple}/>
+                  <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:700, color:T.muted}}>APP DATA</span>
+                </div>
+                <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:24, fontWeight:900, color:T.text, marginBottom:16}}>{storage ? fmtBytes(storage.used/1024) : "..."}<span style={{fontSize:10, color:T.dim, marginLeft:4, fontWeight:500}}>USED</span></div>
+                <button onClick={clearDataOnly} style={{
+                  width:"100%", padding:"10px", borderRadius:8, background:`${T.purple}15`, border:`1px solid ${T.purple}30`,
+                  color:T.purple, fontSize:10, fontWeight:800, fontFamily:"'JetBrains Mono',monospace", cursor:"pointer",
+                  transition:"all .2s"
+                }} onMouseEnter={e=>e.currentTarget.style.background=`${T.purple}25`} onMouseLeave={e=>e.currentTarget.style.background=`${T.purple}15`}>CLEAR DATA</button>
+              </div>
+
+              <div style={{background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:12, padding:18, display:"flex", flexDirection:"column"}}>
+                <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:12}}>
+                  <Ic n="layers" s={14} c={T.blue}/>
+                  <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:700, color:T.muted}}>CACHE</span>
+                </div>
+                <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:24, fontWeight:900, color:T.text, marginBottom:16}}>{storage ? fmtBytes(storage.cache/1024) : "..."}<span style={{fontSize:10, color:T.dim, marginLeft:4, fontWeight:500}}>TOTAL</span></div>
+                <button onClick={clearCacheOnly} style={{
+                  width:"100%", padding:"10px", borderRadius:8, background:`${T.blue}15`, border:`1px solid ${T.blue}30`,
+                  color:T.blue, fontSize:10, fontWeight:800, fontFamily:"'JetBrains Mono',monospace", cursor:"pointer",
+                  transition:"all .2s"
+                }} onMouseEnter={e=>e.currentTarget.style.background=`${T.blue}25`} onMouseLeave={e=>e.currentTarget.style.background=`${T.blue}15`}>CLEAR CACHE</button>
+              </div>
+            </div>
+
+            <div style={{marginTop:8}}>
+              <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted,letterSpacing:"0.08em",marginBottom:12,fontWeight:700}}>RECENT ACTIVITY LOG</div>
+              <div style={{background:T.surfaceHi, borderRadius:12, border:`1px solid ${T.border}`, overflow:"hidden"}}>
+                {log.length===0
+                  ?<div style={{textAlign:"center",padding:"32px",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.muted}}>No requests recorded</div>
+                  :log.map((r,i)=>(
+                    <div key={r.id} style={{display:"flex",gap:12,alignItems:"center",padding:"12px 16px",borderBottom:i<log.length-1?`1px solid ${T.border}`:"none"}}>
+                      <div style={{width:6,height:6,borderRadius:"50%",background:T.green,flexShrink:0,boxShadow:`0 0 6px ${T.green}40`}}/>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontWeight:500}}>{r.label}</div>
+                        <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted,marginTop:2}}>{fmtAgo(r.ts)}</div>
+                      </div>
+                      <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.green,flexShrink:0,fontWeight:700}}>{fmtBytes(r.bytes)}</div>
+                    </div>
+                  ))
+                }
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPollInterval, setActPollInterval, sessionLimit, setSessionLimit, tzOffset, setTzOffset, planId, setPlanId, customDaily, setCustomDaily, plan, todayCount }) => {
   const [tab, setTab] = useState("general");
   const [snap, setSnap] = useState(NET.snapshot());
@@ -3224,7 +3320,6 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
   const [filter,setFilter] = useState("ALL");
   const [scrolled, handleScroll] = useScrollThreshold();
   const [searchOpen, setSearchOpen] = useState(false);
-
   const baseFiltered = useMemo(() => {
     let list = sessions.filter(s => archivedIds.has(s.id) === showArchived);
     if (searchQuery.trim()) {
@@ -3233,23 +3328,19 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
     }
     return list;
   }, [sessions, archivedIds, showArchived, searchQuery]);
-
   const filtered = filter==="ALL" ? baseFiltered : baseFiltered.filter(s=>s.state===filter);
   const active   = sessions.filter(s=>ACTIVE_STATES.has(s.state)).length;
-
   const quotaUsed = useMemo(() => {
     const now = new Date();
     const offsetMs = tzOffset * 60 * 60 * 1000;
     const localNow = new Date(now.getTime() + offsetMs);
     const today = localNow.toISOString().slice(0,10);
-
     const todaySessions = sessions.filter(s => {
       if (!s.createTime) return false;
       const cDate = new Date(s.createTime);
       const cLocal = new Date(cDate.getTime() + offsetMs);
       return cLocal.toISOString().slice(0,10) === today;
     });
-
     return todaySessions.filter(s => {
       const pri = getPRInfo(s, activitiesMap[s.id] || []);
       const b = getBranchInfo(s, activitiesMap[s.id] || []);
@@ -3260,184 +3351,62 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%",minHeight:0}}>
-      <div style={{
-        padding:scrolled?"8px 16px 8px":"12px 16px 0",
-        background:T.surface,
-        borderBottom:`1px solid ${T.border}`,
-        flexShrink:0,
-        transition:"all .25s cubic-bezier(0.4, 0, 0.2, 1)",
-        zIndex: 5,
-      }}>
+      <div style={{padding:scrolled?"8px 16px 8px":"12px 16px 0",background:T.surface,borderBottom:`1px solid ${T.border}`,flexShrink:0,transition:"all .25s cubic-bezier(0.4, 0, 0.2, 1)",zIndex: 5}}>
         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:scrolled?0:10}}>
-          <div style={{
-            width:scrolled?20:32,height:scrolled?20:32,borderRadius:6,background:T.green,
-            display:"flex",alignItems:"center",justifyContent:"center",
-            fontFamily:"'JetBrains Mono',monospace",fontSize:scrolled?11:18,fontWeight:900,color:"#000",
-            boxShadow:scrolled?"none":`0 0 12px ${T.green}40`,flexShrink:0,
-            transition:"all .2s ease",
-          }}>J</div>
+          <div style={{width:scrolled?20:32,height:scrolled?20:32,borderRadius:6,background:T.green,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace",fontSize:scrolled?11:18,fontWeight:900,color:"#000",boxShadow:scrolled?"none":`0 0 12px ${T.green}40`,flexShrink:0,transition:"all .2s ease"}}>J</div>
           <div style={{minWidth:0, transition:"all .2s ease"}}>
             <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:scrolled?12:14,fontWeight:700,color:T.text}}>JULES</div>
-            {!scrolled && (
-              <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:active>0?T.amber:T.muted}}>
-                {active>0?`⚡ ${active} ACTIVE`:"AGENT CLIENT"}
-              </div>
-            )}
+            {!scrolled && <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:active>0?T.amber:T.muted}}>{active>0?`⚡ ${active} ACTIVE`:"AGENT CLIENT"}</div>}
           </div>
           <div style={{marginLeft:"auto",display:"flex",gap:6,alignItems:"center",flexShrink:0}}>
-            <button onClick={() => setSearchOpen(!searchOpen)} title="Search sessions" style={{
-              width:30,height:30,borderRadius:5,
-              background:searchOpen||searchQuery?T.blueDim:"transparent",
-              border:`1px solid ${searchOpen||searchQuery?T.blue+"40":T.border}`,
-              display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"
-            }}>
-              <Ic n="search" s={15} c={searchOpen||searchQuery?T.blue:T.muted}/>
-            </button>
-            {isDesktop&&(
-              <button onClick={onNew} title="New Session" style={{width:30,height:30,borderRadius:5,background:T.greenDim,border:`1px solid ${T.green}40`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}>
-                <Ic n="plus" s={15} c={T.green}/>
-              </button>
-            )}
-            <button onClick={onSettings} title="Settings" style={{width:30,height:30,borderRadius:5,background:T.surfaceHi,border:`1px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}>
-              <Ic n="settings" s={15} c={T.muted}/>
-            </button>
-            <button onClick={onRefresh} disabled={refreshing} title="Refresh now" style={{background:"none",border:"none",cursor:refreshing?"default":"pointer",display:"flex",padding:3,animation:refreshing?"spin 1s linear infinite":"none",transformOrigin:"center"}}>
-              <Ic n="refresh" s={15} c={refreshing?T.green:T.muted}/>
-            </button>
+            <button onClick={() => setSearchOpen(!searchOpen)} title="Search sessions" style={{width:30,height:30,borderRadius:5,background:searchOpen||searchQuery?T.blueDim:"transparent",border:`1px solid ${searchOpen||searchQuery?T.blue+"40":T.border}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="search" s={15} c={searchOpen||searchQuery?T.blue:T.muted}/></button>
+            {isDesktop&&<button onClick={onNew} title="New Session" style={{width:30,height:30,borderRadius:5,background:T.greenDim,border:`1px solid ${T.green}40`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="plus" s={15} c={T.green}/></button>}
+            <button onClick={onNetwork} title="Network Monitor" style={{width:30,height:30,borderRadius:5,background:T.surfaceHi,border:`1px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="wifi" s={15} c={T.muted}/></button>
+            <button onClick={onSettings} title="Settings" style={{width:30,height:30,borderRadius:5,background:T.surfaceHi,border:`1px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="settings" s={15} c={T.muted}/></button>
+            <button onClick={onRefresh} disabled={refreshing} title="Refresh now" style={{background:"none",border:"none",cursor:refreshing?"default":"pointer",display:"flex",padding:3,animation:refreshing?"spin 1s linear infinite":"none",transformOrigin:"center"}}><Ic n="refresh" s={15} c={refreshing?T.green:T.muted}/></button>
           </div>
         </div>
-
-        {/* ── Search Bar ── */}
         {(searchOpen || searchQuery) && (
-          <div style={{
-            height:scrolled?0:42, overflow:"hidden", opacity:scrolled?0:1,
-            transition:"all .25s ease", marginBottom:scrolled?0:8,
-            padding:scrolled?0:"4px 2px", pointerEvents:scrolled?"none":"auto",
-          }}>
+          <div style={{height:scrolled?0:42, overflow:"hidden", opacity:scrolled?0:1, transition:"all .25s ease", marginBottom:scrolled?0:8, padding:scrolled?0:"4px 2px", pointerEvents:scrolled?"none":"auto"}}>
             <div style={{position:"relative", display:"flex", alignItems:"center"}}>
-              <div style={{position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", pointerEvents:"none"}}>
-                <Ic n="search" s={14} c={T.blue}/>
-              </div>
-              <input
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                placeholder="Search by title, prompt or ID..."
-                style={{
-                  ...inputSt, paddingLeft:34, paddingRight:34,
-                  borderColor:T.blue+"40", background:T.surfaceHi,
-                }}
-                autoFocus
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery("")}
-                  style={{
-                    position:"absolute", right:10, top:"50%", transform:"translateY(-50%)",
-                    background:"none", border:"none", cursor:"pointer", padding:4
-                  }}
-                >
-                  <Ic n="x" s={14} c={T.muted}/>
-                </button>
-              )}
+              <div style={{position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", pointerEvents:"none"}}><Ic n="search" s={14} c={T.blue}/></div>
+              <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search by title, prompt or ID..." style={{...inputSt, paddingLeft:34, paddingRight:34, borderColor:T.blue+"40", background:T.surfaceHi}} autoFocus />
+              {searchQuery && <button onClick={() => setSearchQuery("")} style={{position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", padding:4}}><Ic n="x" s={14} c={T.muted}/></button>}
             </div>
           </div>
         )}
-
-
-        {/* ── View Toggle (Active/Archive) ── */}
         {isDesktop && (
-          <div style={{
-            display:"flex", gap:4, alignItems:"center",
-            height:scrolled?0:22, overflow:"hidden", opacity:scrolled?0:1,
-            marginBottom:scrolled?0:8, padding:scrolled?0:"4px 2px",
-            transition:"all .25s ease", pointerEvents:scrolled?"none":"auto",
-          }}>
+          <div style={{display:"flex", gap:4, alignItems:"center", height:scrolled?0:22, overflow:"hidden", opacity:scrolled?0:1, marginBottom:scrolled?0:8, padding:scrolled?0:"4px 2px", transition:"all .25s ease", pointerEvents:scrolled?"none":"auto"}}>
             <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.muted, letterSpacing:"0.08em", flexShrink:0, paddingRight:2}}>SESSIONS</span>
-            <button onClick={() => setShowArchived(false)} style={{
-              flexShrink:0, padding:"3px 9px", borderRadius:20, border:"none",
-              background:!showArchived ? T.greenDim : "transparent",
-              outline:`1px solid ${!showArchived ? T.green+"60" : T.border}`,
-              color:!showArchived ? T.green : T.muted,
-              fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:!showArchived?700:400,
-              letterSpacing:"0.05em", cursor:"pointer", transition:"all .12s",
-            }}>ACTIVE</button>
-            <button onClick={() => setShowArchived(true)} style={{
-              flexShrink:0, padding:"3px 9px", borderRadius:20, border:"none",
-              background:showArchived ? T.purpleDim : "transparent",
-              outline:`1px solid ${showArchived ? T.purple+"60" : T.border}`,
-              color:showArchived ? T.purple : T.muted,
-              fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:showArchived?700:400,
-              letterSpacing:"0.05em", cursor:"pointer", transition:"all .12s",
-            }}>ARCHIVED</button>
+            <button onClick={() => setShowArchived(false)} style={{flexShrink:0, padding:"3px 9px", borderRadius:20, border:"none", background:!showArchived ? T.greenDim : "transparent", outline:`1px solid ${!showArchived ? T.green+"60" : T.border}`, color:!showArchived ? T.green : T.muted, fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:!showArchived?700:400, letterSpacing:"0.05em", cursor:"pointer", transition:"all .12s"}}>ACTIVE</button>
+            <button onClick={() => setShowArchived(true)} style={{flexShrink:0, padding:"3px 9px", borderRadius:20, border:"none", background:showArchived ? T.purpleDim : "transparent", outline:`1px solid ${showArchived ? T.purple+"60" : T.border}`, color:showArchived ? T.purple : T.muted, fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:showArchived?700:400, letterSpacing:"0.05em", cursor:"pointer", transition:"all .12s"}}>ARCHIVED</button>
           </div>
         )}
-
-
-        {/* ── Status filter pills ── */}
-        <div style={{
-          position: "relative",
-          maxHeight:scrolled?0:60, opacity:scrolled?0:1, transition:"all .25s ease",
-          pointerEvents:scrolled?"none":"auto",
-        }}>
-          {/* Scroll Fade Affordance */}
-          {!scrolled && (
-            <div style={{
-              position:"absolute", right:0, top:0, bottom:10, width:40,
-              background:`linear-gradient(to left, ${T.bg}, transparent)`,
-              pointerEvents:"none", zIndex:2,
-            }}/>
-          )}
-        <div style={{
-          overflowX:"auto", padding:scrolled?0:"4px 2px 10px", scrollbarWidth:"none", WebkitOverflowScrolling:"touch",
-        }}>
-          <div style={{display:"flex",gap:5,minWidth:"max-content",padding:"4px 0", alignItems:"center"}}>
-            {/* Quota Indicator */}
-            <div
-              title={`Resets at 00:00 UTC${tzOffset>=0?'+':''}${tzOffset}`}
-              style={{
-                display:"flex", alignItems:"center", gap:6, padding:"4px 10px",
-                borderRadius:20, background:`${T.green}10`, border:`1px solid ${T.green}30`,
-                marginRight:8, flexShrink:0, cursor:"help"
-              }}
-            >
-              <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:800, color:T.green}}>
-                {quotaUsed}/{plan?.daily || 15}
-              </span>
-              <div style={{width:1, height:10, background:T.green, opacity:0.3}}/>
-              <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700, color:T.muted, letterSpacing:"0.05em"}}>USED</span>
+        <div style={{position: "relative", maxHeight:scrolled?0:60, opacity:scrolled?0:1, transition:"all .25s ease", pointerEvents:scrolled?"none":"auto"}}>
+          {!scrolled && <div style={{position:"absolute", right:0, top:0, bottom:10, width:40, background:`linear-gradient(to left, ${T.bg}, transparent)`, pointerEvents:"none", zIndex:2}}/>}
+          <div style={{overflowX:"auto", padding:scrolled?0:"4px 2px 10px", scrollbarWidth:"none", WebkitOverflowScrolling:"touch"}}>
+            <div style={{display:"flex",gap:5,minWidth:"max-content",padding:"4px 0", alignItems:"center"}}>
+              <div title={`Resets at 00:00 UTC${tzOffset>=0?'+':''}${tzOffset}`} style={{display:"flex", alignItems:"center", gap:6, padding:"4px 10px", borderRadius:20, background:`${T.green}10`, border:`1px solid ${T.green}30`, marginRight:8, flexShrink:0, cursor:"help"}}>
+                <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:800, color:T.green}}>{quotaUsed}/{plan?.daily || 15}</span>
+                <div style={{width:1, height:10, background:T.green, opacity:0.3}}/>
+                <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700, color:T.muted, letterSpacing:"0.05em"}}>USED</span>
+              </div>
+              {FILTERS.map(f => {
+                const cnt = f==="ALL" ? sessions.length : sessions.filter(s=>s.state===f).length;
+                if (cnt===0 && f!=="ALL") return null;
+                const isAct = f===filter;
+                const ac = STATUS_META[f]?.color || T.green;
+                return (
+                  <button key={f} onClick={()=>setFilter(f)} style={{flexShrink:0,padding:"4px 10px",borderRadius:20,border:"none",background:isAct?`${ac}20`:"transparent",outline:`1px solid ${isAct?`${ac}80`:T.border}`,color:isAct?ac:T.muted,fontFamily:"'JetBrains Mono',monospace",fontSize:11,fontWeight:700,letterSpacing:"0.06em",cursor:"pointer",transition:"background .12s, color .12s"}}>{FILTER_LABELS[f]||f} {cnt>0?cnt:""}</button>
+                );
+              })}
             </div>
-
-            {FILTERS.map(f => {
-              const cnt = f==="ALL" ? sessions.length : sessions.filter(s=>s.state===f).length;
-              if (cnt===0 && f!=="ALL") return null;
-              const isAct = f===filter;
-              const ac = STATUS_META[f]?.color || T.green;
-              return (
-                <button key={f} onClick={()=>setFilter(f)} style={{
-                  flexShrink:0,padding:"4px 10px",borderRadius:20,border:"none",
-                  background:isAct?`${ac}20`:"transparent",
-                  outline:`1px solid ${isAct?`${ac}80`:T.border}`,
-                  color:isAct?ac:T.muted,
-                  fontFamily:"'JetBrains Mono',monospace",fontSize:11,fontWeight:700,letterSpacing:"0.06em",
-                  cursor:"pointer",transition:"background .12s, color .12s",
-                }}>
-                  {FILTER_LABELS[f]||f} {cnt>0?cnt:""}
-                </button>
-              );
-            })}
           </div>
         </div>
       </div>
-
       <div onScroll={handleScroll} style={{flex:1,overflowY:"auto",padding:"10px 12px",WebkitOverflowScrolling:"touch",minHeight:200}}>
-        {refreshing&&sessions.length===0&&(
-          <div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.muted}}>Loading sessions…</div>
-        )}
-        {!refreshing&&filtered.length===0&&(
-          <div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.muted}}>
-            {filter==="ALL"?"No sessions yet":"No sessions with this status"}
-          </div>
-        )}
+        {refreshing&&sessions.length===0&&<div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.muted}}>Loading sessions…</div>}
+        {!refreshing&&filtered.length===0&&<div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.muted}}>{filter==="ALL"?"No sessions yet":"No sessions with this status"}</div>}
         {filtered.map((s,i)=><SessionCard key={s.id||s.name} index={i+1} s={s} onPress={()=>onSelect(s)} isSelected={isDesktop&&s.id===selectedId} activities={activitiesMap[s.id] || []}/>)}
       </div>
     </div>
@@ -3645,10 +3614,8 @@ function JulesClient() {
           {desktopView==="new"&&(
             <NewSession apiKey={apiKey} onBack={()=>setDesktop("empty")} onCreate={handleCreate} isDesktop plan={plan} todayCount={todayCount}/>
           )}
-          {desktopView==="network"&&(
-            <NetworkMonitor onBack={()=>setDesktop("empty")} isDesktop/>
-          )}
-          {desktopView==="settings"&&(
+
+          {desktopView==="network"&&( <NetworkMonitor onBack={()=>setDesktop("empty")} isDesktop/> )} {desktopView==="settings"&&(
             <SettingsView onBack={()=>setDesktop("empty")} isDesktop
               pollInterval={pollInterval} setPollInterval={setPollInterval}
               actPollInterval={actPollInterval} setActPollInterval={setActPollInterval}
@@ -3691,10 +3658,8 @@ function JulesClient() {
         {mobileScreen==="new"&&(
           <NewSession apiKey={apiKey} onBack={()=>setMobile("list")} onCreate={s=>{ setSessions(prev=>[s,...prev]); incTodayCount(); setTodayCount(loadTodayCount()); setMobile("list"); }} isDesktop={false} plan={plan} todayCount={todayCount}/>
         )}
-        {mobileScreen==="network"&&(
-          <NetworkMonitor onBack={()=>setMobile("list")} isDesktop={false}/>
-        )}
-        {mobileScreen==="settings"&&(
+
+        {mobileScreen==="network"&&( <NetworkMonitor onBack={()=>setMobile("list")} isDesktop={false}/> )} {mobileScreen==="settings"&&(
           <SettingsView onBack={()=>setMobile("list")} isDesktop={false}
             pollInterval={pollInterval} setPollInterval={setPollInterval}
             actPollInterval={actPollInterval} setActPollInterval={setActPollInterval}
