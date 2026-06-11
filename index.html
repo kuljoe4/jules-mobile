@@ -30,18 +30,18 @@
       }
       #splash.hidden{opacity:0;visibility:hidden;pointer-events:none;}
       #splash-logo{
-        width:60px;height:60px;border-radius:14px;background:#00eaff;
+        width:60px;height:60px;border-radius:14px;background:#06b6d4;
         display:flex;align-items:center;justify-content:center;
         font-size:38px;font-weight:900;color:#000;
-        box-shadow:0 8px 30px rgba(0,234,255,.15);
+        box-shadow:0 8px 30px rgba(6,182,212,.15);
         margin-bottom:22px;
       }
       #splash-title{font-size:15px;font-weight:700;color:#c5d4e8;letter-spacing:.06em;margin-bottom:6px;}
       #splash-sub{font-size:12px;color:#4a5e76;letter-spacing:.05em;margin-bottom:28px;}
       #splash-bar-wrap{width:120px;height:2px;background:#1e2d3d;border-radius:2px;overflow:hidden;}
       #splash-bar{
-        height:100%;width:0%;background:#00eaff;border-radius:2px;
-        box-shadow:0 2px 10px rgba(0,234,255,.3);
+        height:100%;width:0%;background:#06b6d4;border-radius:2px;
+        box-shadow:0 2px 10px rgba(6,182,212,.3);
         animation:splash-load 2.4s cubic-bezier(.4,0,.2,1) forwards;
       }
       #splash-hint{margin-top:14px;font-size:12px;font-weight:700;color:#4a5e76;letter-spacing:.07em;}
@@ -440,7 +440,7 @@ const MultiPersonaPicker = ({ personas, selectedIds, onToggle, style: s = {} }) 
 const T = {
   bg:"#050608", surface:"#0b0e14", surfaceHi:"#11161d",
   border:"#1a222e", borderHi:"#242d3d",
-  brand:"#00eaff", brandDim:"rgba(0,234,255,0.12)",
+  brand:"#06b6d4", brandDim:"rgba(6,182,212,0.12)",
   indigo:"#6366f1", indigoDim:"rgba(99,102,241,0.12)",
   amber:"#ffbc00", amberDim:"rgba(255,188,0,0.12)",
   red:"#ff5566",   redDim:"rgba(255,85,102,0.12)",
@@ -448,7 +448,7 @@ const T = {
   purple:"#818cf8",purpleDim:"rgba(129,140,248,0.12)",
   text:"#ffffff",  textHi:"#f8fafc", textDim:"#c5d4e8",
   muted:"#64748b", dim:"#1e293b", line:"#111827",
-  userBubble:"rgba(99,102,241,0.08)", agentBubble:"rgba(0,234,255,0.06)",
+  userBubble:"rgba(99,102,241,0.08)", agentBubble:"rgba(6,182,212,0.06)",
 };
 
 const STATUS_META = {
@@ -742,6 +742,8 @@ const PATHS = {
   layout_toggle:"M12 4V2m0 20v-2m8-8h2M2 12h2m13.657-5.657l1.414-1.414m-14.142 14.142l1.414-1.414m0-14.142l-1.414-1.414m14.142 14.142l-1.414-1.414",
   git_pull:"M18 18a3 3 0 100-6 3 3 0 000 6zM6 18a3 3 0 100-6 3 3 0 000 6zM6 6a3 3 0 100-6 3 3 0 000 6zM6 9v6M13 6h3a2 2 0 012 2v7",
   git_merge:"M18 18a3 3 0 100-6 3 3 0 000 6zM6 6a3 3 0 100-6 3 3 0 000 6zM6 21V9a9 9 0 009 9",
+  copy: "M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3",
+  expand: "M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7",
   chevron_down:"M6 9l6 6 6-6",
   chevron_up:"M18 15l-6-6-6 6",
   chevron_right:"M9 18l6-6-6-6",
@@ -922,6 +924,49 @@ const useAutoPoll = (interval, fn) => {
   return countdown;
 };
 
+const ExpandableContent = memo(({ text, limit = 300 }) => {
+  const [expanded, setExpanded] = useState(false);
+  const [showToggle, setShowToggle] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (ref.current && ref.current.scrollHeight > limit) setShowToggle(true);
+  }, [text, limit]);
+
+  return (
+    <div style={{position:"relative"}}>
+      <div ref={ref} style={{
+        maxHeight: expanded ? "none" : limit,
+        overflow: "hidden",
+        position: "relative",
+        transition: "max-height .3s ease"
+      }}>
+        <Markdown text={text} />
+        {!expanded && showToggle && (
+          <div style={{
+            position: "absolute", bottom: 0, left: 0, right: 0, height: 60,
+            background: `linear-gradient(transparent, ${T.surfaceHi})`,
+            pointerEvents: "none"
+          }} />
+        )}
+      </div>
+      {showToggle && (
+        <button
+          onClick={() => setExpanded(!expanded)}
+          style={{
+            background: "none", border: "none", color: T.brand, cursor: "pointer",
+            fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 700,
+            marginTop: 8, padding: 0, display: "flex", alignItems: "center", gap: 4
+          }}
+        >
+          {expanded ? "SHOW LESS" : "SHOW MORE"}
+          <Ic n={expanded ? "chevron_up" : "chevron_down"} s={12} c={T.brand} />
+        </button>
+      )}
+    </div>
+  );
+});
+
 const Markdown = memo(({ text }) => {
   if (!text) return null;
   const parts = text.split(/```/g);
@@ -1007,6 +1052,15 @@ const ChatBubble = memo(({ act, type, onMediaClick, onEdit }) => {
   const text   = isUser ? act.userMessaged?.userMessage : act.agentMessaged?.agentMessage;
   const time   = fmtTime(new Date(act.createTime).getTime());
   const isTemp = act._temp === true;
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    if (copied) return;
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
 
   return (
     <div style={{
@@ -1039,7 +1093,7 @@ const ChatBubble = memo(({ act, type, onMediaClick, onEdit }) => {
         <div style={{
           fontSize:15,color:T.text,lineHeight:1.55,
           fontFamily:"'IBM Plex Sans',sans-serif",
-        }}><Markdown text={text}/></div>
+        }}><ExpandableContent text={text} limit={400}/></div>
         <MediaArtifacts artifacts={act.artifacts} ts={act.createTime} onMediaClick={onMediaClick}/>
         <div style={{
           marginTop:5,fontFamily:"'JetBrains Mono',monospace",fontSize:10,
@@ -1049,6 +1103,22 @@ const ChatBubble = memo(({ act, type, onMediaClick, onEdit }) => {
           <span style={{fontWeight:700,letterSpacing:"0.06em"}}>{isUser?"YOU":"JULES"}</span>
           <span>·</span>
           <span>{isTemp?"sending…":time}</span>
+          {!isUser && !isTemp && (
+            <>
+              <span>·</span>
+              <button
+                onClick={(e) => { e.stopPropagation(); handleCopy(); }}
+                style={{
+                  background:"none", border:"none", padding:"0 2px", cursor:"pointer",
+                  color:copied?T.brand:T.muted, fontWeight:800, fontSize:9, letterSpacing:"0.05em",
+                  display:"flex", alignItems:"center", gap:3, transition: "color .2s"
+                }}
+              >
+                <Ic n="copy" s={10} c={copied?T.brand:T.muted}/>
+                {copied?"COPIED":"COPY"}
+              </button>
+            </>
+          )}
           {isUser && !isTemp && onEdit && (
             <>
               <span>·</span>
@@ -1364,6 +1434,22 @@ const ActivityFeed = memo(({ activities, showAll, onShowAll, onMediaClick, onEdi
   const visible   = collapse ? activities.slice(activities.length - COLLAPSE_SHOW) : activities;
   const hidden    = activities.length - visible.length;
 
+  const deduped = useMemo(() => {
+    const list = [];
+    let lastP = null;
+    for (const a of visible) {
+      if (a.progressUpdated) {
+        const p = a.progressUpdated;
+        if (lastP && lastP.title === p.title && lastP.description === p.description) continue;
+        lastP = p;
+      } else {
+        lastP = null;
+      }
+      list.push(a);
+    }
+    return list;
+  }, [visible]);
+
   return (
     <>
       {collapse && (
@@ -1377,7 +1463,7 @@ const ActivityFeed = memo(({ activities, showAll, onShowAll, onMediaClick, onEdi
           ↑ SHOW {hidden} EARLIER {hidden===1?"EVENT":"EVENTS"}
         </button>
       )}
-      {visible.map(act => {
+      {deduped.map(act => {
         const type = getActType(act);
         const key  = getActKey(act);
         if (type === "userMessaged" || type === "agentMessaged") {
@@ -1827,7 +1913,7 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [] }) =>
     <button onClick={onPress} style={{
       width:"100%",background:isSelected?`${T.brand}05`:T.surface,textAlign:"left",cursor:"pointer",
       border:`1px solid ${isSelected?T.brand:T.border}`,
-      borderLeft:`3px solid ${isSelected?T.brand:m.color}`,
+      borderLeft:`1px solid ${isSelected?T.brand:m.color}`,
       borderRadius:6,padding:"8px 12px",marginBottom:6,transition:"all .15s ease",
       boxShadow:"none",
       position:"relative",
@@ -1890,6 +1976,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   const [activeMedia,setActiveMedia] = useState(null);
   const [scrolled, handleScrollBase] = useScrollThreshold();
   const [composerVisible, setComposerVisible] = useState(true);
+  const [expanded, setExpanded] = useState(false);
   const [showScroll, setShowScroll] = useState(false);
   const [scrollDirMode, setScrollDirMode] = useState("bottom"); // "top" or "bottom"
   const lastScrollY = useRef(0);
@@ -2414,22 +2501,55 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
           }}/>
         )}
         {tab==="prompt"&&(
-          <div style={{padding:"4px 0 20px"}}>
-            <div style={{
-              fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.brand,
-              fontWeight:800, letterSpacing:"0.1em", marginBottom:12,
-            }}>ORIGINAL PROMPT</div>
-            <div style={{
-              background:T.surfaceHi, border:`1px solid ${T.border}`,
-              borderRadius:10, padding:"20px", boxShadow:"none"
-            }}>
+          <div style={{padding:"4px 0 20px", display:"flex", flexDirection:"column", gap:20}}>
+            <div key="original">
               <div style={{
-                fontSize:16, color:T.text, lineHeight:1.6,
-                fontFamily:"'IBM Plex Sans',sans-serif",
+                fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.brand,
+                fontWeight:800, letterSpacing:"0.1em", marginBottom:12,
+                display:"flex", alignItems:"center", gap:8
               }}>
-                <Markdown text={session.prompt}/>
+                ORIGINAL PROMPT
+                <div style={{height:1, flex:1, background:T.brandDim}}/>
+              </div>
+              <div style={{
+                background:T.surfaceHi, border:`1px solid ${T.border}`,
+                borderRadius:10, padding:"20px", boxShadow:"none", position:"relative"
+              }}>
+                <div style={{ fontSize:16, color:T.text, lineHeight:1.6, fontFamily:"'IBM Plex Sans',sans-serif" }}>
+                  <ExpandableContent text={session.prompt} />
+                </div>
+                <button onClick={() => onEditMessage(session.prompt)} style={{
+                  position:"absolute", top:12, right:12, background:T.dim, border:"none", borderRadius:4, padding:"4px 8px",
+                  color:T.brand, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700, cursor:"pointer"
+                }}>EDIT</button>
               </div>
             </div>
+
+            {activities.filter(a => a.userMessaged).map((a, i) => (
+              <div key={a.id || i}>
+                <div style={{
+                  fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.brand,
+                  fontWeight:800, letterSpacing:"0.1em", marginBottom:12,
+                  display:"flex", alignItems:"center", gap:8
+                }}>
+                  FOLLOW-UP #{i+1}
+                  <div style={{height:1, flex:1, background:T.brandDim}}/>
+                  <span style={{color:T.muted, fontSize:10}}>{fmtTime(new Date(a.createTime).getTime())}</span>
+                </div>
+                <div style={{
+                  background:T.surfaceHi, border:`1px solid ${T.border}`,
+                  borderRadius:10, padding:"20px", boxShadow:"none", position:"relative"
+                }}>
+                  <div style={{ fontSize:16, color:T.text, lineHeight:1.6, fontFamily:"'IBM Plex Sans',sans-serif" }}>
+                    <ExpandableContent text={a.userMessaged.userMessage} />
+                  </div>
+                  <button onClick={() => onEditMessage(a.userMessaged.userMessage)} style={{
+                    position:"absolute", top:12, right:12, background:T.dim, border:"none", borderRadius:4, padding:"4px 8px",
+                    color:T.brand, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700, cursor:"pointer"
+                  }}>EDIT</button>
+                </div>
+              </div>
+            ))}
           </div>
         )}
         {tab==="plan"&&(
@@ -2504,23 +2624,51 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
           <div style={{ display: "flex", flexDirection:"column", gap: 8, marginBottom: 8 }}>
             <MultiPersonaPicker personas={personas} selectedIds={selectedPersonas} onToggle={togglePersona} />
           </div>
-          <div style={{display:"flex",gap:8,alignItems:"flex-end", marginTop:4}}>
+          <div style={{display:"flex",gap:8,alignItems:"flex-end", marginTop:4, position:"relative"}}>
             <textarea
               ref={txtRef}
               value={msg}
               onChange={e=>setMsg(e.target.value)}
               onKeyDown={e=>e.key==="Enter"&&!e.shiftKey&&(e.preventDefault(),handleSend())}
               placeholder="Message Jules or give new instructions…"
-              rows={2}
+              rows={expanded?15:2}
               style={{
                 flex:1,background:T.surfaceHi,
                 border:`1px solid ${msg?T.brand+"66":T.border}`,
-                borderRadius:6,padding:"8px 10px",color:T.text,
+                borderRadius:6,padding:`8px ${expanded?24:40}px 8px 10px`,color:T.text,
                 fontFamily:"'IBM Plex Sans',sans-serif",fontSize:15,lineHeight:1.4,
-                resize:"none",outline:"none",transition:"border-color .2s",
+                resize:"none",outline:"none",transition:"all .2s ease",
                 WebkitOverflowScrolling:"touch",
+                ...(expanded ? {
+                  position:"fixed", top:0, left:0, right:0, bottom:0, zIndex:1000,
+                  margin:0, borderRadius:0, height:"100vh", padding:"60px 24px 24px"
+                } : {})
               }}
             />
+            {!expanded && (
+              <div style={{position:"absolute", top:8, right:46, display:"flex", gap:4}}>
+                {msg.trim() && (
+                  <button onClick={()=>setMsg("")} title="Clear" style={{background:"none", border:"none", padding:4, cursor:"pointer", display:"flex"}}>
+                    <Ic n="x" s={14} c={T.red}/>
+                  </button>
+                )}
+                <button onClick={()=>setExpanded(true)} title="Expand" style={{background:"none", border:"none", padding:4, cursor:"pointer", display:"flex"}}>
+                  <Ic n="expand" s={14} c={T.brand}/>
+                </button>
+              </div>
+            )}
+            {expanded && (
+              <div style={{position:"fixed", top:16, right:16, zIndex:1001, display:"flex", gap:8}}>
+                {msg.trim() && (
+                  <button onClick={()=>setMsg("")} title="Clear" style={{background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:4, padding:4, cursor:"pointer", display:"flex"}}>
+                    <Ic n="x" s={14} c={T.red}/>
+                  </button>
+                )}
+                <button onClick={()=>setExpanded(false)} title="Minimize" style={{background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:4, padding:4, cursor:"pointer", display:"flex"}}>
+                  <Ic n="chevron_down" s={14} c={T.brand}/>
+                </button>
+              </div>
+            )}
             <button
               onClick={handleSend}
               disabled={!msg.trim()||busy}
@@ -2579,6 +2727,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
 const NS_KEY = "jac_ns_draft";
 const REPO_STATS_KEY = "jac_repo_stats";
 const LAST_SOURCE_KEY = "jac_last_source";
+const ACT_MAP_KEY = "jac_act_map";
 
 function loadDraft() {
   try { const v=localStorage.getItem(NS_KEY); return v?JSON.parse(v):null; } catch { return null; }
@@ -2626,6 +2775,7 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
   const [submitting,setSub]        = useState(false);
   const [err,setErr]               = useState(null);
   const [savedFlash,setSavedFlash] = useState(false);
+  const [expanded,setExpanded]     = useState(false);
 
 
   // ── Derive branches whenever selected source changes ─────────────────────
@@ -2942,9 +3092,30 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
           </Field>
 
           <Field label="TASK PROMPT *">
-            <textarea value={prompt} onChange={e=>setPrompt(e.target.value)}
-              placeholder="Describe the coding task for Jules to execute…"
-              rows={6} style={{...inputSt,resize:"vertical",lineHeight:1.5}}/>
+            <div style={{position:"relative"}}>
+              <textarea value={prompt} onChange={e=>setPrompt(e.target.value)}
+                placeholder="Describe the coding task for Jules to execute…"
+                rows={6} style={{
+                  ...inputSt, resize:"vertical", lineHeight:1.5,
+                  ...(expanded ? {
+                    position:"fixed", top:0, left:0, right:0, bottom:0, zIndex:1000,
+                    margin:0, borderRadius:0, height:"100vh", padding:"60px 24px 24px"
+                  } : {})
+                }}/>
+              <div style={{
+                position:expanded?"fixed":"absolute", top:expanded?16:8, right:expanded?16:8, zIndex:1001,
+                display:"flex", gap:8
+              }}>
+                {prompt.trim() && (
+                   <button onClick={()=>setPrompt("")} title="Clear Prompt" style={{background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:4, padding:4, cursor:"pointer", display:"flex", alignItems:"center"}}>
+                     <Ic n="x" s={14} c={T.red}/>
+                   </button>
+                )}
+                <button onClick={()=>setExpanded(!expanded)} title={expanded?"Minimize":"Expand"} style={{background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:4, padding:4, cursor:"pointer", display:"flex", alignItems:"center"}}>
+                  <Ic n={expanded?"chevron_down":"expand"} s={14} c={T.brand}/>
+                </button>
+              </div>
+            </div>
           </Field>
 
           <div style={{marginBottom:16}}>
@@ -3097,7 +3268,7 @@ const NetworkMonitor = ({ onBack, isDesktop }) => {
   );
 };
 
-const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPollInterval, setActPollInterval, sessionLimit, setSessionLimit, tzOffset, setTzOffset, resetHour, setResetHour, planId, setPlanId, customDaily, setCustomDaily, plan, todayCount }) => {
+const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPollInterval, setActPollInterval, activePollInterval, setActivePollInterval, sessionLimit, setSessionLimit, tzOffset, setTzOffset, resetHour, setResetHour, personas, setPersonas, planId, setPlanId, customDaily, setCustomDaily, plan, todayCount }) => {
   const [tab, setTab] = useState("general");
   const [snap, setSnap] = useState(NET.snapshot());
   const [storage, setStorage] = useState(null);
@@ -3537,7 +3708,9 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
 function JulesClient() {
   const [apiKey,setApiKey]     = useState(() => { try { return localStorage.getItem("jac_key")||""; } catch (e) { return ""; } });
   const [sessions,setSessions] = useState([]);
-  const [activitiesMap, setActivitiesMap] = useState({});
+  const [activitiesMap, setActivitiesMap] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(ACT_MAP_KEY)) || {}; } catch { return {}; }
+  });
   const [selected,setSelected] = useState(null);
   const [mobileScreen,setMobileRaw] = useState("list");
   const [lastSessionScreen, setLastSessionScreen] = useState("list");
@@ -3648,7 +3821,11 @@ function JulesClient() {
       const actsResults = await Promise.all(actsPromises);
       const newMap = {};
       targetIds.forEach((id, i) => { newMap[id] = actsResults[i].activities || []; });
-      setActivitiesMap(prev => ({ ...prev, ...newMap }));
+      setActivitiesMap(prev => {
+        const next = { ...prev, ...newMap };
+        try { localStorage.setItem(ACT_MAP_KEY, JSON.stringify(next)); } catch {}
+        return next;
+      });
 
       // Sort: Active first, then by latest update/create time
       const sorted = [...raw].sort((a, b) => {
@@ -3763,6 +3940,7 @@ function JulesClient() {
             <SettingsView onBack={()=>setDesktop("empty")} isDesktop
               pollInterval={pollInterval} setPollInterval={setPollInterval}
               actPollInterval={actPollInterval} setActPollInterval={setActPollInterval}
+              activePollInterval={activePollInterval} setActivePollInterval={setActivePollInterval}
               sessionLimit={sessionLimit} setSessionLimit={setSessionLimit}
               tzOffset={tzOffset} setTzOffset={setTzOffset}
               resetHour={resetHour} setResetHour={setResetHour}
@@ -3811,6 +3989,7 @@ function JulesClient() {
           <SettingsView onBack={()=>setMobile("list")} isDesktop={false}
             pollInterval={pollInterval} setPollInterval={setPollInterval}
             actPollInterval={actPollInterval} setActPollInterval={setActPollInterval}
+            activePollInterval={activePollInterval} setActivePollInterval={setActivePollInterval}
             sessionLimit={sessionLimit} setSessionLimit={setSessionLimit}
             tzOffset={tzOffset} setTzOffset={setTzOffset}
             resetHour={resetHour} setResetHour={setResetHour}
