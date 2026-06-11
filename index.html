@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="theme-color" content="#00e87a">
+    <meta name="theme-color" content="#00eaff">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <meta name="apple-mobile-web-app-title" content="Jules">
     <meta name="application-name" content="Jules Agent">
     <meta name="description" content="Jules AI coding agent client — monitor sessions, review plans, send messages">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%2307090c%22/><text y=%22.9em%22 x=%2250%25%22 font-size=%2270%22 text-anchor=%22middle%22 fill=%22%2300e87a%22 font-family=%22monospace%22 font-weight=%22900%22>J</text></svg>">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%2307090c%22/><text y=%22.9em%22 x=%2250%25%22 font-size=%2270%22 text-anchor=%22middle%22 fill=%22%2300eaff%22 font-family=%22monospace%22 font-weight=%22900%22>J</text></svg>">
     <title>Jules Agent</title>
     <!-- DNS preconnect for CDN resources -->
     <link rel="preconnect" href="https://unpkg.com" crossorigin>
@@ -30,18 +30,18 @@
       }
       #splash.hidden{opacity:0;visibility:hidden;pointer-events:none;}
       #splash-logo{
-        width:60px;height:60px;border-radius:14px;background:#00e87a;
+        width:60px;height:60px;border-radius:14px;background:#00eaff;
         display:flex;align-items:center;justify-content:center;
         font-size:38px;font-weight:900;color:#000;
-        box-shadow:0 0 40px rgba(0,232,122,.35);
+        box-shadow:0 8px 30px rgba(0,234,255,.15);
         margin-bottom:22px;
       }
       #splash-title{font-size:15px;font-weight:700;color:#c5d4e8;letter-spacing:.06em;margin-bottom:6px;}
       #splash-sub{font-size:12px;color:#4a5e76;letter-spacing:.05em;margin-bottom:28px;}
       #splash-bar-wrap{width:120px;height:2px;background:#1e2d3d;border-radius:2px;overflow:hidden;}
       #splash-bar{
-        height:100%;width:0%;background:#00e87a;border-radius:2px;
-        box-shadow:0 0 6px rgba(0,232,122,.6);
+        height:100%;width:0%;background:#00eaff;border-radius:2px;
+        box-shadow:0 2px 10px rgba(0,234,255,.3);
         animation:splash-load 2.4s cubic-bezier(.4,0,.2,1) forwards;
       }
       #splash-hint{margin-top:14px;font-size:12px;font-weight:700;color:#4a5e76;letter-spacing:.07em;}
@@ -82,7 +82,7 @@
       // ── 1. Manifest via data: URI (works on HTTP origins) ──────────────────
       const mkIcon = (size, rx) => {
         const fs = Math.floor(size * 0.625), y = Math.floor(size * 0.73);
-        const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}"><rect width="${size}" height="${size}" rx="${rx}" fill="#07090c"/><text x="${size/2}" y="${y}" font-size="${fs}" text-anchor="middle" fill="#00e87a" font-weight="900" font-family="monospace">J</text></svg>`;
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}"><rect width="${size}" height="${size}" rx="${rx}" fill="#07090c"/><text x="${size/2}" y="${y}" font-size="${fs}" text-anchor="middle" fill="#00eaff" font-weight="900" font-family="monospace">J</text></svg>`;
         return { src:"data:image/svg+xml;base64,"+btoa(svg), sizes:`${size}x${size}`, type:"image/svg+xml", purpose:"maskable any" };
       };
       const isMobile = window.innerWidth < 768;
@@ -91,7 +91,7 @@
         description:"Monitor and control Jules AI coding sessions",
         start_url: location.href.split("?")[0],
         scope: location.href.split("?")[0].replace(/[^/]*$/, ""),
-        display:"standalone", background_color:"#07090c", theme_color:"#00e87a",
+        display:"standalone", background_color:"#07090c", theme_color:"#00eaff",
         orientation: isMobile ? "portrait" : "natural",
         categories:["developer","productivity"],
         icons:[ mkIcon(192,24), mkIcon(512,64) ],
@@ -222,6 +222,7 @@ const POLL_OPTIONS = [
 ];
 const POLL_KEY        = "jac_poll_ms";
 const ACT_POLL_KEY    = "jac_act_poll_ms";
+const ACTIVE_POLL_KEY = "jac_active_poll_ms";
 const DEFAULT_POLL_MS = 30000;
 
 function loadPollMs() {
@@ -233,6 +234,11 @@ function loadActPollMs() {
   try { const v=parseInt(localStorage.getItem(ACT_POLL_KEY)); return POLL_OPTIONS.some(o=>o.ms===v)?v:DEFAULT_POLL_MS; } catch { return DEFAULT_POLL_MS; }
 }
 function saveActPollMs(ms) { try { localStorage.setItem(ACT_POLL_KEY,ms); } catch {} }
+
+function loadActivePollMs() {
+  try { const v=parseInt(localStorage.getItem(ACTIVE_POLL_KEY)); return POLL_OPTIONS.some(o=>o.ms===v)?v:DEFAULT_POLL_MS; } catch { return DEFAULT_POLL_MS; }
+}
+function saveActivePollMs(ms) { try { localStorage.setItem(ACTIVE_POLL_KEY,ms); } catch {} }
 
 // ─── Session list limits ──────────────────────────────────────────────────────
 const LIMIT_OPTIONS = [
@@ -253,11 +259,17 @@ function saveLimit(v) { try { localStorage.setItem(LIMIT_KEY,v); } catch {} }
 // ─── Plan limits (from jules.google/docs/usage-limits) ───────────────────────
 const PLAN_KEY = "jac_plan";
 const TZ_KEY   = "jac_tz_offset";
+const RESET_HOUR_KEY = "jac_reset_hour";
 
 function loadTzOffset() {
   try { const v = localStorage.getItem(TZ_KEY); return v !== null ? parseInt(v) : 1; } catch { return 1; }
 }
 function saveTzOffset(v) { try { localStorage.setItem(TZ_KEY, v); } catch {} }
+
+function loadResetHour() {
+  try { const v = localStorage.getItem(RESET_HOUR_KEY); return v !== null ? parseInt(v) : 10; } catch { return 10; }
+}
+function saveResetHour(v) { try { localStorage.setItem(RESET_HOUR_KEY, v); } catch {} }
 
 const PLANS = [
   { id:"free",  label:"Free",  daily:15,  concurrent:3,  model:"Gemini 2.5 Pro" },
@@ -274,10 +286,10 @@ function saveCustomDaily(v) { try { localStorage.setItem(CUSTOM_DAILY_KEY,v); } 
 
 // ─── Daily session counter ────────────────────────────────────────────────────
 const TODAY_KEY = () => {
-  // Quota resets at 10 AM local time.
-  // Subtract 10 hours from now so that times between 00:00 and 10:00 fall into "yesterday's" bucket.
+  const resetHour = loadResetHour();
+  // Subtract resetHour from now so that times before the reset fall into "yesterday's" bucket.
   const d = new Date();
-  d.setHours(d.getHours() - 10);
+  d.setHours(d.getHours() - resetHour);
   return `jac_today_${d.toISOString().slice(0,10)}`;
 };
 function loadTodayCount() { try { return parseInt(localStorage.getItem(TODAY_KEY()))||0; } catch { return 0; } }
@@ -350,26 +362,55 @@ async function getStorageInfo() {
   return { used: est.usage || 0, quota: est.quota || 0, cache: cacheSize };
 }
 
-const PERSONAS = [
-  { id: "ui", label: "UI/UX", color: "#ff66cc", prompt: "Please approach this task from the perspective of a UI/UX expert, ensuring that any changes or additions follow modern design principles, accessibility standards, and provide an excellent user experience." },
-  { id: "perf", label: "PERF", color: "#ffbc00", prompt: "Focus on optimization and performance. Ensure the code is efficient, minimizes resource usage, and follows best practices for speed and responsiveness." },
-  { id: "sec", label: "SEC", color: "#ff5566", prompt: "Act as a security auditor. Identify and mitigate potential security vulnerabilities, follow secure coding standards, and ensure data protection." },
-  { id: "front", label: "FRONT", color: "#5fb2ff", prompt: "As a Frontend Engineer, focus on clean, maintainable, and modern frontend code (React/CSS), following modular patterns and state management best practices." },
-  { id: "back", label: "BACK", color: "#bf99ff", prompt: "As a Backend Architect, focus on scalability, robust API design, efficient data structures, and clean server-side logic." },
-  { id: "qa", label: "QA", color: "#00f07f", prompt: "Act as a QA Specialist. Focus on edge cases, robust error handling, and ensure the code is thoroughly testable and reliable." },
-  { id: "a11y", label: "A11Y", color: "#ffffff", prompt: "Focus on accessibility (A11y). Ensure the UI is inclusive, follows WCAG guidelines, and is usable by everyone, including those using assistive technologies." },
-  { id: "sre", label: "SRE", color: "#4da6ff", prompt: "From a Reliability/SRE perspective, ensure the system is stable, has proper logging/monitoring hooks, and handles failures gracefully." },
-  { id: "research", label: "RESEARCH", color: "#ff8844", prompt: "Act as a Research Specialist. Deeply investigate the problem, utilize your search and research capabilities to find the best solutions, libraries, and patterns, and provide a comprehensive analysis or report." },
+const DEFAULT_PERSONAS = [
+  { id: "ui", label: "UI/UX", color: "#ff66cc", prompt: "Act as a world-class UI/UX Designer. Prioritize aesthetic elegance, intuitive flows, and strict adherence to accessibility (WCAG 2.1) standards. Every change should feel intentional, modern, and delightful to the user." },
+  { id: "perf", label: "PERF", color: "#ffbc00", prompt: "You are a Performance Engineer. Your goal is to eliminate latency and minimize resource footprints. Optimize critical paths, prevent unnecessary re-renders, and ensure the application remains butter-smooth even under load." },
+  { id: "refactor", label: "REFACTOR", color: "#00eaff", prompt: "Act as a Clean Code Evangelist. Refactor the implementation for maximum readability, maintainability, and elegance. Apply SOLID principles, dry out redundant logic, and ensure the codebase is a joy to work in." },
+  { id: "debug", label: "DEBUG", color: "#ff4444", prompt: "You are a Senior Debugging Specialist. Approach this with extreme scrutiny. Hunt for edge cases, race conditions, and subtle state bugs. Add robust error handling and logging to ensure visibility into any failure." },
+  { id: "sec", label: "SEC", color: "#ff5566", prompt: "Act as a lead Security Architect. Identify potential attack vectors, sanitize all inputs, and ensure data integrity. Follow OWASP best practices to make the implementation production-hardened and secure." },
+  { id: "front", label: "FRONT", color: "#5fb2ff", prompt: "As a Senior Frontend Engineer, focus on modern React patterns, CSS-in-JS best practices, and responsive excellence. Ensure the component architecture is modular, type-safe, and highly reusable." },
+  { id: "back", label: "BACK", color: "#bf99ff", prompt: "As a Backend Systems Architect, prioritize scalability and API robustness. Design efficient data schemas, optimize database interactions, and ensure server-side logic is resilient and high-performing." },
+  { id: "qa", label: "QA", color: "#00eaff", prompt: "Act as a QA Automation Expert. Ensure every feature is thoroughly testable. Focus on validation logic, boundary conditions, and end-to-end reliability. If it can break, find out how first." },
+  { id: "a11y", label: "A11Y", color: "#ffffff", prompt: "You are an Accessibility Specialist. Make this app inclusive for everyone. Verify semantic HTML, ARIA attributes, keyboard navigation, and screen reader compatibility. No user should be left behind." },
+  { id: "sre", label: "SRE", color: "#4da6ff", prompt: "Act as a Site Reliability Engineer. Focus on observability, graceful degradation, and system stability. Ensure there are clear health checks, logs, and a plan for when things go wrong." },
+  { id: "research", label: "RESEARCH", color: "#ff8844", prompt: "You are a Lead Research Scientist. Do not rush to implement. Deeply investigate the problem space, explore multiple libraries/patterns, and utilize search capabilities to find the absolute best-in-class solution before writing a single line of code." },
 ];
 
-const MultiPersonaPicker = ({ selectedIds, onToggle, style: s = {} }) => {
+const PERSONA_PROMPTS_KEY = "jac_persona_prompts";
+
+function loadPersonas() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(PERSONA_PROMPTS_KEY) || "{}");
+    return DEFAULT_PERSONAS.map(p => ({
+      ...p,
+      prompt: saved[p.id] || p.prompt
+    }));
+  } catch { return DEFAULT_PERSONAS; }
+}
+
+function savePersonaPrompt(id, prompt) {
+  try {
+    const saved = JSON.parse(localStorage.getItem(PERSONA_PROMPTS_KEY) || "{}");
+    saved[id] = prompt;
+    localStorage.setItem(PERSONA_PROMPTS_KEY, JSON.stringify(saved));
+  } catch {}
+}
+
+function resetPersonas() {
+  try {
+    localStorage.removeItem(PERSONA_PROMPTS_KEY);
+    return DEFAULT_PERSONAS;
+  } catch { return DEFAULT_PERSONAS; }
+}
+
+const MultiPersonaPicker = ({ personas, selectedIds, onToggle, style: s = {} }) => {
   return (
     <div style={{
       display: "flex", gap: 6, overflowX: "auto", padding: "4px 2px",
       scrollbarWidth: "none", WebkitOverflowScrolling: "touch",
       ...s
     }}>
-      {PERSONAS.map(p => {
+      {personas.map(p => {
         const isSelected = selectedIds.has(p.id);
         return (
           <button
@@ -398,15 +439,16 @@ const MultiPersonaPicker = ({ selectedIds, onToggle, style: s = {} }) => {
 
 const T = {
   bg:"#050608", surface:"#0b0e14", surfaceHi:"#11161d",
-  border:"#1a222e", borderHi:"#2a3649",
-  green:"#00f07f", greenDim:"rgba(0,240,127,.14)",
-  amber:"#ffbc00", amberDim:"rgba(255,188,0,.14)",
-  red:"#ff5566",   redDim:"rgba(255,85,102,.14)",
-  blue:"#5fb2ff",  blueDim:"rgba(95,178,255,.14)",
-  purple:"#bf99ff",purpleDim:"rgba(191,153,255,.14)",
-  text:"#ffffff",  textHi:"#f0f4f8", textDim:"#c5d4e8",
-  muted:"#7c8ea6", dim:"#3a4b5f", line:"#18202b",
-  userBubble:"rgba(95,178,255,.12)", agentBubble:"rgba(0,240,127,.09)",
+  border:"#1a222e", borderHi:"#242d3d",
+  brand:"#00eaff", brandDim:"rgba(0,234,255,0.12)",
+  indigo:"#6366f1", indigoDim:"rgba(99,102,241,0.12)",
+  amber:"#ffbc00", amberDim:"rgba(255,188,0,0.12)",
+  red:"#ff5566",   redDim:"rgba(255,85,102,0.12)",
+  blue:"#38bdf8",  blueDim:"rgba(56,189,248,0.12)",
+  purple:"#818cf8",purpleDim:"rgba(129,140,248,0.12)",
+  text:"#ffffff",  textHi:"#f8fafc", textDim:"#c5d4e8",
+  muted:"#64748b", dim:"#1e293b", line:"#111827",
+  userBubble:"rgba(99,102,241,0.08)", agentBubble:"rgba(0,234,255,0.06)",
 };
 
 const STATUS_META = {
@@ -414,9 +456,9 @@ const STATUS_META = {
   PLANNING:              { label:"PLANNING", color:T.amber,   bg:T.amberDim,             pulse:true  },
   AWAITING_PLAN_APPROVAL:{ label:"APPROVE",  color:T.purple,  bg:T.purpleDim,            pulse:true  },
   AWAITING_USER_FEEDBACK:{ label:"INPUT",    color:T.amber,   bg:T.amberDim,             pulse:true  },
-  IN_PROGRESS:           { label:"WORKING",  color:T.green,   bg:T.greenDim,             pulse:true  },
+  IN_PROGRESS:           { label:"WORKING",  color:T.brand,   bg:T.brandDim,             pulse:true  },
   PAUSED:                { label:"PAUSED",   color:T.muted,   bg:"rgba(124,142,166,.1)", pulse:false },
-  COMPLETED:             { label:"DONE",     color:T.green,   bg:T.greenDim,             pulse:false },
+  COMPLETED:             { label:"DONE",     color:T.brand,   bg:T.brandDim,             pulse:false },
   FAILED:                { label:"FAILED",   color:T.red,     bg:T.redDim,               pulse:false },
 };
 
@@ -616,7 +658,7 @@ const PWABanner = () => {
         <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:14,color:"#4a5e76",lineHeight:1.6}}>
           Chrome requires HTTP/HTTPS to install PWAs. Serve this file locally:
         </div>
-        <div style={{marginTop:6,background:"#040507",border:"1px solid #182030",borderRadius:5,padding:"6px 10px",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:"#00e87a",lineHeight:1.8}}>
+        <div style={{marginTop:6,background:"#040507",border:"1px solid #182030",borderRadius:5,padding:"6px 10px",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:"#00eaff",lineHeight:1.8}}>
           # Python (any machine)<br/>
           python3 -m http.server 8080<br/><br/>
           # Node / npx<br/>
@@ -639,12 +681,12 @@ const PWABanner = () => {
       padding:"8px 16px", display:"flex", alignItems:"center", gap:10,
     }}>
       <span style={{fontSize:16,flexShrink:0}}>📲</span>
-      <div style={{flex:1,fontFamily:"'JetBrains Mono',monospace",fontSize:12,color:"#00e87a"}}>
+      <div style={{flex:1,fontFamily:"'JetBrains Mono',monospace",fontSize:12,color:"#00eaff"}}>
         Install Jules as an app for offline access
       </div>
       <button onClick={install} disabled={installing} style={{
         padding:"5px 13px",borderRadius:5,border:"none",cursor:"pointer",
-        background:"#00e87a",color:"#000",fontFamily:"'JetBrains Mono',monospace",
+        background:"#00eaff",color:"#000",fontFamily:"'JetBrains Mono',monospace",
         fontSize:12,fontWeight:700,letterSpacing:"0.07em",flexShrink:0,
       }}>{installing?"…":"INSTALL"}</button>
       <button onClick={()=>{sessionStorage.setItem("pwa_dismissed","1");setDismissed(true);}} style={{background:"none",border:"none",cursor:"pointer",color:"#4a5e76",fontSize:18,padding:0,lineHeight:1,flexShrink:0}}>×</button>
@@ -726,7 +768,7 @@ const Pill = ({status,small=false}) => {
       background:m.bg,border:`1px solid ${m.color}40`,
       fontFamily:"'JetBrains Mono',monospace",
       fontSize:small?10:11,fontWeight:800,letterSpacing:"0.08em",color:m.color,flexShrink:0,
-      boxShadow:`0 2px 8px rgba(0,0,0,0.2)`,
+      boxShadow:"none",
     }}>
       {m.pulse&&<span style={{width:4,height:4,borderRadius:"50%",background:m.color,animation:"dot 1.2s ease-in-out infinite",flexShrink:0}}/>}
       {m.label}
@@ -743,7 +785,7 @@ const Bar = ({pct,status}) => {
   );
 };
 
-const Btn = ({children,onClick,color=T.green,disabled=false,outline=false,sm=false,style:s={}}) => (
+const Btn = ({children,onClick,color=T.brand,disabled=false,outline=false,sm=false,style:s={}}) => (
   <button onClick={onClick} disabled={disabled} style={{
     background:outline?"transparent":(disabled?T.dim:color),
     border:`1px solid ${disabled?T.border:color+(outline?"77":"00")}`,
@@ -765,7 +807,7 @@ const Field = ({label,children,style:s={}}) => (
   </div>
 );
 
-const PickerBtn = ({ label, isAct, onClick, activeColor=T.green, activeBg=null }) => (
+const PickerBtn = ({ label, isAct, onClick, activeColor=T.brand, activeBg=null }) => (
   <button onClick={onClick} style={{
     flexShrink:0, padding:"3px 9px", borderRadius:20, border:"none",
     background:isAct ? (activeBg || `${activeColor}15`) : "transparent",
@@ -791,7 +833,7 @@ const SearchPicker = ({ value, search, onSearch, onSelect, onHide, options, plac
         style={{...inputSt, paddingRight:36}}
       />
       <div style={{position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", display:"flex", alignItems:"center", pointerEvents:"none"}}>
-        <Ic n={icon} s={14} c={isOpen?T.green:T.muted}/>
+        <Ic n={icon} s={14} c={isOpen?T.brand:T.muted}/>
       </div>
 
       {isOpen && (
@@ -824,10 +866,10 @@ const SearchPicker = ({ value, search, onSearch, onSelect, onHide, options, plac
                   onMouseEnter={e=>e.currentTarget.style.background=T.dim}
                   onMouseLeave={e=>e.currentTarget.style.background="none"}
                 >
-                  <Ic n={icon} s={12} c={isSelected?T.green:T.muted}/>
+                  <Ic n={icon} s={12} c={isSelected?T.brand:T.muted}/>
                   <span style={{
                     flex:1, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:13,
-                    color:isSelected?T.green:T.text, fontWeight:isSelected?600:400,
+                    color:isSelected?T.brand:T.text, fontWeight:isSelected?600:400,
                     overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
                   }}>{getDisplay(opt)}</span>
                   {renderExtra && renderExtra(opt)}
@@ -936,7 +978,7 @@ const MediaArtifacts = memo(({ artifacts, ts, onMediaClick }) => {
               width:100, height:70, display:"flex", alignItems:"center",
               justifyContent:"center", transition:"border-color .15s",
             }}
-            onMouseEnter={e => e.currentTarget.style.borderColor = T.green}
+            onMouseEnter={e => e.currentTarget.style.borderColor = T.brand}
             onMouseLeave={e => e.currentTarget.style.borderColor = T.border}
           >
             {isVideo ? (
@@ -960,7 +1002,7 @@ const MediaArtifacts = memo(({ artifacts, ts, onMediaClick }) => {
 });
 
 // ─── Chat Bubble ──────────────────────────────────────────────────────────────
-const ChatBubble = memo(({ act, type, onMediaClick }) => {
+const ChatBubble = memo(({ act, type, onMediaClick, onEdit }) => {
   const isUser = type === "userMessaged";
   const text   = isUser ? act.userMessaged?.userMessage : act.agentMessaged?.agentMessage;
   const time   = fmtTime(new Date(act.createTime).getTime());
@@ -975,24 +1017,24 @@ const ChatBubble = memo(({ act, type, onMediaClick }) => {
       {/* Avatar */}
       <div style={{
         width:32,height:32,borderRadius:8,flexShrink:0,
-        background:isUser?T.blueDim:T.green,
+        background:isUser?T.blueDim:T.brand,
         border:`1px solid ${isUser?T.blue+"40":"transparent"}`,
         display:"flex",alignItems:"center",justifyContent:"center",
         fontFamily:"'JetBrains Mono',monospace",fontSize:13,fontWeight:900,
         color:isUser?T.blue:"#000",
-        boxShadow:`0 4px 10px rgba(0,0,0,0.2)`,
+        boxShadow:"none",
       }}>{isUser?"U":"J"}</div>
 
       {/* Bubble */}
       <div style={{
         maxWidth:"82%",
         background:isUser?T.userBubble:T.agentBubble,
-        border:`1px solid ${isUser?T.blue+"40":T.green+"35"}`,
+        border:`1px solid ${isUser?T.blue+"40":T.brand+"35"}`,
         borderRadius:isUser?"14px 14px 4px 14px":"14px 14px 14px 4px",
         padding:"14px 18px",
         opacity:isTemp?0.6:1,
         transition:"opacity .2s",
-        boxShadow:`0 4px 15px rgba(0,0,0,0.15)`,
+        boxShadow:"none",
       }}>
         <div style={{
           fontSize:15,color:T.text,lineHeight:1.55,
@@ -1001,12 +1043,24 @@ const ChatBubble = memo(({ act, type, onMediaClick }) => {
         <MediaArtifacts artifacts={act.artifacts} ts={act.createTime} onMediaClick={onMediaClick}/>
         <div style={{
           marginTop:5,fontFamily:"'JetBrains Mono',monospace",fontSize:10,
-          color:isUser?T.blue+"70":T.green+"60",textAlign:isUser?"right":"left",
+          color:isUser?T.blue+"70":T.brand+"60",textAlign:isUser?"right":"left",
           display:"flex",gap:6,justifyContent:isUser?"flex-end":"flex-start",alignItems:"center",
         }}>
           <span style={{fontWeight:700,letterSpacing:"0.06em"}}>{isUser?"YOU":"JULES"}</span>
           <span>·</span>
           <span>{isTemp?"sending…":time}</span>
+          {isUser && !isTemp && onEdit && (
+            <>
+              <span>·</span>
+              <button
+                onClick={(e) => { e.stopPropagation(); onEdit(text); }}
+                style={{
+                  background:"none", border:"none", padding:"0 2px", cursor:"pointer",
+                  color:T.brand, fontWeight:800, fontSize:9, letterSpacing:"0.05em"
+                }}
+              >EDIT</button>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -1022,9 +1076,9 @@ const TimelineEvent = memo(({ act, onMediaClick }) => {
 
   const IC_MAP = {
     planGenerated:{n:"plan",c:T.purple},
-    planApproved:{n:"approve",c:T.green},
+    planApproved:{n:"approve",c:T.brand},
     progressUpdated:{n:isPush?"branch":"refresh",c:isPush?T.blue:T.muted},
-    sessionCompleted:{n:"check",c:T.green},
+    sessionCompleted:{n:"check",c:T.brand},
     sessionFailed:{n:"x",c:T.red},
     system:{n:"code",c:T.muted},
   };
@@ -1097,11 +1151,11 @@ const TimelineEvent = memo(({ act, onMediaClick }) => {
               <div style={{marginTop:12}}>
                 <a href={prMatch[0]} target="_blank" rel="noopener" style={{
                   display:"inline-flex", alignItems:"center", gap:6, padding:"6px 12px",
-                  background:T.greenDim, border:`1px solid ${T.green}40`, borderRadius:6,
-                  color:T.green, textDecoration:"none", fontFamily:"'JetBrains Mono',monospace",
+                  background:T.brandDim, border:`1px solid ${T.brand}40`, borderRadius:6,
+                  color:T.brand, textDecoration:"none", fontFamily:"'JetBrains Mono',monospace",
                   fontSize:12, fontWeight:800
                 }}>
-                  <Ic n="git_pull" s={14} c={T.green}/>
+                  <Ic n="git_pull" s={14} c={T.brand}/>
                   OPEN PULL REQUEST #{prMatch[1]} ↗
                 </a>
               </div>
@@ -1149,11 +1203,11 @@ const TimelineEvent = memo(({ act, onMediaClick }) => {
         <div style={{marginTop:8}}>
           <a href={pr.url} target="_blank" rel="noopener" style={{
             display:"inline-flex", alignItems:"center", gap:6, padding:"6px 12px",
-            background:T.greenDim, border:`1px solid ${T.green}40`, borderRadius:6,
-            color:T.green, textDecoration:"none", fontFamily:"'JetBrains Mono',monospace",
+            background:T.brandDim, border:`1px solid ${T.brand}40`, borderRadius:6,
+            color:T.brand, textDecoration:"none", fontFamily:"'JetBrains Mono',monospace",
             fontSize:12, fontWeight:700
           }}>
-            <Ic n="git_pull" s={14} c={T.green}/>
+            <Ic n="git_pull" s={14} c={T.brand}/>
             VIEW PULL REQUEST #{pr.number}
           </a>
         </div>
@@ -1177,7 +1231,7 @@ const TimelineEvent = memo(({ act, onMediaClick }) => {
       border:isMajor?`1px solid ${T.border}`:"none",
     }}>
       <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:0,flexShrink:0,width:24}}>
-        <div style={{width:24,height:24,borderRadius:6,background:`${ic.c}18`,border:`1px solid ${ic.c}40`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,boxShadow:`0 2px 6px rgba(0,0,0,0.15)`}}>
+        <div style={{width:24,height:24,borderRadius:6,background:`${ic.c}18`,border:`1px solid ${ic.c}40`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,boxShadow:"none"}}>
           <Ic n={ic.n} s={13} c={ic.c}/>
         </div>
         {detail&&<div style={{width:1,flex:1,background:T.border,marginTop:3}}/>}
@@ -1243,10 +1297,10 @@ const MediaModal = ({ media, onClose }) => {
           style={{
             background:T.surfaceHi, border:`1px solid ${T.borderHi}`, borderRadius:8,
             padding:"8px 14px", cursor:"pointer", display:"flex", alignItems:"center", gap:8,
-            color:T.green, fontFamily:"'JetBrains Mono',monospace", fontSize:12, fontWeight:700,
+            color:T.brand, fontFamily:"'JetBrains Mono',monospace", fontSize:12, fontWeight:700,
           }}
         >
-          <Ic n="download" s={14} c={T.green}/>
+          <Ic n="download" s={14} c={T.brand}/>
           SAVE
         </button>
         <button
@@ -1305,7 +1359,7 @@ const MediaModal = ({ media, onClose }) => {
 const COLLAPSE_THRESHOLD = 35;
 const COLLAPSE_SHOW      = 25;
 
-const ActivityFeed = memo(({ activities, showAll, onShowAll, onMediaClick }) => {
+const ActivityFeed = memo(({ activities, showAll, onShowAll, onMediaClick, onEditMessage }) => {
   const collapse  = !showAll && activities.length > COLLAPSE_THRESHOLD;
   const visible   = collapse ? activities.slice(activities.length - COLLAPSE_SHOW) : activities;
   const hidden    = activities.length - visible.length;
@@ -1327,7 +1381,7 @@ const ActivityFeed = memo(({ activities, showAll, onShowAll, onMediaClick }) => 
         const type = getActType(act);
         const key  = getActKey(act);
         if (type === "userMessaged" || type === "agentMessaged") {
-          return <ChatBubble key={key} act={act} type={type} onMediaClick={onMediaClick}/>;
+          return <ChatBubble key={key} act={act} type={type} onMediaClick={onMediaClick} onEdit={onEditMessage}/>;
         }
         return <TimelineEvent key={key} act={act} onMediaClick={onMediaClick}/>;
       })}
@@ -1402,12 +1456,12 @@ const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFeedback,
       {/* Plan header */}
       <div style={{
         marginBottom:14,padding:"10px 14px",borderRadius:7,
-        background:approved?T.greenDim:pendingApproval?T.purpleDim:T.surfaceHi,
-        border:`1px solid ${approved?T.green+"40":pendingApproval?T.purple+"40":T.border}`,
+        background:approved?T.brandDim:pendingApproval?T.purpleDim:T.surfaceHi,
+        border:`1px solid ${approved?T.brand+"40":pendingApproval?T.purple+"40":T.border}`,
       }}>
         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:approved||!pendingApproval?0:8}}>
           <div style={{flex:1,fontFamily:"'JetBrains Mono',monospace",fontSize:12,fontWeight:700,
-            color:approved?T.green:pendingApproval?T.purple:T.muted,letterSpacing:"0.06em"}}>
+            color:approved?T.brand:pendingApproval?T.purple:T.muted,letterSpacing:"0.06em"}}>
             {approved?"✓ PLAN APPROVED":pendingApproval?"PLAN READY FOR REVIEW":"PLAN PREVIEW"}
           </div>
           <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted}}>
@@ -1528,8 +1582,8 @@ const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFeedback,
 
           {sent&&(
             <div style={{marginBottom:8,padding:"6px 10px",borderRadius:4,
-              background:T.greenDim,border:`1px solid ${T.green}40`,
-              fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.green}}>
+              background:T.brandDim,border:`1px solid ${T.brand}40`,
+              fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.brand}}>
               ✓ Revision request sent — Jules will update the plan
             </div>
           )}
@@ -1637,7 +1691,7 @@ const DiffViewer = ({ patch }) => {
               }}
             >
               <Ic n={isCollapsed ? "chevron_right" : "chevron_down"} s={16} c={T.muted}/>
-              <Ic n="code" s={14} c={T.green}/>
+              <Ic n="code" s={14} c={T.brand}/>
               <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:13, fontWeight:700, color:T.text, flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>{g.file}</span>
             </div>
 
@@ -1656,17 +1710,17 @@ const DiffViewer = ({ patch }) => {
                   {h.lines.map((line, li) => {
                     const isAdd = line.startsWith("+");
                     const isRem = line.startsWith("-");
-                    const c = isAdd ? T.green : isRem ? T.red : T.muted;
+                    const c = isAdd ? T.brand : isRem ? T.red : T.muted;
                     const bg = isAdd ? "rgba(0,232,122,.05)" : isRem ? "rgba(255,68,85,.05)" : "transparent";
                     const symbol = isAdd ? "+" : isRem ? "-" : " ";
                     const content = (isAdd || isRem) ? line.slice(1) : line;
 
                     return (
-                      <div key={li} style={{display:"flex", background:bg, minHeight:20, borderLeft:`2px solid ${isAdd?T.green+'40':isRem?T.red+'40':'transparent'}`}}>
+                      <div key={li} style={{display:"flex", background:bg, minHeight:20, borderLeft:`2px solid ${isAdd?T.brand+'40':isRem?T.red+'40':'transparent'}`}}>
                         <div style={{width:22, flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", color:c, opacity:0.6, fontSize:12, userSelect:"none", fontWeight:700, fontFamily:"monospace"}}>
                           {symbol}
                         </div>
-                        <div style={{padding:"2px 10px", color:isAdd?T.green:isRem?T.red:T.text, whiteSpace:"pre-wrap", wordBreak:"break-all", flex:1, opacity: (isAdd||isRem)?1:0.7}}>
+                        <div style={{padding:"2px 10px", color:isAdd?T.brand:isRem?T.red:T.text, whiteSpace:"pre-wrap", wordBreak:"break-all", flex:1, opacity: (isAdd||isRem)?1:0.7}}>
                           {content || " "}
                         </div>
                       </div>
@@ -1703,10 +1757,10 @@ const SetupScreen = ({ onSave }) => {
       <div style={{width:"100%",maxWidth:380}}>
         <div style={{textAlign:"center",marginBottom:28}}>
           <div style={{
-            width:54,height:54,borderRadius:13,background:T.green,
+            width:54,height:54,borderRadius:13,background:T.brand,
             display:"flex",alignItems:"center",justifyContent:"center",
             fontFamily:"'JetBrains Mono',monospace",fontSize:30,fontWeight:900,color:"#000",
-            margin:"0 auto 16px",boxShadow:`0 0 32px ${T.green}40`,
+            margin:"0 auto 16px",boxShadow:`0 8px 32px ${T.brand}20`,
           }}>J</div>
           <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:16,fontWeight:700,color:T.text,marginBottom:6}}>JULES AGENT CLIENT</div>
           <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:15,color:T.muted,lineHeight:1.6}}>
@@ -1771,73 +1825,57 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [] }) =>
 
   return (
     <button onClick={onPress} style={{
-      width:"100%",background:isSelected?`${T.green}08`:T.surface,textAlign:"left",cursor:"pointer",
-      border:`1px solid ${isSelected?T.green:T.border}`,
-      borderLeft:`4px solid ${isSelected?T.green:m.color}`,
-      borderRadius:8,padding:"12px 14px",marginBottom:8,transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)",
-      boxShadow:isSelected?`0 8px 24px -8px ${T.green}40`:"none",
+      width:"100%",background:isSelected?`${T.brand}05`:T.surface,textAlign:"left",cursor:"pointer",
+      border:`1px solid ${isSelected?T.brand:T.border}`,
+      borderLeft:`3px solid ${isSelected?T.brand:m.color}`,
+      borderRadius:6,padding:"8px 12px",marginBottom:6,transition:"all .15s ease",
+      boxShadow:"none",
       position:"relative",
-      transform:isSelected?"translateX(2px)":"none",
     }}>
-      {isSelected && (
-        <div style={{
-          position:"absolute", top:0, bottom:0, left:0, width:4,
-          background:T.green, boxShadow:`0 0 12px ${T.green}80`,
-          borderRadius:"4px 0 0 4px"
-        }}/>
-      )}
-      <div style={{display:"flex",alignItems:"flex-start",gap:10,marginBottom:12}}>
-        <div style={{width:22,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted,fontWeight:700,paddingTop:2}}>{index}.</div>
+      <div style={{display:"flex",alignItems:"flex-start",gap:8}}>
         <div style={{flex:1,minWidth:0}}>
-          {repo&&<div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted,fontWeight:600,marginBottom:6,letterSpacing:"0.05em",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{repo}</div>}
-          <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:15,fontWeight:600,color:T.text,lineHeight:1.45,overflow:"hidden",textOverflow:"ellipsis",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",marginBottom:pri||b?.isNew?8:0}}>{s.title||s.prompt}</div>
-          <div style={{display:"flex", gap:6, flexWrap:"wrap", marginTop:pri||b?.isNew?8:0}}>
+          {repo&&<div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.muted,fontWeight:600,marginBottom:2,letterSpacing:"0.05em",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{repo}</div>}
+          <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:14,fontWeight:600,color:isSelected?T.text:T.textDim,lineHeight:1.3,overflow:"hidden",textOverflow:"ellipsis",display:"-webkit-box",WebkitLineClamp:1,WebkitBoxOrient:"vertical"}}>{s.title||s.prompt}</div>
+          <div style={{display:"flex", gap:4, flexWrap:"wrap", marginTop:4}}>
             {pri && (
               <div style={{
-                display:"inline-flex", alignItems:"center", gap:5,
-                background:pri.state==="merged"?T.purpleDim:pri.state==="closed"?T.dim:T.greenDim,
-                border:`1px solid ${pri.state==="merged"?T.purple:pri.state==="closed"?T.muted:T.green}50`,
-                borderRadius:4, padding:"3px 8px",
-                color:pri.state==="merged"?T.purple:pri.state==="closed"?T.muted:T.green,
+                display:"inline-flex", alignItems:"center", gap:3,
+                background:pri.state==="merged"?T.purpleDim:pri.state==="closed"?T.dim:T.brandDim,
+                border:`1px solid ${pri.state==="merged"?T.purple:pri.state==="closed"?T.muted:T.brand}30`,
+                borderRadius:3, padding:"1px 5px",
+                color:pri.state==="merged"?T.purple:pri.state==="closed"?T.muted:T.brand,
                 fontFamily:"'JetBrains Mono',monospace",
-                fontSize:11, fontWeight:900,
-                boxShadow:`0 2px 8px ${pri.state==="merged"?T.purple:pri.state==="closed"?"transparent":T.green}20`,
-                marginBottom:4
+                fontSize:9, fontWeight:800,
               }}>
-                <Ic n={pri.state==="merged"?"git_merge":"git_pull"} s={12} c={pri.state==="merged"?T.purple:pri.state==="closed"?T.muted:T.green}/>
-                {pri.state.toUpperCase()} #{pri.number}
+                <Ic n={pri.state==="merged"?"git_merge":"git_pull"} s={10} c={pri.state==="merged"?T.purple:pri.state==="closed"?T.muted:T.brand}/>
+                #{pri.number}
               </div>
             )}
             {(!pri || pri.state === "closed") && b?.isNew && (
               <div style={{
-                display:"inline-flex", alignItems:"center", gap:5,
-                background:T.blueDim, border:`1px solid ${T.blue}50`, borderRadius:4,
-                padding:"3px 8px", color:T.blue, fontFamily:"'JetBrains Mono',monospace",
-                fontSize:11, fontWeight:900, boxShadow:`0 2px 8px ${T.blue}20`,
-                marginBottom:4
+                display:"inline-flex", alignItems:"center", gap:3,
+                background:T.blueDim, border:`1px solid ${T.blue}30`, borderRadius:3,
+                padding:"1px 5px", color:T.blue, fontFamily:"'JetBrains Mono',monospace",
+                fontSize:9, fontWeight:800,
               }}>
-                <Ic n="branch" s={12} c={T.blue}/>
+                <Ic n="branch" s={10} c={T.blue}/>
                 {b.working}
-                {ahead > 0 && <span style={{marginLeft:2, opacity:0.8}}>+{ahead}</span>}
               </div>
             )}
+            <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.dim, marginLeft:"auto"}}>{fmtAgo(new Date(s.updateTime||s.createTime).getTime())}</span>
           </div>
         </div>
-        <div style={{display:"flex", flexDirection:"column", alignItems:"flex-end", gap:6, flexShrink:0}}>
+        <div style={{display:"flex", flexDirection:"column", alignItems:"flex-end", gap:4, flexShrink:0, paddingTop:2}}>
           <Pill status={s.state} small/>
+          <div style={{width:40}}><Bar pct={pct} status={s.state}/></div>
         </div>
-      </div>
-      <Bar pct={pct} status={s.state}/>
-      <div style={{display:"flex",alignItems:"center",gap:10,marginTop:6,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted}}>
-        <span>{fmtAgo(new Date(s.updateTime||s.createTime).getTime())}</span>
-        <span style={{marginLeft:"auto",fontSize:10,color:T.dim,background:T.surfaceHi,padding:"1px 5px",borderRadius:2}}>{s.id?.slice(0,8)}</span>
       </div>
     </button>
   );
 });
 
 // ─── Session Detail ───────────────────────────────────────────────────────────
-const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessionUpdate, isDesktop, pollInterval, setPollInterval, isArchived, onArchive, onUnarchive }) => {
+const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete, onSessionUpdate, isDesktop, pollInterval, setPollInterval, isArchived, onArchive, onUnarchive }) => {
   const [session,setSession]     = useState(initSession);
   const [activities,setActivities] = useState([]);
   const [showAll,setShowAll]     = useState(false);
@@ -1996,10 +2034,10 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
     let text = msg.trim();
     if (selectedPersonas.size > 0) {
       const personaPrompts = Array.from(selectedPersonas)
-        .map(id => PERSONAS.find(p => p.id === id)?.prompt)
+        .map(id => personas.find(p => p.id === id)?.prompt)
         .filter(Boolean);
       if (personaPrompts.length > 0) {
-        const personaText = `(Roles: ${Array.from(selectedPersonas).map(id => PERSONAS.find(p => p.id === id)?.label).join(", ")})\n\n${personaPrompts.join("\n\n")}`;
+        const personaText = `(Persona: ${Array.from(selectedPersonas).map(id => personas.find(p => p.id === id)?.label).join(", ")})\n\n${personaPrompts.join("\n\n")}`;
         text = text ? `${text}\n\n${personaText}` : personaText;
       }
     }
@@ -2070,10 +2108,10 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
     let text = prompt;
     if (selectedPersonas.size > 0) {
       const personaPrompts = Array.from(selectedPersonas)
-        .map(id => PERSONAS.find(p => p.id === id)?.prompt)
+        .map(id => personas.find(p => p.id === id)?.prompt)
         .filter(Boolean);
       if (personaPrompts.length > 0) {
-        const personaText = `(Roles: ${Array.from(selectedPersonas).map(id => PERSONAS.find(p => p.id === id)?.label).join(", ")})\n\n${personaPrompts.join("\n\n")}`;
+        const personaText = `(Persona: ${Array.from(selectedPersonas).map(id => personas.find(p => p.id === id)?.label).join(", ")})\n\n${personaPrompts.join("\n\n")}`;
         text = text ? `${text}\n\n${personaText}` : personaText;
       }
     }
@@ -2214,16 +2252,16 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
             )}
             {pr && (
               <a href={pr.url} target="_blank" rel="noopener" style={{
-                background:pr.state==="merged"?T.purpleDim:pr.state==="closed"?T.dim:T.greenDim,
-                border:`1px solid ${pr.state==="merged"?T.purple:pr.state==="closed"?T.muted:T.green}40`,
+                background:pr.state==="merged"?T.purpleDim:pr.state==="closed"?T.dim:T.brandDim,
+                border:`1px solid ${pr.state==="merged"?T.purple:pr.state==="closed"?T.muted:T.brand}40`,
                 borderRadius:4, padding:scrolled?"2px 6px":"4px 8px",
                 display:"flex", alignItems:"center", gap:4,
-                color:pr.state==="merged"?T.purple:pr.state==="closed"?T.muted:T.green,
+                color:pr.state==="merged"?T.purple:pr.state==="closed"?T.muted:T.brand,
                 textDecoration:"none", fontFamily:"'JetBrains Mono',monospace",
                 fontSize:scrolled?10:11, fontWeight:900, transition:"all .2s",
-                boxShadow:pr.state==="closed"?"none":`0 2px 8px ${pr.state==="merged"?T.purple:T.green}20`,
+                boxShadow:pr.state==="closed"?"none":`0 2px 8px ${pr.state==="merged"?T.purple:T.brand}20`,
               }}>
-                <Ic n={pr.state==="merged"?"git_merge":"git_pull"} s={scrolled?12:13} c={pr.state==="merged"?T.purple:pr.state==="closed"?T.muted:T.green}/>
+                <Ic n={pr.state==="merged"?"git_merge":"git_pull"} s={scrolled?12:13} c={pr.state==="merged"?T.purple:pr.state==="closed"?T.muted:T.brand}/>
                 #{pr.number}
                 {!scrolled && <span style={{fontSize:9, opacity:0.7, marginLeft:2}}>{pr.state.toUpperCase()}</span>}
               </a>
@@ -2320,10 +2358,10 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
             background:T.surfaceHi, border:`${scrolled?0:1}px solid ${T.borderHi}`,
             borderRadius:8, transition:"all .25s ease",
             pointerEvents:scrolled?"none":"auto",
-            boxShadow:`0 4px 16px rgba(0,0,0,0.3)`,
+            boxShadow:"none",
           }}>
             <div style={{
-              fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.green,
+              fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.brand,
               fontWeight:800, letterSpacing:"0.1em", marginBottom:8,
             }}>SESSION SUMMARY</div>
             <div style={{
@@ -2333,10 +2371,10 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
             {pr && (
               <a href={pr.url} target="_blank" rel="noopener" style={{
                 display:"inline-flex", alignItems:"center", gap:6, marginTop:12,
-                color:T.green, textDecoration:"none", fontFamily:"'JetBrains Mono',monospace",
-                fontSize:12, fontWeight:700, borderBottom:`1px solid ${T.green}40`
+                color:T.brand, textDecoration:"none", fontFamily:"'JetBrains Mono',monospace",
+                fontSize:12, fontWeight:700, borderBottom:`1px solid ${T.brand}40`
               }}>
-                <Ic n="git_pull" s={13} c={T.green}/>
+                <Ic n="git_pull" s={13} c={T.brand}/>
                 VIEW PULL REQUEST #{pr.number}
               </a>
             )}
@@ -2347,8 +2385,8 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
           {TABS.map(t=>(
             <button key={t.id} onClick={()=>setTab(t.id)} style={{
               flex:1,padding:"8px 0",background:"none",border:"none",
-              borderBottom:`2px solid ${tab===t.id?T.green:"transparent"}`,
-              color:tab===t.id?T.green:T.muted,cursor:"pointer",
+              borderBottom:`2px solid ${tab===t.id?T.brand:"transparent"}`,
+              color:tab===t.id?T.brand:T.muted,cursor:"pointer",
               fontFamily:"'JetBrains Mono',monospace",fontSize:12,fontWeight:700,letterSpacing:"0.07em",
               transition:"color .15s, border-color .15s",
             }}>{t.label}</button>
@@ -2363,17 +2401,27 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
           ?<div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.muted}}>
             {ACTIVE_STATES.has(session.state)?"Waiting for activity…":"No activities yet"}
           </div>
-          :<ActivityFeed activities={activities} showAll={showAll} onShowAll={()=>setShowAll(true)} onMediaClick={setActiveMedia}/>
+          :<ActivityFeed activities={activities} showAll={showAll} onShowAll={()=>setShowAll(true)} onMediaClick={setActiveMedia} onEditMessage={(text) => {
+            setMsg(text);
+            setComposerVisible(true);
+            requestAnimationFrame(() => {
+              if (txtRef.current) {
+                txtRef.current.focus();
+                txtRef.current.setSelectionRange(text.length, text.length);
+                txtRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+              }
+            });
+          }}/>
         )}
         {tab==="prompt"&&(
           <div style={{padding:"4px 0 20px"}}>
             <div style={{
-              fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.green,
+              fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.brand,
               fontWeight:800, letterSpacing:"0.1em", marginBottom:12,
             }}>ORIGINAL PROMPT</div>
             <div style={{
               background:T.surfaceHi, border:`1px solid ${T.border}`,
-              borderRadius:10, padding:"20px", boxShadow:`0 10px 30px rgba(0,0,0,0.2)`
+              borderRadius:10, padding:"20px", boxShadow:"none"
             }}>
               <div style={{
                 fontSize:16, color:T.text, lineHeight:1.6,
@@ -2410,7 +2458,7 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
                     overflow:"hidden", cursor:"pointer", padding:0, textAlign:"left",
                     transition:"transform .15s, border-color .15s",
                   }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = T.green; e.currentTarget.style.transform = "translateY(-2px)"; }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = T.brand; e.currentTarget.style.transform = "translateY(-2px)"; }}
                   onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.transform = "none"; }}
                 >
                   <div style={{ width:"100%", height:120, background:"#040507", display:"flex", alignItems:"center", justifyContent:"center" }}>
@@ -2454,7 +2502,7 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
           boxShadow: isDesktop ? "none" : "0 -8px 24px rgba(0,0,0,0.4)",
         }}>
           <div style={{ display: "flex", flexDirection:"column", gap: 8, marginBottom: 8 }}>
-            <MultiPersonaPicker selectedIds={selectedPersonas} onToggle={togglePersona} />
+            <MultiPersonaPicker personas={personas} selectedIds={selectedPersonas} onToggle={togglePersona} />
           </div>
           <div style={{display:"flex",gap:8,alignItems:"flex-end", marginTop:4}}>
             <textarea
@@ -2466,7 +2514,7 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
               rows={2}
               style={{
                 flex:1,background:T.surfaceHi,
-                border:`1px solid ${msg?T.green+"66":T.border}`,
+                border:`1px solid ${msg?T.brand+"66":T.border}`,
                 borderRadius:6,padding:"8px 10px",color:T.text,
                 fontFamily:"'IBM Plex Sans',sans-serif",fontSize:15,lineHeight:1.4,
                 resize:"none",outline:"none",transition:"border-color .2s",
@@ -2478,7 +2526,7 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
               disabled={!msg.trim()||busy}
               style={{
                 width:38,height:38,flexShrink:0,borderRadius:6,border:"none",
-                background:msg.trim()&&!busy?T.green:T.dim,
+                background:msg.trim()&&!busy?T.brand:T.dim,
                 cursor:msg.trim()&&!busy?"pointer":"default",
                 display:"flex",alignItems:"center",justifyContent:"center",
                 transition:"background .2s",
@@ -2507,7 +2555,7 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
           }}
           style={{
             width:40, height:40, borderRadius:"50%", background:T.surfaceHi,
-            border:`1px solid ${T.borderHi}`, color:T.green, cursor:"pointer",
+            border:`1px solid ${T.borderHi}`, color:T.brand, cursor:"pointer",
             display:"flex", alignItems:"center", justifyContent:"center",
             boxShadow:"0 8px 24px rgba(0,0,0,0.5)", pointerEvents:"auto",
             opacity:showScroll?1:0, transform:showScroll?"scale(1)":"scale(0.8)",
@@ -2515,11 +2563,11 @@ const SessionDetail = ({ session:initSession, apiKey, onBack, onDelete, onSessio
             visibility:showScroll?"visible":"hidden",
             outline:"none",
           }}
-          onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.1)"; e.currentTarget.style.borderColor = T.green; }}
+          onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.1)"; e.currentTarget.style.borderColor = T.brand; }}
           onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.borderColor = T.borderHi; }}
           title={scrollDirMode === "top" ? "Scroll to top" : "Scroll to bottom"}
         >
-          <Ic n={scrollDirMode === "top" ? "chevron_up" : "chevron_down"} s={24} c={T.green}/>
+          <Ic n={scrollDirMode === "top" ? "chevron_up" : "chevron_down"} s={24} c={T.brand}/>
         </button>
       </div>
     </div>
@@ -2559,7 +2607,7 @@ function clearDraft() {
   try { localStorage.removeItem(NS_KEY); } catch {}
 }
 
-const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) => {
+const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, todayCount }) => {
   const draft = useMemo(() => loadDraft(), []);
   const [sources,setSources]       = useState([]);
   const [loadingSrc,setLoadSrc]    = useState(true);
@@ -2680,7 +2728,7 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
     let finalPrompt = prompt.trim();
     if (selectedPersonas.size > 0) {
       const personaPrompts = Array.from(selectedPersonas)
-        .map(id => PERSONAS.find(p => p.id === id)?.prompt)
+        .map(id => personas.find(p => p.id === id)?.prompt)
         .filter(Boolean);
       if (personaPrompts.length > 0) {
         finalPrompt += "\n\n" + personaPrompts.join("\n\n");
@@ -2749,7 +2797,7 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
                   style={{...inputSt, paddingRight:36}}
                 />
                 <div style={{position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", display:"flex", alignItems:"center", pointerEvents:"none"}}>
-                  <Ic n="code" s={14} c={showSources?T.green:T.muted}/>
+                  <Ic n="code" s={14} c={showSources?T.brand:T.muted}/>
                 </div>
 
                 {showSources && (
@@ -2791,10 +2839,10 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
                             onMouseEnter={e=>e.currentTarget.style.background=T.dim}
                             onMouseLeave={e=>e.currentTarget.style.background="none"}
                           >
-                            <Ic n="code" s={12} c={isSelected?T.green:T.muted}/>
+                            <Ic n="code" s={12} c={isSelected?T.brand:T.muted}/>
                             <span style={{
                               flex:1, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:15,
-                              color:isSelected?T.green:T.text, fontWeight:isSelected?600:400,
+                              color:isSelected?T.brand:T.text, fontWeight:isSelected?600:400,
                               overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
                             }}>{getSourceDisplay(s)}</span>
                           </button>
@@ -2818,7 +2866,7 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
                   style={{...inputSt, paddingRight:36}}
                 />
                 <div style={{position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", display:"flex", alignItems:"center", pointerEvents:"none"}}>
-                  <Ic n="branch" s={14} c={showBranches?T.green:T.muted}/>
+                  <Ic n="branch" s={14} c={showBranches?T.brand:T.muted}/>
                 </div>
 
                 {showBranches && (
@@ -2853,16 +2901,16 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
                           onMouseEnter={e=>e.currentTarget.style.background=T.dim}
                           onMouseLeave={e=>e.currentTarget.style.background="none"}
                         >
-                          <Ic n="branch" s={12} c={b===branch?T.green:T.muted}/>
+                          <Ic n="branch" s={12} c={b===branch?T.brand:T.muted}/>
                           <span style={{
                             flex:1, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:15,
-                            color:b===branch?T.green:T.text, fontWeight:b===branch?600:400,
+                            color:b===branch?T.brand:T.text, fontWeight:b===branch?600:400,
                             overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
                           }}>{b}</span>
                           {b===defaultBranch && (
                             <span style={{
                               fontFamily:"'JetBrains Mono',monospace", fontSize:10,
-                              color:T.green, background:T.greenDim, padding:"1px 5px", borderRadius:3,
+                              color:T.brand, background:T.brandDim, padding:"1px 5px", borderRadius:3,
                             }}>DEFAULT</span>
                           )}
                         </button>
@@ -2876,7 +2924,7 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
                 fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.muted,
               }}>
                 <span>{branches.length || 0} branch{branches.length!==1?"es":""}</span>
-                {defaultBranch && <span>· default: <span style={{color:T.green}}>{defaultBranch}</span></span>}
+                {defaultBranch && <span>· default: <span style={{color:T.brand}}>{defaultBranch}</span></span>}
                 {branch !== defaultBranch && defaultBranch && (
                   <button onClick={()=>setBranch(defaultBranch)} style={{
                     marginLeft:4, padding:"1px 7px", borderRadius:3,
@@ -2901,7 +2949,7 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
 
           <div style={{marginBottom:16}}>
             <div style={{marginBottom:8,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted,fontWeight:700,letterSpacing:"0.12em"}}>ROLES & FOCUS</div>
-            <MultiPersonaPicker selectedIds={selectedPersonas} onToggle={togglePersona} style={{marginBottom:12}} />
+            <MultiPersonaPicker personas={personas} selectedIds={selectedPersonas} onToggle={togglePersona} style={{marginBottom:12}} />
 
             <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
               {[
@@ -2914,19 +2962,19 @@ const NewSession = ({ apiKey, onBack, onCreate, isDesktop, plan, todayCount }) =
                   disabled={opt.disabled}
                   style={{
                     flex:"1 1 100px",padding:"9px 8px",borderRadius:5,cursor:opt.disabled?"default":"pointer",
-                    background:opt.val?T.greenDim:T.surfaceHi,
-                    border:`1px solid ${opt.val?T.green+"50":T.border}`,
+                    background:opt.val?T.brandDim:T.surfaceHi,
+                    border:`1px solid ${opt.val?T.brand+"50":T.border}`,
                     display:"flex",flexDirection:"column",alignItems:"center",gap:3,
                     opacity:opt.disabled?0.4:1,
                   }}>
-                  <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,fontWeight:700,color:opt.val?T.green:T.muted,letterSpacing:"0.08em"}}>{opt.label}</div>
+                  <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,fontWeight:700,color:opt.val?T.brand:T.muted,letterSpacing:"0.08em"}}>{opt.label}</div>
                   <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted}}>{opt.hint}</div>
                 </button>
               ))}
             </div>
           </div>
 
-          <div style={{padding:"8px 12px",borderRadius:5,marginBottom:10,background:T.greenDim,border:`1px solid ${T.green}30`,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.green,lineHeight:1.7}}>
+          <div style={{padding:"8px 12px",borderRadius:5,marginBottom:10,background:T.brandDim,border:`1px solid ${T.brand}30`,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.brand,lineHeight:1.7}}>
             ⚡ PAYLOAD: ~{payloadEst}KB<span style={{color:T.muted}}> · web baseline ~180KB</span>
           </div>
 
@@ -2983,7 +3031,7 @@ const NetworkMonitor = ({ onBack, isDesktop }) => {
           <div style={{animation:"fadeIn .2s ease", display:"flex", flexDirection:"column", gap:20}}>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
               {[
-                {l:"TRANSFERRED",v:fmtBytes(total),c:T.green, desc:"Total data downloaded"},
+                {l:"TRANSFERRED",v:fmtBytes(total),c:T.brand, desc:"Total data downloaded"},
                 {l:"DATA SAVED", v:`${reduction}%`,c:T.purple, desc:"Bandwidth efficiency"},
                 {l:"WEB EQUIV.",  v:fmtBytes(webEst),c:T.amber, desc:"Simulated standard web cost"},
                 {l:"REQUESTS",   v:log.length,c:T.blue, desc:"Total API calls made"},
@@ -3031,12 +3079,12 @@ const NetworkMonitor = ({ onBack, isDesktop }) => {
                   ?<div style={{textAlign:"center",padding:"32px",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.muted}}>No requests recorded</div>
                   :log.map((r,i)=>(
                     <div key={r.id} style={{display:"flex",gap:12,alignItems:"center",padding:"12px 16px",borderBottom:i<log.length-1?`1px solid ${T.border}`:"none"}}>
-                      <div style={{width:6,height:6,borderRadius:"50%",background:T.green,flexShrink:0,boxShadow:`0 0 6px ${T.green}40`}}/>
+                      <div style={{width:6,height:6,borderRadius:"50%",background:T.brand,flexShrink:0,boxShadow:`0 0 6px ${T.brand}40`}}/>
                       <div style={{flex:1,minWidth:0}}>
                         <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontWeight:500}}>{r.label}</div>
                         <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted,marginTop:2}}>{fmtAgo(r.ts)}</div>
                       </div>
-                      <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.green,flexShrink:0,fontWeight:700}}>{fmtBytes(r.bytes)}</div>
+                      <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.brand,flexShrink:0,fontWeight:700}}>{fmtBytes(r.bytes)}</div>
                     </div>
                   ))
                 }
@@ -3049,7 +3097,7 @@ const NetworkMonitor = ({ onBack, isDesktop }) => {
   );
 };
 
-const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPollInterval, setActPollInterval, sessionLimit, setSessionLimit, tzOffset, setTzOffset, planId, setPlanId, customDaily, setCustomDaily, plan, todayCount }) => {
+const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPollInterval, setActPollInterval, sessionLimit, setSessionLimit, tzOffset, setTzOffset, resetHour, setResetHour, planId, setPlanId, customDaily, setCustomDaily, plan, todayCount }) => {
   const [tab, setTab] = useState("general");
   const [snap, setSnap] = useState(NET.snapshot());
   const [storage, setStorage] = useState(null);
@@ -3063,6 +3111,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
 
   const TABS = [
     { id: "general", label: "GENERAL", ic: "settings" },
+    { id: "personas",label: "PERSONAS", ic: "tasks" },
     { id: "network", label: "NETWORK", ic: "wifi" },
     { id: "storage", label: "STORAGE", ic: "database" },
   ];
@@ -3083,13 +3132,13 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
           {TABS.map(t => (
             <button key={t.id} onClick={() => setTab(t.id)} style={{
               padding:"10px 0", background:"none", border:"none", cursor:"pointer",
-              borderBottom:`2px solid ${tab===t.id?T.green:"transparent"}`,
-              color:tab===t.id?T.green:T.muted, fontFamily:"'JetBrains Mono',monospace",
+              borderBottom:`2px solid ${tab===t.id?T.brand:"transparent"}`,
+              color:tab===t.id?T.brand:T.muted, fontFamily:"'JetBrains Mono',monospace",
               fontSize:11, fontWeight:800, letterSpacing:"0.08em", transition:"all .2s",
               display:"flex", alignItems:"center", gap:8,
               opacity: tab===t.id ? 1 : 0.6
             }}>
-              <Ic n={t.ic} s={13} c={tab===t.id?T.green:T.muted} />
+              <Ic n={t.ic} s={13} c={tab===t.id?T.brand:T.muted} />
               {t.label}
             </button>
           ))}
@@ -3103,7 +3152,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
             <div style={{animation:"fadeIn .2s ease", display:"flex", flexDirection:"column", gap:24}}>
               <div style={{background:T.surfaceHi, padding:20, borderRadius:12, border:`1px solid ${T.border}`}}>
                 <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:16}}>
-                  <Ic n="refresh" s={16} c={T.green}/>
+                  <Ic n="refresh" s={16} c={T.brand}/>
                   <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:12, fontWeight:700, color:T.text}}>POLLING & REFRESH</span>
                 </div>
 
@@ -3112,7 +3161,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
                   <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
                     {POLL_OPTIONS.map(opt => {
                       const isAct = opt.ms === pollInterval;
-                      const c = isAct ? (opt.ms===0 ? T.red : T.green) : T.muted;
+                      const c = isAct ? (opt.ms===0 ? T.red : T.brand) : T.muted;
                       return (
                         <PickerBtn key={opt.label} label={opt.label} isAct={isAct} activeColor={c} onClick={()=>setPollInterval(opt.ms)} />
                       );
@@ -3121,11 +3170,27 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
                 </div>
 
                 <div style={{marginBottom:20}}>
+                  <div style={{fontSize:11, color:T.muted, marginBottom:8, fontFamily:"'JetBrains Mono',monospace", fontWeight:700}}>ACTIVE SESSIONS (IN-PROGRESS)</div>
+                  <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                    {POLL_OPTIONS.map(opt => {
+                      const isAct = opt.ms === activePollInterval;
+                      const c = isAct ? (opt.ms===0 ? T.red : T.brand) : T.muted;
+                      return (
+                        <PickerBtn key={opt.label} label={opt.label} isAct={isAct} activeColor={c} onClick={()=>setActivePollInterval(opt.ms)} />
+                      );
+                    })}
+                  </div>
+                  <div style={{marginTop:6, fontSize:10, color:T.muted, fontFamily:"'IBM Plex Sans',sans-serif"}}>
+                    Boost polling frequency automatically when any session is active.
+                  </div>
+                </div>
+
+                <div style={{marginBottom:20}}>
                   <div style={{fontSize:11, color:T.muted, marginBottom:8, fontFamily:"'JetBrains Mono',monospace", fontWeight:700}}>SESSION DETAIL</div>
                   <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
                     {POLL_OPTIONS.map(opt => {
                       const isAct = opt.ms === actPollInterval;
-                      const c = isAct ? (opt.ms===0 ? T.red : T.green) : T.muted;
+                      const c = isAct ? (opt.ms===0 ? T.red : T.brand) : T.muted;
                       return (
                         <PickerBtn key={opt.label} label={opt.label} isAct={isAct} activeColor={c} onClick={()=>setActPollInterval(opt.ms)} />
                       );
@@ -3152,18 +3217,40 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
                       type="range" min="-12" max="14" step="1"
                       value={tzOffset}
                       onChange={e=>setTzOffset(parseInt(e.target.value))}
-                      style={{flex:1, height:4, accentColor:T.green}}
+                      style={{flex:1, height:4, accentColor:T.brand}}
                     />
                     <div style={{
                       minWidth:60, textAlign:"center", padding:"4px 8px", borderRadius:4,
                       background:T.surfaceHi, border:`1px solid ${T.borderHi}`,
-                      fontFamily:"'JetBrains Mono',monospace", fontSize:12, fontWeight:800, color:T.green
+                      fontFamily:"'JetBrains Mono',monospace", fontSize:12, fontWeight:800, color:T.brand
                     }}>
                       UTC{tzOffset>=0?'+':''}{tzOffset}
                     </div>
                   </div>
                   <div style={{marginTop:6, fontSize:10, color:T.muted, fontFamily:"'IBM Plex Sans',sans-serif"}}>
-                    Daily quota resets at 00:00 in this timezone.
+                    Daily quota resets at {resetHour < 10 ? '0' : ''}{resetHour}:00 in this timezone.
+                  </div>
+                </div>
+
+                <div style={{marginTop:20}}>
+                  <div style={{fontSize:11, color:T.muted, marginBottom:8, fontFamily:"'JetBrains Mono',monospace", fontWeight:700}}>QUOTA RESET HOUR</div>
+                  <div style={{display:"flex", alignItems:"center", gap:10, background:T.surface, padding:8, borderRadius:8, border:`1px solid ${T.border}`}}>
+                    <input
+                      type="range" min="0" max="23" step="1"
+                      value={resetHour}
+                      onChange={e=>setResetHour(parseInt(e.target.value))}
+                      style={{flex:1, height:4, accentColor:T.brand}}
+                    />
+                    <div style={{
+                      minWidth:60, textAlign:"center", padding:"4px 8px", borderRadius:4,
+                      background:T.surfaceHi, border:`1px solid ${T.borderHi}`,
+                      fontFamily:"'JetBrains Mono',monospace", fontSize:12, fontWeight:800, color:T.brand
+                    }}>
+                      {resetHour < 10 ? '0' : ''}{resetHour}:00
+                    </div>
+                  </div>
+                  <div style={{marginTop:6, fontSize:10, color:T.muted, fontFamily:"'IBM Plex Sans',sans-serif"}}>
+                    Choose the exact hour of day for the session counter to reset.
                   </div>
                 </div>
               </div>
@@ -3195,7 +3282,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
                 <div style={{background:T.surface, padding:16, borderRadius:8, border:`1px solid ${T.border}`}}>
                   <div style={{display:"flex",justifyContent:"space-between",marginBottom:10,alignItems:"center"}}>
                     <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted,fontWeight:700}}>DAILY USAGE</span>
-                    <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:12,color:todayCount>=plan.daily?T.red:T.green,fontWeight:800}}>
+                    <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:12,color:todayCount>=plan.daily?T.red:T.brand,fontWeight:800}}>
                       {todayCount} / {plan.daily} <span style={{fontSize:10, opacity:0.7}}>SESSIONS</span>
                     </span>
                   </div>
@@ -3203,13 +3290,13 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
                     <div style={{
                       height:"100%",borderRadius:2,transition:"width .5s cubic-bezier(0.4, 0, 0.2, 1)",
                       width:`${Math.min(100,(todayCount/plan.daily)*100)}%`,
-                      background:todayCount>=plan.daily?T.red:todayCount/plan.daily>0.8?T.amber:T.green,
-                      boxShadow:`0 0 10px ${todayCount>=plan.daily?T.red:T.green}30`,
+                      background:todayCount>=plan.daily?T.red:todayCount/plan.daily>0.8?T.amber:T.brand,
+                      boxShadow:`0 0 10px ${todayCount>=plan.daily?T.red:T.brand}30`,
                     }}/>
                   </div>
                   <div style={{marginTop:12,fontSize:11,color:T.muted,fontFamily:"'IBM Plex Sans',sans-serif",lineHeight:1.6, opacity:0.8}}>
                     {plan.model} · {plan.concurrent} concurrent max
-                    {todayCount>=plan.daily && <div style={{color:T.red,marginTop:4,fontWeight:600}}>⛔ Daily limit reached. Resets at midnight UTC.</div>}
+                    {todayCount>=plan.daily && <div style={{color:T.red,marginTop:4,fontWeight:600}}>⛔ Daily limit reached. Resets at {resetHour < 10 ? '0' : ''}{resetHour}:00 UTC{tzOffset >= 0 ? '+' : ''}{tzOffset}.</div>}
                   </div>
                 </div>
               </div>
@@ -3220,7 +3307,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
             <div style={{animation:"fadeIn .2s ease", display:"flex", flexDirection:"column", gap:20}}>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
                 {[
-                  {l:"TRANSFERRED",v:fmtBytes(total),c:T.green, desc:"Total data downloaded"},
+                  {l:"TRANSFERRED",v:fmtBytes(total),c:T.brand, desc:"Total data downloaded"},
                   {l:"DATA SAVED", v:`${reduction}%`,c:T.purple, desc:"Bandwidth efficiency"},
                   {l:"WEB EQUIV.",  v:fmtBytes(webEst),c:T.amber, desc:"Simulated standard web cost"},
                   {l:"REQUESTS",   v:log.length,c:T.blue, desc:"Total API calls made"},
@@ -3245,17 +3332,43 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
                     ?<div style={{textAlign:"center",padding:"32px",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.muted}}>No requests recorded</div>
                     :log.map((r,i)=>(
                       <div key={r.id} style={{display:"flex",gap:12,alignItems:"center",padding:"12px 16px",borderBottom:i<log.length-1?`1px solid ${T.border}`:"none"}}>
-                        <div style={{width:6,height:6,borderRadius:"50%",background:T.green,flexShrink:0,boxShadow:`0 0 6px ${T.green}40`}}/>
+                        <div style={{width:6,height:6,borderRadius:"50%",background:T.brand,flexShrink:0,boxShadow:`0 0 6px ${T.brand}40`}}/>
                         <div style={{flex:1,minWidth:0}}>
                           <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontWeight:500}}>{r.label}</div>
                           <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted,marginTop:2}}>{fmtAgo(r.ts)}</div>
                         </div>
-                        <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.green,flexShrink:0,fontWeight:700}}>{fmtBytes(r.bytes)}</div>
+                        <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.brand,flexShrink:0,fontWeight:700}}>{fmtBytes(r.bytes)}</div>
                       </div>
                     ))
                   }
                 </div>
               </div>
+            </div>
+          )}
+
+          {tab === "personas" && (
+            <div style={{animation:"fadeIn .2s ease", display:"flex", flexDirection:"column", gap:16}}>
+              <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:4}}>
+                <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.muted, fontWeight:700, letterSpacing:"0.05em"}}>CUSTOM ROLE PROMPTS</div>
+                <button onClick={() => { if(confirm("Reset all personas to defaults?")) { setPersonas(resetPersonas()); } }} style={{background:"none", border:"none", cursor:"pointer", color:T.red, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700}}>RESET ALL</button>
+              </div>
+              {personas.map(p => (
+                <div key={p.id} style={{background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:10, padding:14}}>
+                  <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:10}}>
+                    <div style={{width:8, height:8, borderRadius:"50%", background:p.color}}/>
+                    <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:12, fontWeight:800, color:T.textHi}}>{p.label}</span>
+                    <span style={{flex:1}}/>
+                    <button onClick={() => {
+                      const next = prompt(`Edit prompt for ${p.label}:`, p.prompt);
+                      if (next !== null) {
+                        savePersonaPrompt(p.id, next);
+                        setPersonas(loadPersonas());
+                      }
+                    }} style={{background:T.dim, border:"none", borderRadius:4, padding:"3px 8px", cursor:"pointer", color:T.brand, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700}}>EDIT PROMPT</button>
+                  </div>
+                  <div style={{fontSize:13, color:T.muted, lineHeight:1.5, fontFamily:"'IBM Plex Sans',sans-serif"}}>{p.prompt}</div>
+                </div>
+              ))}
             </div>
           )}
 
@@ -3322,7 +3435,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
 const FILTERS = ["ALL","QUEUED","PLANNING","AWAITING_PLAN_APPROVAL","IN_PROGRESS","COMPLETED","FAILED"];
 const FILTER_LABELS = { AWAITING_PLAN_APPROVAL:"APPROVE", ALL:"ALL" };
 
-const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selectedId, isDesktop, onNew, onNetwork, onSettings, pollInterval, sessionLimit, tzOffset = 1, countdown, plan, todayCount, searchQuery, setSearchQuery, archivedIds, showArchived, setShowArchived, activitiesMap = {} }) => {
+const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selectedId, isDesktop, onNew, onNetwork, onSettings, pollInterval, sessionLimit, tzOffset = 1, resetHour = 10, countdown, plan, todayCount, searchQuery, setSearchQuery, archivedIds, showArchived, setShowArchived, activitiesMap = {} }) => {
   const [filter,setFilter] = useState("ALL");
   const [scrolled, handleScroll] = useScrollThreshold();
   const [searchOpen, setSearchOpen] = useState(false);
@@ -3339,7 +3452,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
   const quotaUsed = useMemo(() => {
     const now = new Date();
     const offsetMs = tzOffset * 60 * 60 * 1000;
-    const resetOffsetMs = 10 * 60 * 60 * 1000;
+    const resetOffsetMs = resetHour * 60 * 60 * 1000;
     const localNowAdjusted = new Date(now.getTime() + offsetMs - resetOffsetMs);
     const today = localNowAdjusted.toISOString().slice(0,10);
     const todaySessions = sessions.filter(s => {
@@ -3360,17 +3473,17 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
     <div style={{display:"flex",flexDirection:"column",height:"100%",minHeight:0}}>
       <div style={{padding:scrolled?"8px 16px 8px":"12px 16px 0",background:T.surface,borderBottom:`1px solid ${T.border}`,flexShrink:0,transition:"all .25s cubic-bezier(0.4, 0, 0.2, 1)",zIndex: 5}}>
         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:scrolled?0:10}}>
-          <div style={{width:scrolled?20:32,height:scrolled?20:32,borderRadius:6,background:T.green,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace",fontSize:scrolled?11:18,fontWeight:900,color:"#000",boxShadow:scrolled?"none":`0 0 12px ${T.green}40`,flexShrink:0,transition:"all .2s ease"}}>J</div>
+          <div style={{width:scrolled?20:32,height:scrolled?20:32,borderRadius:6,background:T.brand,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace",fontSize:scrolled?11:18,fontWeight:900,color:"#000",boxShadow:scrolled?"none":`0 0 12px ${T.brand}40`,flexShrink:0,transition:"all .2s ease"}}>J</div>
           <div style={{minWidth:0, transition:"all .2s ease"}}>
             <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:scrolled?12:14,fontWeight:700,color:T.text}}>JULES</div>
             {!scrolled && <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:active>0?T.amber:T.muted}}>{active>0?`⚡ ${active} ACTIVE`:"AGENT CLIENT"}</div>}
           </div>
           <div style={{marginLeft:"auto",display:"flex",gap:6,alignItems:"center",flexShrink:0}}>
             <button onClick={() => setSearchOpen(!searchOpen)} title="Search sessions" style={{width:30,height:30,borderRadius:5,background:searchOpen||searchQuery?T.blueDim:"transparent",border:`1px solid ${searchOpen||searchQuery?T.blue+"40":T.border}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="search" s={15} c={searchOpen||searchQuery?T.blue:T.muted}/></button>
-            {isDesktop&&<button onClick={onNew} title="New Session" style={{width:30,height:30,borderRadius:5,background:T.greenDim,border:`1px solid ${T.green}40`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="plus" s={15} c={T.green}/></button>}
+            {isDesktop&&<button onClick={onNew} title="New Session" style={{width:30,height:30,borderRadius:5,background:T.brandDim,border:`1px solid ${T.brand}40`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="plus" s={15} c={T.brand}/></button>}
             <button onClick={onNetwork} title="Network Monitor" style={{width:30,height:30,borderRadius:5,background:T.surfaceHi,border:`1px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="wifi" s={15} c={T.muted}/></button>
             <button onClick={onSettings} title="Settings" style={{width:30,height:30,borderRadius:5,background:T.surfaceHi,border:`1px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="settings" s={15} c={T.muted}/></button>
-            <button onClick={onRefresh} disabled={refreshing} title="Refresh now" style={{background:"none",border:"none",cursor:refreshing?"default":"pointer",display:"flex",padding:3,animation:refreshing?"spin 1s linear infinite":"none",transformOrigin:"center"}}><Ic n="refresh" s={15} c={refreshing?T.green:T.muted}/></button>
+            <button onClick={onRefresh} disabled={refreshing} title="Refresh now" style={{background:"none",border:"none",cursor:refreshing?"default":"pointer",display:"flex",padding:3,animation:refreshing?"spin 1s linear infinite":"none",transformOrigin:"center"}}><Ic n="refresh" s={15} c={refreshing?T.brand:T.muted}/></button>
           </div>
         </div>
         {(searchOpen || searchQuery) && (
@@ -3385,7 +3498,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
         {isDesktop && (
           <div style={{display:"flex", gap:4, alignItems:"center", height:scrolled?0:22, overflow:"hidden", opacity:scrolled?0:1, marginBottom:scrolled?0:8, padding:scrolled?0:"4px 2px", transition:"all .25s ease", pointerEvents:scrolled?"none":"auto"}}>
             <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.muted, letterSpacing:"0.08em", flexShrink:0, paddingRight:2}}>SESSIONS</span>
-            <button onClick={() => setShowArchived(false)} style={{flexShrink:0, padding:"3px 9px", borderRadius:20, border:"none", background:!showArchived ? T.greenDim : "transparent", outline:`1px solid ${!showArchived ? T.green+"60" : T.border}`, color:!showArchived ? T.green : T.muted, fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:!showArchived?700:400, letterSpacing:"0.05em", cursor:"pointer", transition:"all .12s"}}>ACTIVE</button>
+            <button onClick={() => setShowArchived(false)} style={{flexShrink:0, padding:"3px 9px", borderRadius:20, border:"none", background:!showArchived ? T.brandDim : "transparent", outline:`1px solid ${!showArchived ? T.brand+"60" : T.border}`, color:!showArchived ? T.brand : T.muted, fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:!showArchived?700:400, letterSpacing:"0.05em", cursor:"pointer", transition:"all .12s"}}>ACTIVE</button>
             <button onClick={() => setShowArchived(true)} style={{flexShrink:0, padding:"3px 9px", borderRadius:20, border:"none", background:showArchived ? T.purpleDim : "transparent", outline:`1px solid ${showArchived ? T.purple+"60" : T.border}`, color:showArchived ? T.purple : T.muted, fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:showArchived?700:400, letterSpacing:"0.05em", cursor:"pointer", transition:"all .12s"}}>ARCHIVED</button>
           </div>
         )}
@@ -3393,16 +3506,16 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
           {!scrolled && <div style={{position:"absolute", right:0, top:0, bottom:10, width:40, background:`linear-gradient(to left, ${T.bg}, transparent)`, pointerEvents:"none", zIndex:2}}/>}
           <div style={{overflowX:"auto", padding:scrolled?0:"4px 2px 10px", scrollbarWidth:"none", WebkitOverflowScrolling:"touch"}}>
             <div style={{display:"flex",gap:5,minWidth:"max-content",padding:"4px 0", alignItems:"center"}}>
-              <div title={`Resets at 00:00 UTC${tzOffset>=0?'+':''}${tzOffset}`} style={{display:"flex", alignItems:"center", gap:6, padding:"4px 10px", borderRadius:20, background:`${T.green}10`, border:`1px solid ${T.green}30`, marginRight:8, flexShrink:0, cursor:"help"}}>
-                <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:800, color:T.green}}>{quotaUsed}/{plan?.daily || 15}</span>
-                <div style={{width:1, height:10, background:T.green, opacity:0.3}}/>
+              <div title={`Resets at ${resetHour < 10 ? '0' : ''}${resetHour}:00 UTC${tzOffset>=0?'+':''}${tzOffset}`} style={{display:"flex", alignItems:"center", gap:6, padding:"4px 10px", borderRadius:20, background:`${T.brand}10`, border:`1px solid ${T.brand}30`, marginRight:8, flexShrink:0, cursor:"help"}}>
+                <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:800, color:T.brand}}>{quotaUsed}/{plan?.daily || 15}</span>
+                <div style={{width:1, height:10, background:T.brand, opacity:0.3}}/>
                 <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700, color:T.muted, letterSpacing:"0.05em"}}>USED</span>
               </div>
               {FILTERS.map(f => {
                 const cnt = f==="ALL" ? sessions.length : sessions.filter(s=>s.state===f).length;
                 if (cnt===0 && f!=="ALL") return null;
                 const isAct = f===filter;
-                const ac = STATUS_META[f]?.color || T.green;
+                const ac = STATUS_META[f]?.color || T.brand;
                 return (
                   <button key={f} onClick={()=>setFilter(f)} style={{flexShrink:0,padding:"4px 10px",borderRadius:20,border:"none",background:isAct?`${ac}20`:"transparent",outline:`1px solid ${isAct?`${ac}80`:T.border}`,color:isAct?ac:T.muted,fontFamily:"'JetBrains Mono',monospace",fontSize:11,fontWeight:700,letterSpacing:"0.06em",cursor:"pointer",transition:"background .12s, color .12s"}}>{FILTER_LABELS[f]||f} {cnt>0?cnt:""}</button>
                 );
@@ -3438,8 +3551,10 @@ function JulesClient() {
   const [netSnap,setNetSnap]       = useState(NET.snapshot());
   const [pollInterval,setPollIntervalRaw] = useState(loadPollMs);
   const [actPollInterval,setActPollIntervalRaw] = useState(loadActPollMs);
+  const [activePollInterval,setActivePollIntervalRaw] = useState(loadActivePollMs);
   const [sessionLimit,setSessionLimitRaw] = useState(loadLimit);
   const [tzOffset, setTzOffsetRaw] = useState(loadTzOffset);
+  const [resetHour, setResetHourRaw] = useState(loadResetHour);
   const [planId,setPlanIdRaw]      = useState(loadPlan);
   const [customDaily,setCustomDailyRaw] = useState(loadCustomDaily);
   const [todayCount,setTodayCount] = useState(loadTodayCount);
@@ -3450,6 +3565,7 @@ function JulesClient() {
   });
   const [showArchived, setShowArchived] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [personas, setPersonas] = useState(loadPersonas);
 
   const isDesktop = useIsDesktop();
 
@@ -3495,6 +3611,11 @@ function JulesClient() {
     setActPollIntervalRaw(ms);
   }, []);
 
+  const setActivePollInterval = useCallback(ms => {
+    saveActivePollMs(ms);
+    setActivePollIntervalRaw(ms);
+  }, []);
+
   const setSessionLimit = useCallback(v => {
     saveLimit(v);
     setSessionLimitRaw(v);
@@ -3503,6 +3624,12 @@ function JulesClient() {
   const setTzOffset = useCallback(v => {
     saveTzOffset(v);
     setTzOffsetRaw(v);
+  }, []);
+
+  const setResetHour = useCallback(v => {
+    saveResetHour(v);
+    setResetHourRaw(v);
+    setTodayCount(loadTodayCount());
   }, []);
 
   const fetchSessions = useCallback(async (quiet=false) => {
@@ -3539,7 +3666,15 @@ function JulesClient() {
   }, [apiKey, sessionLimit]);
 
   useEffect(() => { if (apiKey) fetchSessions(); }, [apiKey, fetchSessions]);
-  const countdown = useAutoPoll(apiKey ? pollInterval : 0, useCallback(() => fetchSessions(true), [fetchSessions]));
+
+  // Combined polling: use activePollInterval if any session is in progress, else pollInterval
+  const effectivePollInterval = useMemo(() => {
+    if (!apiKey) return 0;
+    const hasActive = sessions.some(s => ACTIVE_STATES.has(s.state));
+    return (hasActive && activePollInterval > 0) ? activePollInterval : pollInterval;
+  }, [apiKey, sessions, activePollInterval, pollInterval]);
+
+  const countdown = useAutoPoll(effectivePollInterval, useCallback(() => fetchSessions(true), [fetchSessions]));
 
   const handleSessionUpdate = useCallback(updated => {
     setSessions(prev => prev.map(s=>s.id===updated.id?updated:s));
@@ -3593,6 +3728,7 @@ function JulesClient() {
             pollInterval={pollInterval}
             sessionLimit={sessionLimit}
             tzOffset={tzOffset}
+            resetHour={resetHour}
             countdown={countdown}
             plan={plan} todayCount={todayCount}
             searchQuery={searchQuery} setSearchQuery={setSearchQuery}
@@ -3604,7 +3740,7 @@ function JulesClient() {
         <div style={{flex:1,display:"flex",flexDirection:"column",height:"100vh",overflow:"hidden",minWidth:0}}>
           {desktopView==="empty"&&(
             <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:14,padding:32}}>
-              <div style={{width:48,height:48,borderRadius:11,background:T.greenDim,border:`1px solid ${T.green}25`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace",fontSize:26,fontWeight:900,color:T.green}}>J</div>
+              <div style={{width:48,height:48,borderRadius:11,background:T.brandDim,border:`1px solid ${T.brand}25`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace",fontSize:26,fontWeight:900,color:T.brand}}>J</div>
               <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.muted,textAlign:"center",lineHeight:2}}>
                 SELECT A SESSION ←{"\u00A0"}{"\u00A0"}OR{"\u00A0"}{"\u00A0"}NEW ↖
               </div>
@@ -3612,6 +3748,7 @@ function JulesClient() {
           )}
           {desktopView==="detail"&&selected&&(
             <SessionDetail key={selected.id} session={selected} apiKey={apiKey}
+              personas={personas}
               onBack={()=>setDesktop("empty")} onDelete={handleDelete}
               onSessionUpdate={handleSessionUpdate} isDesktop
               pollInterval={actPollInterval} setPollInterval={setActPollInterval}
@@ -3619,7 +3756,7 @@ function JulesClient() {
               onArchive={handleArchive} onUnarchive={handleUnarchive}/>
           )}
           {desktopView==="new"&&(
-            <NewSession apiKey={apiKey} onBack={()=>setDesktop("empty")} onCreate={handleCreate} isDesktop plan={plan} todayCount={todayCount}/>
+            <NewSession apiKey={apiKey} personas={personas} onBack={()=>setDesktop("empty")} onCreate={handleCreate} isDesktop plan={plan} todayCount={todayCount}/>
           )}
 
           {desktopView==="network"&&( <NetworkMonitor onBack={()=>setDesktop("empty")} isDesktop/> )} {desktopView==="settings"&&(
@@ -3628,6 +3765,8 @@ function JulesClient() {
               actPollInterval={actPollInterval} setActPollInterval={setActPollInterval}
               sessionLimit={sessionLimit} setSessionLimit={setSessionLimit}
               tzOffset={tzOffset} setTzOffset={setTzOffset}
+              resetHour={resetHour} setResetHour={setResetHour}
+              personas={personas} setPersonas={setPersonas}
               planId={planId} setPlanId={setPlanId}
               customDaily={customDaily} setCustomDaily={setCustomDaily}
               plan={plan} todayCount={todayCount} />
@@ -3648,6 +3787,7 @@ function JulesClient() {
             pollInterval={pollInterval}
             sessionLimit={sessionLimit}
             tzOffset={tzOffset}
+            resetHour={resetHour}
             countdown={countdown}
             plan={plan} todayCount={todayCount}
             searchQuery={searchQuery} setSearchQuery={setSearchQuery}
@@ -3656,6 +3796,7 @@ function JulesClient() {
         )}
         {mobileScreen==="detail"&&selected&&(
           <SessionDetail key={selected.id} session={selected} apiKey={apiKey}
+            personas={personas}
             onBack={()=>{ setMobile("list"); fetchSessions(true); }}
             onDelete={handleDelete} onSessionUpdate={handleSessionUpdate} isDesktop={false}
             pollInterval={actPollInterval} setPollInterval={setActPollInterval}
@@ -3663,7 +3804,7 @@ function JulesClient() {
             onArchive={handleArchive} onUnarchive={handleUnarchive}/>
         )}
         {mobileScreen==="new"&&(
-          <NewSession apiKey={apiKey} onBack={()=>setMobile("list")} onCreate={s=>{ setSessions(prev=>[s,...prev]); incTodayCount(); setTodayCount(loadTodayCount()); setMobile("list"); }} isDesktop={false} plan={plan} todayCount={todayCount}/>
+          <NewSession apiKey={apiKey} personas={personas} onBack={()=>setMobile("list")} onCreate={s=>{ setSessions(prev=>[s,...prev]); incTodayCount(); setTodayCount(loadTodayCount()); setMobile("list"); }} isDesktop={false} plan={plan} todayCount={todayCount}/>
         )}
 
         {mobileScreen==="network"&&( <NetworkMonitor onBack={()=>setMobile("list")} isDesktop={false}/> )} {mobileScreen==="settings"&&(
@@ -3672,6 +3813,8 @@ function JulesClient() {
             actPollInterval={actPollInterval} setActPollInterval={setActPollInterval}
             sessionLimit={sessionLimit} setSessionLimit={setSessionLimit}
             tzOffset={tzOffset} setTzOffset={setTzOffset}
+            resetHour={resetHour} setResetHour={setResetHour}
+            personas={personas} setPersonas={setPersonas}
             planId={planId} setPlanId={setPlanId}
             customDaily={customDaily} setCustomDaily={setCustomDaily}
             plan={plan} todayCount={todayCount} />
@@ -3700,10 +3843,10 @@ function JulesClient() {
           return (
             <button key={id} onClick={onClick} style={{flex:1,padding:"11px 0 13px",background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
               <div style={{position:"relative"}}>
-                <Ic n={n} s={22} c={isAct?T.green:T.muted}/>
+                <Ic n={n} s={22} c={isAct?T.brand:T.muted}/>
                 {hasAlert&&<div style={{position:"absolute",top:-2,right:-4,width:7,height:7,borderRadius:"50%",background:T.purple,border:`1.5px solid ${T.surface}`,animation:"dot 1.5s ease-in-out infinite"}}/>}
               </div>
-              <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:isAct?T.green:T.muted,fontWeight:isAct?700:400,letterSpacing:"0.07em"}}>{label}</span>
+              <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:isAct?T.brand:T.muted,fontWeight:isAct?700:400,letterSpacing:"0.07em"}}>{label}</span>
             </button>
           );
         })}
@@ -3744,7 +3887,7 @@ function Shell({ children, desktop=false }) {
         option{background:${T.surface};color:${T.text};}
         @keyframes dot{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.4;transform:scale(.7);}}
         @keyframes spin{to{transform:rotate(360deg);}}
-        ::selection{background:${T.greenDim};color:${T.green};}
+        ::selection{background:${T.brandDim};color:${T.brand};}
         textarea::placeholder,input::placeholder{color:${T.muted};}
         @media screen and (max-width: 1023px) and (orientation: landscape) {
           body {
@@ -3759,7 +3902,7 @@ function Shell({ children, desktop=false }) {
             font-family: 'JetBrains Mono', monospace;
             font-size: 14px;
             font-weight: 700;
-            color: ${T.green};
+            color: ${T.brand};
             padding: 40px;
             letter-spacing: 0.1em;
             line-height: 1.6;
