@@ -273,7 +273,13 @@ function loadCustomDaily() { try { return parseInt(localStorage.getItem(CUSTOM_D
 function saveCustomDaily(v) { try { localStorage.setItem(CUSTOM_DAILY_KEY,v); } catch {} }
 
 // ─── Daily session counter ────────────────────────────────────────────────────
-const TODAY_KEY = () => `jac_today_${new Date().toISOString().slice(0,10)}`;
+const TODAY_KEY = () => {
+  // Quota resets at 10 AM local time.
+  // Subtract 10 hours from now so that times between 00:00 and 10:00 fall into "yesterday's" bucket.
+  const d = new Date();
+  d.setHours(d.getHours() - 10);
+  return `jac_today_${d.toISOString().slice(0,10)}`;
+};
 function loadTodayCount() { try { return parseInt(localStorage.getItem(TODAY_KEY()))||0; } catch { return 0; } }
 function incTodayCount()  { try { const k=TODAY_KEY(); localStorage.setItem(k,(parseInt(localStorage.getItem(k))||0)+1); } catch {} }
 function pruneOldKeys()   { try { const t=TODAY_KEY(); for(const k of Object.keys(localStorage)) if(k.startsWith("jac_today_")&&k!==t) localStorage.removeItem(k); } catch {} }
@@ -3333,13 +3339,14 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
   const quotaUsed = useMemo(() => {
     const now = new Date();
     const offsetMs = tzOffset * 60 * 60 * 1000;
-    const localNow = new Date(now.getTime() + offsetMs);
-    const today = localNow.toISOString().slice(0,10);
+    const resetOffsetMs = 10 * 60 * 60 * 1000;
+    const localNowAdjusted = new Date(now.getTime() + offsetMs - resetOffsetMs);
+    const today = localNowAdjusted.toISOString().slice(0,10);
     const todaySessions = sessions.filter(s => {
       if (!s.createTime) return false;
       const cDate = new Date(s.createTime);
-      const cLocal = new Date(cDate.getTime() + offsetMs);
-      return cLocal.toISOString().slice(0,10) === today;
+      const cLocalAdjusted = new Date(cDate.getTime() + offsetMs - resetOffsetMs);
+      return cLocalAdjusted.toISOString().slice(0,10) === today;
     });
     return todaySessions.filter(s => {
       const pri = getPRInfo(s, activitiesMap[s.id] || []);
