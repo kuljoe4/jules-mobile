@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="theme-color" content="#042f2e">
+    <meta name="theme-color" content="#0891b2">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <meta name="apple-mobile-web-app-title" content="Jules">
     <meta name="application-name" content="Jules Agent">
     <meta name="description" content="Jules AI coding agent client — monitor sessions, review plans, send messages">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%2307090c%22/><text y=%22.9em%22 x=%2250%25%22 font-size=%2270%22 text-anchor=%22middle%22 fill=%22%23042f2e%22 font-family=%22monospace%22 font-weight=%22900%22>J</text></svg>">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%2307090c%22/><text y=%22.9em%22 x=%2250%25%22 font-size=%2270%22 text-anchor=%22middle%22 fill=%22%2306b6d4%22 font-family=%22monospace%22 font-weight=%22900%22>J</text></svg>">
     <title>Jules Agent</title>
     <!-- DNS preconnect for CDN resources -->
     <link rel="preconnect" href="https://unpkg.com" crossorigin>
@@ -30,18 +30,18 @@
       }
       #splash.hidden{opacity:0;visibility:hidden;pointer-events:none;}
       #splash-logo{
-        width:60px;height:60px;border-radius:14px;background:#042f2e;
+        width:60px;height:60px;border-radius:14px;background:#06b6d4;
         display:flex;align-items:center;justify-content:center;
         font-size:38px;font-weight:900;color:#000;
-        box-shadow:0 8px 30px rgba(4,47,46,.15);
+        box-shadow:0 8px 32px rgba(6,182,212,.2);
         margin-bottom:22px;
       }
       #splash-title{font-size:15px;font-weight:700;color:#c5d4e8;letter-spacing:.06em;margin-bottom:6px;}
       #splash-sub{font-size:12px;color:#4a5e76;letter-spacing:.05em;margin-bottom:28px;}
       #splash-bar-wrap{width:120px;height:2px;background:#1e2d3d;border-radius:2px;overflow:hidden;}
       #splash-bar{
-        height:100%;width:0%;background:#042f2e;border-radius:2px;
-        box-shadow:0 2px 10px rgba(4,47,46,.3);
+        height:100%;width:0%;background:#06b6d4;border-radius:2px;
+        box-shadow:0 2px 10px rgba(6,182,212,.3);
         animation:splash-load 2.4s cubic-bezier(.4,0,.2,1) forwards;
       }
       #splash-hint{margin-top:14px;font-size:12px;font-weight:700;color:#4a5e76;letter-spacing:.07em;}
@@ -82,7 +82,7 @@
       // ── 1. Manifest via data: URI (works on HTTP origins) ──────────────────
       const mkIcon = (size, rx) => {
         const fs = Math.floor(size * 0.625), y = Math.floor(size * 0.73);
-        const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}"><rect width="${size}" height="${size}" rx="${rx}" fill="#07090c"/><text x="${size/2}" y="${y}" font-size="${fs}" text-anchor="middle" fill="#042f2e" font-weight="900" font-family="monospace">J</text></svg>`;
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}"><rect width="${size}" height="${size}" rx="${rx}" fill="#07090c"/><text x="${size/2}" y="${y}" font-size="${fs}" text-anchor="middle" fill="#06b6d4" font-weight="900" font-family="monospace">J</text></svg>`;
         return { src:"data:image/svg+xml;base64,"+btoa(svg), sizes:`${size}x${size}`, type:"image/svg+xml", purpose:"maskable any" };
       };
       const isMobile = window.innerWidth < 768;
@@ -91,7 +91,7 @@
         description:"Monitor and control Jules AI coding sessions",
         start_url: location.href.split("?")[0],
         scope: location.href.split("?")[0].replace(/[^/]*$/, ""),
-        display:"standalone", background_color:"#07090c", theme_color:"#042f2e",
+        display:"standalone", background_color:"#07090c", theme_color:"#0891b2",
         orientation: isMobile ? "portrait" : "natural",
         categories:["developer","productivity"],
         icons:[ mkIcon(192,24), mkIcon(512,64) ],
@@ -448,7 +448,10 @@ const MultiPersonaPicker = ({ personas, selectedIds, onToggle, style: s = {} }) 
 const T = {
   bg:"#050608", surface:"#0b0e14", surfaceHi:"#11161d",
   border:"#1a222e", borderHi:"#242d3d",
-  brand:"#042f2e", brandDim:"rgba(4,47,46,0.12)",
+  brand:"#06b6d4",
+  brandLight:"#22d3ee",
+  brandDark:"#0891b2",
+  brandDim:"rgba(6, 182, 212, 0.12)",
   indigo:"#6366f1", indigoDim:"rgba(99,102,241,0.12)",
   amber:"#ffbc00", amberDim:"rgba(255,188,0,0.12)",
   red:"#ff5566",   redDim:"rgba(255,85,102,0.12)",
@@ -456,7 +459,7 @@ const T = {
   purple:"#818cf8",purpleDim:"rgba(129,140,248,0.12)",
   text:"#ffffff",  textHi:"#f8fafc", textDim:"#c5d4e8",
   muted:"#64748b", dim:"#1e293b", line:"#111827",
-  userBubble:"rgba(99,102,241,0.08)", agentBubble:"rgba(4,47,46,0.06)",
+  userBubble:"rgba(99,102,241,0.08)", agentBubble:"rgba(6, 182, 212, 0.06)",
 };
 
 const STATUS_META = {
@@ -466,7 +469,7 @@ const STATUS_META = {
   AWAITING_USER_FEEDBACK:{ label:"INPUT",    color:T.amber,   bg:T.amberDim,             pulse:true  },
   IN_PROGRESS:           { label:"WORKING",  color:T.brand,   bg:T.brandDim,             pulse:true  },
   PAUSED:                { label:"PAUSED",   color:T.muted,   bg:"rgba(124,142,166,.1)", pulse:false },
-  COMPLETED:             { label:"DONE",     color:T.brand,   bg:T.brandDim,             pulse:false },
+  COMPLETED:             { label:"DONE",     color:T.brandDark, bg:T.brandDim,           pulse:false },
   FAILED:                { label:"FAILED",   color:T.red,     bg:T.redDim,               pulse:false },
 };
 
@@ -771,6 +774,7 @@ const Ic = ({n,s=16,c=T.muted}) => (
 // ─── UI Primitives ────────────────────────────────────────────────────────────
 const Pill = ({status,small=false}) => {
   const m = STATUS_META[status] || STATUS_META.QUEUED;
+  const pulseColor = m.color === T.brand ? T.brandLight : m.color;
   return (
     <span style={{
       display:"inline-flex",alignItems:"center",gap:4,
@@ -780,7 +784,7 @@ const Pill = ({status,small=false}) => {
       fontSize:small?10:11,fontWeight:800,letterSpacing:"0.08em",color:m.color,flexShrink:0,
       boxShadow:"none",
     }}>
-      {m.pulse&&<span style={{width:4,height:4,borderRadius:"50%",background:m.color,animation:"dot 1.2s ease-in-out infinite",flexShrink:0}}/>}
+      {m.pulse&&<span style={{width:4,height:4,borderRadius:"50%",background:pulseColor,animation:"dot 1.2s ease-in-out infinite",flexShrink:0}}/>}
       {m.label}
     </span>
   );
@@ -1104,7 +1108,7 @@ const ChatBubble = memo(({ act, type, onMediaClick, onEdit }) => {
       <div style={{
         width:32,height:32,borderRadius:8,flexShrink:0,
         background:isUser?T.blueDim:T.brand,
-        border:`1px solid ${isUser?T.blue+"40":"transparent"}`,
+        border:`1px solid ${isUser?T.blue+"40":T.brandLight+"40"}`,
         display:"flex",alignItems:"center",justifyContent:"center",
         fontFamily:"'JetBrains Mono',monospace",fontSize:13,fontWeight:900,
         color:isUser?T.blue:"#000",
@@ -1115,7 +1119,7 @@ const ChatBubble = memo(({ act, type, onMediaClick, onEdit }) => {
       <div style={{
         maxWidth:"82%",
         background:isUser?T.userBubble:T.agentBubble,
-        border:`1px solid ${isUser?T.blue+"40":T.brand+"35"}`,
+        border:`1px solid ${isUser?T.blue+"40":T.brandDark+"35"}`,
         borderRadius:isUser?"14px 14px 4px 14px":"14px 14px 14px 4px",
         padding:"14px 18px",
         opacity:isTemp?0.6:1,
@@ -1178,9 +1182,9 @@ const TimelineEvent = memo(({ act, onMediaClick }) => {
 
   const IC_MAP = {
     planGenerated:{n:"plan",c:T.purple},
-    planApproved:{n:"approve",c:T.brand},
+    planApproved:{n:"approve",c:T.brandLight},
     progressUpdated:{n:isPush?"branch":"refresh",c:isPush?T.blue:T.muted},
-    sessionCompleted:{n:"check",c:T.brand},
+    sessionCompleted:{n:"check",c:T.brandLight},
     sessionFailed:{n:"x",c:T.red},
     system:{n:"code",c:T.muted},
   };
@@ -1884,7 +1888,7 @@ const SetupScreen = ({ onSave }) => {
           <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:16,fontWeight:700,color:T.text,marginBottom:6}}>JULES AGENT CLIENT</div>
           <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:15,color:T.muted,lineHeight:1.6}}>
             Enter your Jules API key from<br/>
-            <span style={{color:T.blue,fontFamily:"'JetBrains Mono',monospace",fontSize:13}}>jules.google.com → Settings → API</span>
+            <a href="https://jules.google.com" target="_blank" rel="noopener" style={{color:T.brandLight,fontFamily:"'JetBrains Mono',monospace",fontSize:13,textDecoration:"none",borderBottom:`1px solid ${T.brandDark}40`}}>jules.google.com → Settings → API</a>
           </div>
         </div>
         <input
@@ -1944,12 +1948,13 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [] }) =>
 
   return (
     <button onClick={onPress} style={{
-      width:"100%",background:isSelected?`${T.brand}05`:T.surface,textAlign:"left",cursor:"pointer",
+      width:"100%",background:isSelected?`${T.brandDark}10`:T.surface,textAlign:"left",cursor:"pointer",
       border:`1px solid ${isSelected?T.brand:T.border}`,
-      borderLeft:`1px solid ${isSelected?T.brand:m.color}`,
+      borderLeft:`2px solid ${isSelected?T.brand:m.color}`,
       borderRadius:6,padding:"8px 12px",marginBottom:6,transition:"all .15s ease",
-      boxShadow:"none",
+      boxShadow:isSelected?`0 4px 12px ${T.brandDark}15`:"none",
       position:"relative",
+      transform: isSelected ? "translateX(2px)" : "none",
     }}>
       <div style={{display:"flex",alignItems:"flex-start",gap:8}}>
         <div style={{flex:1,minWidth:0}}>
@@ -2387,8 +2392,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
 
           <div style={{display:"flex",gap:8,alignItems:"center",flexShrink:0}}>
             {isStale && (
-              <div style={{display:"flex", alignItems:"center", gap:6, background:T.brandDim, border:`1px solid ${T.brand}40`, borderRadius:4, padding:"2px 8px", marginRight:4}}>
-                 <div style={{width:6, height:6, borderRadius:"50%", background:T.brand, animation:"pulse 2s infinite"}}/>
+              <div style={{display:"flex", alignItems:"center", gap:6, background:T.brandDim, border:`1px solid ${T.brandDark}40`, borderRadius:4, padding:"2px 8px", marginRight:4}}>
+                 <div style={{width:6, height:6, borderRadius:"50%", background:T.brandLight, animation:"pulse 2s infinite"}}/>
                  <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:9, fontWeight:800, color:T.brand}}>CACHED</span>
               </div>
             )}
@@ -3719,31 +3724,12 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
   }, [sessions, archivedIds, showArchived, searchQuery]);
   const filtered = filter==="ALL" ? baseFiltered : baseFiltered.filter(s=>s.state===filter);
   const active   = sessions.filter(s=>ACTIVE_STATES.has(s.state)).length;
-  const quotaUsed = useMemo(() => {
-    const now = new Date();
-    const offsetMs = tzOffset * 60 * 60 * 1000;
-    const resetOffsetMs = resetHour * 60 * 60 * 1000;
-    const localNowAdjusted = new Date(now.getTime() + offsetMs - resetOffsetMs);
-    const today = localNowAdjusted.toISOString().slice(0,10);
-    const todaySessions = sessions.filter(s => {
-      if (!s.createTime) return false;
-      const cDate = new Date(s.createTime);
-      const cLocalAdjusted = new Date(cDate.getTime() + offsetMs - resetOffsetMs);
-      return cLocalAdjusted.toISOString().slice(0,10) === today;
-    });
-    return todaySessions.filter(s => {
-      const pri = getPRInfo(s, activitiesMap[s.id] || []);
-      const b = getBranchInfo(s, activitiesMap[s.id] || []);
-      const isProductive = (pri && pri.state !== "closed") || b?.isNew || s.state === "COMPLETED";
-      return isProductive || ACTIVE_STATES.has(s.state);
-    }).length;
-  }, [sessions, activitiesMap, tzOffset]);
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%",minHeight:0}}>
       <div style={{padding:scrolled?"8px 16px 8px":"12px 16px 0",background:T.surface,borderBottom:`1px solid ${T.border}`,flexShrink:0,transition:"all .25s cubic-bezier(0.4, 0, 0.2, 1)",zIndex: 5}}>
         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:scrolled?0:10}}>
-          <div style={{width:scrolled?20:32,height:scrolled?20:32,borderRadius:6,background:T.brand,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace",fontSize:scrolled?11:18,fontWeight:900,color:"#000",boxShadow:scrolled?"none":`0 0 12px ${T.brand}40`,flexShrink:0,transition:"all .2s ease"}}>J</div>
+          <div style={{width:scrolled?20:32,height:scrolled?20:32,borderRadius:6,background:T.brand,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace",fontSize:scrolled?11:18,fontWeight:900,color:"#000",boxShadow:scrolled?"none":`0 0 12px ${T.brandDark}40`,flexShrink:0,transition:"all .2s ease"}}>J</div>
           <div style={{minWidth:0, transition:"all .2s ease"}}>
             <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:scrolled?12:14,fontWeight:700,color:T.text}}>JULES</div>
             {!scrolled && <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:active>0?T.amber:T.muted}}>{active>0?`⚡ ${active} ACTIVE`:"AGENT CLIENT"}</div>}
@@ -3776,10 +3762,10 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, netSnap, selec
           {!scrolled && <div style={{position:"absolute", right:0, top:0, bottom:10, width:40, background:`linear-gradient(to left, ${T.bg}, transparent)`, pointerEvents:"none", zIndex:2}}/>}
           <div style={{overflowX:"auto", padding:scrolled?0:"4px 2px 10px", scrollbarWidth:"none", WebkitOverflowScrolling:"touch"}}>
             <div style={{display:"flex",gap:5,minWidth:"max-content",padding:"4px 0", alignItems:"center"}}>
-              <div title={`Resets at ${resetHour < 10 ? '0' : ''}${resetHour}:00 UTC${tzOffset>=0?'+':''}${tzOffset}`} style={{display:"flex", alignItems:"center", gap:6, padding:"4px 10px", borderRadius:20, background:`${T.brand}10`, border:`1px solid ${T.brand}30`, marginRight:8, flexShrink:0, cursor:"help"}}>
-                <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:800, color:T.brand}}>{quotaUsed}/{plan?.daily || 15}</span>
+              <div title={`Resets at ${resetHour < 10 ? '0' : ''}${resetHour}:00 UTC${tzOffset>=0?'+':''}${tzOffset}`} style={{display:"flex", alignItems:"center", gap:6, padding:"4px 10px", borderRadius:20, background:`${T.brandDark}20`, border:`1px solid ${T.brandDark}40`, marginRight:8, flexShrink:0, cursor:"help"}}>
+                <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:800, color:T.brandLight}}>{todayCount}/{plan?.daily || 15}</span>
                 <div style={{width:1, height:10, background:T.brand, opacity:0.3}}/>
-                <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700, color:T.muted, letterSpacing:"0.05em"}}>USED</span>
+                <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700, color:T.brand, letterSpacing:"0.05em"}}>USED</span>
               </div>
               {FILTERS.map(f => {
                 const cnt = f==="ALL" ? sessions.length : sessions.filter(s=>s.state===f).length;
