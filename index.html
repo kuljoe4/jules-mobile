@@ -312,7 +312,7 @@ async function clearCacheOnly() {
       await Promise.all(keys.map(k => caches.delete(k)));
     }
     alert("Cache cleared.");
-  } catch { alert("Error: " + e.message); }
+  } catch (err) { alert("Error: " + err.message); }
 }
 
 async function clearDataOnly() {
@@ -336,38 +336,60 @@ async function resetApp() {
       await Promise.all(regs.map(r => r.unregister()));
     }
     location.reload(true);
-  } catch {
-    alert("Error: " + e.message);
+  } catch (err) {
+    alert("Error: " + err.message);
     location.reload();
   }
 }
 
 async function getStorageInfo() {
-  if (!navigator.storage?.estimate) return { used: 0, quota: 0, cache: 0 };
-  const est = await navigator.storage.estimate();
+  let used = 0, quota = 0, cache = 0, local = 0;
 
-  if (est.usageDetails && est.usageDetails.caches) {
-    return { used: est.usage || 0, quota: est.quota || 0, cache: est.usageDetails.caches };
-  }
-
-  let cacheSize = 0;
+  // 1. LocalStorage Estimation
   try {
-    if ("caches" in window) {
+    let str = "";
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      str += k + localStorage.getItem(k);
+    }
+    local = str.length * 2; // UTF-16 characters are 2 bytes
+  } catch (err) { console.warn("[Storage] LocalStorage estimate failed", err); }
+
+  // 2. Navigator Storage API
+  try {
+    if (navigator.storage && navigator.storage.estimate) {
+      const est = await navigator.storage.estimate();
+      used = est.usage || 0;
+      quota = est.quota || 0;
+      if (est.usageDetails && est.usageDetails.caches) {
+        cache = est.usageDetails.caches;
+      }
+    }
+  } catch (err) { console.warn("[Storage] Estimate API failed", err); }
+
+  // 3. Manual Cache Fallback (for browsers without usageDetails)
+  if (cache === 0 && "caches" in window) {
+    try {
       const keys = await caches.keys();
       for (const key of keys) {
-        const cache = await caches.open(key);
-        const reqs = await cache.keys();
-        for (const req of reqs) {
-          const res = await cache.match(req);
+        const c = await caches.open(key);
+        const reqs = await c.keys();
+        for (const r of reqs) {
+          const res = await c.match(r);
           if (res) {
             const cl = res.headers.get("content-length");
-            if (cl) cacheSize += parseInt(cl, 10);
+            if (cl) cache += parseInt(cl, 10);
+            // Note: Opaque responses will have 0 content-length and cannot be measured here.
           }
         }
       }
-    }
-  } catch {}
-  return { used: est.usage || 0, quota: est.quota || 0, cache: cacheSize };
+    } catch (err) { console.warn("[Storage] Manual cache scan failed", err); }
+  }
+
+  // Final adjusted total (API used often doesn't include localStorage)
+  const totalUsed = Math.max(used, cache) + local;
+
+  return { used: totalUsed, quota, cache, local };
 }
 
 const DEFAULT_PERSONAS = [
@@ -918,7 +940,7 @@ const useAutoPoll = (interval, fn) => {
     nextRefAt.current = Date.now() + interval;
     setCountdown(Math.ceil(interval / 1000));
     pollRef.current = setTimeout(async () => {
-      try { await fn(); } catch { console.error("Poll failed", e); }
+      try { await fn(); } catch (err) { console.error("Poll failed", err); }
       finally { schedule(); }
     }, interval);
   }, [interval, fn]);
@@ -3382,7 +3404,7 @@ const NetworkMonitor = ({ onBack, isDesktop }) => {
                   <Ic n="database" s={14} c={T.purple}/>
                   <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:700, color:T.muted}}>APP DATA</span>
                 </div>
-                <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:24, fontWeight:900, color:T.text, marginBottom:16}}>{storage ? fmtBytes(storage.used/1024) : "..."}<span style={{fontSize:10, color:T.dim, marginLeft:4, fontWeight:500}}>USED</span></div>
+                <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:24, fontWeight:900, color:T.text, marginBottom:16}}>{storage ? fmtBytes((storage.local||0)/1024) : "..."}<span style={{fontSize:10, color:T.dim, marginLeft:4, fontWeight:500}}>USED</span></div>
                 <button onClick={clearDataOnly} style={{
                   width:"100%", padding:"10px", borderRadius:8, background:`${T.purple}15`, border:`1px solid ${T.purple}30`,
                   color:T.purple, fontSize:10, fontWeight:800, fontFamily:"'JetBrains Mono',monospace", cursor:"pointer",
@@ -3395,7 +3417,7 @@ const NetworkMonitor = ({ onBack, isDesktop }) => {
                   <Ic n="layers" s={14} c={T.blue}/>
                   <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:700, color:T.muted}}>CACHE</span>
                 </div>
-                <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:24, fontWeight:900, color:T.text, marginBottom:16}}>{storage ? fmtBytes(storage.cache/1024) : "..."}<span style={{fontSize:10, color:T.dim, marginLeft:4, fontWeight:500}}>TOTAL</span></div>
+                <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:24, fontWeight:900, color:T.text, marginBottom:16}}>{storage ? fmtBytes((storage.cache||0)/1024) : "..."}<span style={{fontSize:10, color:T.dim, marginLeft:4, fontWeight:500}}>TOTAL</span></div>
                 <button onClick={clearCacheOnly} style={{
                   width:"100%", padding:"10px", borderRadius:8, background:`${T.blue}15`, border:`1px solid ${T.blue}30`,
                   color:T.blue, fontSize:10, fontWeight:800, fontFamily:"'JetBrains Mono',monospace", cursor:"pointer",
@@ -3705,14 +3727,14 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
           )}
 
           {tab === "storage" && (
-            <div style={{animation:"fadeIn .2s ease", display:"flex", flexDirection:"column", gap:24}}>
+            <div style={{animation:"fadeIn .3s cubic-bezier(0.4, 0, 0.2, 1)", display:"flex", flexDirection:"column", gap:24}}>
               <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:12}}>
                 <div style={{background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:12, padding:18, display:"flex", flexDirection:"column"}}>
                   <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:12}}>
                     <Ic n="database" s={14} c={T.purple}/>
                     <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:700, color:T.muted}}>APP DATA</span>
                   </div>
-                  <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:24, fontWeight:900, color:T.text, marginBottom:16}}>{storage ? fmtBytes(storage.used/1024) : "..."}<span style={{fontSize:10, color:T.dim, marginLeft:4, fontWeight:500}}>USED</span></div>
+                  <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:24, fontWeight:900, color:T.text, marginBottom:16}}>{storage ? fmtBytes((storage.local||0)/1024) : "..."}<span style={{fontSize:10, color:T.dim, marginLeft:4, fontWeight:500}}>USED</span></div>
                   <button onClick={clearDataOnly} style={{
                     width:"100%", padding:"10px", borderRadius:8, background:`${T.purple}15`, border:`1px solid ${T.purple}30`,
                     color:T.purple, fontSize:10, fontWeight:800, fontFamily:"'JetBrains Mono',monospace", cursor:"pointer",
@@ -3725,7 +3747,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
                     <Ic n="layers" s={14} c={T.blue}/>
                     <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:700, color:T.muted}}>CACHE</span>
                   </div>
-                  <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:24, fontWeight:900, color:T.text, marginBottom:16}}>{storage ? fmtBytes(storage.cache/1024) : "..."}<span style={{fontSize:10, color:T.dim, marginLeft:4, fontWeight:500}}>TOTAL</span></div>
+                  <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:24, fontWeight:900, color:T.text, marginBottom:16}}>{storage ? fmtBytes((storage.cache||0)/1024) : "..."}<span style={{fontSize:10, color:T.dim, marginLeft:4, fontWeight:500}}>TOTAL</span></div>
                   <button onClick={clearCacheOnly} style={{
                     width:"100%", padding:"10px", borderRadius:8, background:`${T.blue}15`, border:`1px solid ${T.blue}30`,
                     color:T.blue, fontSize:10, fontWeight:800, fontFamily:"'JetBrains Mono',monospace", cursor:"pointer",
