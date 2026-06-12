@@ -293,16 +293,41 @@ function loadCustomDaily() { try { return parseInt(localStorage.getItem(CUSTOM_D
 function saveCustomDaily(v) { try { localStorage.setItem(CUSTOM_DAILY_KEY,v); } catch {} }
 
 // ─── Daily session counter ────────────────────────────────────────────────────
+const getBucketKey = (tzOffset, resetHour) => {
+  console.log(`[getBucketKey] offset=${tzOffset}, reset=${resetHour}`);
+  const now = Date.now();
+  const tzDate = new Date(now + (tzOffset * 3600000));
+  if (tzDate.getUTCHours() < resetHour) {
+    tzDate.setUTCDate(tzDate.getUTCDate() - 1);
+  }
+  return tzDate.toISOString().slice(0, 10);
+};
+
+const getBucketStartTs = (tzOffset, resetHour) => {
+  const now = Date.now();
+  const tzDate = new Date(now + (tzOffset * 3600000));
+  if (tzDate.getUTCHours() < resetHour) {
+    tzDate.setUTCDate(tzDate.getUTCDate() - 1);
+  }
+  tzDate.setUTCHours(resetHour, 0, 0, 0);
+  return new Date(tzDate.getTime() - (tzOffset * 3600000));
+};
+
 const TODAY_KEY = () => {
+  const tzOffset = loadTzOffset();
   const resetHour = loadResetHour();
-  // Subtract resetHour from now so that times before the reset fall into "yesterday's" bucket.
-  const d = new Date();
-  d.setHours(d.getHours() - resetHour);
-  return `jac_today_${d.toISOString().slice(0,10)}`;
+  return `jac_today_${getBucketKey(tzOffset, resetHour)}`;
 };
 function loadTodayCount() { try { return parseInt(localStorage.getItem(TODAY_KEY()))||0; } catch { return 0; } }
 function incTodayCount()  { try { const k=TODAY_KEY(); localStorage.setItem(k,(parseInt(localStorage.getItem(k))||0)+1); } catch {} }
-function pruneOldKeys()   { try { const t=TODAY_KEY(); for(const k of Object.keys(localStorage)) if(k.startsWith("jac_today_")&&k!==t) localStorage.removeItem(k); } catch {} }
+function pruneOldKeys()   {
+  try {
+    const tzOffset = loadTzOffset();
+    const resetHour = loadResetHour();
+    const t = `jac_today_${getBucketKey(tzOffset, resetHour)}`;
+    for(const k of Object.keys(localStorage)) if(k.startsWith("jac_today_")&&k!==t) localStorage.removeItem(k);
+  } catch {}
+}
 
 async function clearCacheOnly() {
   if (!confirm("Clear Service Worker cache? This will redownload all assets on next load.")) return;
@@ -3835,7 +3860,22 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, selectedId, is
             <button onClick={() => setSearchOpen(!searchOpen)} title="Search sessions" style={{width:30,height:30,borderRadius:5,background:searchOpen||searchQuery?T.blueDim:"transparent",border:`1px solid ${searchOpen||searchQuery?T.blue+"40":T.border}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="search" s={15} c={searchOpen||searchQuery?T.blue:T.muted}/></button>
             {isDesktop&&<button onClick={onNew} title="New Session" style={{width:30,height:30,borderRadius:5,background:T.brandDim,border:`1px solid ${T.brand}40`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="plus" s={15} c={T.brand}/></button>}
             <button onClick={onSettings} title="Settings" style={{width:30,height:30,borderRadius:5,background:T.surfaceHi,border:`1px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="settings" s={15} c={T.muted}/></button>
-            <button onClick={onRefresh} disabled={refreshing} title="Refresh now" style={{background:"none",border:"none",cursor:refreshing?"default":"pointer",display:"flex",padding:3,animation:refreshing?"spin 1s linear infinite":"none",transformOrigin:"center"}}><Ic n="refresh" s={15} c={refreshing?T.brand:T.muted}/></button>
+            <button
+              onClick={onRefresh}
+              disabled={refreshing}
+              title="Refresh now"
+              style={{
+                background:"none", border:"none", cursor:refreshing?"default":"pointer",
+                display:"flex", padding:4, borderRadius:4, transition:"all .15s",
+                animation:refreshing?"spin 1s linear infinite":"none",
+                transformOrigin:"center",
+                background:refreshing?T.brandDim:"transparent",
+              }}
+              onMouseDown={e => e.currentTarget.style.transform = "scale(0.9)"}
+              onMouseUp={e => e.currentTarget.style.transform = "scale(1)"}
+            >
+              <Ic n="refresh" s={16} c={refreshing?T.brand:T.muted}/>
+            </button>
           </div>
         </div>
         {(searchOpen || searchQuery) && (
@@ -3858,10 +3898,26 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, selectedId, is
           {!scrolled && <div style={{position:"absolute", right:0, top:0, bottom:10, width:40, background:`linear-gradient(to left, ${T.bg}, transparent)`, pointerEvents:"none", zIndex:2}}/>}
           <div style={{overflowX:"auto", padding:scrolled?0:"4px 2px 10px", scrollbarWidth:"none", WebkitOverflowScrolling:"touch"}}>
             <div style={{display:"flex",gap:5,minWidth:"max-content",padding:"4px 0", alignItems:"center"}}>
-              <div title={`Resets at ${resetHour < 10 ? '0' : ''}${resetHour}:00 UTC${tzOffset>=0?'+':''}${tzOffset}`} style={{display:"flex", alignItems:"center", gap:6, padding:"4px 10px", borderRadius:20, background:`${T.brandDark}20`, border:`1px solid ${T.brandDark}40`, marginRight:8, flexShrink:0, cursor:"help"}}>
-                <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:800, color:T.brandLight}}>{todayCount}/{plan?.daily || 15}</span>
-                <div style={{width:1, height:10, background:T.brand, opacity:0.3}}/>
-                <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700, color:T.brand, letterSpacing:"0.05em"}}>USED</span>
+              <div
+                title={`QUOTA USAGE: ${todayCount} of ${plan?.daily || 15} tasks used. Reset at ${resetHour < 10 ? '0' : ''}${resetHour}:00 UTC${tzOffset>=0?'+':''}${tzOffset}.`}
+                style={{
+                  display:"flex", alignItems:"center", gap:7, padding:"5px 12px", borderRadius:20,
+                  background:`linear-gradient(135deg, ${T.brandDark}25, ${T.brand}10)`,
+                  border:`1px solid ${T.brandDark}50`, marginRight:8, flexShrink:0, cursor:"help",
+                  boxShadow:`0 2px 8px ${T.brandDark}15`, transition:"transform .15s"
+                }}
+                onMouseEnter={e => e.currentTarget.style.transform = "scale(1.02)"}
+                onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
+              >
+                <div style={{
+                  width:6, height:6, borderRadius:"50%",
+                  background:todayCount >= (plan?.daily||15) ? T.red : todayCount / (plan?.daily||15) > 0.8 ? T.amber : T.brandLight,
+                  boxShadow:`0 0 8px ${todayCount / (plan?.daily||15) > 0.8 ? T.amber : T.brandLight}60`
+                }}/>
+                <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:12, fontWeight:900, color:T.text, letterSpacing:"-0.02em"}}>
+                  {todayCount}<span style={{color:T.dim, fontWeight:400, fontSize:10, margin:"0 1px"}}>/</span>{plan?.daily || 15}
+                </span>
+                <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:9, fontWeight:800, color:T.brand, letterSpacing:"0.08em", marginLeft:2, opacity:0.9}}>USED</span>
               </div>
               {FILTERS.map(f => {
                 const cnt = f==="ALL" ? sessions.length : sessions.filter(s=>s.state===f).length;
@@ -3914,21 +3970,18 @@ function JulesClient() {
   const [customDaily,setCustomDailyRaw] = useState(loadCustomDaily);
   const [localTodayCount, setLocalTodayCount] = useState(loadTodayCount);
   const todayCount = useMemo(() => {
-    // Current counting logic: local counter + sessions created in the current quota bucket that don't have a PR yet.
-    // Bucket is defined by the resetHour setting.
-    const now = new Date();
-    now.setHours(now.getHours() - resetHour);
-    const bucketStartStr = now.toISOString().slice(0, 10);
+    // Use the timezone-aware bucket start timestamp
+    const bucketStart = getBucketStartTs(tzOffset, resetHour);
 
+    // Filter sessions that were created within the current bucket
     const sessionCount = sessions.filter(s => {
       if (!s.createTime) return false;
-      const sd = new Date(s.createTime);
-      sd.setHours(sd.getHours() - resetHour);
-      const sessionBucketStr = sd.toISOString().slice(0, 10);
-      return sessionBucketStr === bucketStartStr && !getPR(s);
+      return new Date(s.createTime) >= bucketStart;
     }).length;
+
+    // Use the maximum of local counter (for non-persisted/new sessions) and session list count
     return Math.max(localTodayCount, sessionCount);
-  }, [localTodayCount, sessions, resetHour]);
+  }, [localTodayCount, sessions, tzOffset, resetHour]);
   const [lastFetchTime, setLastFetchTime] = useState(null);
 
   const [archivedIds, setArchivedIds] = useState(() => {
@@ -4003,6 +4056,7 @@ function JulesClient() {
   const setSessionLimit = useCallback(v => {
     saveLimit(v);
     setSessionLimitRaw(v);
+    setLastFetchTime(null); // Force full fetch with new limit
   }, []);
 
   const setTzOffset = useCallback(v => {
@@ -4021,17 +4075,19 @@ function JulesClient() {
     setCacheLimitRaw(v);
   }, []);
 
-  const fetchSessions = useCallback(async (quiet=false) => {
+  const fetchSessions = useCallback(async (quiet=false, forceFull=false) => {
     if (!apiKey) return;
+    console.log(`[FetchSessions] Fetching... isFull=${!lastFetchTime || forceFull}, quiet=${quiet}`);
     if (!quiet) setRefreshing(true);
     try {
-      const qs = lastFetchTime ? `&filter=updateTime%3E%22${encodeURIComponent(lastFetchTime)}%22` : "";
-      const d = await apiCall(apiKey, `/sessions?pageSize=${sessionLimit}${qs}`, { _label:`Sessions ${lastFetchTime?"Δ":"full"}` });
+      const isFull = !lastFetchTime || forceFull;
+      const qs = !isFull ? `&filter=updateTime%3E%22${encodeURIComponent(lastFetchTime)}%22` : "";
+      const d = await apiCall(apiKey, `/sessions?pageSize=${sessionLimit}${qs}`, { _label:`Sessions ${isFull?"full":"Δ"}` });
       const incoming = d.sessions || [];
 
       setSessions(prev => {
         let merged = [];
-        if (!lastFetchTime) {
+        if (isFull) {
           merged = incoming;
         } else {
           const incomingIds = new Set(incoming.map(s => s.id));
@@ -4081,9 +4137,15 @@ function JulesClient() {
           return ts > max ? ts : max;
         }, raw[0].updateTime || raw[0].createTime);
         setLastFetchTime(maxTs);
+      } else if (forceFull) {
+        // If we forced a full refresh and got nothing, we should still probably reset lastFetchTime
+        // to null so the next one is also full, or just leave it.
+        // Actually if it's full and empty, lastFetchTime should be null.
+        setLastFetchTime(null);
       }
-    } catch {}
-    finally { if (!quiet) setRefreshing(false); }
+    } catch (err) {
+      console.error("[FetchSessions] Error:", err);
+    } finally { if (!quiet) setRefreshing(false); }
   }, [apiKey, sessionLimit, lastFetchTime]);
 
   useEffect(() => { if (apiKey) fetchSessions(); }, [apiKey, fetchSessions]);
@@ -4142,7 +4204,7 @@ function JulesClient() {
         {/* Sidebar */}
         <div style={{width:320,flexShrink:0,borderRight:`1px solid ${T.border}`,display:"flex",flexDirection:"column",height:"100vh",overflow:"hidden"}}>
           <SessionList
-            sessions={sessions} onSelect={handleSelect} onRefresh={()=>fetchSessions()}
+            sessions={sessions} onSelect={handleSelect} onRefresh={()=>fetchSessions(false, true)}
             refreshing={refreshing} selectedId={selected?.id}
             isDesktop onNew={()=>setDesktop("new")}
             onSettings={()=>setDesktop("settings")}
@@ -4205,7 +4267,7 @@ function JulesClient() {
     <Shell>
       <div style={{flex:1,overflow:"hidden",display:"flex",flexDirection:"column",minHeight:0}}>
         {mobileScreen==="list"&&(
-          <SessionList sessions={sessions} onSelect={handleSelect} onRefresh={()=>fetchSessions()}
+          <SessionList sessions={sessions} onSelect={handleSelect} onRefresh={()=>fetchSessions(false, true)}
             refreshing={refreshing} selectedId={null} isDesktop={false}
             onSettings={()=>setMobile("settings")}
             pollInterval={pollInterval}
