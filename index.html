@@ -3360,19 +3360,19 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
           {plan&&(
             <div style={{
               padding:"8px 12px",borderRadius:5,marginBottom:14,
-              background:todayCount>=plan.daily?T.redDim:T.surfaceHi,
-              border:`1px solid ${todayCount>=plan.daily?T.red+"40":T.border}`,
+              background:todayCount.total>=plan.daily?T.redDim:T.surfaceHi,
+              border:`1px solid ${todayCount.total>=plan.daily?T.red+"40":T.border}`,
               fontFamily:"'JetBrains Mono',monospace",fontSize:11,lineHeight:1.7,
-              color:todayCount>=plan.daily?T.red:T.muted,
+              color:todayCount.total>=plan.daily?T.red:T.muted,
             }}>
-              {todayCount>=plan.daily
+              {todayCount.total>=plan.daily
                 ? `⛔ Daily limit reached (${plan.daily} tasks on ${plan.label} plan). Upgrade at jules.google.com or wait for reset.`
-                : `📋 ${plan.label} plan · ${todayCount}/${plan.daily} tasks used today · ${plan.concurrent} concurrent max`
+                : `📋 ${plan.label} plan · ${todayCount.total}/${plan.daily} tasks started · ${todayCount.done} PRs created · ${plan.concurrent} concurrent max`
               }
             </div>
           )}
 
-          <Btn onClick={handleCreate} disabled={!prompt.trim()||submitting||loadingSrc||(plan&&todayCount>=plan.daily)} style={{width:"100%"}}>
+          <Btn onClick={handleCreate} disabled={!prompt.trim()||submitting||loadingSrc||(plan&&todayCount.total>=plan.daily)} style={{width:"100%"}}>
             {submitting?"SENDING…":"ASSIGN TO JULES →"}
           </Btn>
         </div>
@@ -3661,21 +3661,22 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
                 <div style={{background:T.surface, padding:16, borderRadius:8, border:`1px solid ${T.border}`}}>
                   <div style={{display:"flex",justifyContent:"space-between",marginBottom:10,alignItems:"center"}}>
                     <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.textDim,fontWeight:700}}>DAILY USAGE</span>
-                    <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:12,color:todayCount>=plan.daily?T.red:T.brand,fontWeight:800}}>
-                      {todayCount} / {plan.daily} <span style={{fontSize:10, opacity:0.9}}>SESSIONS</span>
+                    <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:12,color:todayCount.total>=plan.daily?T.red:T.brand,fontWeight:800}}>
+                      {todayCount.total} / {plan.daily} <span style={{fontSize:10, opacity:0.9}}>SESSIONS</span>
                     </span>
                   </div>
                   <div style={{height:4,background:T.line,borderRadius:2,overflow:"hidden"}}>
                     <div style={{
                       height:"100%",borderRadius:2,transition:"width .5s cubic-bezier(0.4, 0, 0.2, 1)",
-                      width:`${Math.min(100,(todayCount/plan.daily)*100)}%`,
-                      background:todayCount>=plan.daily?T.red:todayCount/plan.daily>0.8?T.amber:T.brand,
-                      boxShadow:`0 0 10px ${todayCount>=plan.daily?T.red:T.brand}30`,
+                      width:`${Math.min(100,(todayCount.total/plan.daily)*100)}%`,
+                      background:todayCount.total>=plan.daily?T.red:todayCount.total/plan.daily>0.8?T.amber:T.brand,
+                      boxShadow:`0 0 10px ${todayCount.total>=plan.daily?T.red:T.brand}30`,
                     }}/>
                   </div>
                   <div style={{marginTop:12,fontSize:11,color:T.textDim,fontFamily:"'IBM Plex Sans',sans-serif",lineHeight:1.6, opacity:0.8}}>
+                    {todayCount.done} Pull Requests created today<br/>
                     {plan.model} · {plan.concurrent} concurrent max
-                    {todayCount>=plan.daily && <div style={{color:T.red,marginTop:4,fontWeight:600}}>⛔ Daily limit reached. Resets at {resetHour < 10 ? '0' : ''}{resetHour}:00 UTC{tzOffset >= 0 ? '+' : ''}{tzOffset}.</div>}
+                    {todayCount.total>=plan.daily && <div style={{color:T.red,marginTop:4,fontWeight:600}}>⛔ Daily limit reached. Resets at {resetHour < 10 ? '0' : ''}{resetHour}:00 UTC{tzOffset >= 0 ? '+' : ''}{tzOffset}.</div>}
                   </div>
                 </div>
               </div>
@@ -3832,7 +3833,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
 const FILTERS = ["ALL","QUEUED","PLANNING","AWAITING_PLAN_APPROVAL","IN_PROGRESS","COMPLETED","FAILED"];
 const FILTER_LABELS = { AWAITING_PLAN_APPROVAL:"APPROVE", ALL:"ALL" };
 
-const SessionList = ({ sessions, onSelect, onRefresh, refreshing, selectedId, isDesktop, onNew,  onSettings, pollInterval, sessionLimit, tzOffset = 1, resetHour = 10, countdown, plan, todayCount, searchQuery, setSearchQuery, archivedIds, showArchived, setShowArchived, activitiesMap = {} }) => {
+const SessionList = ({ sessions, onSelect, onRefresh, refreshing, selectedId, isDesktop, onNew,  onSettings, pollInterval, sessionLimit, tzOffset = 1, resetHour = 10, countdown, plan, todayCount, searchQuery, setSearchQuery, archivedIds, showArchived, setShowArchived, activitiesMap = {}, error, clearError }) => {
   const [filter,setFilter] = useState("ALL");
   const [scrolled, handleScroll] = useScrollThreshold();
   const [searchOpen, setSearchOpen] = useState(false);
@@ -3844,8 +3845,8 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, selectedId, is
     }
     return list;
   }, [sessions, archivedIds, showArchived, searchQuery]);
-  const filtered = filter==="ALL" ? baseFiltered : baseFiltered.filter(s=>s.state===filter);
-  const active   = sessions.filter(s=>ACTIVE_STATES.has(s.state)).length;
+  const filtered = useMemo(() => filter==="ALL" ? baseFiltered : baseFiltered.filter(s=>s.state===filter), [filter, baseFiltered]);
+  const active = useMemo(() => sessions.filter(s=>ACTIVE_STATES.has(s.state)).length, [sessions]);
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%",minHeight:0}}>
@@ -3878,6 +3879,17 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, selectedId, is
             </button>
           </div>
         </div>
+        {error && (
+          <div style={{
+            background:T.redDim, border:`1px solid ${T.red}40`, borderRadius:6,
+            padding:"8px 12px", marginBottom:12, display:"flex", alignItems:"center", gap:10,
+            animation:"fadeIn .2s ease"
+          }}>
+            <Ic n="x" s={14} c={T.red}/>
+            <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.red, flex:1}}>{error}</span>
+            <button onClick={clearError} style={{background:"none", border:"none", cursor:"pointer", padding:2}}><Ic n="x" s={12} c={T.red}/></button>
+          </div>
+        )}
         {(searchOpen || searchQuery) && (
           <div style={{height:scrolled?0:42, overflow:"hidden", opacity:scrolled?0:1, transition:"all .25s ease", marginBottom:scrolled?0:8, padding:scrolled?0:"4px 2px", pointerEvents:scrolled?"none":"auto"}}>
             <div style={{position:"relative", display:"flex", alignItems:"center"}}>
@@ -3899,25 +3911,60 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, selectedId, is
           <div style={{overflowX:"auto", padding:scrolled?0:"4px 2px 10px", scrollbarWidth:"none", WebkitOverflowScrolling:"touch"}}>
             <div style={{display:"flex",gap:5,minWidth:"max-content",padding:"4px 0", alignItems:"center"}}>
               <div
-                title={`QUOTA USAGE: ${todayCount} of ${plan?.daily || 15} tasks used. Reset at ${resetHour < 10 ? '0' : ''}${resetHour}:00 UTC${tzOffset>=0?'+':''}${tzOffset}.`}
+                title={`QUOTA USAGE\nStarted: ${todayCount.total} of ${plan?.daily || 15}\nPRs Created: ${todayCount.done}\nResets at: ${resetHour < 10 ? '0' : ''}${resetHour}:00 UTC${tzOffset>=0?'+':''}${tzOffset}`}
                 style={{
-                  display:"flex", alignItems:"center", gap:7, padding:"5px 12px", borderRadius:20,
-                  background:`linear-gradient(135deg, ${T.brandDark}25, ${T.brand}10)`,
-                  border:`1px solid ${T.brandDark}50`, marginRight:8, flexShrink:0, cursor:"help",
-                  boxShadow:`0 2px 8px ${T.brandDark}15`, transition:"transform .15s"
+                  display:"flex", alignItems:"center", gap:9, padding:"6px 14px", borderRadius:22,
+                  background:`linear-gradient(135deg, ${T.surfaceHi}, ${T.bg})`,
+                  border:`1px solid ${T.borderHi}`, marginRight:10, flexShrink:0, cursor:"help",
+                  boxShadow:`0 4px 12px rgba(0,0,0,0.3), inset 0 0 10px ${T.brand}05`,
+                  transition:"all .2s ease", position:"relative", overflow:"hidden"
                 }}
-                onMouseEnter={e => e.currentTarget.style.transform = "scale(1.02)"}
-                onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
+                onMouseEnter={e => {
+                  e.currentTarget.style.transform = "translateY(-1px)";
+                  e.currentTarget.style.borderColor = T.brandDark;
+                  e.currentTarget.style.boxShadow = `0 6px 16px rgba(0,0,0,0.4), inset 0 0 15px ${T.brand}10`;
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.transform = "none";
+                  e.currentTarget.style.borderColor = T.borderHi;
+                  e.currentTarget.style.boxShadow = `0 4px 12px rgba(0,0,0,0.3), inset 0 0 10px ${T.brand}05`;
+                }}
               >
+                {/* Visual indicator bar */}
                 <div style={{
-                  width:6, height:6, borderRadius:"50%",
-                  background:todayCount >= (plan?.daily||15) ? T.red : todayCount / (plan?.daily||15) > 0.8 ? T.amber : T.brandLight,
-                  boxShadow:`0 0 8px ${todayCount / (plan?.daily||15) > 0.8 ? T.amber : T.brandLight}60`
+                  position:"absolute", bottom:0, left:0, height:2,
+                  width:`${Math.min(100, (todayCount.total / (plan?.daily || 15)) * 100)}%`,
+                  background:todayCount.total >= (plan?.daily||15) ? T.red : todayCount.total / (plan?.daily||15) > 0.8 ? T.amber : T.brand,
+                  opacity:0.6, transition:"width .5s cubic-bezier(0.4, 0, 0.2, 1)"
                 }}/>
-                <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:12, fontWeight:900, color:T.text, letterSpacing:"-0.02em"}}>
-                  {todayCount}<span style={{color:T.dim, fontWeight:400, fontSize:10, margin:"0 1px"}}>/</span>{plan?.daily || 15}
-                </span>
-                <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:9, fontWeight:800, color:T.brand, letterSpacing:"0.08em", marginLeft:2, opacity:0.9}}>USED</span>
+
+                <div style={{
+                  width:7, height:7, borderRadius:"50%",
+                  background:todayCount.total >= (plan?.daily||15) ? T.red : todayCount.total / (plan?.daily||15) > 0.8 ? T.amber : T.brandLight,
+                  boxShadow:`0 0 10px ${todayCount.total / (plan?.daily||15) > 0.8 ? T.amber : T.brandLight}80`,
+                  animation: todayCount.total >= (plan?.daily||15) ? "dot 1s infinite" : "none"
+                }}/>
+
+                <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 1 }}>
+                    <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:13, fontWeight:800, color:T.text, letterSpacing:"-0.03em"}}>
+                      {todayCount.total}
+                    </span>
+                    <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:T.dim, fontWeight:500}}>/</span>
+                    <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.dim, fontWeight:700}}>
+                      {plan?.daily || 15}
+                    </span>
+                  </div>
+
+                  <div style={{ width: 1, height: 12, background: T.border, margin: "0 4px" }} />
+
+                  <div style={{ display: "flex", alignItems: "center", gap: 3, background:T.brandDim, padding:"2px 6px", borderRadius:4, border:`1px solid ${T.brand}20` }}>
+                    <Ic n="git_pull" s={11} c={T.brandLight}/>
+                    <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:900, color:T.brandLight}}>
+                      {todayCount.done}
+                    </span>
+                  </div>
+                </div>
               </div>
               {FILTERS.map(f => {
                 const cnt = f==="ALL" ? sessions.length : sessions.filter(s=>s.state===f).length;
@@ -3974,13 +4021,16 @@ function JulesClient() {
     const bucketStart = getBucketStartTs(tzOffset, resetHour);
 
     // Filter sessions that were created within the current bucket
-    const sessionCount = sessions.filter(s => {
+    const bucketSessions = sessions.filter(s => {
       if (!s.createTime) return false;
       return new Date(s.createTime) >= bucketStart;
-    }).length;
+    });
 
-    // Use the maximum of local counter (for non-persisted/new sessions) and session list count
-    return Math.max(localTodayCount, sessionCount);
+    const totalStarted = Math.max(localTodayCount, bucketSessions.length);
+    const prCreated = bucketSessions.filter(s => !!getPR(s)).length;
+
+    console.log(`[Quota] bucket=${bucketStart.toISOString()}, local=${localTodayCount}, count=${bucketSessions.length}, prs=${prCreated}`);
+    return { total: totalStarted, done: prCreated };
   }, [localTodayCount, sessions, tzOffset, resetHour]);
   const [lastFetchTime, setLastFetchTime] = useState(null);
 
@@ -3990,6 +4040,7 @@ function JulesClient() {
   });
   const [showArchived, setShowArchived] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [globalErr, setGlobalErr] = useState(null);
   const [personas, setPersonas] = useState(loadPersonas);
 
   const isDesktop = useIsDesktop();
@@ -4145,6 +4196,7 @@ function JulesClient() {
       }
     } catch (err) {
       console.error("[FetchSessions] Error:", err);
+      if (!quiet) setGlobalErr(err.message);
     } finally { if (!quiet) setRefreshing(false); }
   }, [apiKey, sessionLimit, lastFetchTime]);
 
@@ -4217,6 +4269,7 @@ function JulesClient() {
             searchQuery={searchQuery} setSearchQuery={setSearchQuery}
             archivedIds={archivedIds} showArchived={showArchived} setShowArchived={setShowArchived}
             activitiesMap={activitiesMap}
+            error={globalErr} clearError={() => setGlobalErr(null)}
           />
         </div>
         {/* Main panel */}
@@ -4278,7 +4331,8 @@ function JulesClient() {
             plan={plan} todayCount={todayCount}
             searchQuery={searchQuery} setSearchQuery={setSearchQuery}
             archivedIds={archivedIds} showArchived={showArchived} setShowArchived={setShowArchived}
-            activitiesMap={activitiesMap} />
+            activitiesMap={activitiesMap}
+            error={globalErr} clearError={() => setGlobalErr(null)} />
         )}
         {mobileScreen==="detail"&&selected&&(
           <SessionDetail key={selected.id} session={selected} apiKey={apiKey}
