@@ -956,30 +956,47 @@ const useScrollThreshold = (threshold = 40) => {
 
 const useAutoPoll = (interval, fn) => {
   const [countdown, setCountdown] = useState(0);
-  const pollRef = useRef(null);
-  const countdownRef = useRef(null);
   const nextRefAt = useRef(0);
 
-  const schedule = useCallback(() => {
-    if (!interval) { setCountdown(0); return; }
-    nextRefAt.current = Date.now() + interval;
-    setCountdown(Math.ceil(interval / 1000));
-    pollRef.current = setTimeout(async () => {
-      try { await fn(); } catch (err) { console.error("Poll failed", err); }
-      finally { schedule(); }
-    }, interval);
-  }, [interval, fn]);
-
   useEffect(() => {
-    clearTimeout(pollRef.current);
-    clearInterval(countdownRef.current);
-    if (!interval) return;
-    schedule();
-    countdownRef.current = setInterval(() => {
-      setCountdown(Math.max(0, Math.ceil((nextRefAt.current - Date.now()) / 1000)));
-    }, 1000);
-    return () => { clearTimeout(pollRef.current); clearInterval(countdownRef.current); };
-  }, [interval, schedule]);
+    let active = true;
+    let timer = null;
+    let intv = null;
+
+    const run = async () => {
+      if (!interval || !active) {
+        setCountdown(0);
+        return;
+      }
+
+      const nextAt = Date.now() + interval;
+      nextRefAt.current = nextAt;
+      setCountdown(Math.ceil(interval / 1000));
+
+      timer = setTimeout(async () => {
+        if (!active) return;
+        try { await fn(); } catch (err) { console.error("Poll failed", err); }
+        if (active) run();
+      }, interval);
+    };
+
+    run();
+
+    if (interval > 0) {
+      intv = setInterval(() => {
+        if (active) {
+          const remaining = Math.max(0, Math.ceil((nextRefAt.current - Date.now()) / 1000));
+          setCountdown(remaining);
+        }
+      }, 1000);
+    }
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+      clearInterval(intv);
+    };
+  }, [interval, fn]);
 
   return countdown;
 };
@@ -3402,7 +3419,7 @@ const NetworkMonitor = ({ onBack, isDesktop }) => {
   useEffect(() => NET.subscribe(s => setSnap(s)), []);
   useEffect(() => { getStorageInfo().then(setStorage); }, []);
 
-  const { total, saved, log } = snap;
+  const { total, saved: savedBytes, log } = snap;
   const webEst = total * 9 + 2.4;
   const reduction = total > 0 ? Math.round(((webEst - total) / webEst) * 100) : 0;
 
@@ -3491,13 +3508,21 @@ const NetworkMonitor = ({ onBack, isDesktop }) => {
 
 const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPollInterval, setActPollInterval, activePollInterval, setActivePollInterval, sessionLimit, setSessionLimit, tzOffset, setTzOffset, resetHour, setResetHour, cacheLimit, setCacheLimit, personas, setPersonas, planId, setPlanId, customDaily, setCustomDaily, plan, todayCount }) => {
   const [tab, setTab] = useState("general");
+  const [saved, setSaved] = useState(false);
+  const saveTimer = useRef(null);
+
+  const triggerSaveFeedback = () => {
+    setSaved(true);
+    clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => setSaved(false), 2000);
+  };
   const [snap, setSnap] = useState(NET.snapshot());
   const [storage, setStorage] = useState(null);
 
   useEffect(() => NET.subscribe(s => setSnap(s)), []);
   useEffect(() => { getStorageInfo().then(setStorage); }, []);
 
-  const { total, saved, log } = snap;
+  const { total, saved: savedBytes, log } = snap;
   const webEst = total * 9 + 2.4;
   const reduction = total > 0 ? Math.round(((webEst - total) / webEst) * 100) : 0;
 
@@ -3520,7 +3545,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
             </button>
           )}
         </div>
-        <div style={{display:"flex", gap:24}}>
+          <div style={{display:"flex", gap:24, position:"relative"}}>
           {TABS.map(t => (
             <button key={t.id} onClick={() => setTab(t.id)} style={{
               padding:"10px 0", background:"none", border:"none", cursor:"pointer",
@@ -3555,7 +3580,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
                       const isAct = opt.ms === pollInterval;
                       const c = isAct ? (opt.ms===0 ? T.red : T.brand) : T.muted;
                       return (
-                        <PickerBtn key={opt.label} label={opt.label} isAct={isAct} activeColor={c} onClick={()=>setPollInterval(opt.ms)} />
+                        <PickerBtn key={opt.label} label={opt.label} isAct={isAct} activeColor={c} onClick={()=>{setPollInterval(opt.ms); triggerSaveFeedback();}} />
                       );
                     })}
                   </div>
@@ -3568,7 +3593,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
                       const isAct = opt.ms === activePollInterval;
                       const c = isAct ? (opt.ms===0 ? T.red : T.brand) : T.muted;
                       return (
-                        <PickerBtn key={opt.label} label={opt.label} isAct={isAct} activeColor={c} onClick={()=>setActivePollInterval(opt.ms)} />
+                        <PickerBtn key={opt.label} label={opt.label} isAct={isAct} activeColor={c} onClick={()=>{setActivePollInterval(opt.ms); triggerSaveFeedback();}} />
                       );
                     })}
                   </div>
@@ -3584,7 +3609,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
                       const isAct = opt.ms === actPollInterval;
                       const c = isAct ? (opt.ms===0 ? T.red : T.brand) : T.muted;
                       return (
-                        <PickerBtn key={opt.label} label={opt.label} isAct={isAct} activeColor={c} onClick={()=>setActPollInterval(opt.ms)} />
+                        <PickerBtn key={opt.label} label={opt.label} isAct={isAct} activeColor={c} onClick={()=>{setActPollInterval(opt.ms); triggerSaveFeedback();}} />
                       );
                     })}
                   </div>
@@ -3596,7 +3621,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
                     {LIMIT_OPTIONS.map(opt => {
                       const isAct = opt.val === sessionLimit;
                       return (
-                        <PickerBtn key={opt.label} label={opt.label} isAct={isAct} onClick={()=>setSessionLimit(opt.val)} />
+                        <PickerBtn key={opt.label} label={opt.label} isAct={isAct} onClick={()=>{setSessionLimit(opt.val); triggerSaveFeedback();}} />
                       );
                     })}
                   </div>
@@ -3608,7 +3633,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
                     <input
                       type="range" min="-12" max="14" step="1"
                       value={tzOffset}
-                      onChange={e=>setTzOffset(parseInt(e.target.value))}
+                      onChange={e=>{setTzOffset(parseInt(e.target.value)); triggerSaveFeedback();}}
                       style={{flex:1, height:4, accentColor:T.brand}}
                     />
                     <div style={{
@@ -3630,7 +3655,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
                     <input
                       type="range" min="0" max="23" step="1"
                       value={resetHour}
-                      onChange={e=>setResetHour(parseInt(e.target.value))}
+                      onChange={e=>{setResetHour(parseInt(e.target.value)); triggerSaveFeedback();}}
                       style={{flex:1, height:4, accentColor:T.brand}}
                     />
                     <div style={{
@@ -3655,7 +3680,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
 
                 <div style={{display:"flex",gap:4,flexWrap:"wrap",marginBottom:16}}>
                   {PLANS.map(p=>(
-                    <PickerBtn key={p.id} label={p.label} isAct={p.id===planId} onClick={()=>setPlanId(p.id)} />
+                    <PickerBtn key={p.id} label={p.label} isAct={p.id===planId} onClick={()=>{setPlanId(p.id); triggerSaveFeedback();}} />
                   ))}
                 </div>
 
@@ -3665,7 +3690,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
                     <input
                       type="number"
                       value={customDaily}
-                      onChange={e=>setCustomDaily(Math.max(1, parseInt(e.target.value)||1))}
+                      onChange={e=>{setCustomDaily(Math.max(1, parseInt(e.target.value)||1)); triggerSaveFeedback();}}
                       style={{...inputSt, width:80, padding:"6px 10px", fontSize:14}}
                     />
                   </div>
@@ -3804,7 +3829,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
                   <div style={{fontSize:11, color:T.textDim, marginBottom:12, fontFamily:"'JetBrains Mono',monospace", fontWeight:700}}>CACHE RECENT SESSION ACTIVITY (MAX)</div>
                   <div style={{display:"flex", alignItems:"center", gap:12}}>
                     {[0, 3, 5, 10, 20].map(v => (
-                      <PickerBtn key={v} label={v === 0 ? "OFF" : v} isAct={cacheLimit === v} onClick={() => setCacheLimit(v)} />
+                      <PickerBtn key={v} label={v === 0 ? "OFF" : v} isAct={cacheLimit === v} onClick={() => {setCacheLimit(v); triggerSaveFeedback();}} />
                     ))}
                   </div>
                   <div style={{marginTop:8, fontSize:10, color:T.textDim, fontFamily:"'IBM Plex Sans',sans-serif", lineHeight:1.4}}>
@@ -3835,6 +3860,17 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
               EXIT SETTINGS
             </Btn>
           </div>
+
+          {saved && (
+            <div style={{
+              position:"fixed", bottom:isDesktop?40:80, left:"50%", transform:"translateX(-50%)",
+              background:T.brand, color:"#000", padding:"8px 16px", borderRadius:20,
+              fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:900,
+              boxShadow:`0 8px 24px ${T.brand}40`, zIndex:10000, animation:"fadeIn .2s ease"
+            }}>
+              ✓ SETTINGS SAVED
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -3846,7 +3882,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
 const FILTERS = ["ALL","QUEUED","PLANNING","AWAITING_PLAN_APPROVAL","IN_PROGRESS","COMPLETED","FAILED"];
 const FILTER_LABELS = { AWAITING_PLAN_APPROVAL:"APPROVE", ALL:"ALL" };
 
-const SessionList = ({ sessions, onSelect, onRefresh, refreshing, selectedId, isDesktop, onNew,  onSettings, pollInterval, sessionLimit, tzOffset = 1, resetHour = 10, countdown, plan, todayCount, searchQuery, setSearchQuery, archivedIds, showArchived, setShowArchived, activitiesMap = {}, error, clearError }) => {
+const SessionList = ({ sessions, onSelect, onRefresh, refreshing, selectedId, isDesktop, onNew,  onSettings, pollInterval, sessionLimit, tzOffset = 1, resetHour = 10, countdown, plan, todayCount, searchQuery, setSearchQuery, archivedIds, showArchived, setShowArchived, activitiesMap = {}, error, clearError, isBoosted }) => {
   const [filter,setFilter] = useState("ALL");
   const [scrolled, handleScroll] = useScrollThreshold();
   const [searchOpen, setSearchOpen] = useState(false);
@@ -3874,22 +3910,48 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, selectedId, is
             <button onClick={() => setSearchOpen(!searchOpen)} title="Search sessions" style={{width:30,height:30,borderRadius:5,background:searchOpen||searchQuery?T.blueDim:"transparent",border:`1px solid ${searchOpen||searchQuery?T.blue+"40":T.border}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="search" s={15} c={searchOpen||searchQuery?T.blue:T.muted}/></button>
             {isDesktop&&<button onClick={onNew} title="New Session" style={{width:30,height:30,borderRadius:5,background:T.brandDim,border:`1px solid ${T.brand}40`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="plus" s={15} c={T.brand}/></button>}
             <button onClick={onSettings} title="Settings" style={{width:30,height:30,borderRadius:5,background:T.surfaceHi,border:`1px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="settings" s={15} c={T.muted}/></button>
-            <button
-              onClick={onRefresh}
-              disabled={refreshing}
-              title="Refresh now"
-              style={{
-                background:"none", border:"none", cursor:refreshing?"default":"pointer",
-                display:"flex", padding:4, borderRadius:4, transition:"all .15s",
-                animation:refreshing?"spin 1s linear infinite":"none",
-                transformOrigin:"center",
-                background:refreshing?T.brandDim:"transparent",
-              }}
-              onMouseDown={e => e.currentTarget.style.transform = "scale(0.9)"}
-              onMouseUp={e => e.currentTarget.style.transform = "scale(1)"}
-            >
-              <Ic n="refresh" s={16} c={refreshing?T.brand:T.muted}/>
-            </button>
+            <div style={{position:"relative", display:"flex", alignItems:"center"}}>
+              {countdown > 0 && !refreshing && (
+                <div style={{
+                  position:"absolute", right:"100%", marginRight:8,
+                  fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:900,
+                  color:isBoosted?T.amber:T.brand, opacity:0.7, animation:"fadeIn .3s ease",
+                  display:"flex", alignItems:"center", gap:4
+                }}>
+                  {isBoosted && <span style={{width:4, height:4, borderRadius:"50%", background:T.amber, animation:"dot 1s infinite"}}/>}
+                  {countdown}s
+                </div>
+              )}
+              <button
+                onClick={onRefresh}
+                disabled={refreshing}
+                title={`Refresh now ${countdown > 0 ? `(Auto in ${countdown}s)` : ""}`}
+                style={{
+                  background:"none", border:"none", cursor:refreshing?"default":"pointer",
+                  display:"flex", padding:4, borderRadius:20, transition:"all .15s",
+                  animation:refreshing?"spin 1s linear infinite":"none",
+                  transformOrigin:"center",
+                  background:refreshing?T.brandDim:"transparent",
+                  position:"relative",
+                  outline: countdown > 0 && !refreshing ? `1px solid ${T.brand}20` : "none",
+                }}
+                onMouseDown={e => e.currentTarget.style.transform = "scale(0.9)"}
+                onMouseUp={e => e.currentTarget.style.transform = "scale(1)"}
+              >
+                {countdown > 0 && !refreshing && (
+                  <svg style={{ position: "absolute", inset: 0, transform: "rotate(-90deg)", width: "100%", height: "100%", pointerEvents: "none" }}>
+                    <circle
+                      cx="50%" cy="50%" r="42%"
+                      fill="none" stroke={T.brand} strokeWidth="1.5"
+                      strokeDasharray="100%"
+                      strokeDashoffset={`${100 - (countdown / (pollInterval / 1000 || 1)) * 100}%`}
+                      style={{ transition: "stroke-dashoffset 1s linear", opacity: 0.3 }}
+                    />
+                  </svg>
+                )}
+                <Ic n="refresh" s={16} c={refreshing?T.brand:T.muted}/>
+              </button>
+            </div>
           </div>
         </div>
         {error && (
@@ -4244,11 +4306,11 @@ function JulesClient() {
   useEffect(() => { if (apiKey) fetchSessions(); }, [apiKey, fetchSessions]);
 
   // Combined polling: use activePollInterval if any session is in progress, else pollInterval
+  const isBoosted = useMemo(() => sessions.some(s => ACTIVE_STATES.has(s.state)) && activePollInterval > 0, [sessions, activePollInterval]);
   const effectivePollInterval = useMemo(() => {
     if (!apiKey) return 0;
-    const hasActive = sessions.some(s => ACTIVE_STATES.has(s.state));
-    return (hasActive && activePollInterval > 0) ? activePollInterval : pollInterval;
-  }, [apiKey, sessions, activePollInterval, pollInterval]);
+    return isBoosted ? activePollInterval : pollInterval;
+  }, [apiKey, isBoosted, activePollInterval, pollInterval]);
 
   const countdown = useAutoPoll(effectivePollInterval, useCallback(() => fetchSessions(true), [fetchSessions]));
 
@@ -4301,7 +4363,7 @@ function JulesClient() {
             refreshing={refreshing} selectedId={selected?.id}
             isDesktop onNew={()=>setDesktop("new")}
             onSettings={()=>setDesktop("settings")}
-            pollInterval={pollInterval}
+            pollInterval={effectivePollInterval}
             sessionLimit={sessionLimit}
             tzOffset={tzOffset}
             resetHour={resetHour}
@@ -4311,6 +4373,7 @@ function JulesClient() {
             archivedIds={archivedIds} showArchived={showArchived} setShowArchived={setShowArchived}
             activitiesMap={activitiesMap}
             error={globalErr} clearError={() => setGlobalErr(null)}
+            isBoosted={isBoosted}
           />
         </div>
         {/* Main panel */}
@@ -4364,7 +4427,7 @@ function JulesClient() {
           <SessionList sessions={sessions} onSelect={handleSelect} onRefresh={()=>fetchSessions(false, true)}
             refreshing={refreshing} selectedId={null} isDesktop={false}
             onSettings={()=>setMobile("settings")}
-            pollInterval={pollInterval}
+            pollInterval={effectivePollInterval}
             sessionLimit={sessionLimit}
             tzOffset={tzOffset}
             resetHour={resetHour}
@@ -4373,7 +4436,8 @@ function JulesClient() {
             searchQuery={searchQuery} setSearchQuery={setSearchQuery}
             archivedIds={archivedIds} showArchived={showArchived} setShowArchived={setShowArchived}
             activitiesMap={activitiesMap}
-            error={globalErr} clearError={() => setGlobalErr(null)} />
+            error={globalErr} clearError={() => setGlobalErr(null)}
+            isBoosted={isBoosted} />
         )}
         {mobileScreen==="detail"&&selected&&(
           <SessionDetail key={selected.id} session={selected} apiKey={apiKey}
