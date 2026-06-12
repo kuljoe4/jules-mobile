@@ -294,7 +294,6 @@ function saveCustomDaily(v) { try { localStorage.setItem(CUSTOM_DAILY_KEY,v); } 
 
 // ─── Daily session counter ────────────────────────────────────────────────────
 const getBucketKey = (tzOffset, resetHour) => {
-  console.log(`[getBucketKey] offset=${tzOffset}, reset=${resetHour}`);
   const now = Date.now();
   const tzDate = new Date(now + (tzOffset * 3600000));
   if (tzDate.getUTCHours() < resetHour) {
@@ -313,21 +312,6 @@ const getBucketStartTs = (tzOffset, resetHour) => {
   return new Date(tzDate.getTime() - (tzOffset * 3600000));
 };
 
-const TODAY_KEY = () => {
-  const tzOffset = loadTzOffset();
-  const resetHour = loadResetHour();
-  return `jac_today_${getBucketKey(tzOffset, resetHour)}`;
-};
-function loadTodayCount() { try { return parseInt(localStorage.getItem(TODAY_KEY()))||0; } catch { return 0; } }
-function incTodayCount()  { try { const k=TODAY_KEY(); localStorage.setItem(k,(parseInt(localStorage.getItem(k))||0)+1); } catch {} }
-function pruneOldKeys()   {
-  try {
-    const tzOffset = loadTzOffset();
-    const resetHour = loadResetHour();
-    const t = `jac_today_${getBucketKey(tzOffset, resetHour)}`;
-    for(const k of Object.keys(localStorage)) if(k.startsWith("jac_today_")&&k!==t) localStorage.removeItem(k);
-  } catch {}
-}
 
 async function clearCacheOnly() {
   if (!confirm("Clear Service Worker cache? This will redownload all assets on next load.")) return;
@@ -591,7 +575,7 @@ const getPRInfo = (s, activities = []) => {
   for (const a of activities) {
     const desc = (a.progressUpdated?.description || "").toLowerCase();
     const title = (a.progressUpdated?.title || "").toLowerCase();
-    if (desc.includes("merged pull request") || title.includes("merged pull request")) {
+    if (desc.includes("merged pull request") || title.includes("merged pull request") || a.sessionCompleted) {
       state = "merged";
       break;
     }
@@ -601,6 +585,31 @@ const getPRInfo = (s, activities = []) => {
   }
 
   return { ...pr, state };
+};
+
+const getCheckStatus = (activities = []) => {
+  let status = null; // { state: 'pending'|'success'|'failure', label: string, url?: string }
+  for (const a of activities) {
+    const desc = (a.progressUpdated?.description || "").toLowerCase();
+    const title = (a.progressUpdated?.title || "").toLowerCase();
+
+    const isSignal = desc.includes("check") || desc.includes("workflow") || desc.includes("deploy") || desc.includes("action") ||
+                     title.includes("check") || title.includes("workflow") || title.includes("deploy");
+
+    if (isSignal) {
+      if (desc.includes("passed") || desc.includes("success") || desc.includes("completed") || desc.includes("verified")) {
+        status = { state: "success", label: desc.includes("deploy") ? "DEPLOYED" : "CHECKS PASSED" };
+      } else if (desc.includes("failed") || desc.includes("failure") || desc.includes("error")) {
+        status = { state: "failure", label: desc.includes("deploy") ? "DEPLOY FAILED" : "CHECKS FAILED" };
+      } else if (desc.includes("running") || desc.includes("pending") || desc.includes("started") || desc.includes("progress")) {
+        status = { state: "pending", label: desc.includes("deploy") ? "DEPLOYING" : "CHECKS RUNNING" };
+      }
+
+      const urlMatch = (a.progressUpdated?.description || "").match(/https:\/\/github\.com\/[^\/]+\/[^\/]+\/(?:actions\/runs|deployments|actions)\/\d*/);
+      if (urlMatch && status) status.url = urlMatch[0];
+    }
+  }
+  return status;
 };
 
 const getBranchInfo = (s, activities = []) => {
@@ -625,8 +634,16 @@ const getBranchInfo = (s, activities = []) => {
   // Fallback: search for tree links which often contain the branch
   if (!working) {
     const str = JSON.stringify(s) + JSON.stringify(activities);
+    // Be more specific with tree links to avoid matching repo names or other segments
     const m = str.match(/https:\/\/github\.com\/[^\/]+\/[^\/]+\/tree\/([a-zA-Z0-9\-_]+)/);
     if (m) working = m[1];
+
+    // Also look for branch links in descriptions or compare links
+    if (!working) {
+      const bm = str.match(/https:\/\/github\.com\/[^\/]+\/[^\/]+\/branches\/([a-zA-Z0-9\-_]+)/) ||
+                 str.match(/https:\/\/github\.com\/[^\/]+\/[^\/]+\/compare\/[^\.]+\.\.\.([a-zA-Z0-9\-_]+)/);
+      if (bm) working = bm[1];
+    }
   }
 
   let repo = s.sourceContext?.source?.replace("sources/github/","");
@@ -647,15 +664,33 @@ const getBranchInfo = (s, activities = []) => {
 
 const getAheadCount = (activities = []) => {
   let count = 0;
+  // Use a Set to avoid double counting if activities repeat or describe the same push
+  const pushHashes = new Set();
+
   for (const a of activities) {
     const desc = (a.progressUpdated?.description || "").toLowerCase();
+
+    // Extract commit hashes if present to be more precise (7+ chars for short hash, 40 for full)
+    const hashes = (a.progressUpdated?.description || "").match(/\b[a-f0-9]{7,40}\b/g);
+    if (hashes) {
+      hashes.forEach(h => {
+        // Try to filter out things that look like hashes but aren't (e.g. IDs)
+        if (!h.includes("-") && h.length >= 7) pushHashes.add(h);
+      });
+    }
+
     const m = desc.match(/pushed (\d+) commit/);
-    if (m) count += parseInt(m[1], 10);
-    else if (desc.includes("pushed a commit") || desc.includes("pushed 1 commit")) count += 1;
+    if (m) {
+      if (!hashes) count += parseInt(m[1], 10);
+    } else if (desc.includes("pushed a commit") || desc.includes("pushed 1 commit") || desc.includes("pushed the changes") || desc.includes("committed changes")) {
+      if (!hashes) count += 1;
+    }
     // Jules often says "Applied changes and pushed"
-    else if (desc.includes("pushed") && (desc.includes("change") || desc.includes("fix"))) count += 1;
+    else if (desc.includes("pushed") && (desc.includes("change") || desc.includes("fix") || desc.includes("update"))) {
+      if (!hashes) count += 1;
+    }
   }
-  return count;
+  return Math.max(count, pushHashes.size);
 };
 
 const fmtAgo = ts => { const d=Date.now()-ts; if(d<60000)return`${Math.floor(d/1000)}s ago`; if(d<3600000)return`${Math.floor(d/60000)}m ago`; if(d<86400000)return`${Math.floor(d/3600000)}h ago`; return`${Math.floor(d/86400000)}d ago`; };
@@ -1434,17 +1469,30 @@ const TimelineEvent = memo(({ act, onMediaClick }) => {
     case "sessionCompleted":
       title = "Session completed";
       const pr = act.sessionCompleted?.outputs?.find(o => o.githubPullRequest)?.githubPullRequest;
-      detail = pr && (
-        <div style={{marginTop:8}}>
-          <a href={pr.url} target="_blank" rel="noopener" style={{
-            display:"inline-flex", alignItems:"center", gap:6, padding:"6px 12px",
-            background:T.brandDim, border:`1px solid ${T.brand}40`, borderRadius:6,
-            color:T.brand, textDecoration:"none", fontFamily:"'JetBrains Mono',monospace",
-            fontSize:12, fontWeight:700
+      detail = (
+        <div style={{marginTop:8, display:"flex", gap:10, flexWrap:"wrap"}}>
+          {pr && (
+            <a href={pr.url} target="_blank" rel="noopener" style={{
+              display:"inline-flex", alignItems:"center", gap:6, padding:"8px 14px",
+              background:T.brandDim, border:`1px solid ${T.brand}60`, borderRadius:8,
+              color:T.brandLight, textDecoration:"none", fontFamily:"'JetBrains Mono',monospace",
+              fontSize:12, fontWeight:800, boxShadow:`0 4px 15px ${T.brand}20`
+            }}>
+              <Ic n="git_pull" s={14} c={T.brandLight}/>
+              VIEW PULL REQUEST #{pr.number}
+            </a>
+          )}
+          <div style={{
+            display:"inline-flex", alignItems:"center", gap:6, padding:"8px 14px",
+            background:`linear-gradient(135deg, ${T.brandDim}, ${T.surfaceHi})`,
+            border:`1px solid ${T.brandDark}40`, borderRadius:8,
+            color:T.brand, fontFamily:"'JetBrains Mono',monospace",
+            fontSize:11, fontWeight:900, textTransform: "uppercase",
+            boxShadow:`inset 0 0 10px ${T.brand}05`
           }}>
-            <Ic n="git_pull" s={14} c={T.brand}/>
-            VIEW PULL REQUEST #{pr.number}
-          </a>
+            <Ic n="check" s={14} c={T.brand}/>
+            SESSION FINISHED
+          </div>
         </div>
       );
       break;
@@ -2071,12 +2119,15 @@ const SetupScreen = ({ onSave }) => {
 
 // ─── Session Card ─────────────────────────────────────────────────────────────
 const SessionCard = memo(({ s, onPress, isSelected, index, activities = [] }) => {
-  const pct  = pctFromState(s.state);
-  const m    = STATUS_META[s.state] || STATUS_META.QUEUED;
+  const isActuallyDone = activities.some(a => a.sessionCompleted);
+  const currentState = isActuallyDone ? "COMPLETED" : s.state;
+  const pct  = pctFromState(currentState);
+  const m    = STATUS_META[currentState] || STATUS_META.QUEUED;
   const repo = s.sourceContext?.githubRepoContext ? s.sourceContext.source?.replace("sources/github/","") : null;
   const pri  = useMemo(() => getPRInfo(s, activities), [s, activities]);
   const b    = useMemo(() => getBranchInfo(s, activities), [s, activities]);
   const ahead = useMemo(() => getAheadCount(activities), [activities]);
+  const checks = useMemo(() => getCheckStatus(activities), [activities]);
 
   return (
     <button onClick={onPress} style={{
@@ -2118,22 +2169,38 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [] }) =>
               </div>
             )}
             {(!pri || pri.state === "closed") && b?.isNew && (
-              <div style={{
-                display:"inline-flex", alignItems:"center", gap:5,
-                background:T.blueDim, border:`1px solid ${T.blue}50`, borderRadius:4,
-                padding:"3px 8px", color:T.blue, fontFamily:"'JetBrains Mono',monospace",
-                fontSize:11, fontWeight:900, boxShadow:`0 2px 8px ${T.blue}20`,
-                marginBottom:4
-              }}>
-                <Ic n="branch" s={12} c={T.blue}/>
-                {b.working}
-                {ahead > 0 && <span style={{marginLeft:2, opacity:0.8}}>+{ahead}</span>}
+              <div style={{display:"flex", gap:4, flexWrap:"wrap"}}>
+                <div style={{
+                  display:"inline-flex", alignItems:"center", gap:5,
+                  background:T.blueDim, border:`1px solid ${T.blue}50`, borderRadius:4,
+                  padding:"3px 8px", color:T.blue, fontFamily:"'JetBrains Mono',monospace",
+                  fontSize:11, fontWeight:900, boxShadow:`0 2px 8px ${T.blue}20`,
+                  marginBottom:4
+                }}>
+                  <Ic n="branch" s={12} c={T.blue}/>
+                  {b.working}
+                  {ahead > 0 && <span style={{marginLeft:2, opacity:0.8}}>+{ahead}</span>}
+                </div>
+                {checks && (
+                  <div style={{
+                    display:"inline-flex", alignItems:"center", gap:4,
+                    background:checks.state==="success"?T.brandDim:checks.state==="failure"?T.redDim:T.amberDim,
+                    border:`1px solid ${checks.state==="success"?T.brand:checks.state==="failure"?T.red:T.amber}50`,
+                    borderRadius:4, padding:"3px 8px",
+                    color:checks.state==="success"?T.brand:checks.state==="failure"?T.red:T.amber,
+                    fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:900,
+                    marginBottom:4
+                  }}>
+                    <Ic n={checks.state==="success"?"check":checks.state==="failure"?"x":"refresh"} s={10} c={checks.state==="success"?T.brand:checks.state==="failure"?T.red:T.amber}/>
+                    {checks.label}
+                  </div>
+                )}
               </div>
             )}
           </div>
         </div>
         <div style={{display:"flex", flexDirection:"column", alignItems:"flex-end", gap:6, flexShrink:0}}>
-          <Pill status={s.state} small/>
+          <Pill status={currentState} small/>
         </div>
       </div>
       <Bar pct={pct} status={s.state}/>
@@ -2470,12 +2537,15 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
 
   const b = useMemo(() => getBranchInfo(session, activities), [session, activities]);
   const ahead = useMemo(() => getAheadCount(activities), [activities]);
+  const checks = useMemo(() => getCheckStatus(activities), [activities]);
 
   const summary = session.outputs?.find(o=>o.sessionSummary)?.sessionSummary;
   const pri = useMemo(() => getPRInfo(session, activities), [session, activities]);
   const pr = pri;
-  const m       = STATUS_META[session.state] || STATUS_META.QUEUED;
-  const pct     = pctFromState(session.state);
+  const isActuallyDone = activities.some(a => a.sessionCompleted);
+  const currentState = isActuallyDone ? "COMPLETED" : session.state;
+  const m       = STATUS_META[currentState] || STATUS_META.QUEUED;
+  const pct     = pctFromState(currentState);
   const canSend = true; // Always allow follow-up messages
 
   const latestPlan = useMemo(() => {
@@ -2544,7 +2614,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
               </div>
             )}
             <button onClick={handleRefresh} disabled={busy} title="Refresh activity" style={{background:isStale?T.brand:T.surfaceHi, border:`1px solid ${isStale?T.brand:T.borderHi}`, borderRadius:4, cursor:busy?"default":"pointer", display:"flex", padding:4, opacity:busy?0.5:1, animation:busy?"spin 1s linear infinite":"none"}}>
-              <Ic n="refresh" s={scrolled?14:15} c={isStale?"#000":T.text}/>
+              <Ic n="refresh" s={scrolled?14:15} c={busy?T.brand:(isStale?"#000":T.dim)}/>
             </button>
             {!scrolled && (
               <>
@@ -2580,7 +2650,21 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                 {!scrolled && <span style={{fontSize:9, opacity:0.9, marginLeft:2}}>{pr.state.toUpperCase()}</span>}
               </a>
             )}
-            <Pill status={session.state} small/>
+            {checks && (
+              <div style={{
+                display:"inline-flex", alignItems:"center", gap:4,
+                background:checks.state==="success"?T.brandDim:checks.state==="failure"?T.redDim:T.amberDim,
+                border:`1px solid ${checks.state==="success"?T.brand:checks.state==="failure"?T.red:T.amber}40`,
+                borderRadius:4, padding:"2px 8px", marginRight:4,
+                color:checks.state==="success"?T.brandLight:checks.state==="failure"?T.red:T.amber,
+                fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:900,
+                cursor:checks.url?"pointer":"default"
+              }} onClick={() => checks.url && window.open(checks.url, "_blank")}>
+                <Ic n={checks.state==="success"?"check":checks.state==="failure"?"x":"refresh"} s={11} c={checks.state==="success"?T.brandLight:checks.state==="failure"?T.red:T.amber}/>
+                {checks.label}
+              </div>
+            )}
+            <Pill status={currentState} small/>
           </div>
         </div>
 
@@ -2589,7 +2673,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
           marginBottom:scrolled?0:5, opacity:scrolled?0:1,
           pointerEvents:scrolled?"none":"auto",
         }}>
-          <Bar pct={pct} status={session.state}/>
+          <Bar pct={pct} status={currentState}/>
         </div>
 
         <div style={{
@@ -2613,6 +2697,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
           )}
           {session.url && <a href={session.url} target="_blank" rel="noopener" style={{color:T.textDim,textDecoration:"none",flexShrink:0,fontFamily:"'JetBrains Mono',monospace",fontSize:11}}>WEB↗</a>}
           {b?.repo && <a href={`https://github.com/${b.repo}/branches`} target="_blank" rel="noopener" style={{color:T.textDim,textDecoration:"none",flexShrink:0,fontFamily:"'JetBrains Mono',monospace",fontSize:11}}>BRANCHES↗</a>}
+          {b?.repo && b?.working && b?.working !== b?.base && <a href={`https://github.com/${b.repo}/tree/${b.working}`} target="_blank" rel="noopener" style={{color:T.brand,textDecoration:"none",flexShrink:0,fontFamily:"'JetBrains Mono',monospace",fontSize:11, fontWeight:700}}>VIEW BRANCH↗</a>}
         </div>
 
 
@@ -3482,7 +3567,22 @@ const NetworkMonitor = ({ onBack, isDesktop }) => {
             </div>
 
             <div style={{marginTop:8}}>
-              <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.textDim,letterSpacing:"0.08em",marginBottom:12,fontWeight:700}}>RECENT ACTIVITY LOG</div>
+              <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12}}>
+                <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.textDim,letterSpacing:"0.08em",fontWeight:700}}>RECENT ACTIVITY LOG</div>
+                <button
+                  onClick={() => {
+                    const data = JSON.stringify(log, null, 2);
+                    navigator.clipboard.writeText(data).then(() => {
+                      alert("Activity log copied to clipboard");
+                    });
+                  }}
+                  style={{
+                    background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:4,
+                    padding:"3px 8px", cursor:"pointer", color:T.brand,
+                    fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700
+                  }}
+                >COPY ALL</button>
+              </div>
               <div style={{background:T.surfaceHi, borderRadius:12, border:`1px solid ${T.border}`, overflow:"hidden"}}>
                 {log.length===0
                   ?<div style={{textAlign:"center",padding:"32px",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>No requests recorded</div>
@@ -3493,7 +3593,18 @@ const NetworkMonitor = ({ onBack, isDesktop }) => {
                         <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontWeight:500}}>{r.label}</div>
                         <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.textDim,marginTop:2}}>{fmtAgo(r.ts)}</div>
                       </div>
-                      <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.brand,flexShrink:0,fontWeight:700}}>{fmtBytes(r.bytes)}</div>
+                      <div style={{display:"flex", alignItems:"center", gap:8}}>
+                        <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.brand,flexShrink:0,fontWeight:700}}>{fmtBytes(r.bytes)}</div>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(JSON.stringify(r, null, 2));
+                          }}
+                          title="Copy request data"
+                          style={{background:"none", border:"none", cursor:"pointer", padding:4, display:"flex"}}
+                        >
+                          <Ic n="copy" s={12} c={T.muted}/>
+                        </button>
+                      </div>
                     </div>
                   ))
                 }
@@ -3627,48 +3738,12 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
                   </div>
                 </div>
 
-                <div>
-                  <div style={{fontSize:11, color:T.textDim, marginBottom:8, fontFamily:"'JetBrains Mono',monospace", fontWeight:700}}>QUOTA RESET OFFSET (UTC)</div>
-                  <div style={{display:"flex", alignItems:"center", gap:10, background:T.surface, padding:8, borderRadius:8, border:`1px solid ${T.border}`}}>
-                    <input
-                      type="range" min="-12" max="14" step="1"
-                      value={tzOffset}
-                      onChange={e=>{setTzOffset(parseInt(e.target.value)); triggerSaveFeedback();}}
-                      style={{flex:1, height:4, accentColor:T.brand}}
-                    />
-                    <div style={{
-                      minWidth:60, textAlign:"center", padding:"4px 8px", borderRadius:4,
-                      background:T.surfaceHi, border:`1px solid ${T.borderHi}`,
-                      fontFamily:"'JetBrains Mono',monospace", fontSize:12, fontWeight:800, color:T.brand
-                    }}>
-                      UTC{tzOffset>=0?'+':''}{tzOffset}
-                    </div>
+                <div style={{marginTop:8, background:T.amberDim, border:`1px solid ${T.amber}20`, borderRadius:8, padding:12, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:11, color:T.amber, lineHeight:1.5}}>
+                  <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:4}}>
+                    <Ic n="wifi" s={14} c={T.amber}/>
+                    <strong style={{fontSize:10, letterSpacing:"0.05em"}}>ROLLING 24H WINDOW</strong>
                   </div>
-                  <div style={{marginTop:6, fontSize:10, color:T.textDim, fontFamily:"'IBM Plex Sans',sans-serif"}}>
-                    Daily quota resets at {resetHour < 10 ? '0' : ''}{resetHour}:00 in this timezone.
-                  </div>
-                </div>
-
-                <div style={{marginTop:20}}>
-                  <div style={{fontSize:11, color:T.textDim, marginBottom:8, fontFamily:"'JetBrains Mono',monospace", fontWeight:700}}>QUOTA RESET HOUR</div>
-                  <div style={{display:"flex", alignItems:"center", gap:10, background:T.surface, padding:8, borderRadius:8, border:`1px solid ${T.border}`}}>
-                    <input
-                      type="range" min="0" max="23" step="1"
-                      value={resetHour}
-                      onChange={e=>{setResetHour(parseInt(e.target.value)); triggerSaveFeedback();}}
-                      style={{flex:1, height:4, accentColor:T.brand}}
-                    />
-                    <div style={{
-                      minWidth:60, textAlign:"center", padding:"4px 8px", borderRadius:4,
-                      background:T.surfaceHi, border:`1px solid ${T.borderHi}`,
-                      fontFamily:"'JetBrains Mono',monospace", fontSize:12, fontWeight:800, color:T.brand
-                    }}>
-                      {resetHour < 10 ? '0' : ''}{resetHour}:00
-                    </div>
-                  </div>
-                  <div style={{marginTop:6, fontSize:10, color:T.textDim, fontFamily:"'IBM Plex Sans',sans-serif"}}>
-                    Choose the exact hour of day for the session counter to reset.
-                  </div>
+                  The session counter uses a sliding 24-hour window. Tasks expire exactly 24 hours after they were created.
                 </div>
               </div>
 
@@ -3744,7 +3819,22 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
               </div>
 
               <div style={{marginTop:8}}>
-                <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.textDim,letterSpacing:"0.08em",marginBottom:12,fontWeight:700}}>RECENT ACTIVITY LOG</div>
+              <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12}}>
+                <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.textDim,letterSpacing:"0.08em",fontWeight:700}}>RECENT ACTIVITY LOG</div>
+                <button
+                  onClick={() => {
+                    const data = JSON.stringify(log, null, 2);
+                    navigator.clipboard.writeText(data).then(() => {
+                      alert("Activity log copied to clipboard");
+                    });
+                  }}
+                  style={{
+                    background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:4,
+                    padding:"3px 8px", cursor:"pointer", color:T.brand,
+                    fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700
+                  }}
+                >COPY ALL</button>
+              </div>
                 <div style={{background:T.surfaceHi, borderRadius:12, border:`1px solid ${T.border}`, overflow:"hidden"}}>
                   {log.length===0
                     ?<div style={{textAlign:"center",padding:"32px",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>No requests recorded</div>
@@ -3755,7 +3845,18 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
                           <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontWeight:500}}>{r.label}</div>
                           <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.textDim,marginTop:2}}>{fmtAgo(r.ts)}</div>
                         </div>
+                      <div style={{display:"flex", alignItems:"center", gap:8}}>
                         <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.brand,flexShrink:0,fontWeight:700}}>{fmtBytes(r.bytes)}</div>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(JSON.stringify(r, null, 2));
+                          }}
+                          title="Copy request data"
+                          style={{background:"none", border:"none", cursor:"pointer", padding:4, display:"flex"}}
+                        >
+                          <Ic n="copy" s={12} c={T.muted}/>
+                        </button>
+                      </div>
                       </div>
                     ))
                   }
@@ -3910,16 +4011,15 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, selectedId, is
             <button onClick={() => setSearchOpen(!searchOpen)} title="Search sessions" style={{width:30,height:30,borderRadius:5,background:searchOpen||searchQuery?T.blueDim:"transparent",border:`1px solid ${searchOpen||searchQuery?T.blue+"40":T.border}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="search" s={15} c={searchOpen||searchQuery?T.blue:T.muted}/></button>
             {isDesktop&&<button onClick={onNew} title="New Session" style={{width:30,height:30,borderRadius:5,background:T.brandDim,border:`1px solid ${T.brand}40`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="plus" s={15} c={T.brand}/></button>}
             <button onClick={onSettings} title="Settings" style={{width:30,height:30,borderRadius:5,background:T.surfaceHi,border:`1px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="settings" s={15} c={T.muted}/></button>
-            <div style={{position:"relative", display:"flex", alignItems:"center"}}>
+            <div style={{display:"flex", alignItems:"center", gap:4}}>
               {countdown > 0 && !refreshing && (
                 <div style={{
-                  position:"absolute", right:"100%", marginRight:8,
                   fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:900,
-                  color:isBoosted?T.amber:T.brand, opacity:0.7, animation:"fadeIn .3s ease",
-                  display:"flex", alignItems:"center", gap:4
+                  color:isBoosted?T.amber:T.brand, opacity:0.6, animation:"fadeIn .3s ease",
+                  display:"flex", alignItems:"center", gap:3, marginRight:2
                 }}>
-                  {isBoosted && <span style={{width:4, height:4, borderRadius:"50%", background:T.amber, animation:"dot 1s infinite"}}/>}
-                  {countdown}s
+                  {isBoosted && <span style={{width:3, height:3, borderRadius:"50%", background:T.amber, animation:"dot 1s infinite"}}/>}
+                  {countdown}S
                 </div>
               )}
               <button
@@ -3933,7 +4033,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, selectedId, is
                   transformOrigin:"center",
                   background:refreshing?T.brandDim:"transparent",
                   position:"relative",
-                  outline: countdown > 0 && !refreshing ? `1px solid ${T.brand}20` : "none",
+                  outline: countdown > 0 && !refreshing ? `1px solid ${T.brand}10` : "none",
                 }}
                 onMouseDown={e => e.currentTarget.style.transform = "scale(0.9)"}
                 onMouseUp={e => e.currentTarget.style.transform = "scale(1)"}
@@ -3942,14 +4042,14 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, selectedId, is
                   <svg style={{ position: "absolute", inset: 0, transform: "rotate(-90deg)", width: "100%", height: "100%", pointerEvents: "none" }}>
                     <circle
                       cx="50%" cy="50%" r="42%"
-                      fill="none" stroke={T.brand} strokeWidth="1.5"
+                      fill="none" stroke={T.brand} strokeWidth="2"
                       strokeDasharray="100%"
                       strokeDashoffset={`${100 - (countdown / (pollInterval / 1000 || 1)) * 100}%`}
-                      style={{ transition: "stroke-dashoffset 1s linear", opacity: 0.3 }}
+                      style={{ transition: "stroke-dashoffset 1s linear", opacity: 0.15 }}
                     />
                   </svg>
                 )}
-                <Ic n="refresh" s={16} c={refreshing?T.brand:T.muted}/>
+                <Ic n="refresh" s={16} c={refreshing?T.brand:T.dim}/>
               </button>
             </div>
           </div>
@@ -4090,30 +4190,36 @@ function JulesClient() {
   const [cacheLimit, setCacheLimitRaw] = useState(loadCacheLimit);
   const [planId,setPlanIdRaw]      = useState(loadPlan);
   const [customDaily,setCustomDailyRaw] = useState(loadCustomDaily);
-  const [localTodayCount, setLocalTodayCount] = useState(loadTodayCount);
   const todayCount = useMemo(() => {
-    // Use the timezone-aware bucket start timestamp
-    const bucketStart = getBucketStartTs(tzOffset, resetHour);
+    // Rolling 24h Window Logic
+    // Quota acts as a sliding window where tasks expire exactly 24h after creation.
+    const now = Date.now();
+    const windowStart = new Date(now - 24 * 3600000);
 
-    // Filter sessions that were created within the current bucket
-    const bucketSessions = sessions.filter(s => {
+    const windowSessions = sessions.filter(s => {
       if (!s.createTime) return false;
-      return new Date(s.createTime) >= bucketStart;
+      return new Date(s.createTime) >= windowStart;
     });
 
-    const totalStarted = Math.max(localTodayCount, bucketSessions.length);
-    const prCreated = bucketSessions.filter(s => !!getPR(s)).length;
+    // Pure sliding window reset: time until the oldest session in the current window expires
+    let resetIn = "24h 0m";
+    if (windowSessions.length > 0) {
+      const oldest = windowSessions.reduce((min, s) => {
+        const t = new Date(s.createTime).getTime();
+        return t < min ? t : min;
+      }, new Date(windowSessions[0].createTime).getTime());
 
-    // Calculate time until next reset
-    const nextReset = new Date(bucketStart.getTime() + 24 * 3600000);
-    const msToReset = nextReset.getTime() - Date.now();
-    const hoursToReset = Math.floor(msToReset / 3600000);
-    const minsToReset = Math.floor((msToReset % 3600000) / 60000);
-    const resetIn = `${hoursToReset}h ${minsToReset}m`;
+      const expiry = oldest + 24 * 3600000;
+      const msLeft = expiry - now;
+      const h = Math.floor(msLeft / 3600000);
+      const m = Math.floor((msLeft % 3600000) / 60000);
+      resetIn = `${h}h ${m}m`;
+    }
 
-    console.log(`[Quota] bucket=${bucketStart.toISOString()}, total=${totalStarted}, prs=${prCreated}, resetIn=${resetIn}`);
-    return { total: totalStarted, done: prCreated, resetIn };
-  }, [localTodayCount, sessions, tzOffset, resetHour]);
+    const prCreated = windowSessions.filter(s => !!getPR(s)).length;
+
+    return { total: windowSessions.length, done: prCreated, resetIn };
+  }, [sessions]);
   const [lastFetchTime, setLastFetchTime] = useState(null);
 
   const [archivedIds, setArchivedIds] = useState(() => {
@@ -4136,12 +4242,10 @@ function JulesClient() {
   }, [planId, customDaily]);
 
   useEffect(() => NET.subscribe(s=>setNetSnap(s)), []);
-  useEffect(() => { pruneOldKeys(); }, []);
 
   useEffect(() => {
     const handleStorage = (e) => {
       if (e.key === "jac_key") setApiKey(e.newValue || "");
-      if (e.key === TODAY_KEY()) setLocalTodayCount(parseInt(e.newValue) || 0);
       if (e.key === "jac_archived") {
         try { setArchivedIds(new Set(JSON.parse(e.newValue || "[]"))); } catch {}
       }
@@ -4211,7 +4315,6 @@ function JulesClient() {
   const fetchSessions = useCallback(async (quiet=false, forceFull=false) => {
     if (!apiKey) return;
     const isFull = !lastFetchTime || forceFull;
-    console.log(`[FetchSessions] Fetching... isFull=${isFull}, quiet=${quiet}`);
     if (!quiet) setRefreshing(true);
     try {
       let incoming = [];
@@ -4234,8 +4337,8 @@ function JulesClient() {
 
         if (!isFull) break;
         if (hasOlderThanBucket) break; // We've covered the current bucket
-        if (incoming.length >= Math.max(sessionLimit, quotaNeeded)) break;
-        if (iterations > 5) break; // Safety break
+        if (incoming.length >= Math.max(sessionLimit, quotaNeeded * 2)) break; // Fetch more to ensure quota is covered
+        if (iterations > 15) break; // Higher safety break for full reconciliation
       } while (pageToken);
 
       setGlobalErr(null); // Clear error on success
@@ -4334,8 +4437,6 @@ function JulesClient() {
   const handleCreate = useCallback(s => {
     setSessions(prev => [s, ...prev]);
     setSelected(s);
-    incTodayCount();
-    setLocalTodayCount(loadTodayCount());
     if (isDesktop) setDesktop("detail"); else setMobile("list");
   }, [isDesktop]);
 
@@ -4450,7 +4551,7 @@ function JulesClient() {
             onArchive={handleArchive} onUnarchive={handleUnarchive}/>
         )}
         {mobileScreen==="new"&&(
-          <NewSession apiKey={apiKey} personas={personas} onBack={()=>setMobile("list")} onCreate={s=>{ setSessions(prev=>[s,...prev]); incTodayCount(); setLocalTodayCount(loadTodayCount()); setMobile("list"); }} isDesktop={false} plan={plan} todayCount={todayCount}/>
+          <NewSession apiKey={apiKey} personas={personas} onBack={()=>setMobile("list")} onCreate={s=>{ setSessions(prev=>[s,...prev]); setMobile("list"); }} isDesktop={false} plan={plan} todayCount={todayCount}/>
         )}
 
         {mobileScreen==="network"&&( <NetworkMonitor onBack={()=>setMobile("list")} isDesktop={false}/> )} {mobileScreen==="settings"&&(
