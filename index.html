@@ -4358,17 +4358,14 @@ function JulesClient() {
         return sorted;
       });
 
-      // Update lastFetchTimeRef with the latest timestamp from the incoming results
+      // Update lastFetchTime with the latest timestamp from the incoming results
       if (incoming.length > 0) {
-        lastFetchTimeRef.current = incoming.reduce((max, s) => {
+        const latestTs = incoming.reduce((max, s) => {
           const ts = s.updateTime || s.createTime;
           return ts > max ? ts : max;
-        }, raw[0].updateTime || raw[0].createTime);
-        lastFetchTime.current = maxTs;
+        }, incoming[0].updateTime || incoming[0].createTime);
+        lastFetchTime.current = latestTs;
       } else if (forceFull) {
-        // If we forced a full refresh and got nothing, we should still probably reset lastFetchTime
-        // to null so the next one is also full, or just leave it.
-        // Actually if it's full and empty, lastFetchTime should be null.
         lastFetchTime.current = null;
       }
     } catch (err) {
@@ -4413,7 +4410,7 @@ function JulesClient() {
 
   const saveKey = k => {
     try { localStorage.setItem("jac_key", k); } catch {}
-    lastFetchTimeRef.current = null;
+    lastFetchTime.current = null;
     setApiKey(k);
   };
 
