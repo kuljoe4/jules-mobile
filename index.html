@@ -506,30 +506,40 @@ const STATUS_META = {
 
 // ─── Network tracker ──────────────────────────────────────────────────────────
 function makeNetTracker() {
-  let total=0, saved=0, log=[];
+  let totalIn=0, totalOut=0, log=[];
   const subs=[];
-  const notify = () => subs.forEach(f => f({ total, saved, log:[...log] }));
+  const notify = () => subs.forEach(f => f({ total: totalIn + totalOut, totalIn, totalOut, log:[...log] }));
   return {
-    record(label, bytes, savedBytes=0) {
-      total+=bytes; saved+=savedBytes;
-      log.unshift({ id:Math.random(), label, bytes, savedBytes, ts:Date.now() });
-      if (log.length > 60) log.length = 60;
+    record(label, bytesIn, bytesOut, status) {
+      totalIn += bytesIn; totalOut += bytesOut;
+      log.unshift({ id:Math.random(), label, bytesIn, bytesOut, status, ts:Date.now() });
+      if (log.length > 80) log.length = 80;
       notify();
     },
     subscribe(fn) { subs.push(fn); return () => { const i=subs.indexOf(fn); if(i>-1) subs.splice(i,1); }; },
-    snapshot() { return { total, saved, log:[...log] }; },
+    snapshot() { return { total: totalIn + totalOut, totalIn, totalOut, log:[...log] }; },
   };
 }
 const NET = makeNetTracker();
 
 async function apiCall(apiKey, path, opts={}) {
-  const res = await fetch(`${BASE}${path}`, {
-    ...opts,
-    headers: { "x-goog-api-key":apiKey, "Content-Type":"application/json", ...(opts.headers||{}) },
-    body: opts.body ? JSON.stringify(opts.body) : undefined,
-  });
+  const url = `${BASE}${path}`;
+  const headers = { "x-goog-api-key":apiKey, "Content-Type":"application/json", ...(opts.headers||{}) };
+  const body = opts.body ? JSON.stringify(opts.body) : undefined;
+
+  // Estimate outgoing bytes (method + url + headers + body)
+  const outBytes = (opts.method || "GET").length + url.length + JSON.stringify(headers).length + (body?.length || 0);
+
+  const res = await fetch(url, { ...opts, headers, body });
   const text = await res.text();
-  NET.record(opts._label || path, new TextEncoder().encode(text).length / 1024);
+
+  // Received bytes (headers + body)
+  let headerSize = 0;
+  res.headers.forEach((v, k) => headerSize += k.length + v.length + 4);
+  const inBytes = headerSize + new TextEncoder().encode(text).length;
+
+  NET.record(opts._label || path, inBytes / 1024, outBytes / 1024, res.status);
+
   if (!res.ok) {
     let msg = text;
     try { msg = JSON.parse(text)?.error?.message || text; } catch {}
@@ -3504,17 +3514,17 @@ const NetworkMonitor = ({ onBack, isDesktop }) => {
   useEffect(() => NET.subscribe(s => setSnap(s)), []);
   useEffect(() => { getStorageInfo().then(setStorage); }, []);
 
-  const { total, saved: savedBytes, log } = snap;
+  const { total, totalIn, totalOut, log } = snap;
   const webEst = total * 9 + 2.4;
   const reduction = total > 0 ? Math.round(((webEst - total) / webEst) * 100) : 0;
 
   return (
-    <div style={{display:"flex",flexDirection:"column",height:"100%",minHeight:0}}>
+    <div style={{display:"flex",flexDirection:"column",height:"100%",minHeight:0}} role="region" aria-label="Network and Storage Monitor">
       <div style={{padding:"12px 16px",borderBottom:`1px solid ${T.border}`,background:T.surface,display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
-        {!isDesktop&&<button onClick={onBack} style={{background:"none",border:"none",cursor:"pointer",display:"flex"}}><Ic n="back" s={18} c={T.text}/></button>}
+        {!isDesktop&&<button onClick={onBack} aria-label="Go back" style={{background:"none",border:"none",cursor:"pointer",display:"flex"}}><Ic n="back" s={18} c={T.text}/></button>}
         <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.text,letterSpacing:"0.05em",fontWeight:700,flex:1}}>NETWORK & STORAGE</div>
         {isDesktop && (
-          <button onClick={onBack} title="Close" style={{background:"none",border:"none",cursor:"pointer",display:"flex",padding:4,opacity:0.8}}>
+          <button onClick={onBack} aria-label="Close" title="Close" style={{background:"none",border:"none",cursor:"pointer",display:"flex",padding:4,opacity:0.8}}>
             <Ic n="x" s={18} c={T.text}/>
           </button>
         )}
@@ -3523,12 +3533,12 @@ const NetworkMonitor = ({ onBack, isDesktop }) => {
       <div style={{flex:1,overflowY:"auto",padding:"20px 24px",WebkitOverflowScrolling:"touch",minHeight:0}}>
         <div style={{maxWidth:560,margin:"0 auto"}}>
           <div style={{animation:"fadeIn .2s ease", display:"flex", flexDirection:"column", gap:20}}>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}} role="list">
               {[
-                {l:"TRANSFERRED",v:fmtBytes(total),c:T.brand, desc:"Total data downloaded"},
-                {l:"DATA SAVED", v:`${reduction}%`,c:T.purple, desc:"Bandwidth efficiency"},
-                {l:"WEB EQUIV.",  v:fmtBytes(webEst),c:T.amber, desc:"Simulated standard web cost"},
-                {l:"REQUESTS",   v:log.length,c:T.blue, desc:"Total API calls made"},
+                {l:"RECEIVED",   v:fmtBytes(totalIn), c:T.brand,  desc:"Total incoming data"},
+                {l:"SENT",       v:fmtBytes(totalOut),c:T.purple, desc:"Total outgoing data"},
+                {l:"EFFICIENCY", v:`${reduction}%`,   c:T.amber,  desc:"Data saved vs. standard"},
+                {l:"REQUESTS",   v:log.length,        c:T.blue,   desc:"Total API calls made"},
               ].map(s=>(
                 <div key={s.l} style={{background:T.surfaceHi,border:`1px solid ${T.border}`,borderRadius:12,padding:16}}>
                   <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.textDim,letterSpacing:"0.1em",marginBottom:6,fontWeight:700}}>{s.l}</div>
@@ -3583,24 +3593,34 @@ const NetworkMonitor = ({ onBack, isDesktop }) => {
                   }}
                 >COPY ALL</button>
               </div>
-              <div style={{background:T.surfaceHi, borderRadius:12, border:`1px solid ${T.border}`, overflow:"hidden"}}>
+              <div style={{background:T.surfaceHi, borderRadius:12, border:`1px solid ${T.border}`, overflow:"hidden"}} role="list">
                 {log.length===0
                   ?<div style={{textAlign:"center",padding:"32px",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>No requests recorded</div>
                   :log.map((r,i)=>(
-                    <div key={r.id} style={{display:"flex",gap:12,alignItems:"center",padding:"12px 16px",borderBottom:i<log.length-1?`1px solid ${T.border}`:"none"}}>
-                      <div style={{width:6,height:6,borderRadius:"50%",background:T.brand,flexShrink:0,boxShadow:`0 0 6px ${T.brand}40`}}/>
+                    <div key={r.id} style={{display:"flex",gap:12,alignItems:"center",padding:"12px 16px",borderBottom:i<log.length-1?`1px solid ${T.border}`:"none"}} role="listitem">
+                      <div style={{
+                        width:26,height:26,borderRadius:6,flexShrink:0,
+                        background: r.status >= 400 ? T.redDim : r.status >= 300 ? T.amberDim : T.brandDim,
+                        border: `1px solid ${r.status >= 400 ? T.red : r.status >= 300 ? T.amber : T.brand}40`,
+                        display:"flex", alignItems:"center", justifyContent:"center",
+                        fontFamily:"'JetBrains Mono',monospace", fontSize:9, fontWeight:900,
+                        color: r.status >= 400 ? T.red : r.status >= 300 ? T.amber : T.brandLight
+                      }} aria-label={`HTTP Status ${r.status}`}>{r.status}</div>
                       <div style={{flex:1,minWidth:0}}>
                         <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontWeight:500}}>{r.label}</div>
-                        <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.textDim,marginTop:2}}>{fmtAgo(r.ts)}</div>
+                        <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.textDim,marginTop:2, display:"flex", gap:10}}>
+                          <span>{fmtAgo(r.ts)}</span>
+                          <span style={{color:T.purple, opacity:0.8}}>↑ {fmtBytes(r.bytesOut)}</span>
+                          <span style={{color:T.brand, opacity:0.8}}>↓ {fmtBytes(r.bytesIn)}</span>
+                        </div>
                       </div>
                       <div style={{display:"flex", alignItems:"center", gap:8}}>
-                        <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.brand,flexShrink:0,fontWeight:700}}>{fmtBytes(r.bytes)}</div>
                         <button
                           onClick={() => {
                             navigator.clipboard.writeText(JSON.stringify(r, null, 2));
                           }}
-                          title="Copy request data"
-                          style={{background:"none", border:"none", cursor:"pointer", padding:4, display:"flex"}}
+                          aria-label="Copy request JSON"
+                          style={{background:T.surface, border:`1px solid ${T.border}`, borderRadius:4, cursor:"pointer", padding:6, display:"flex"}}
                         >
                           <Ic n="copy" s={12} c={T.muted}/>
                         </button>
@@ -3633,7 +3653,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
   useEffect(() => NET.subscribe(s => setSnap(s)), []);
   useEffect(() => { getStorageInfo().then(setStorage); }, []);
 
-  const { total, saved: savedBytes, log } = snap;
+  const { total, totalIn, totalOut, log } = snap;
   const webEst = total * 9 + 2.4;
   const reduction = total > 0 ? Math.round(((webEst - total) / webEst) * 100) : 0;
 
@@ -3797,15 +3817,15 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
           )}
 
           {tab === "network" && (
-            <div style={{animation:"fadeIn .2s ease", display:"flex", flexDirection:"column", gap:20}}>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+            <div style={{animation:"fadeIn .2s ease", display:"flex", flexDirection:"column", gap:20}} role="region" aria-label="Network Activity">
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}} role="list">
                 {[
-                  {l:"TRANSFERRED",v:fmtBytes(total),c:T.brand, desc:"Total data downloaded"},
-                  {l:"DATA SAVED", v:`${reduction}%`,c:T.purple, desc:"Bandwidth efficiency"},
-                  {l:"WEB EQUIV.",  v:fmtBytes(webEst),c:T.amber, desc:"Simulated standard web cost"},
-                  {l:"REQUESTS",   v:log.length,c:T.blue, desc:"Total API calls made"},
+                  {l:"RECEIVED",   v:fmtBytes(totalIn), c:T.brand,  desc:"Total incoming data"},
+                  {l:"SENT",       v:fmtBytes(totalOut),c:T.purple, desc:"Total outgoing data"},
+                  {l:"EFFICIENCY", v:`${reduction}%`,   c:T.amber,  desc:"Data saved vs. standard"},
+                  {l:"REQUESTS",   v:log.length,        c:T.blue,   desc:"Total API calls made"},
                 ].map(s=>(
-                  <div key={s.l} style={{background:T.surfaceHi,border:`1px solid ${T.border}`,borderRadius:12,padding:16}}>
+                  <div key={s.l} style={{background:T.surfaceHi,border:`1px solid ${T.border}`,borderRadius:12,padding:16}} role="listitem">
                     <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.textDim,letterSpacing:"0.1em",marginBottom:6,fontWeight:700}}>{s.l}</div>
                     <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:22,fontWeight:900,color:s.c,marginBottom:4}}>{s.v}</div>
                     <div style={{fontSize:9, color:T.textDim, fontFamily:"'IBM Plex Sans',sans-serif", lineHeight:1.2}}>{s.desc}</div>
@@ -3814,49 +3834,60 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
               </div>
 
               <div style={{background:T.amberDim,border:`1px solid ${T.amber}20`,borderRadius:12,padding:16,fontFamily:"'IBM Plex Sans',sans-serif",fontSize:12,color:T.amber,lineHeight:1.6, display:"flex", gap:12, alignItems:"center"}}>
-                <span style={{fontSize:20}}>⚡</span>
+                <span style={{fontSize:20}} aria-hidden="true">⚡</span>
                 <div>Smart delta-polling is active. Bandwidth is conserved by only fetching session changes.</div>
               </div>
 
               <div style={{marginTop:8}}>
-              <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12}}>
-                <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.textDim,letterSpacing:"0.08em",fontWeight:700}}>RECENT ACTIVITY LOG</div>
-                <button
-                  onClick={() => {
-                    const data = JSON.stringify(log, null, 2);
-                    navigator.clipboard.writeText(data).then(() => {
-                      alert("Activity log copied to clipboard");
-                    });
-                  }}
-                  style={{
-                    background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:4,
-                    padding:"3px 8px", cursor:"pointer", color:T.brand,
-                    fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700
-                  }}
-                >COPY ALL</button>
-              </div>
-                <div style={{background:T.surfaceHi, borderRadius:12, border:`1px solid ${T.border}`, overflow:"hidden"}}>
+                <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12}}>
+                  <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.textDim,letterSpacing:"0.08em",fontWeight:700}}>RECENT ACTIVITY LOG</div>
+                  <button
+                    onClick={() => {
+                      const data = JSON.stringify(log, null, 2);
+                      navigator.clipboard.writeText(data).then(() => {
+                        alert("Activity log copied to clipboard");
+                      });
+                    }}
+                    aria-label="Copy all network activity to clipboard"
+                    style={{
+                      background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:4,
+                      padding:"3px 8px", cursor:"pointer", color:T.brand,
+                      fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700
+                    }}
+                  >COPY ALL</button>
+                </div>
+                <div style={{background:T.surfaceHi, borderRadius:12, border:`1px solid ${T.border}`, overflow:"hidden"}} role="list">
                   {log.length===0
                     ?<div style={{textAlign:"center",padding:"32px",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>No requests recorded</div>
                     :log.map((r,i)=>(
-                      <div key={r.id} style={{display:"flex",gap:12,alignItems:"center",padding:"12px 16px",borderBottom:i<log.length-1?`1px solid ${T.border}`:"none"}}>
-                        <div style={{width:6,height:6,borderRadius:"50%",background:T.brand,flexShrink:0,boxShadow:`0 0 6px ${T.brand}40`}}/>
+                      <div key={r.id} style={{display:"flex",gap:12,alignItems:"center",padding:"12px 16px",borderBottom:i<log.length-1?`1px solid ${T.border}`:"none"}} role="listitem">
+                        <div style={{
+                          width:26,height:26,borderRadius:6,flexShrink:0,
+                          background: r.status >= 400 ? T.redDim : r.status >= 300 ? T.amberDim : T.brandDim,
+                          border: `1px solid ${r.status >= 400 ? T.red : r.status >= 300 ? T.amber : T.brand}40`,
+                          display:"flex", alignItems:"center", justifyContent:"center",
+                          fontFamily:"'JetBrains Mono',monospace", fontSize:9, fontWeight:900,
+                          color: r.status >= 400 ? T.red : r.status >= 300 ? T.amber : T.brandLight
+                        }} aria-label={`HTTP Status ${r.status}`}>{r.status}</div>
                         <div style={{flex:1,minWidth:0}}>
                           <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontWeight:500}}>{r.label}</div>
-                          <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.textDim,marginTop:2}}>{fmtAgo(r.ts)}</div>
+                          <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.textDim,marginTop:2, display:"flex", gap:10}}>
+                            <span>{fmtAgo(r.ts)}</span>
+                            <span style={{color:T.purple, opacity:0.8}}>↑ {fmtBytes(r.bytesOut)}</span>
+                            <span style={{color:T.brand, opacity:0.8}}>↓ {fmtBytes(r.bytesIn)}</span>
+                          </div>
                         </div>
-                      <div style={{display:"flex", alignItems:"center", gap:8}}>
-                        <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.brand,flexShrink:0,fontWeight:700}}>{fmtBytes(r.bytes)}</div>
-                        <button
-                          onClick={() => {
-                            navigator.clipboard.writeText(JSON.stringify(r, null, 2));
-                          }}
-                          title="Copy request data"
-                          style={{background:"none", border:"none", cursor:"pointer", padding:4, display:"flex"}}
-                        >
-                          <Ic n="copy" s={12} c={T.muted}/>
-                        </button>
-                      </div>
+                        <div style={{display:"flex", alignItems:"center", gap:8}}>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(JSON.stringify(r, null, 2));
+                            }}
+                            aria-label="Copy request JSON"
+                            style={{background:T.surface, border:`1px solid ${T.border}`, borderRadius:4, cursor:"pointer", padding:6, display:"flex"}}
+                          >
+                            <Ic n="copy" s={12} c={T.muted}/>
+                          </button>
+                        </div>
                       </div>
                     ))
                   }
