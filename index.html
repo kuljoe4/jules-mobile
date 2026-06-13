@@ -266,19 +266,6 @@ function saveLimit(v) { try { localStorage.setItem(LIMIT_KEY,v); } catch {} }
 
 // ─── Plan limits (from jules.google/docs/usage-limits) ───────────────────────
 const PLAN_KEY = "jac_plan";
-const TZ_KEY   = "jac_tz_offset";
-const RESET_HOUR_KEY = "jac_reset_hour";
-
-function loadTzOffset() {
-  try { const v = localStorage.getItem(TZ_KEY); return v !== null ? parseInt(v) : 1; } catch { return 1; }
-}
-function saveTzOffset(v) { try { localStorage.setItem(TZ_KEY, v); } catch {} }
-
-function loadResetHour() {
-  try { const v = localStorage.getItem(RESET_HOUR_KEY); return v !== null ? parseInt(v) : 10; } catch { return 10; }
-}
-function saveResetHour(v) { try { localStorage.setItem(RESET_HOUR_KEY, v); } catch {} }
-
 const PLANS = [
   { id:"free",  label:"Free",  daily:15,  concurrent:3,  model:"Gemini 2.5 Pro" },
   { id:"pro",   label:"Pro",   daily:100, concurrent:15, model:"Gemini 3 Pro" },
@@ -293,24 +280,6 @@ function loadCustomDaily() { try { return parseInt(localStorage.getItem(CUSTOM_D
 function saveCustomDaily(v) { try { localStorage.setItem(CUSTOM_DAILY_KEY,v); } catch {} }
 
 // ─── Daily session counter ────────────────────────────────────────────────────
-const getBucketKey = (tzOffset, resetHour) => {
-  const now = Date.now();
-  const tzDate = new Date(now + (tzOffset * 3600000));
-  if (tzDate.getUTCHours() < resetHour) {
-    tzDate.setUTCDate(tzDate.getUTCDate() - 1);
-  }
-  return tzDate.toISOString().slice(0, 10);
-};
-
-const getBucketStartTs = (tzOffset, resetHour) => {
-  const now = Date.now();
-  const tzDate = new Date(now + (tzOffset * 3600000));
-  if (tzDate.getUTCHours() < resetHour) {
-    tzDate.setUTCDate(tzDate.getUTCDate() - 1);
-  }
-  tzDate.setUTCHours(resetHour, 0, 0, 0);
-  return new Date(tzDate.getTime() - (tzOffset * 3600000));
-};
 
 
 async function clearCacheOnly() {
@@ -679,7 +648,8 @@ const getAheadCount = (activities = []) => {
       });
     }
 
-    const m = desc.match(/pushed (\d+) commit/);
+    // Match patterns like "pushed 3 commits", "committed 2 changes", etc.
+    const m = desc.match(/(?:pushed|committed|applied)\s+(\d+)\s+(?:commit|change|fix|update)/i);
     if (m) {
       if (!hashes) count += parseInt(m[1], 10);
     } else if (desc.includes("pushed a commit") || desc.includes("pushed 1 commit") || desc.includes("pushed the changes") || desc.includes("committed changes")) {
@@ -992,17 +962,21 @@ const useScrollThreshold = (threshold = 40) => {
 const useAutoPoll = (interval, fn) => {
   const [countdown, setCountdown] = useState(0);
   const nextRefAt = useRef(0);
+  const fnRef = useRef(fn);
+  fnRef.current = fn;
 
   useEffect(() => {
+    if (!interval || interval <= 0) {
+      setCountdown(0);
+      return;
+    }
+
     let active = true;
     let timer = null;
     let intv = null;
 
     const run = async () => {
-      if (!interval || !active) {
-        setCountdown(0);
-        return;
-      }
+      if (!active) return;
 
       const nextAt = Date.now() + interval;
       nextRefAt.current = nextAt;
@@ -1010,28 +984,26 @@ const useAutoPoll = (interval, fn) => {
 
       timer = setTimeout(async () => {
         if (!active) return;
-        try { await fn(); } catch (err) { console.error("Poll failed", err); }
+        try { await fnRef.current(); } catch (err) { console.error("Poll failed", err); }
         if (active) run();
       }, interval);
     };
 
     run();
 
-    if (interval > 0) {
-      intv = setInterval(() => {
-        if (active) {
-          const remaining = Math.max(0, Math.ceil((nextRefAt.current - Date.now()) / 1000));
-          setCountdown(remaining);
-        }
-      }, 1000);
-    }
+    intv = setInterval(() => {
+      if (active) {
+        const remaining = Math.max(0, Math.ceil((nextRefAt.current - Date.now()) / 1000));
+        setCountdown(remaining);
+      }
+    }, 1000);
 
     return () => {
       active = false;
       clearTimeout(timer);
       clearInterval(intv);
     };
-  }, [interval, fn]);
+  }, [interval]);
 
   return countdown;
 };
@@ -1483,14 +1455,15 @@ const TimelineEvent = memo(({ act, onMediaClick }) => {
             </a>
           )}
           <div style={{
-            display:"inline-flex", alignItems:"center", gap:6, padding:"8px 14px",
-            background:`linear-gradient(135deg, ${T.brandDim}, ${T.surfaceHi})`,
-            border:`1px solid ${T.brandDark}40`, borderRadius:8,
-            color:T.brand, fontFamily:"'JetBrains Mono',monospace",
-            fontSize:11, fontWeight:900, textTransform: "uppercase",
-            boxShadow:`inset 0 0 10px ${T.brand}05`
+            display:"inline-flex", alignItems:"center", gap:8, padding:"10px 18px",
+            background:`linear-gradient(135deg, ${T.brand}20, ${T.surfaceHi})`,
+            border:`1px solid ${T.brand}50`, borderRadius:10,
+            color:T.brandLight, fontFamily:"'JetBrains Mono',monospace",
+            fontSize:12, fontWeight:900, textTransform: "uppercase",
+            boxShadow:`0 4px 15px ${T.brand}15, inset 0 0 10px ${T.brand}10`,
+            animation:"fadeIn .4s ease-out"
           }}>
-            <Ic n="check" s={14} c={T.brand}/>
+            <Ic n="check" s={16} c={T.brandLight}/>
             SESSION FINISHED
           </div>
         </div>
@@ -3617,7 +3590,7 @@ const NetworkMonitor = ({ onBack, isDesktop }) => {
   );
 };
 
-const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPollInterval, setActPollInterval, activePollInterval, setActivePollInterval, sessionLimit, setSessionLimit, tzOffset, setTzOffset, resetHour, setResetHour, cacheLimit, setCacheLimit, personas, setPersonas, planId, setPlanId, customDaily, setCustomDaily, plan, todayCount }) => {
+const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPollInterval, setActPollInterval, activePollInterval, setActivePollInterval, sessionLimit, setSessionLimit, cacheLimit, setCacheLimit, personas, setPersonas, planId, setPlanId, customDaily, setCustomDaily, plan, todayCount }) => {
   const [tab, setTab] = useState("general");
   const [saved, setSaved] = useState(false);
   const saveTimer = useRef(null);
@@ -3789,7 +3762,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
                   <div style={{marginTop:12,fontSize:11,color:T.textDim,fontFamily:"'IBM Plex Sans',sans-serif",lineHeight:1.6, opacity:0.8}}>
                     {todayCount.done} Pull Requests created today<br/>
                     {plan.model} · {plan.concurrent} concurrent max
-                    {todayCount.total>=plan.daily && <div style={{color:T.red,marginTop:4,fontWeight:600}}>⛔ Daily limit reached. Resets at {resetHour < 10 ? '0' : ''}{resetHour}:00 UTC{tzOffset >= 0 ? '+' : ''}{tzOffset}.</div>}
+                    {todayCount.total>=plan.daily && <div style={{color:T.red,marginTop:4,fontWeight:600}}>⛔ Daily limit reached.</div>}
                   </div>
                 </div>
               </div>
@@ -3983,7 +3956,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
 const FILTERS = ["ALL","QUEUED","PLANNING","AWAITING_PLAN_APPROVAL","IN_PROGRESS","COMPLETED","FAILED"];
 const FILTER_LABELS = { AWAITING_PLAN_APPROVAL:"APPROVE", ALL:"ALL" };
 
-const SessionList = ({ sessions, onSelect, onRefresh, refreshing, selectedId, isDesktop, onNew,  onSettings, pollInterval, sessionLimit, tzOffset = 1, resetHour = 10, countdown, plan, todayCount, searchQuery, setSearchQuery, archivedIds, showArchived, setShowArchived, activitiesMap = {}, error, clearError, isBoosted }) => {
+const SessionList = ({ sessions, onSelect, onRefresh, refreshing, selectedId, isDesktop, onNew,  onSettings, pollInterval, sessionLimit, countdown, plan, todayCount, searchQuery, setSearchQuery, archivedIds, showArchived, setShowArchived, activitiesMap = {}, error, clearError, isBoosted }) => {
   const [filter,setFilter] = useState("ALL");
   const [scrolled, handleScroll] = useScrollThreshold();
   const [searchOpen, setSearchOpen] = useState(false);
@@ -4045,11 +4018,11 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, selectedId, is
                       fill="none" stroke={T.brand} strokeWidth="2"
                       strokeDasharray="100%"
                       strokeDashoffset={`${100 - (countdown / (pollInterval / 1000 || 1)) * 100}%`}
-                      style={{ transition: "stroke-dashoffset 1s linear", opacity: 0.15 }}
+                      style={{ transition: "stroke-dashoffset 1s linear", opacity: 0.35 }}
                     />
                   </svg>
                 )}
-                <Ic n="refresh" s={16} c={refreshing?T.brand:T.dim}/>
+                <Ic n="refresh" s={16} c={refreshing?T.brand:T.textDim}/>
               </button>
             </div>
           </div>
@@ -4185,8 +4158,6 @@ function JulesClient() {
   const [actPollInterval,setActPollIntervalRaw] = useState(loadActPollMs);
   const [activePollInterval,setActivePollIntervalRaw] = useState(loadActivePollMs);
   const [sessionLimit,setSessionLimitRaw] = useState(loadLimit);
-  const [tzOffset, setTzOffsetRaw] = useState(loadTzOffset);
-  const [resetHour, setResetHourRaw] = useState(loadResetHour);
   const [cacheLimit, setCacheLimitRaw] = useState(loadCacheLimit);
   const [planId,setPlanIdRaw]      = useState(loadPlan);
   const [customDaily,setCustomDailyRaw] = useState(loadCustomDaily);
@@ -4220,7 +4191,7 @@ function JulesClient() {
 
     return { total: windowSessions.length, done: prCreated, resetIn };
   }, [sessions]);
-  const lastFetchTimeRef = useRef(null);
+  const lastFetchTime = useRef(null);
 
   const [archivedIds, setArchivedIds] = useState(() => {
     try { return new Set(JSON.parse(localStorage.getItem("jac_archived") || "[]")); }
@@ -4293,20 +4264,9 @@ function JulesClient() {
   const setSessionLimit = useCallback(v => {
     saveLimit(v);
     setSessionLimitRaw(v);
-    lastFetchTimeRef.current = null; // Force full fetch with new limit
+    lastFetchTime.current = null; // Force full fetch with new limit
   }, []);
 
-  const setTzOffset = useCallback(v => {
-    saveTzOffset(v);
-    setTzOffsetRaw(v);
-    lastFetchTimeRef.current = null;
-  }, []);
-
-  const setResetHour = useCallback(v => {
-    saveResetHour(v);
-    setResetHourRaw(v);
-    lastFetchTimeRef.current = null;
-  }, []);
 
   const setCacheLimit = useCallback(v => {
     saveCacheLimit(v);
@@ -4315,7 +4275,7 @@ function JulesClient() {
 
   const fetchSessions = useCallback(async (quiet=false, forceFull=false) => {
     if (!apiKey) return;
-    const isFull = !lastFetchTimeRef.current || forceFull;
+    const isFull = !lastFetchTime.current || forceFull;
     if (!quiet) setRefreshing(true);
     try {
       let incoming = [];
@@ -4331,15 +4291,13 @@ function JulesClient() {
         pageToken = d.nextPageToken;
         iterations++;
 
-        // For delta fetches, one batch is usually enough.
-        // For full fetches, keep going until we have enough to count today's quota accurately.
-        const bucketStart = getBucketStartTs(tzOffset, resetHour);
-        const hasOlderThanBucket = batch.length > 0 && new Date(batch[batch.length-1].createTime) < bucketStart;
+        const windowStart = new Date(Date.now() - 24 * 3600000);
+        const hasOlderThanWindow = batch.length > 0 && new Date(batch[batch.length-1].createTime) < windowStart;
 
         if (!isFull) break;
-        if (hasOlderThanBucket) break; // We've covered the current bucket
-        if (incoming.length >= Math.max(sessionLimit, quotaNeeded * 2)) break; // Fetch more to ensure quota is covered
-        if (iterations > 15) break; // Higher safety break for full reconciliation
+        if (hasOlderThanWindow) break;
+        if (incoming.length >= Math.max(sessionLimit, quotaNeeded * 2)) break;
+        if (iterations > 15) break;
       } while (pageToken);
 
       setGlobalErr(null); // Clear error on success
@@ -4374,38 +4332,19 @@ function JulesClient() {
         lastFetchTimeRef.current = incoming.reduce((max, s) => {
           const ts = s.updateTime || s.createTime;
           return ts > max ? ts : max;
-        }, incoming[0].updateTime || incoming[0].createTime);
+        }, raw[0].updateTime || raw[0].createTime);
+        lastFetchTime.current = maxTs;
       } else if (forceFull) {
-        lastFetchTimeRef.current = null;
-      }
-
-      // For active/recent sessions without a PR, fetch activities to find branch info
-      const targetIds = incoming.filter(s => !getPR(s)).slice(0, 10).map(s => s.id);
-      if (targetIds.length > 0) {
-        const actsPromises = targetIds.map(id =>
-          apiCall(apiKey, `/sessions/${id}/activities?pageSize=5`, { _label:`Acts light ${id.slice(0,6)}` })
-            .catch(() => ({}))
-        );
-        const actsResults = await Promise.all(actsPromises);
-        setActivitiesMap(prev => {
-          const next = { ...prev };
-          targetIds.forEach((id, i) => {
-            const incomingActs = actsResults[i].activities || [];
-            if (incomingActs.length === 0) return;
-            const existing = next[id] || [];
-            const map = new Map(existing.map(a => [getActKey(a), a]));
-            incomingActs.forEach(a => map.set(getActKey(a), a));
-            next[id] = Array.from(map.values()).sort((a,b) => new Date(a.createTime) - new Date(b.createTime));
-          });
-          try { localStorage.setItem(ACT_MAP_KEY, JSON.stringify(next)); } catch {}
-          return next;
-        });
+        // If we forced a full refresh and got nothing, we should still probably reset lastFetchTime
+        // to null so the next one is also full, or just leave it.
+        // Actually if it's full and empty, lastFetchTime should be null.
+        lastFetchTime.current = null;
       }
     } catch (err) {
       console.error("[FetchSessions] Error:", err);
       if (!quiet) setGlobalErr(err.message);
     } finally { if (!quiet) setRefreshing(false); }
-  }, [apiKey, sessionLimit, tzOffset, resetHour]);
+  }, [apiKey, sessionLimit, plan.daily]);
 
   useEffect(() => { if (apiKey) fetchSessions(); }, [apiKey, fetchSessions]);
 
@@ -4468,8 +4407,6 @@ function JulesClient() {
             onSettings={()=>setDesktop("settings")}
             pollInterval={effectivePollInterval}
             sessionLimit={sessionLimit}
-            tzOffset={tzOffset}
-            resetHour={resetHour}
             countdown={countdown}
             plan={plan} todayCount={todayCount}
             searchQuery={searchQuery} setSearchQuery={setSearchQuery}
@@ -4509,8 +4446,6 @@ function JulesClient() {
               actPollInterval={actPollInterval} setActPollInterval={setActPollInterval}
               activePollInterval={activePollInterval} setActivePollInterval={setActivePollInterval}
               sessionLimit={sessionLimit} setSessionLimit={setSessionLimit}
-              tzOffset={tzOffset} setTzOffset={setTzOffset}
-              resetHour={resetHour} setResetHour={setResetHour}
               cacheLimit={cacheLimit} setCacheLimit={setCacheLimit}
               personas={personas} setPersonas={setPersonas}
               planId={planId} setPlanId={setPlanId}
@@ -4532,8 +4467,6 @@ function JulesClient() {
             onSettings={()=>setMobile("settings")}
             pollInterval={effectivePollInterval}
             sessionLimit={sessionLimit}
-            tzOffset={tzOffset}
-            resetHour={resetHour}
             countdown={countdown}
             plan={plan} todayCount={todayCount}
             searchQuery={searchQuery} setSearchQuery={setSearchQuery}
@@ -4562,8 +4495,6 @@ function JulesClient() {
             actPollInterval={actPollInterval} setActPollInterval={setActPollInterval}
             activePollInterval={activePollInterval} setActivePollInterval={setActivePollInterval}
             sessionLimit={sessionLimit} setSessionLimit={setSessionLimit}
-            tzOffset={tzOffset} setTzOffset={setTzOffset}
-            resetHour={resetHour} setResetHour={setResetHour}
             cacheLimit={cacheLimit} setCacheLimit={setCacheLimit}
             personas={personas} setPersonas={setPersonas}
             planId={planId} setPlanId={setPlanId}
