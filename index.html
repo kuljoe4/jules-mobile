@@ -4314,7 +4314,7 @@ function JulesClient() {
         }
 
         // Sort: Active first, then by latest update/create time
-        return [...merged].sort((a, b) => {
+        const sorted = [...merged].sort((a, b) => {
           const aActive = ACTIVE_STATES.has(a.state);
           const bActive = ACTIVE_STATES.has(b.state);
           if (aActive && !bActive) return -1;
@@ -4323,32 +4323,13 @@ function JulesClient() {
           const bTime = new Date(b.updateTime || b.createTime).getTime();
           return bTime - aTime;
         });
+
+        return sorted;
       });
 
-      const raw = incoming;
-
-      // For active/recent sessions without a PR, fetch activities to find branch info
-      const targetIds = raw.filter(s => !getPR(s)).slice(0, 10).map(s => s.id);
-      const actsPromises = targetIds.map(id =>
-        apiCall(apiKey, `/sessions/${id}/activities?pageSize=5`, { _label:`Acts light ${id.slice(0,6)}` })
-          .catch(() => ({}))
-      );
-      const actsResults = await Promise.all(actsPromises);
-      setActivitiesMap(prev => {
-        const next = { ...prev };
-        targetIds.forEach((id, i) => {
-          const incoming = actsResults[i].activities || [];
-          const existing = next[id] || [];
-          const map = new Map(existing.map(a => [getActKey(a), a]));
-          incoming.forEach(a => map.set(getActKey(a), a));
-          next[id] = Array.from(map.values()).sort((a,b) => new Date(a.createTime) - new Date(b.createTime));
-        });
-        try { localStorage.setItem(ACT_MAP_KEY, JSON.stringify(next)); } catch {}
-        return next;
-      });
-
-      if (raw.length > 0) {
-        const maxTs = raw.reduce((max, s) => {
+      // Update lastFetchTimeRef with the latest timestamp from the incoming results
+      if (incoming.length > 0) {
+        lastFetchTimeRef.current = incoming.reduce((max, s) => {
           const ts = s.updateTime || s.createTime;
           return ts > max ? ts : max;
         }, raw[0].updateTime || raw[0].createTime);
@@ -4401,6 +4382,7 @@ function JulesClient() {
 
   const saveKey = k => {
     try { localStorage.setItem("jac_key", k); } catch {}
+    lastFetchTimeRef.current = null;
     setApiKey(k);
   };
 
