@@ -2049,7 +2049,7 @@ const SetupScreen = ({ onSave }) => {
     try {
       await apiCall(key.trim(), "/sources?pageSize=1", { _label:"Test auth" });
       onSave(key.trim());
-    } catch { setErr(e.message); }
+    } catch (err) { setErr(err.message); }
     finally { setTesting(false); }
   };
 
@@ -2519,7 +2519,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     try {
       await apiCall(apiKey, `/sessions/${session.id}:approvePlan`, { method:"POST", body:{}, _label:`Approve ${session.id?.slice(0,6)}` });
       await loadSession(); await loadActivities(lastTsRef.current);
-    } catch { setErr(e.message); }
+    } catch (err) { setErr(err.message); }
     finally { setBusy(false); }
   };
 
@@ -2564,11 +2564,11 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
       actMapRef.current.delete(tempKey);
       if (stayOnTab !== true) setTab("activity"); // switch back to chat to show Jules' response
       setTimeout(() => { loadActivities(lastTsRef.current); loadSession(); }, 1500);
-    } catch {
-      setErr(e.message);
+    } catch (err) {
+      setErr(err.message);
       actMapRef.current.delete(tempKey);
       setActivities(prev => prev.filter(a => a.id !== tempKey));
-      throw e;
+      throw err;
     }
   }, [apiKey, session.id, loadActivities, loadSession]);
 
@@ -2577,14 +2577,14 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     try {
       await apiCall(apiKey, `/sessions/${session.id}`, { method:"DELETE", _label:`Delete ${session.id?.slice(0,6)}` });
       onDelete(session.id);
-    } catch { setErr(e.message); setBusy(false); }
+    } catch (err) { setErr(err.message); setBusy(false); }
   };
 
   const handleRefresh = async () => {
     setBusy(true); setErr(null);
     try {
       await Promise.all([loadSession(), loadActivities(null)]);
-    } catch { setErr(e.message); }
+    } catch (err) { setErr(err.message); }
     finally { setBusy(false); }
   };
 
@@ -3261,7 +3261,7 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
           if (last && sorted.some(x => x.name === last)) setSource(last);
           else if (sorted.length > 0) setSource(sorted[0].name);
         }
-      } catch { setErr(e.message); }
+      } catch (err) { setErr(err.message); }
       finally { setLoadSrc(false); }
     })();
   }, []);
@@ -4410,6 +4410,15 @@ function JulesClient() {
   const [mobileScreen,setMobileRaw] = useState("list");
   const [lastSessionScreen, setLastSessionScreen] = useState("list");
   const [supplementalSessions, setSupplementalSessions] = useState([]);
+  const allSessions = useMemo(() => {
+    const map = new Map();
+    [...sessions, ...supplementalSessions].forEach(s => map.set(s.id, s));
+    return Array.from(map.values()).sort((a, b) => {
+      const aTime = new Date(a.updateTime || a.createTime).getTime();
+      const bTime = new Date(b.updateTime || b.createTime).getTime();
+      return bTime - aTime;
+    });
+  }, [sessions, supplementalSessions]);
   const [desktopView,setDesktop]   = useState("empty");
 
   const setMobile = useCallback(s => {
@@ -4422,6 +4431,7 @@ function JulesClient() {
   const [actPollInterval,setActPollIntervalRaw] = useState(loadActPollMs);
   const [activePollInterval,setActivePollIntervalRaw] = useState(loadActivePollMs);
   const [sessionLimit,setSessionLimitRaw] = useState(loadLimit);
+  const [activityLimit, setActivityLimitRaw] = useState(loadActivityLimit);
   const [cacheLimit, setCacheLimitRaw] = useState(loadCacheLimit);
   const [planId,setPlanIdRaw]      = useState(loadPlan);
   const [customDaily,setCustomDailyRaw] = useState(loadCustomDaily);
@@ -4707,7 +4717,7 @@ function JulesClient() {
             searchQuery={searchQuery} setSearchQuery={setSearchQuery}
             archivedIds={archivedIds} showArchived={showArchived} setShowArchived={setShowArchived}
             activitiesMap={{...activitiesMap}}
-            sessions={[...sessions, ...supplementalSessions]}
+            sessions={allSessions}
             error={globalErr} clearError={() => setGlobalErr(null)}
             isBoosted={isBoosted}
             readMap={readMap}
@@ -4760,7 +4770,7 @@ function JulesClient() {
     <Shell>
       <div style={{flex:1,overflow:"hidden",display:"flex",flexDirection:"column",minHeight:0}}>
         {mobileScreen==="list"&&(
-          <SessionList sessions={[...sessions, ...supplementalSessions]} onSelect={handleSelect} onRefresh={()=>fetchSessions(false, true)}
+          <SessionList sessions={allSessions} onSelect={handleSelect} onRefresh={()=>fetchSessions(false, true)}
             refreshing={refreshing} selectedId={selected?.id} isDesktop={false}
             onSettings={()=>setMobile("settings")}
             pollInterval={effectivePollInterval}
