@@ -2157,68 +2157,68 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], last
       style={{
         width:"100%", background:bg, textAlign:"left", cursor:"pointer",
         border:`1px solid ${borderColor}`,
-        borderLeft:`4px solid ${isSelected ? T.brand : m.color}`,
-        borderRadius:8, padding:"12px 14px", marginBottom:8, transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)",
+        borderLeft:`2px solid ${isSelected ? T.brand : m.color}`,
+        borderRadius:6, padding:"10px 14px", marginBottom:4, transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)",
         boxShadow:shadow,
         position:"relative",
-        transform:isSelected?"translateX(3px)":"none",
+        transform:isSelected?"translateX(2px)":"none",
       }}
     >
       {isSelected && (
-        <>
-          <div style={{
-            position:"absolute", top:0, bottom:0, left:0, width:4,
-            background:T.brand, boxShadow:`0 0 12px ${T.brand}60`,
-            borderRadius:"4px 0 0 4px"
-          }}/>
-        </>
+        <div style={{
+          position:"absolute", top:0, bottom:0, left:0, width:2,
+          background:T.brand, boxShadow:`0 0 10px ${T.brand}80`,
+          borderRadius:"2px 0 0 2px"
+        }}/>
       )}
-      <div style={{display:"flex",alignItems:"flex-start",gap:10,marginBottom:12}}>
-        <div style={{width:22,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted,fontWeight:700,paddingTop:2}}>{index}.</div>
+      <div style={{display:"flex",alignItems:"flex-start",gap:8,marginBottom:8}}>
+        <div style={{width:18,fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted,fontWeight:700,paddingTop:2}}>{index}.</div>
         <div style={{flex:1,minWidth:0}}>
-          {repo&&<div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted,fontWeight:600,marginBottom:6,letterSpacing:"0.05em",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{repo}</div>}
-          <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:15,fontWeight:600,color:T.text,lineHeight:1.45,overflow:"hidden",textOverflow:"ellipsis",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",marginBottom:pri||b?.isNew?8:0}}>{s.title||s.prompt}</div>
-          <div style={{display:"flex", gap:6, flexWrap:"wrap", marginTop:pri||b?.isNew?8:0}}>
+          <div style={{display:"flex", alignItems:"center", gap:6, marginBottom:2, overflow:"hidden"}}>
+            {repo && <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.muted,fontWeight:700,letterSpacing:"0.02em",opacity:0.8,flexShrink:0}}>{repo}</span>}
+            {repo && <span style={{width:2, height:2, borderRadius:"50%", background:T.border, flexShrink:0}}/>}
+            <Pill status={currentState} small/>
+          </div>
+          <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:14,fontWeight:600,color:isSelected?T.textHi:T.text,lineHeight:1.4,overflow:"hidden",textOverflow:"ellipsis",display:"-webkit-box",WebkitLineClamp:1,WebkitBoxOrient:"vertical",marginBottom:pri||b?.isNew?6:0}}>{s.title||s.prompt}</div>
+          <div style={{display:"flex", gap:6, flexWrap:"wrap", marginTop:pri||b?.isNew?4:0}}>
             {pri && (
               <div style={{
-                display:"inline-flex", alignItems:"center", gap:5,
-                background:pri.state==="merged"?T.purpleDim:pri.state==="closed"?T.dim:T.brandDim,
-                border:`1px solid ${pri.state==="merged"?T.purple:pri.state==="closed"?T.muted:T.brand}50`,
-                borderRadius:4, padding:"3px 8px",
-                color:pri.state==="merged"?T.purple:pri.state==="closed"?T.muted:T.brand,
+                display:"inline-flex", alignItems:"center", gap:4,
+                background:pri.state==="merged"?`${T.purple}0d`:pri.state==="closed"?T.line:T.brandDim,
+                border:`1px solid ${pri.state==="merged"?T.purple:pri.state==="closed"?T.border:T.brand}40`,
+                borderRadius:4, padding:"1px 6px",
+                color:pri.state==="merged"?T.purple:pri.state==="closed"?T.dim:T.brand,
                 fontFamily:"'JetBrains Mono',monospace",
-                fontSize:11, fontWeight:900,
-                boxShadow:`0 2px 8px ${pri.state==="merged"?T.purple:pri.state==="closed"?"transparent":T.brand}20`,
-                marginBottom:4
+                fontSize:9, fontWeight:900,
+                marginBottom:2
               }}>
-                <Ic n={pri.state==="merged"?"git_merge":"git_pull"} s={12} c={pri.state==="merged"?T.purple:pri.state==="closed"?T.muted:T.brand}/>
-                {pri.state.toUpperCase()} #{pri.number}
+                <Ic n={pri.state==="merged"?"git_merge":"git_pull"} s={10} c={pri.state==="merged"?T.purple:pri.state==="closed"?T.dim:T.brand}/>
+                #{pri.number}
               </div>
             )}
             {(!pri || pri.state === "closed") && b?.isNew && (
               <div style={{display:"flex", gap:4, flexWrap:"wrap"}}>
                 <div style={{
-                  display:"inline-flex", alignItems:"center", gap:5,
-                  background:T.blueDim, border:`1px solid ${T.blue}50`, borderRadius:4,
-                  padding:"3px 8px", color:T.blue, fontFamily:"'JetBrains Mono',monospace",
-                  fontSize:11, fontWeight:900, boxShadow:`0 2px 8px ${T.blue}20`,
-                  marginBottom:4
+                  display:"inline-flex", alignItems:"center", gap:4,
+                  background:`${T.blue}0d`, border:`1px solid ${T.blue}30`, borderRadius:4,
+                  padding:"1px 6px", color:T.blue, fontFamily:"'JetBrains Mono',monospace",
+                  fontSize:9, fontWeight:900, marginBottom:2
                 }}>
-                  <Ic n="branch" s={12} c={T.blue}/>
+                  <Ic n="branch" s={10} c={T.blue}/>
                   {b.working}
                   {ahead > 0 && <span style={{marginLeft:2, opacity:0.8}}>+{ahead}</span>}
                 </div>
                 {checks && (
                   <div style={{
-                    display:"inline-flex", alignItems:"center", gap:4,
+                    display:"inline-flex", alignItems:"center", gap:3,
                     background:checks.state==="success"?T.brandDim:checks.state==="failure"?T.redDim:T.amberDim,
-                    border:`1px solid ${checks.state==="success"?T.brand:checks.state==="failure"?T.red:T.amber}50`,
-                    borderRadius:4, padding:"3px 8px",
+                    border:`1px solid ${checks.state==="success"?T.brand:checks.state==="failure"?T.red:T.amber}30`,
+                    borderRadius:4, padding:"1px 6px",
                     color:checks.state==="success"?T.brand:checks.state==="failure"?T.red:T.amber,
-                    fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:900,
-                    marginBottom:4
+                    fontFamily:"'JetBrains Mono',monospace", fontSize:9, fontWeight:900,
+                    marginBottom:2
                   }}>
-                    <Ic n={checks.state==="success"?"check":checks.state==="failure"?"x":"refresh"} s={10} c={checks.state==="success"?T.brand:checks.state==="failure"?T.red:T.amber}/>
+                    <Ic n={checks.state==="success"?"check":checks.state==="failure"?"x":"refresh"} s={8} c={checks.state==="success"?T.brand:checks.state==="failure"?T.red:T.amber}/>
                     {checks.label}
                   </div>
                 )}
@@ -2226,12 +2226,11 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], last
             )}
           </div>
         </div>
-        <div style={{display:"flex", flexDirection:"column", alignItems:"flex-end", gap:6, flexShrink:0}}>
-          <Pill status={currentState} small/>
-        </div>
       </div>
-      <Bar pct={pct} status={s.state}/>
-      <div style={{display:"flex",alignItems:"center",gap:10,marginTop:6,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted}}>
+      <div style={{marginBottom:6}}>
+        <Bar pct={pct} status={s.state}/>
+      </div>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginTop:4,fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted}}>
         <span>{fmtAgo(new Date(s.updateTime||s.createTime).getTime())}</span>
         {isSelected && (
           <span style={{
@@ -4410,6 +4409,7 @@ function JulesClient() {
   const [selected,setSelected] = useState(null);
   const [mobileScreen,setMobileRaw] = useState("list");
   const [lastSessionScreen, setLastSessionScreen] = useState("list");
+  const [supplementalSessions, setSupplementalSessions] = useState([]);
   const [desktopView,setDesktop]   = useState("empty");
 
   const setMobile = useCallback(s => {
@@ -4550,6 +4550,24 @@ function JulesClient() {
     setCacheLimitRaw(v);
   }, []);
 
+  const fetchSupplemental = useCallback(async (ids) => {
+    if (!apiKey || ids.length === 0) return;
+    try {
+      const missing = ids.filter(id => !sessions.some(s => s.id === id) && !supplementalSessions.some(s => s.id === id));
+      if (missing.length === 0) return;
+
+      const results = await Promise.all(missing.map(id =>
+        apiCall(apiKey, `/sessions/${id}`, { _label: `Supp ${id.slice(0,6)}` }).catch(() => null)
+      ));
+      const valid = results.filter(Boolean);
+      if (valid.length > 0) setSupplementalSessions(prev => [...prev, ...valid]);
+    } catch {}
+  }, [apiKey, sessions, supplementalSessions]);
+
+  useEffect(() => {
+    if (archivedIds.size > 0) fetchSupplemental(Array.from(archivedIds));
+  }, [archivedIds, fetchSupplemental]);
+
   const fetchSessions = useCallback(async (quiet=false, forceFull=false) => {
     if (!apiKey) return;
     const isFull = !lastFetchTime.current || forceFull;
@@ -4645,6 +4663,7 @@ function JulesClient() {
 
   const handleSelect = useCallback(s => {
     setSelected(s);
+    // If selected from supplemental, ensure it doesn't duplicate if primary list updates
     const ts = s.updateTime || s.createTime;
     setReadMap(prev => ({ ...prev, [s.id]: ts }));
     if (isDesktop) setDesktop("detail"); else setMobile("detail");
@@ -4687,7 +4706,8 @@ function JulesClient() {
             plan={plan} todayCount={todayCount}
             searchQuery={searchQuery} setSearchQuery={setSearchQuery}
             archivedIds={archivedIds} showArchived={showArchived} setShowArchived={setShowArchived}
-            activitiesMap={activitiesMap}
+            activitiesMap={{...activitiesMap}}
+            sessions={[...sessions, ...supplementalSessions]}
             error={globalErr} clearError={() => setGlobalErr(null)}
             isBoosted={isBoosted}
             readMap={readMap}
@@ -4740,7 +4760,7 @@ function JulesClient() {
     <Shell>
       <div style={{flex:1,overflow:"hidden",display:"flex",flexDirection:"column",minHeight:0}}>
         {mobileScreen==="list"&&(
-          <SessionList sessions={sessions} onSelect={handleSelect} onRefresh={()=>fetchSessions(false, true)}
+          <SessionList sessions={[...sessions, ...supplementalSessions]} onSelect={handleSelect} onRefresh={()=>fetchSessions(false, true)}
             refreshing={refreshing} selectedId={selected?.id} isDesktop={false}
             onSettings={()=>setMobile("settings")}
             pollInterval={effectivePollInterval}
