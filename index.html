@@ -478,13 +478,13 @@ const T = {
 
 const STATUS_META = {
   QUEUED:                { label:"QUEUED",   color:T.textDim,   bg:"rgba(124,142,166,.1)", pulse:false, icon:"database" },
-  PLANNING:              { label:"PLANNING", color:T.amber,   bg:T.amberDim,             pulse:true,  icon:"plan" },
-  AWAITING_PLAN_APPROVAL:{ label:"APPROVE",  color:T.purple,  bg:T.purpleDim,            pulse:true,  icon:"plan" },
-  AWAITING_USER_FEEDBACK:{ label:"INPUT",    color:T.amber,   bg:T.amberDim,             pulse:true,  icon:"tasks" },
-  IN_PROGRESS:           { label:"WORKING",  color:T.brand,   bg:T.brandDim,             pulse:true,  icon:"refresh" },
+  PLANNING:              { label:"PLANNING", color:T.blue,      bg:T.blueDim,              pulse:true,  icon:"plan" },
+  AWAITING_PLAN_APPROVAL:{ label:"APPROVE",  color:T.blue,      bg:T.blueDim,              pulse:true,  icon:"plan" },
+  AWAITING_USER_FEEDBACK:{ label:"INPUT",    color:T.blue,      bg:T.blueDim,              pulse:true,  icon:"tasks" },
+  IN_PROGRESS:           { label:"WORKING",  color:T.blue,      bg:T.blueDim,              pulse:true,  icon:"refresh" },
   PAUSED:                { label:"PAUSED",   color:T.textDim,   bg:"rgba(124,142,166,.1)", pulse:false, icon:"layout_toggle" },
-  COMPLETED:             { label:"DONE",     color:T.brandDark, bg:T.brandDim,           pulse:false, icon:"check" },
-  FAILED:                { label:"FAILED",   color:T.red,     bg:T.redDim,               pulse:false, icon:"x" },
+  COMPLETED:             { label:"DONE",     color:T.brand,     bg:T.brandDim,             pulse:false, icon:"check" },
+  FAILED:                { label:"FAILED",   color:T.red,      bg:T.redDim,               pulse:false, icon:"x" },
 };
 
 // ─── Network tracker ──────────────────────────────────────────────────────────
@@ -849,20 +849,22 @@ const Ic = ({n,s=16,c=T.muted}) => (
 );
 
 // ─── UI Primitives ────────────────────────────────────────────────────────────
-const Pill = ({status,small=false}) => {
+const Pill = ({status,small=false,hideLabel=false}) => {
   const m = STATUS_META[status] || STATUS_META.QUEUED;
   const pulseColor = m.color === T.brand ? T.brandLight : m.color;
   return (
-    <span style={{
+    <span
+      title={m.label}
+      style={{
       display:"inline-flex",alignItems:"center",gap:4,
-      padding:small?"2px 8px":"4px 10px",borderRadius:4,
+      padding:small?(hideLabel?"4px":"2px 8px"):"4px 10px",borderRadius:4,
       background:m.bg,border:`1px solid ${m.color}40`,
       fontFamily:"'JetBrains Mono',monospace",
       fontSize:small?10:11,fontWeight:800,letterSpacing:"0.08em",color:m.color,flexShrink:0,
       boxShadow:"none",
     }}>
       {m.pulse&&<span style={{width:4,height:4,borderRadius:"50%",background:pulseColor,animation:"dot 1.2s ease-in-out infinite",flexShrink:0}}/>}
-      {m.label}
+      {hideLabel ? <Ic n={m.icon} s={11} c={m.color}/> : m.label}
     </span>
   );
 };
@@ -2147,8 +2149,8 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], last
     return { count, size };
   }, [activities]);
 
-  const bg = isSelected ? `${T.brand}08` : isUnread ? `${m.color}0a` : isWorking ? `${T.brand}04` : T.surface;
-  const borderColor = isSelected ? `${T.brand}40` : isUnread ? `${m.color}30` : isWorking ? `${T.brand}20` : T.border;
+  const bg = isSelected ? `${T.brand}08` : isUnread ? `${T.indigo}0a` : isWorking ? `${T.blue}06` : T.surface;
+  const borderColor = isSelected ? `${T.brand}40` : isUnread ? `${T.indigo}40` : isWorking ? `${T.blue}30` : T.border;
 
   return (
     <button ref={cardRef} onClick={onPress}
@@ -2156,7 +2158,7 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], last
       style={{
         width:"100%", background:bg, textAlign:"left", cursor:"pointer",
         border:`1px solid ${borderColor}`,
-        borderLeft:`3px solid ${m.color}`,
+        borderLeft:`2px solid ${isUnread ? T.indigo : (isSelected ? T.brand : T.border)}`,
         borderRadius:6, padding:"8px 12px", marginBottom:4, transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)",
         position:"relative",
         transform:isSelected?"translateX(2px)":"none",
@@ -2208,7 +2210,7 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], last
             <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900}}>{checks.label}</span>
           </div>
         )}
-        {isUnread && <div style={{width:4,height:4,borderRadius:"50%",background:m.color,animation:"dot 1s infinite"}}/>}
+        {isUnread && <div style={{width:4,height:4,borderRadius:"50%",background:T.indigo,animation:"dot 1s infinite"}}/>}
       </div>
 
       <div style={{marginBottom:6, marginLeft:26}}>
@@ -2584,6 +2586,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   const isActuallyDone = activities.some(a => a.sessionCompleted);
   const currentState = isActuallyDone ? "COMPLETED" : session.state;
   const m       = STATUS_META[currentState] || STATUS_META.QUEUED;
+  const repo    = session.sourceContext?.source?.replace("sources/github/","");
   const pct     = pctFromState(currentState);
   const canSend = true; // Always allow follow-up messages
 
@@ -2612,15 +2615,15 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     <div style={{display:"flex",flexDirection:"column",height:"100%",minHeight:0,position:"relative"}}>
       {/* ── Header ── */}
       <div style={{
-        padding:scrolled?"8px 16px 6px":"12px 16px 0",
+        padding:scrolled?"6px 12px 6px":"12px 16px 0",
         borderBottom:`1px solid ${T.border}`,
         background:T.surface,
         flexShrink:0,
-        transition:"padding .2s ease-out, background .2s ease-out",
+        transition:"all .2s ease-out",
         zIndex: 5,
         contain: "layout",
       }}>
-        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:scrolled?0:8}}>
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:scrolled?0:6}}>
           {!isDesktop&&(
             <button onClick={onBack} style={{background:"none",border:"none",cursor:"pointer",padding:3,display:"flex",flexShrink:0}}>
               <Ic n="back" s={18} c={T.text}/>
@@ -2632,30 +2635,35 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
               fontSize:scrolled?13:17,
               fontWeight:700,
               color:T.textHi,
-              lineHeight:scrolled?1.6:1.4,
+              lineHeight:1.2,
               overflow:"hidden",
               textOverflow:"ellipsis",
-              display:"-webkit-box",
+              whiteSpace: scrolled ? "nowrap" : "normal",
+              display: scrolled ? "block" : "-webkit-box",
               WebkitLineClamp:scrolled?1:2,
               WebkitBoxOrient:"vertical",
               transition:"all .2s ease",
-              opacity:scrolled?0.8:1,
             }}>
               {session.title||session.prompt}
             </div>
+            {scrolled && repo && (
+              <div style={{
+                fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:T.muted,
+                fontWeight:700, opacity:0.8, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
+                marginTop: 2
+              }}>{repo}</div>
+            )}
           </div>
 
-          <div style={{display:"flex",gap:8,alignItems:"center",flexShrink:0}}>
-            {isStale && (
-              <div style={{display:"flex", alignItems:"center", gap:6, background:T.brandDim, border:`1px solid ${T.brandDark}40`, borderRadius:4, padding:"2px 8px", marginRight:4}}>
-                 <div style={{width:6, height:6, borderRadius:"50%", background:T.brandLight, animation:"pulse 2s infinite"}}/>
-                 <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:9, fontWeight:800, color:T.brand}}>CACHED</span>
-              </div>
-            )}
+          <div style={{display:"flex",gap:6,alignItems:"center",flexShrink:0}}>
+            {/* High Priority Actions */}
             <button onClick={handleRefresh} disabled={busy} title="Refresh activity" style={{background:isStale?T.brand:T.surfaceHi, border:`1px solid ${isStale?T.brand:T.borderHi}`, borderRadius:4, cursor:busy?"default":"pointer", display:"flex", padding:4, opacity:busy?0.5:1, animation:busy?"spin 1s linear infinite":"none"}}>
-              <Ic n="refresh" s={scrolled?14:15} c={busy?T.brand:(isStale?"#000":T.dim)}/>
+              <Ic n="refresh" s={14} c={busy?T.brand:(isStale?"#000":T.dim)}/>
             </button>
-            {!scrolled && (
+            <Pill status={currentState} small hideLabel={scrolled}/>
+
+            {/* Desktop-only side buttons in Row 1 */}
+            {isDesktop && (
               <>
                 <button
                   onClick={() => isArchived ? onUnarchive(session.id) : onArchive(session.id)}
@@ -2673,41 +2681,103 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                 </button>
               </>
             )}
+          </div>
+        </div>
+
+        {/* Row 2: Secondary Metadata & Actions (Hidden when scrolled on mobile) */}
+        {!scrolled && (
+          <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:8, overflowX:"auto", scrollbarWidth:"none", WebkitOverflowScrolling:"touch", animation:"fadeIn .2s ease"}}>
+            {isStale && (
+              <div style={{display:"flex", alignItems:"center", gap:6, background:T.brandDim, border:`1px solid ${T.brandDark}40`, borderRadius:4, padding:"2px 8px", flexShrink:0}}>
+                 <div style={{width:6, height:6, borderRadius:"50%", background:T.brandLight, animation:"pulse 2s infinite"}}/>
+                 <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:9, fontWeight:800, color:T.brand}}>CACHED</span>
+              </div>
+            )}
+
             {pr && (
               <a href={pr.url} target="_blank" rel="noopener" style={{
                 background:pr.state==="merged"?T.purpleDim:pr.state==="closed"?T.dim:T.brandDim,
                 border:`1px solid ${pr.state==="merged"?T.purple:pr.state==="closed"?T.muted:T.brand}40`,
-                borderRadius:4, padding:scrolled?"2px 6px":"4px 8px",
-                display:"flex", alignItems:"center", gap:4,
+                borderRadius:4, padding:"3px 8px", display:"flex", alignItems:"center", gap:4,
                 color:pr.state==="merged"?T.purple:pr.state==="closed"?T.muted:T.brand,
-                textDecoration:"none", fontFamily:"'JetBrains Mono',monospace",
-                fontSize:scrolled?10:11, fontWeight:900, transition:"all .2s",
-                boxShadow:pr.state==="closed"?"none":`0 2px 8px ${pr.state==="merged"?T.purple:T.brand}20`,
+                textDecoration:"none", fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:900, flexShrink:0
               }}>
-                <Ic n={pr.state==="merged"?"git_merge":"git_pull"} s={scrolled?12:13} c={pr.state==="merged"?T.purple:pr.state==="closed"?T.muted:T.brand}/>
-                #{pr.number}
-                {!scrolled && <span style={{fontSize:9, opacity:0.9, marginLeft:2}}>{pr.state.toUpperCase()}</span>}
+                <Ic n={pr.state==="merged"?"git_merge":"git_pull"} s={11} c={pr.state==="merged"?T.purple:pr.state==="closed"?T.muted:T.brand}/>
+                #{pr.number} <span style={{fontSize:8, opacity:0.8}}>{pr.state.toUpperCase()}</span>
               </a>
             )}
+
             {checks && (
               <div style={{
-                display:"inline-flex", alignItems:"center", gap:4,
-                background:checks.state==="success"?T.brandDim:checks.state==="failure"?T.redDim:T.amberDim,
+                display:"flex", alignItems:"center", gap:4, background:checks.state==="success"?T.brandDim:checks.state==="failure"?T.redDim:T.amberDim,
                 border:`1px solid ${checks.state==="success"?T.brand:checks.state==="failure"?T.red:T.amber}40`,
-                borderRadius:4, padding:"2px 8px", marginRight:4,
-                color:checks.state==="success"?T.brandLight:checks.state==="failure"?T.red:T.amber,
-                fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:900,
-                cursor:checks.url?"pointer":"default"
+                borderRadius:4, padding:"3px 8px", color:checks.state==="success"?T.brandLight:checks.state==="failure"?T.red:T.amber,
+                fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:900, cursor:checks.url?"pointer":"default", flexShrink:0
               }} onClick={() => checks.url && window.open(checks.url, "_blank")}>
-                <Ic n={checks.state==="success"?"check":checks.state==="failure"?"x":"refresh"} s={11} c={checks.state==="success"?T.brandLight:checks.state==="failure"?T.red:T.amber}/>
+                <Ic n={checks.state==="success"?"check":checks.state==="failure"?"x":"refresh"} s={10} c={checks.state==="success"?T.brandLight:checks.state==="failure"?T.red:T.amber}/>
                 {checks.label}
               </div>
             )}
-            <Pill status={currentState} small/>
-          </div>
-        </div>
 
-        <div style={{
+            {!isDesktop && (
+              <div style={{display:"flex", gap:6, marginLeft:"auto"}}>
+                <button
+                  onClick={() => isArchived ? onUnarchive(session.id) : onArchive(session.id)}
+                  title={isArchived ? "Unarchive session" : "Archive session"}
+                  style={{
+                    background:isArchived ? T.purpleDim : T.surfaceHi,
+                    border:`1px solid ${isArchived ? T.purple+"40" : T.borderHi}`,
+                    borderRadius:4, cursor:"pointer", display:"flex", alignItems:"center", padding:5, transition:"all .2s"
+                  }}
+                >
+                  <Ic n={isArchived ? "unarchive" : "archive"} s={13} c={isArchived ? T.purple : T.muted}/>
+                </button>
+                <button onClick={() => { if(confirm("Delete this session?")) handleDelete(); }} disabled={busy} title="Delete session" style={{background:T.redDim, border:`1px solid ${T.red}30`, borderRadius:4, cursor:"pointer", display:"flex", alignItems:"center", padding:5}}>
+                  <Ic n="trash" s={13} c={T.red}/>
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Scrolled Mobile Metadata Row */}
+        {scrolled && !isDesktop && (
+          <div style={{display:"flex", alignItems:"center", gap:10, marginTop:4, animation:"fadeIn .2s ease"}}>
+            <div style={{flex:1, minWidth:0, display:"flex", alignItems:"center", gap:4}}>
+               <Ic n="code" s={10} c={T.muted}/>
+               <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:T.muted, fontWeight:700, opacity:0.8, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>{repo}</span>
+            </div>
+            <div style={{display:"flex", gap:6, alignItems:"center", flexShrink:0}}>
+              {isStale && <div style={{width:5, height:5, borderRadius:"50%", background:T.brand, animation:"pulse 2s infinite"}}/>}
+              {pr && (
+                <a href={pr.url} target="_blank" rel="noopener" style={{
+                  background:pr.state==="merged"?T.purpleDim:pr.state==="closed"?T.dim:T.brandDim,
+                  border:`1px solid ${pr.state==="merged"?T.purple:pr.state==="closed"?T.muted:T.brand}40`,
+                  borderRadius:3, padding:"1px 4px", display:"flex", alignItems:"center", gap:3,
+                  color:pr.state==="merged"?T.purple:pr.state==="closed"?T.muted:T.brand,
+                  textDecoration:"none", fontFamily:"'JetBrains Mono',monospace", fontSize:8, fontWeight:900
+                }}>
+                  <Ic n={pr.state==="merged"?"git_merge":"git_pull"} s={9} c={pr.state==="merged"?T.purple:pr.state==="closed"?T.muted:T.brand}/>
+                  #{pr.number}
+                </a>
+              )}
+              {checks && (
+                <div style={{
+                  background:checks.state==="success"?T.brandDim:checks.state==="failure"?T.redDim:T.amberDim,
+                  border:`1px solid ${checks.state==="success"?T.brand:checks.state==="failure"?T.red:T.amber}40`,
+                  borderRadius:3, padding:"1px 4px", display:"flex", alignItems:"center", gap:3,
+                  color:checks.state==="success"?T.brandLight:checks.state==="failure"?T.red:T.amber,
+                  fontFamily:"'JetBrains Mono',monospace", fontSize:8, fontWeight:900
+                }}>
+                  <Ic n={checks.state==="success"?"check":checks.state==="failure"?"x":"refresh"} s={9} c={checks.state==="success"?T.brandLight:checks.state==="failure"?T.red:T.amber}/>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div style={{
           height:scrolled?0:2, overflow:"hidden", transition:"all .25s ease",
           marginBottom:scrolled?0:5, opacity:scrolled?0:1,
           pointerEvents:scrolled?"none":"auto",
@@ -2727,6 +2797,12 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
           pointerEvents:scrolled?"none":"auto",
         }}>
           <span>{session.id?.slice(0,10)}</span>
+          {repo && (
+            <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:4, fontWeight:700, color:T.muted}}>
+              <Ic n="code" s={11} c={T.muted}/>
+              {repo}
+            </span>
+          )}
           {session.sourceContext?.source&&(
             <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:4}}>
               <Ic n="branch" s={11} c={T.muted}/>
@@ -2735,8 +2811,6 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
             </span>
           )}
           {session.url && <a href={session.url} target="_blank" rel="noopener" style={{color:T.textDim,textDecoration:"none",flexShrink:0,fontFamily:"'JetBrains Mono',monospace",fontSize:11}}>WEB↗</a>}
-          {b?.repo && <a href={`https://github.com/${b.repo}/branches`} target="_blank" rel="noopener" style={{color:T.textDim,textDecoration:"none",flexShrink:0,fontFamily:"'JetBrains Mono',monospace",fontSize:11}}>BRANCHES↗</a>}
-          {b?.repo && b?.working && b?.working !== b?.base && <a href={`https://github.com/${b.repo}/tree/${b.working}`} target="_blank" rel="noopener" style={{color:T.brand,textDecoration:"none",flexShrink:0,fontFamily:"'JetBrains Mono',monospace",fontSize:11, fontWeight:700}}>VIEW BRANCH↗</a>}
         </div>
 
 
@@ -2830,7 +2904,6 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
             }}>{t.label}</button>
           ))}
         </div>
-      </div>
 
       {/* ── Content ── */}
       <div ref={contentRef} onScroll={handleScroll} style={{flex:1,overflowY:"auto",padding:"14px 16px",paddingBottom:isDesktop?80:220,WebkitOverflowScrolling:"touch",minHeight:200,position:"relative"}}>
