@@ -2116,7 +2116,7 @@ const SetupScreen = ({ onSave }) => {
 };
 
 // ─── Session Card ─────────────────────────────────────────────────────────────
-const SessionCard = memo(({ s, onPress, isSelected, index, activities = [] }) => {
+const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], lastReadTs }) => {
   const cardRef = useRef(null);
 
   useEffect(() => {
@@ -2127,6 +2127,11 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [] }) =>
 
   const isActuallyDone = activities.some(a => a.sessionCompleted);
   const currentState = isActuallyDone ? "COMPLETED" : s.state;
+  const isWorking = ACTIVE_STATES.has(currentState);
+  const isFinished = currentState === "COMPLETED" || currentState === "FAILED";
+  const updateTs = s.updateTime || s.createTime;
+  const isUnread = isFinished && (!lastReadTs || updateTs > lastReadTs);
+
   const pct  = pctFromState(currentState);
   const m    = STATUS_META[currentState] || STATUS_META.QUEUED;
   const repo = s.sourceContext?.githubRepoContext ? s.sourceContext.source?.replace("sources/github/","") : null;
@@ -2135,16 +2140,30 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [] }) =>
   const ahead = useMemo(() => getAheadCount(activities), [activities]);
   const checks = useMemo(() => getCheckStatus(activities), [activities]);
 
+  const activityStats = useMemo(() => {
+    const count = activities.length;
+    const rawData = JSON.stringify(activities);
+    const size = new TextEncoder().encode(rawData).length;
+    return { count, size };
+  }, [activities]);
+
+  const bg = isSelected ? `${T.brand}0c` : isUnread ? `${m.color}0a` : isWorking ? `${T.brand}06` : T.surface;
+  const borderColor = isSelected ? T.brand : isUnread ? m.color : isWorking ? `${T.brand}40` : T.border;
+  const shadow = isSelected ? `0 8px 24px -6px ${T.brand}30` : isUnread ? `0 4px 16px -4px ${m.color}25` : isWorking ? `0 0 15px ${T.brand}10` : "none";
+
   return (
-    <button ref={cardRef} onClick={onPress} style={{
-      width:"100%",background:isSelected?`${T.brand}0c`:T.surface,textAlign:"left",cursor:"pointer",
-      border:`1px solid ${isSelected?T.brand:T.border}`,
-      borderLeft:`4px solid ${isSelected?T.brand:m.color}`,
-      borderRadius:8,padding:"12px 14px",marginBottom:8,transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)",
-      boxShadow:isSelected?`0 8px 24px -6px ${T.brand}25`:"none",
-      position:"relative",
-      transform:isSelected?"translateX(3px)":"none",
-    }}>
+    <button ref={cardRef} onClick={onPress}
+      aria-label={`Session ${index}: ${s.title || s.prompt}. Status: ${m.label}. ${isUnread ? "New activity." : ""}`}
+      style={{
+        width:"100%", background:bg, textAlign:"left", cursor:"pointer",
+        border:`1px solid ${borderColor}`,
+        borderLeft:`4px solid ${isSelected ? T.brand : m.color}`,
+        borderRadius:8, padding:"12px 14px", marginBottom:8, transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)",
+        boxShadow:shadow,
+        position:"relative",
+        transform:isSelected?"translateX(3px)":"none",
+      }}
+    >
       {isSelected && (
         <>
           <div style={{
@@ -2222,7 +2241,22 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [] }) =>
             letterSpacing:"0.05em", animation:"fadeIn .3s ease"
           }}>LAST VISITED</span>
         )}
-        <span style={{marginLeft:"auto",fontSize:10,color:T.dim,background:T.surfaceHi,padding:"1px 5px",borderRadius:2}}>{s.id?.slice(0,8)}</span>
+        {isUnread && (
+          <span style={{
+            padding:"1px 6px", borderRadius:3,
+            background:m.bg, border:`1px solid ${m.color}40`,
+            fontSize:8, fontWeight:900, color:m.color,
+            letterSpacing:"0.05em", animation:"fadeIn .3s ease"
+          }}>NEW ACTIVITY</span>
+        )}
+        <div style={{marginLeft:"auto", display:"flex", alignItems:"center", gap:8}}>
+          {activityStats.count > 0 && (
+            <span style={{fontSize:9, color:T.dim, opacity:0.6}} title="Activity metrics">
+              {activityStats.count} ITEMS · {fmtBytes(activityStats.size/1024)}
+            </span>
+          )}
+          <span style={{fontSize:10,color:T.dim,background:T.surfaceHi,padding:"1px 5px",borderRadius:2}}>{s.id?.slice(0,8)}</span>
+        </div>
       </div>
     </button>
   );
@@ -4186,7 +4220,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
 const FILTERS = ["ALL","QUEUED","PLANNING","AWAITING_PLAN_APPROVAL","IN_PROGRESS","COMPLETED","FAILED"];
 const FILTER_LABELS = { AWAITING_PLAN_APPROVAL:"APPROVE", ALL:"ALL" };
 
-const SessionList = ({ sessions, onSelect, onRefresh, refreshing, selectedId, isDesktop, onNew,  onSettings, pollInterval, sessionLimit, countdown, plan, todayCount, searchQuery, setSearchQuery, archivedIds, showArchived, setShowArchived, activitiesMap = {}, error, clearError, isBoosted }) => {
+const SessionList = ({ sessions, onSelect, onRefresh, refreshing, selectedId, isDesktop, onNew,  onSettings, pollInterval, sessionLimit, countdown, plan, todayCount, searchQuery, setSearchQuery, archivedIds, showArchived, setShowArchived, activitiesMap = {}, error, clearError, isBoosted, readMap }) => {
   const [filter,setFilter] = useState("ALL");
   const [scrolled, handleScroll] = useScrollThreshold();
   const [searchOpen, setSearchOpen] = useState(false);
@@ -4360,7 +4394,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, selectedId, is
       <div onScroll={handleScroll} style={{flex:1,overflowY:"auto",padding:"10px 12px",WebkitOverflowScrolling:"touch",minHeight:200}}>
         {refreshing&&sessions.length===0&&<div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>Loading sessions…</div>}
         {!refreshing&&filtered.length===0&&<div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>{filter==="ALL"?"No sessions yet":"No sessions with this status"}</div>}
-        {filtered.map((s,i)=><SessionCard key={s.id||s.name} index={i+1} s={s} onPress={()=>onSelect(s)} isSelected={s.id===selectedId} activities={activitiesMap[s.id] || []}/>)}
+        {filtered.map((s,i)=><SessionCard key={s.id||s.name} index={i+1} s={s} onPress={()=>onSelect(s)} isSelected={s.id===selectedId} activities={activitiesMap[s.id] || []} lastReadTs={readMap[s.id]}/>)}
       </div>
     </div>
   );
@@ -4431,6 +4465,10 @@ function JulesClient() {
   const [searchQuery, setSearchQuery] = useState("");
   const [globalErr, setGlobalErr] = useState(null);
   const [personas, setPersonas] = useState(loadPersonas);
+  const [readMap, setReadMap] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("jac_read_map") || "{}"); }
+    catch { return {}; }
+  });
 
   const isDesktop = useIsDesktop();
 
@@ -4459,6 +4497,11 @@ function JulesClient() {
     try { localStorage.setItem("jac_archived", JSON.stringify(Array.from(archivedIds))); }
     catch {}
   }, [archivedIds]);
+
+  useEffect(() => {
+    try { localStorage.setItem("jac_read_map", JSON.stringify(readMap)); }
+    catch {}
+  }, [readMap]);
 
   const handleArchive = useCallback(id => {
     setArchivedIds(prev => {
@@ -4602,6 +4645,8 @@ function JulesClient() {
 
   const handleSelect = useCallback(s => {
     setSelected(s);
+    const ts = s.updateTime || s.createTime;
+    setReadMap(prev => ({ ...prev, [s.id]: ts }));
     if (isDesktop) setDesktop("detail"); else setMobile("detail");
   }, [isDesktop]);
 
@@ -4645,6 +4690,7 @@ function JulesClient() {
             activitiesMap={activitiesMap}
             error={globalErr} clearError={() => setGlobalErr(null)}
             isBoosted={isBoosted}
+            readMap={readMap}
           />
         </div>
         {/* Main panel */}
@@ -4705,7 +4751,8 @@ function JulesClient() {
             archivedIds={archivedIds} showArchived={showArchived} setShowArchived={setShowArchived}
             activitiesMap={activitiesMap}
             error={globalErr} clearError={() => setGlobalErr(null)}
-            isBoosted={isBoosted} />
+            isBoosted={isBoosted}
+            readMap={readMap} />
         )}
         {mobileScreen==="detail"&&selected&&(
           <SessionDetail key={selected.id} session={selected} apiKey={apiKey}
