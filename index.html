@@ -3079,6 +3079,7 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
   const [err,setErr]               = useState(null);
   const [savedFlash,setSavedFlash] = useState(false);
   const [expanded,setExpanded]     = useState(false);
+  const [showConfirm,setShowConfirm] = useState(false);
 
 
   // ── Derive branches whenever selected source changes ─────────────────────
@@ -3175,8 +3176,7 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
   };
 
   const handleCreate = async () => {
-    if (!prompt.trim()) return;
-    setSub(true); setErr(null);
+    setSub(true); setErr(null); setShowConfirm(false);
 
     let finalPrompt = prompt.trim();
     if (selectedPersonas.size > 0) {
@@ -3205,13 +3205,131 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
         saveLastSource(source);
       }
       onCreate(d);
-    } catch { setErr(e.message); setSub(false); }
+    } catch (err) { setErr(err.message); setSub(false); }
   };
 
   const payloadEst = (JSON.stringify({prompt,title,source,branch}).length/1024).toFixed(1);
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%",minHeight:0}}>
+      {showConfirm && (
+        <div style={{
+          position:"fixed", inset:0, zIndex:2000,
+          background:"rgba(4,5,7,0.85)", backdropFilter:"blur(12px)",
+          display:"flex", alignItems:"center", justifyContent:"center",
+          padding:20, animation:"fadeIn .2s ease"
+        }}>
+          <div style={{
+            width:"100%", maxWidth:420, background:T.surface, border:`1px solid ${T.borderHi}`,
+            borderRadius:16, padding:28, boxShadow:"0 20px 50px rgba(0,0,0,0.6)",
+            animation:"zoomIn .3s cubic-bezier(0.2, 0, 0.2, 1)",
+            position:"relative", overflow:"hidden"
+          }}>
+            <div style={{
+              position:"absolute", top:0, left:0, right:0, height:3,
+              background:`linear-gradient(90deg, ${T.brand}, ${T.purple})`
+            }}/>
+
+            <div style={{textAlign:"center", marginBottom:24}}>
+              <div style={{
+                width:48, height:48, borderRadius:12, background:T.brandDim,
+                display:"flex", alignItems:"center", justifyContent:"center",
+                margin:"0 auto 16px", border:`1px solid ${T.brand}30`
+              }}>
+                <Ic n="tasks" s={22} c={T.brand}/>
+              </div>
+              <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:16, fontWeight:900, color:T.text, letterSpacing:"0.05em"}}>CONFIRM SESSION</div>
+              <div style={{fontFamily:"'IBM Plex Sans',sans-serif", fontSize:14, color:T.muted, marginTop:4}}>Ready to assign this task to Jules?</div>
+            </div>
+
+            <div style={{display:"flex", flexDirection:"column", gap:16, marginBottom:28}}>
+              <div style={{background:T.surfaceHi, borderRadius:10, padding:16, border:`1px solid ${T.border}`}}>
+                <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.brand, fontWeight:800, letterSpacing:"0.1em", marginBottom:8}}>TARGET REPOSITORY</div>
+                <div style={{display:"flex", alignItems:"center", gap:10}}>
+                  <Ic n="code" s={14} c={T.brand}/>
+                  <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:14, color:T.text, fontWeight:700, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>
+                    {srcObj ? getSourceDisplay(srcObj) : "REPOLESS SESSION"}
+                  </span>
+                </div>
+              </div>
+
+              <div style={{background:T.surfaceHi, borderRadius:10, padding:16, border:`1px solid ${T.border}`}}>
+                <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.blue, fontWeight:800, letterSpacing:"0.1em", marginBottom:8}}>STARTING BRANCH</div>
+                <div style={{display:"flex", alignItems:"center", gap:10}}>
+                  <Ic n="branch" s={14} c={T.blue}/>
+                  <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:14, color:T.blue, fontWeight:800}}>
+                    {branch || defaultBranch || "main"}
+                  </span>
+                </div>
+              </div>
+
+              <div style={{background:T.surfaceHi, borderRadius:10, padding:16, border:`1px solid ${T.border}`}}>
+                <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.purple, fontWeight:800, letterSpacing:"0.1em", marginBottom:8}}>PROMPT SUMMARY</div>
+                <div style={{fontFamily:"'IBM Plex Sans',sans-serif", fontSize:14, color:T.textDim, lineHeight:1.5, display:"-webkit-box", WebkitLineClamp:3, WebkitBoxOrient:"vertical", overflow:"hidden", marginBottom: selectedPersonas.size > 0 ? 12 : 0}}>
+                  {prompt}
+                </div>
+                {selectedPersonas.size > 0 && (
+                  <div style={{display:"flex", gap:4, flexWrap:"wrap", paddingTop:8, borderTop:`1px solid ${T.border}`}}>
+                    {Array.from(selectedPersonas).map(id => {
+                      const p = personas.find(x => x.id === id);
+                      return p ? (
+                        <span key={id} style={{fontSize:9, fontWeight:800, color:p.color, background:`${p.color}15`, padding:"2px 6px", borderRadius:4, border:`1px solid ${p.color}30`}}>
+                          {p.label}
+                        </span>
+                      ) : null;
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {(autoMode || reqApproval) && (
+                <div style={{display:"flex", gap:10}}>
+                  {autoMode && (
+                    <div style={{flex:1, display:"flex", alignItems:"center", gap:6, padding:"8px 12px", background:T.brandDim, border:`1px solid ${T.brand}30`, borderRadius:8}}>
+                      <Ic n="check" s={12} c={T.brand}/>
+                      <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.brand, fontWeight:800}}>AUTO PR</span>
+                    </div>
+                  )}
+                  {reqApproval && (
+                    <div style={{flex:1, display:"flex", alignItems:"center", gap:6, padding:"8px 12px", background:T.purpleDim, border:`1px solid ${T.purple}30`, borderRadius:8}}>
+                      <Ic n="plan" s={12} c={T.purple}/>
+                      <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.purple, fontWeight:800}}>PLAN REVIEW</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div style={{display:"flex", gap:12}}>
+              <button
+                onClick={() => setShowConfirm(false)}
+                style={{
+                  flex:1, padding:"14px", borderRadius:10, border:`1px solid ${T.border}`,
+                  background:"transparent", color:T.muted, cursor:"pointer",
+                  fontFamily:"'JetBrains Mono',monospace", fontSize:12, fontWeight:700,
+                  transition:"all .2s"
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = T.surfaceHi}
+                onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+              >CANCEL</button>
+              <button
+                onClick={handleCreate}
+                disabled={submitting}
+                style={{
+                  flex:2, padding:"14px", borderRadius:10, border:"none",
+                  background:T.brand, color:"#000", cursor:"pointer",
+                  fontFamily:"'JetBrains Mono',monospace", fontSize:12, fontWeight:900,
+                  boxShadow:`0 8px 24px ${T.brand}40`, transition:"transform .2s"
+                }}
+                onMouseEnter={e => e.currentTarget.style.transform = "translateY(-2px)"}
+                onMouseLeave={e => e.currentTarget.style.transform = "none"}
+              >
+                {submitting ? "STARTING..." : "START SESSION →"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div style={{padding:"12px 16px",borderBottom:`1px solid ${T.border}`,background:T.surface,display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
         {!isDesktop&&<button onClick={onBack} style={{background:"none",border:"none",cursor:"pointer",display:"flex"}}><Ic n="back" s={18} c={T.text}/></button>}
         <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.text,letterSpacing:"0.05em",fontWeight:700,flex:1}}>NEW SESSION</div>
@@ -3470,7 +3588,7 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
             </div>
           )}
 
-          <Btn onClick={handleCreate} disabled={!prompt.trim()||submitting||loadingSrc||(plan&&todayCount.total>=plan.daily)} style={{width:"100%"}}>
+          <Btn onClick={() => setShowConfirm(true)} disabled={!prompt.trim()||submitting||loadingSrc||(plan&&todayCount.total>=plan.daily)} style={{width:"100%"}}>
             {submitting?"SENDING…":"ASSIGN TO JULES →"}
           </Btn>
         </div>
@@ -4597,6 +4715,9 @@ function Shell({ children, desktop=false }) {
         option{background:${T.surface};color:${T.text};}
         @keyframes dot{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.4;transform:scale(.7);}}
         @keyframes spin{to{transform:rotate(360deg);}}
+        @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+        @keyframes zoomIn{from{transform:scale(0.95);opacity:0;}to{transform:scale(1);opacity:1;}}
+        @keyframes slideUp{from{transform:translateY(20px);opacity:0;}to{transform:translateY(0);opacity:1;}}
         ::selection{background:${T.brandDim};color:${T.brand};}
         textarea::placeholder,input::placeholder{color:${T.muted};}
         @media screen and (max-width: 1023px) and (orientation: landscape) {
