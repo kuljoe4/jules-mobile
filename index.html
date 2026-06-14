@@ -258,6 +258,20 @@ function loadCacheLimit() {
 }
 function saveCacheLimit(v) { try { localStorage.setItem(CACHE_LIMIT_KEY, v); } catch {} }
 
+const ACTIVITY_LIMIT_OPTIONS = [
+  { label:"50",  val:50  },
+  { label:"100", val:100 },
+  { label:"200", val:200 },
+  { label:"500", val:500 },
+];
+const ACTIVITY_LIMIT_KEY = "jac_activity_limit";
+const DEFAULT_ACTIVITY_LIMIT = 100;
+
+function loadActivityLimit() {
+  try { const v = parseInt(localStorage.getItem(ACTIVITY_LIMIT_KEY)); return ACTIVITY_LIMIT_OPTIONS.some(o=>o.val===v)?v:DEFAULT_ACTIVITY_LIMIT; } catch { return DEFAULT_ACTIVITY_LIMIT; }
+}
+function saveActivityLimit(v) { try { localStorage.setItem(ACTIVITY_LIMIT_KEY,v); } catch {} }
+
 function loadLimit() {
   try { const v=parseInt(localStorage.getItem(LIMIT_KEY)); return LIMIT_OPTIONS.some(o=>o.val===v)?v:DEFAULT_LIMIT; } catch { return DEFAULT_LIMIT; }
 }
@@ -1636,14 +1650,15 @@ const ActivityFeed = memo(({ activities, showAll, onShowAll, onMediaClick, onEdi
 
   const deduped = useMemo(() => {
     const list = [];
-    let lastP = null;
+    let lastPKey = null;
     for (const a of visible) {
       if (a.progressUpdated) {
         const p = a.progressUpdated;
-        if (lastP && lastP.title === p.title && lastP.description === p.description) continue;
-        lastP = p;
+        const pKey = `${p.title || ""}:${p.description || ""}`;
+        if (lastPKey === pKey) continue;
+        lastPKey = pKey;
       } else {
-        lastP = null;
+        lastPKey = null;
       }
       list.push(a);
     }
@@ -2102,6 +2117,14 @@ const SetupScreen = ({ onSave }) => {
 
 // ─── Session Card ─────────────────────────────────────────────────────────────
 const SessionCard = memo(({ s, onPress, isSelected, index, activities = [] }) => {
+  const cardRef = useRef(null);
+
+  useEffect(() => {
+    if (isSelected && cardRef.current) {
+      cardRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [isSelected]);
+
   const isActuallyDone = activities.some(a => a.sessionCompleted);
   const currentState = isActuallyDone ? "COMPLETED" : s.state;
   const pct  = pctFromState(currentState);
@@ -2113,21 +2136,23 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [] }) =>
   const checks = useMemo(() => getCheckStatus(activities), [activities]);
 
   return (
-    <button onClick={onPress} style={{
-      width:"100%",background:isSelected?`${T.brand}08`:T.surface,textAlign:"left",cursor:"pointer",
+    <button ref={cardRef} onClick={onPress} style={{
+      width:"100%",background:isSelected?`${T.brand}0c`:T.surface,textAlign:"left",cursor:"pointer",
       border:`1px solid ${isSelected?T.brand:T.border}`,
       borderLeft:`4px solid ${isSelected?T.brand:m.color}`,
       borderRadius:8,padding:"12px 14px",marginBottom:8,transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)",
-      boxShadow:isSelected?`0 4px 12px -4px ${T.brand}30`:"none",
+      boxShadow:isSelected?`0 8px 24px -6px ${T.brand}25`:"none",
       position:"relative",
-      transform:isSelected?"translateX(2px)":"none",
+      transform:isSelected?"translateX(3px)":"none",
     }}>
       {isSelected && (
-        <div style={{
-          position:"absolute", top:0, bottom:0, left:0, width:4,
-          background:T.brand, boxShadow:`0 2px 8px ${T.brand}40`,
-          borderRadius:"4px 0 0 4px"
-        }}/>
+        <>
+          <div style={{
+            position:"absolute", top:0, bottom:0, left:0, width:4,
+            background:T.brand, boxShadow:`0 0 12px ${T.brand}60`,
+            borderRadius:"4px 0 0 4px"
+          }}/>
+        </>
       )}
       <div style={{display:"flex",alignItems:"flex-start",gap:10,marginBottom:12}}>
         <div style={{width:22,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted,fontWeight:700,paddingTop:2}}>{index}.</div>
@@ -2189,6 +2214,14 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [] }) =>
       <Bar pct={pct} status={s.state}/>
       <div style={{display:"flex",alignItems:"center",gap:10,marginTop:6,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.muted}}>
         <span>{fmtAgo(new Date(s.updateTime||s.createTime).getTime())}</span>
+        {isSelected && (
+          <span style={{
+            padding:"1px 6px", borderRadius:3,
+            background:T.brandDim, border:`1px solid ${T.brand}30`,
+            fontSize:8, fontWeight:900, color:T.brand,
+            letterSpacing:"0.05em", animation:"fadeIn .3s ease"
+          }}>LAST VISITED</span>
+        )}
         <span style={{marginLeft:"auto",fontSize:10,color:T.dim,background:T.surfaceHi,padding:"1px 5px",borderRadius:2}}>{s.id?.slice(0,8)}</span>
       </div>
     </button>
@@ -2196,7 +2229,7 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [] }) =>
 });
 
 // ─── Session Detail ───────────────────────────────────────────────────────────
-const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete, onSessionUpdate, isDesktop, pollInterval, setPollInterval, isArchived, onArchive, onUnarchive, cacheLimit }) => {
+const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete, onSessionUpdate, isDesktop, pollInterval, setPollInterval, isArchived, onArchive, onUnarchive, cacheLimit, activityLimit }) => {
   const [session,setSession]     = useState(initSession);
   const [activities,setActivities] = useState(() => {
     try {
@@ -2277,9 +2310,10 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
       let latestTs = lastTsRef.current;
 
       do {
+        const pageSize = Math.min(activityLimit, 100);
         const qs = sinceTs
-          ? `createTime=${encodeURIComponent(sinceTs)}&pageSize=50`
-          : `pageSize=100${pageToken ? `&pageToken=${pageToken}` : ""}`;
+          ? `createTime=${encodeURIComponent(sinceTs)}&pageSize=${pageSize}`
+          : `pageSize=${pageSize}${pageToken ? `&pageToken=${pageToken}` : ""}`;
 
         const d = await apiCall(apiKey, `/sessions/${session.id}/activities?${qs}`, {
           _label:`Acts ${sinceTs?"Δ":"full"} ${session.id?.slice(0,6)}`
@@ -2298,6 +2332,11 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
         }
         pageToken = d.nextPageToken;
 
+        // Respect activityLimit
+        if (actMapRef.current.size >= activityLimit) {
+          pageToken = null;
+        }
+
         // On incremental loads (sinceTs), we don't need to follow tokens as new
         // activities are added to the end of the history.
         if (sinceTs) break;
@@ -2306,9 +2345,18 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
 
       if (latestTs) lastTsRef.current = latestTs;
       if (changed) {
-        const sorted = Array.from(actMapRef.current.values())
+        let sorted = Array.from(actMapRef.current.values())
           .filter(a => !a._temp)
           .sort((a,b) => new Date(a.createTime) - new Date(b.createTime));
+
+        // Enforce limit if we exceeded it during this load
+        if (sorted.length > activityLimit) {
+          sorted = sorted.slice(-activityLimit);
+          // Sync map back
+          actMapRef.current = new Map();
+          sorted.forEach(a => actMapRef.current.set(getActKey(a), a));
+        }
+
         setActivities(sorted);
       setIsStale(false);
 
@@ -2517,6 +2565,13 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   const mediaArtifacts = useMemo(() =>
     activities.flatMap(a => (a.artifacts||[]).filter(x=>x.media?.data).map(x=>({...x.media,ts:a.createTime})))
   , [activities]);
+
+  const activityStats = useMemo(() => {
+    const count = activities.length;
+    const rawData = JSON.stringify(activities);
+    const size = new TextEncoder().encode(rawData).length;
+    return { count, size };
+  }, [activities]);
 
   const b = useMemo(() => getBranchInfo(session, activities), [session, activities]);
   const ahead = useMemo(() => getAheadCount(activities), [activities]);
@@ -2985,7 +3040,18 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
               <Ic n="send" s={14} c={msg.trim()&&!busy?"#000":T.muted}/>
             </button>
           </div>
-          <div style={{marginTop:4,fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.textDim}}>↵ send · shift+↵ newline</div>
+          <div style={{marginTop:4, display:"flex", alignItems:"center", justifyContent:"space-between"}}>
+            <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.textDim}}>↵ send · shift+↵ newline</div>
+            <div style={{
+              display:"flex", alignItems:"center", gap:10,
+              fontFamily:"'JetBrains Mono',monospace", fontSize:9, fontWeight:700, color:T.dim,
+              opacity:0.6, letterSpacing:"0.05em", whiteSpace:"nowrap"
+            }}>
+              <span title="Total activities loaded">{activityStats.count} ITEMS</span>
+              <span style={{width:1, height:8, background:T.border}}/>
+              <span title="Estimated activity data size">{fmtBytes(activityStats.size/1024)}</span>
+            </div>
+          </div>
         </div>
       )}
 
@@ -3728,7 +3794,7 @@ const NetworkMonitor = ({ onBack, isDesktop }) => {
   );
 };
 
-const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPollInterval, setActPollInterval, activePollInterval, setActivePollInterval, sessionLimit, setSessionLimit, cacheLimit, setCacheLimit, personas, setPersonas, planId, setPlanId, customDaily, setCustomDaily, plan, todayCount }) => {
+const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPollInterval, setActPollInterval, activePollInterval, setActivePollInterval, sessionLimit, setSessionLimit, activityLimit, setActivityLimit, cacheLimit, setCacheLimit, personas, setPersonas, planId, setPlanId, customDaily, setCustomDaily, plan, todayCount }) => {
   const [tab, setTab] = useState("general");
   const [saved, setSaved] = useState(false);
   const saveTimer = useRef(null);
@@ -3838,7 +3904,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
                 </div>
 
                 <div style={{marginBottom:20}}>
-                  <div style={{fontSize:11, color:T.textDim, marginBottom:8, fontFamily:"'JetBrains Mono',monospace", fontWeight:700}}>FETCH LIMIT</div>
+                  <div style={{fontSize:11, color:T.textDim, marginBottom:8, fontFamily:"'JetBrains Mono',monospace", fontWeight:700}}>SESSION FETCH LIMIT</div>
                   <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
                     {LIMIT_OPTIONS.map(opt => {
                       const isAct = opt.val === sessionLimit;
@@ -3846,6 +3912,21 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
                         <PickerBtn key={opt.label} label={opt.label} isAct={isAct} onClick={()=>{setSessionLimit(opt.val); triggerSaveFeedback();}} />
                       );
                     })}
+                  </div>
+                </div>
+
+                <div style={{marginBottom:20}}>
+                  <div style={{fontSize:11, color:T.textDim, marginBottom:8, fontFamily:"'JetBrains Mono',monospace", fontWeight:700}}>ACTIVITY HISTORY LIMIT</div>
+                  <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                    {ACTIVITY_LIMIT_OPTIONS.map(opt => {
+                      const isAct = opt.val === activityLimit;
+                      return (
+                        <PickerBtn key={opt.label} label={opt.label} isAct={isAct} onClick={()=>{setActivityLimit(opt.val); triggerSaveFeedback();}} />
+                      );
+                    })}
+                  </div>
+                  <div style={{marginTop:6, fontSize:10, color:T.textDim, fontFamily:"'IBM Plex Sans',sans-serif"}}>
+                    Controls the maximum number of activity items loaded and stored per session.
                   </div>
                 </div>
 
@@ -4279,7 +4360,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, selectedId, is
       <div onScroll={handleScroll} style={{flex:1,overflowY:"auto",padding:"10px 12px",WebkitOverflowScrolling:"touch",minHeight:200}}>
         {refreshing&&sessions.length===0&&<div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>Loading sessions…</div>}
         {!refreshing&&filtered.length===0&&<div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>{filter==="ALL"?"No sessions yet":"No sessions with this status"}</div>}
-        {filtered.map((s,i)=><SessionCard key={s.id||s.name} index={i+1} s={s} onPress={()=>onSelect(s)} isSelected={isDesktop&&s.id===selectedId} activities={activitiesMap[s.id] || []}/>)}
+        {filtered.map((s,i)=><SessionCard key={s.id||s.name} index={i+1} s={s} onPress={()=>onSelect(s)} isSelected={s.id===selectedId} activities={activitiesMap[s.id] || []}/>)}
       </div>
     </div>
   );
@@ -4416,6 +4497,10 @@ function JulesClient() {
     lastFetchTime.current = null; // Force full fetch with new limit
   }, []);
 
+  const setActivityLimit = useCallback(v => {
+    saveActivityLimit(v);
+    setActivityLimitRaw(v);
+  }, []);
 
   const setCacheLimit = useCallback(v => {
     saveCacheLimit(v);
@@ -4578,7 +4663,7 @@ function JulesClient() {
               onBack={()=>setDesktop("empty")} onDelete={handleDelete}
               onSessionUpdate={handleSessionUpdate} isDesktop
               pollInterval={actPollInterval} setPollInterval={setActPollInterval}
-              cacheLimit={cacheLimit}
+              cacheLimit={cacheLimit} activityLimit={activityLimit}
               isArchived={archivedIds.has(selected.id)}
               onArchive={handleArchive} onUnarchive={handleUnarchive}/>
           )}
@@ -4592,6 +4677,7 @@ function JulesClient() {
               actPollInterval={actPollInterval} setActPollInterval={setActPollInterval}
               activePollInterval={activePollInterval} setActivePollInterval={setActivePollInterval}
               sessionLimit={sessionLimit} setSessionLimit={setSessionLimit}
+              activityLimit={activityLimit} setActivityLimit={setActivityLimit}
               cacheLimit={cacheLimit} setCacheLimit={setCacheLimit}
               personas={personas} setPersonas={setPersonas}
               planId={planId} setPlanId={setPlanId}
@@ -4609,7 +4695,7 @@ function JulesClient() {
       <div style={{flex:1,overflow:"hidden",display:"flex",flexDirection:"column",minHeight:0}}>
         {mobileScreen==="list"&&(
           <SessionList sessions={sessions} onSelect={handleSelect} onRefresh={()=>fetchSessions(false, true)}
-            refreshing={refreshing} selectedId={null} isDesktop={false}
+            refreshing={refreshing} selectedId={selected?.id} isDesktop={false}
             onSettings={()=>setMobile("settings")}
             pollInterval={effectivePollInterval}
             sessionLimit={sessionLimit}
@@ -4627,7 +4713,7 @@ function JulesClient() {
             onBack={()=>{ setMobile("list"); fetchSessions(true); }}
             onDelete={handleDelete} onSessionUpdate={handleSessionUpdate} isDesktop={false}
             pollInterval={actPollInterval} setPollInterval={setActPollInterval}
-            cacheLimit={cacheLimit}
+            cacheLimit={cacheLimit} activityLimit={activityLimit}
             isArchived={archivedIds.has(selected.id)}
             onArchive={handleArchive} onUnarchive={handleUnarchive}/>
         )}
@@ -4641,6 +4727,7 @@ function JulesClient() {
             actPollInterval={actPollInterval} setActPollInterval={setActPollInterval}
             activePollInterval={activePollInterval} setActivePollInterval={setActivePollInterval}
             sessionLimit={sessionLimit} setSessionLimit={setSessionLimit}
+            activityLimit={activityLimit} setActivityLimit={setActivityLimit}
             cacheLimit={cacheLimit} setCacheLimit={setCacheLimit}
             personas={personas} setPersonas={setPersonas}
             planId={planId} setPlanId={setPlanId}
