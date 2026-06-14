@@ -477,14 +477,14 @@ const T = {
 };
 
 const STATUS_META = {
-  QUEUED:                { label:"QUEUED",   color:T.textDim,   bg:"rgba(124,142,166,.1)", pulse:false },
-  PLANNING:              { label:"PLANNING", color:T.amber,   bg:T.amberDim,             pulse:true  },
-  AWAITING_PLAN_APPROVAL:{ label:"APPROVE",  color:T.purple,  bg:T.purpleDim,            pulse:true  },
-  AWAITING_USER_FEEDBACK:{ label:"INPUT",    color:T.amber,   bg:T.amberDim,             pulse:true  },
-  IN_PROGRESS:           { label:"WORKING",  color:T.brand,   bg:T.brandDim,             pulse:true  },
-  PAUSED:                { label:"PAUSED",   color:T.textDim,   bg:"rgba(124,142,166,.1)", pulse:false },
-  COMPLETED:             { label:"DONE",     color:T.brandDark, bg:T.brandDim,           pulse:false },
-  FAILED:                { label:"FAILED",   color:T.red,     bg:T.redDim,               pulse:false },
+  QUEUED:                { label:"QUEUED",   color:T.textDim,   bg:"rgba(124,142,166,.1)", pulse:false, icon:"database" },
+  PLANNING:              { label:"PLANNING", color:T.amber,   bg:T.amberDim,             pulse:true,  icon:"plan" },
+  AWAITING_PLAN_APPROVAL:{ label:"APPROVE",  color:T.purple,  bg:T.purpleDim,            pulse:true,  icon:"plan" },
+  AWAITING_USER_FEEDBACK:{ label:"INPUT",    color:T.amber,   bg:T.amberDim,             pulse:true,  icon:"tasks" },
+  IN_PROGRESS:           { label:"WORKING",  color:T.brand,   bg:T.brandDim,             pulse:true,  icon:"refresh" },
+  PAUSED:                { label:"PAUSED",   color:T.textDim,   bg:"rgba(124,142,166,.1)", pulse:false, icon:"layout_toggle" },
+  COMPLETED:             { label:"DONE",     color:T.brandDark, bg:T.brandDim,           pulse:false, icon:"check" },
+  FAILED:                { label:"FAILED",   color:T.red,     bg:T.redDim,               pulse:false, icon:"x" },
 };
 
 // ─── Network tracker ──────────────────────────────────────────────────────────
@@ -2147,9 +2147,8 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], last
     return { count, size };
   }, [activities]);
 
-  const bg = isSelected ? `${T.brand}0c` : isUnread ? `${m.color}0a` : isWorking ? `${T.brand}06` : T.surface;
-  const borderColor = isSelected ? T.brand : isUnread ? m.color : isWorking ? `${T.brand}40` : T.border;
-  const shadow = isSelected ? `0 8px 24px -6px ${T.brand}30` : isUnread ? `0 4px 16px -4px ${m.color}25` : isWorking ? `0 0 15px ${T.brand}10` : "none";
+  const bg = isSelected ? `${T.brand}08` : isUnread ? `${m.color}0a` : isWorking ? `${T.brand}04` : T.surface;
+  const borderColor = isSelected ? `${T.brand}40` : isUnread ? `${m.color}30` : isWorking ? `${T.brand}20` : T.border;
 
   return (
     <button ref={cardRef} onClick={onPress}
@@ -2157,104 +2156,73 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], last
       style={{
         width:"100%", background:bg, textAlign:"left", cursor:"pointer",
         border:`1px solid ${borderColor}`,
-        borderLeft:`2px solid ${isSelected ? T.brand : m.color}`,
-        borderRadius:6, padding:"10px 14px", marginBottom:4, transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)",
-        boxShadow:shadow,
+        borderLeft:`3px solid ${m.color}`,
+        borderRadius:6, padding:"8px 12px", marginBottom:4, transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)",
         position:"relative",
         transform:isSelected?"translateX(2px)":"none",
+        outline:"none",
+        boxShadow: isSelected ? `0 8px 24px -6px ${T.brand}30` : "none",
       }}
+      onFocus={e => e.currentTarget.style.borderColor = T.brand}
+      onBlur={e => e.currentTarget.style.borderColor = borderColor}
     >
-      {isSelected && (
-        <div style={{
-          position:"absolute", top:0, bottom:0, left:0, width:2,
-          background:T.brand, boxShadow:`0 0 10px ${T.brand}80`,
-          borderRadius:"2px 0 0 2px"
-        }}/>
-      )}
-      <div style={{display:"flex",alignItems:"flex-start",gap:8,marginBottom:8}}>
-        <div style={{width:18,fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted,fontWeight:700,paddingTop:2}}>{index}.</div>
-        <div style={{flex:1,minWidth:0}}>
-          <div style={{display:"flex", alignItems:"center", gap:6, marginBottom:2, overflow:"hidden"}}>
-            {repo && <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.muted,fontWeight:700,letterSpacing:"0.02em",opacity:0.8,flexShrink:0}}>{repo}</span>}
-            {repo && <span style={{width:2, height:2, borderRadius:"50%", background:T.border, flexShrink:0}}/>}
-            <Pill status={currentState} small/>
-          </div>
-          <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:14,fontWeight:600,color:isSelected?T.textHi:T.text,lineHeight:1.4,overflow:"hidden",textOverflow:"ellipsis",display:"-webkit-box",WebkitLineClamp:1,WebkitBoxOrient:"vertical",marginBottom:pri||b?.isNew?6:0}}>{s.title||s.prompt}</div>
-          <div style={{display:"flex", gap:6, flexWrap:"wrap", marginTop:pri||b?.isNew?4:0}}>
-            {pri && (
-              <div style={{
-                display:"inline-flex", alignItems:"center", gap:4,
-                background:pri.state==="merged"?`${T.purple}0d`:pri.state==="closed"?T.line:T.brandDim,
-                border:`1px solid ${pri.state==="merged"?T.purple:pri.state==="closed"?T.border:T.brand}40`,
-                borderRadius:4, padding:"1px 6px",
-                color:pri.state==="merged"?T.purple:pri.state==="closed"?T.dim:T.brand,
-                fontFamily:"'JetBrains Mono',monospace",
-                fontSize:9, fontWeight:900,
-                marginBottom:2
-              }}>
-                <Ic n={pri.state==="merged"?"git_merge":"git_pull"} s={10} c={pri.state==="merged"?T.purple:pri.state==="closed"?T.dim:T.brand}/>
-                #{pri.number}
-              </div>
-            )}
-            {(!pri || pri.state === "closed") && b?.isNew && (
-              <div style={{display:"flex", gap:4, flexWrap:"wrap"}}>
-                <div style={{
-                  display:"inline-flex", alignItems:"center", gap:4,
-                  background:`${T.blue}0d`, border:`1px solid ${T.blue}30`, borderRadius:4,
-                  padding:"1px 6px", color:T.blue, fontFamily:"'JetBrains Mono',monospace",
-                  fontSize:9, fontWeight:900, marginBottom:2
-                }}>
-                  <Ic n="branch" s={10} c={T.blue}/>
-                  {b.working}
-                  {ahead > 0 && <span style={{marginLeft:2, opacity:0.8}}>+{ahead}</span>}
-                </div>
-                {checks && (
-                  <div style={{
-                    display:"inline-flex", alignItems:"center", gap:3,
-                    background:checks.state==="success"?T.brandDim:checks.state==="failure"?T.redDim:T.amberDim,
-                    border:`1px solid ${checks.state==="success"?T.brand:checks.state==="failure"?T.red:T.amber}30`,
-                    borderRadius:4, padding:"1px 6px",
-                    color:checks.state==="success"?T.brand:checks.state==="failure"?T.red:T.amber,
-                    fontFamily:"'JetBrains Mono',monospace", fontSize:9, fontWeight:900,
-                    marginBottom:2
-                  }}>
-                    <Ic n={checks.state==="success"?"check":checks.state==="failure"?"x":"refresh"} s={8} c={checks.state==="success"?T.brand:checks.state==="failure"?T.red:T.amber}/>
-                    {checks.label}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}>
+        <div style={{width:16,fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.muted,fontWeight:800,opacity:0.6}}>{index}</div>
+        <div
+          title={m.label}
+          aria-label={`Status: ${m.label}`}
+          style={{display:"flex",alignItems:"center",justifyContent:"center",width:18,height:18,borderRadius:4,background:m.bg,flexShrink:0}}
+        >
+          <Ic n={m.icon} s={11} c={m.color}/>
+        </div>
+        <div style={{flex:1,minWidth:0,fontFamily:"'IBM Plex Sans',sans-serif",fontSize:13,fontWeight:600,color:isSelected?T.textHi:T.textDim,lineHeight:1.3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+          {s.title||s.prompt}
+        </div>
+        <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.muted,fontWeight:500,flexShrink:0}}>
+          {fmtAgo(new Date(s.updateTime||s.createTime).getTime())}
         </div>
       </div>
-      <div style={{marginBottom:6}}>
-        <Bar pct={pct} status={s.state}/>
+
+      <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:8, marginLeft:26, flexWrap:"wrap"}}>
+        {repo && (
+          <div style={{display:"flex", alignItems:"center", gap:4, opacity:0.7}}>
+            <Ic n="code" s={10} c={T.muted}/>
+            <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.muted,fontWeight:700}}>{repo}</span>
+          </div>
+        )}
+        {pri && (
+          <div style={{display:"flex", alignItems:"center", gap:4, color:pri.state==="merged"?T.purple:T.brand, opacity:0.9}}>
+            <Ic n={pri.state==="merged"?"git_merge":"git_pull"} s={10} c={pri.state==="merged"?T.purple:T.brand}/>
+            <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:900}}>#{pri.number}</span>
+          </div>
+        )}
+        {(!pri || pri.state === "closed") && b?.isNew && (
+          <div style={{display:"flex", alignItems:"center", gap:4, color:T.blue, opacity:0.9}}>
+            <Ic n="branch" s={10} c={T.blue}/>
+            <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:900}}>{b.working}{ahead>0?` +${ahead}`:''}</span>
+          </div>
+        )}
+        {checks && (
+          <div style={{display:"flex", alignItems:"center", gap:3, color:checks.state==="success"?T.brand:checks.state==="failure"?T.red:T.amber, opacity:0.9}}>
+            <Ic n={checks.state==="success"?"check":checks.state==="failure"?"x":"refresh"} s={9} c={checks.state==="success"?T.brand:checks.state==="failure"?T.red:T.amber}/>
+            <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900}}>{checks.label}</span>
+          </div>
+        )}
+        {isUnread && <div style={{width:4,height:4,borderRadius:"50%",background:m.color,animation:"dot 1s infinite"}}/>}
       </div>
-      <div style={{display:"flex",alignItems:"center",gap:10,marginTop:4,fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted}}>
-        <span>{fmtAgo(new Date(s.updateTime||s.createTime).getTime())}</span>
-        {isSelected && (
-          <span style={{
-            padding:"1px 6px", borderRadius:3,
-            background:T.brandDim, border:`1px solid ${T.brand}30`,
-            fontSize:8, fontWeight:900, color:T.brand,
-            letterSpacing:"0.05em", animation:"fadeIn .3s ease"
-          }}>LAST VISITED</span>
-        )}
-        {isUnread && (
-          <span style={{
-            padding:"1px 6px", borderRadius:3,
-            background:m.bg, border:`1px solid ${m.color}40`,
-            fontSize:8, fontWeight:900, color:m.color,
-            letterSpacing:"0.05em", animation:"fadeIn .3s ease"
-          }}>NEW ACTIVITY</span>
-        )}
-        <div style={{marginLeft:"auto", display:"flex", alignItems:"center", gap:8}}>
-          {activityStats.count > 0 && (
-            <span style={{fontSize:9, color:T.dim, opacity:0.6}} title="Activity metrics">
-              {activityStats.count} ITEMS · {fmtBytes(activityStats.size/1024)}
-            </span>
-          )}
-          <span style={{fontSize:10,color:T.dim,background:T.surfaceHi,padding:"1px 5px",borderRadius:2}}>{s.id?.slice(0,8)}</span>
+
+      <div style={{marginBottom:6, marginLeft:26}}>
+        <Bar pct={pct} status={currentState}/>
+      </div>
+
+      <div style={{display:"flex",alignItems:"center",gap:10,marginTop:4,marginLeft:26,fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.dim,opacity:0.6}}>
+        <div style={{display:"flex", alignItems:"center", gap:6}}>
+          <span>{activityStats.count} ITEMS</span>
+          <span>·</span>
+          <span>{fmtBytes(activityStats.size/1024)}</span>
+        </div>
+        <div style={{marginLeft:"auto"}}>
+          {s.id?.slice(0,8)}
         </div>
       </div>
     </button>
@@ -3342,12 +3310,19 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
             </div>
 
             <div style={{display:"flex", flexDirection:"column", gap:16, marginBottom:28}}>
-              <div style={{background:T.surfaceHi, borderRadius:10, padding:16, border:`1px solid ${T.border}`}}>
+              <div style={{
+                background:T.surfaceHi, borderRadius:10, padding:16,
+                border:`1px solid ${T.brand}40`,
+                animation:"pulseRepo 2s infinite ease-in-out",
+                boxShadow:`0 0 15px ${T.brand}10`,
+              }}>
                 <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.brand, fontWeight:800, letterSpacing:"0.1em", marginBottom:8}}>TARGET REPOSITORY</div>
                 <div style={{display:"flex", alignItems:"center", gap:10}}>
-                  <Ic n="code" s={14} c={T.brand}/>
-                  <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:14, color:T.text, fontWeight:700, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>
-                    {srcObj ? getSourceDisplay(srcObj) : "REPOLESS SESSION"}
+                  <div style={{width:24, height:24, borderRadius:6, background:T.brandDim, display:"flex", alignItems:"center", justifyContent:"center"}}>
+                    <Ic n="code" s={14} c={T.brand}/>
+                  </div>
+                  <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:14, color:T.text, fontWeight:800, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>
+                    {srcObj ? getSourceDisplay(srcObj).toUpperCase() : "REPOLESS SESSION"}
                   </span>
                 </div>
               </div>
@@ -4882,6 +4857,11 @@ function Shell({ children, desktop=false }) {
         @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
         @keyframes zoomIn{from{transform:scale(0.95);opacity:0;}to{transform:scale(1);opacity:1;}}
         @keyframes slideUp{from{transform:translateY(20px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+        @keyframes pulseRepo {
+          0% { border-color: ${T.brand}40; box-shadow: 0 0 0 ${T.brand}00; }
+          50% { border-color: ${T.brand}; box-shadow: 0 0 15px ${T.brand}30; }
+          100% { border-color: ${T.brand}40; box-shadow: 0 0 0 ${T.brand}00; }
+        }
         ::selection{background:${T.brandDim};color:${T.brand};}
         textarea::placeholder,input::placeholder{color:${T.muted};}
         @media screen and (max-width: 1023px) and (orientation: landscape) {
