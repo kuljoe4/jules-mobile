@@ -2118,7 +2118,7 @@ const SetupScreen = ({ onSave }) => {
 };
 
 // ─── Session Card ─────────────────────────────────────────────────────────────
-const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], lastReadTs }) => {
+const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], stats, lastReadTs }) => {
   const cardRef = useRef(null);
 
   useEffect(() => {
@@ -2143,11 +2143,15 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], last
   const checks = useMemo(() => getCheckStatus(activities), [activities]);
 
   const activityStats = useMemo(() => {
+    if (stats) return stats;
     const count = activities.length;
     const rawData = JSON.stringify(activities);
     const size = new TextEncoder().encode(rawData).length;
     return { count, size };
-  }, [activities]);
+  }, [activities, stats]);
+
+  const isHighActivity = activityStats.count > 200 || activityStats.size > 1024 * 1024;
+  const highActivityStyle = isHighActivity ? { color: T.amber, fontWeight: 900 } : {};
 
   const bg = isSelected ? `${T.brand}08` : isUnread ? `${T.indigo}0a` : isWorking ? `${T.blue}06` : T.surface;
   const borderColor = isSelected ? `${T.brand}40` : isUnread ? `${T.indigo}40` : isWorking ? `${T.blue}30` : T.border;
@@ -2215,9 +2219,9 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], last
 
       <div style={{display:"flex",alignItems:"center",gap:10,marginTop:0,marginLeft:26,fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.dim,opacity:0.6}}>
         <div style={{display:"flex", alignItems:"center", gap:6}}>
-          <span>{activityStats.count} ITEMS</span>
+          <span style={highActivityStyle}>{activityStats.count} ITEMS</span>
           <span>·</span>
-          <span>{fmtBytes(activityStats.size/1024)}</span>
+          <span style={highActivityStyle}>{fmtBytes(activityStats.size/1024)}</span>
         </div>
         <div style={{marginLeft:"auto"}}>
           {s.id?.slice(0,8)}
@@ -2355,15 +2359,26 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
           actMapRef.current = new Map();
           sorted.forEach(a => actMapRef.current.set(getActKey(a), a));
         }
-
         setActivities(sorted);
-      setIsStale(false);
+        setIsStale(false);
+
+        // Persist stats
+        try {
+          const rawData = JSON.stringify(sorted);
+          const size = new TextEncoder().encode(rawData).length;
+          const stats = { count: sorted.length, size };
+          const allStats = JSON.parse(localStorage.getItem(ACT_STATS_KEY) || "{}");
+          allStats[session.id] = stats;
+          localStorage.setItem(ACT_STATS_KEY, JSON.stringify(allStats));
+          window.dispatchEvent(new Event("storage"));
+        } catch (e) { console.error("Failed to save stats", e); }
+      }
 
       // Update Session Cache
       if (cacheLimit > 0) {
         try {
           const cache = JSON.parse(localStorage.getItem(SESSION_CACHE_KEY)) || {};
-          cache[session.id] = { activities: sorted, ts: Date.now() };
+          cache[session.id] = { activities: Array.from(actMapRef.current.values()).filter(a => !a._temp).sort((a,b) => new Date(a.createTime) - new Date(b.createTime)).slice(-activityLimit), ts: Date.now() };
           // Strict LRU Strategy
           let keys = Object.keys(cache);
           if (keys.length > cacheLimit) {
@@ -2375,11 +2390,10 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
           localStorage.setItem(SESSION_CACHE_KEY, JSON.stringify(cache));
         } catch {}
       }
-    } else if (sinceTs === null) {
-      setIsStale(false);
-      }
-    } catch {}
-  }, [apiKey, session.id]);
+    } catch (err) {
+      console.error("[LoadActivities] Error:", err);
+    }
+  }, [apiKey, session.id, activityLimit, cacheLimit]);
 
   const loadSession = useCallback(async () => {
     try {
@@ -2581,6 +2595,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   const pr = pri;
   const isActuallyDone = activities.some(a => a.sessionCompleted);
   const currentState = isActuallyDone ? "COMPLETED" : session.state;
+  const isFinished = currentState === "COMPLETED" || currentState === "FAILED";
+  console.log("isFinished in SessionDetail:", isFinished);
   const m       = STATUS_META[currentState] || STATUS_META.QUEUED;
   const repo    = session.sourceContext?.source?.replace("sources/github/","");
   const pct     = pctFromState(currentState);
@@ -3175,7 +3191,23 @@ const NS_KEY = "jac_ns_draft";
 const REPO_STATS_KEY = "jac_repo_stats";
 const LAST_SOURCE_KEY = "jac_last_source";
 const ACT_MAP_KEY = "jac_act_map";
+const ACT_STATS_KEY = "jac_act_stats";
 const SESSION_CACHE_KEY = "jac_session_cache";
+
+function cleanupActivityStats(validIds) {
+  try {
+    const stats = JSON.parse(localStorage.getItem(ACT_STATS_KEY) || "{}");
+    const validSet = new Set(validIds);
+    let changed = false;
+    for (const id in stats) {
+      if (!validSet.has(id)) {
+        delete stats[id];
+        changed = true;
+      }
+    }
+    if (changed) localStorage.setItem(ACT_STATS_KEY, JSON.stringify(stats));
+  } catch {}
+}
 
 function loadDraft() {
   try { const v=localStorage.getItem(NS_KEY); return v?JSON.parse(v):null; } catch { return null; }
@@ -3901,17 +3933,20 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
             </button>
           )}
         </div>
-          <div style={{display:"flex", gap:24, position:"relative"}}>
+          <div style={{display:"flex", gap:16, position:"relative", borderBottom: `1px solid ${T.border}`, overflowX: "auto", scrollbarWidth: "none", WebkitOverflowScrolling: "touch"}}>
           {TABS.map(t => (
             <button key={t.id} onClick={() => setTab(t.id)} style={{
-              padding:"10px 0", background:"none", border:"none", cursor:"pointer",
+              padding:"8px 4px", background:"none", border:"none", cursor:"pointer",
               borderBottom:`2px solid ${tab===t.id?T.brand:"transparent"}`,
-              color:tab===t.id?T.brand:T.muted, fontFamily:"'JetBrains Mono',monospace",
-              fontSize:11, fontWeight:800, letterSpacing:"0.08em", transition:"all .2s",
-              display:"flex", alignItems:"center", gap:8,
-              opacity: tab===t.id ? 1 : 0.6
-            }}>
-              <Ic n={t.ic} s={13} c={tab===t.id?T.brand:T.muted} />
+              marginBottom: -1, whiteSpace: "nowrap",
+              color:tab===t.id?T.text:T.muted, fontFamily:"'JetBrains Mono',monospace",
+              fontSize:11, fontWeight:tab===t.id?800:600, letterSpacing:"0.05em", transition:"all .2s",
+              display:"flex", alignItems:"center", gap:6,
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = T.text; }}
+            onMouseLeave={(e) => { if (tab !== t.id) e.currentTarget.style.color = T.muted; }}
+            >
+              <Ic n={t.ic} s={12} c={tab===t.id?T.brand:T.muted} />
               {t.label}
             </button>
           ))}
@@ -4254,7 +4289,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
 const FILTERS = ["ALL","QUEUED","PLANNING","AWAITING_PLAN_APPROVAL","IN_PROGRESS","COMPLETED","FAILED"];
 const FILTER_LABELS = { AWAITING_PLAN_APPROVAL:"APPROVE", ALL:"ALL" };
 
-const SessionList = ({ sessions, onSelect, onRefresh, refreshing, selectedId, isDesktop, onNew,  onSettings, pollInterval, sessionLimit, countdown, plan, todayCount, searchQuery, setSearchQuery, archivedIds, showArchived, setShowArchived, activitiesMap = {}, error, clearError, isBoosted, readMap }) => {
+const SessionList = ({ sessions, onSelect, onRefresh, refreshing, selectedId, isDesktop, onNew,  onSettings, pollInterval, sessionLimit, countdown, plan, todayCount, searchQuery, setSearchQuery, archivedIds, showArchived, setShowArchived, activitiesMap = {}, activityStatsMap = {}, error, clearError, isBoosted, readMap }) => {
   const [filter,setFilter] = useState("ALL");
   const [scrolled, handleScroll] = useScrollThreshold();
   const [searchOpen, setSearchOpen] = useState(false);
@@ -4428,7 +4463,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, selectedId, is
       <div onScroll={handleScroll} style={{flex:1,overflowY:"auto",padding:"10px 12px",WebkitOverflowScrolling:"touch",minHeight:200}}>
         {refreshing&&sessions.length===0&&<div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>Loading sessions…</div>}
         {!refreshing&&filtered.length===0&&<div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>{filter==="ALL"?"No sessions yet":"No sessions with this status"}</div>}
-        {filtered.map((s,i)=><SessionCard key={s.id||s.name} index={i+1} s={s} onPress={()=>onSelect(s)} isSelected={s.id===selectedId} activities={activitiesMap[s.id] || []} lastReadTs={readMap[s.id]}/>)}
+        {filtered.map((s,i)=><SessionCard key={s.id||s.name} index={i+1} s={s} onPress={()=>onSelect(s)} isSelected={s.id===selectedId} activities={activitiesMap[s.id] || []} stats={activityStatsMap[s.id]} lastReadTs={readMap[s.id]}/>)}
       </div>
     </div>
   );
@@ -4440,6 +4475,9 @@ function JulesClient() {
   const [sessions,setSessions] = useState([]);
   const [activitiesMap, setActivitiesMap] = useState(() => {
     try { return JSON.parse(localStorage.getItem(ACT_MAP_KEY)) || {}; } catch { return {}; }
+  });
+  const [activityStatsMap, setActivityStatsMap] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(ACT_STATS_KEY)) || {}; } catch { return {}; }
   });
   const [selected,setSelected] = useState(null);
   const [mobileScreen,setMobileRaw] = useState("list");
@@ -4533,10 +4571,17 @@ function JulesClient() {
       if (e.key === "jac_archived") {
         try { setArchivedIds(new Set(JSON.parse(e.newValue || "[]"))); } catch {}
       }
+      if (e.key === ACT_STATS_KEY) {
+        try { setActivityStatsMap(JSON.parse(e.newValue || "{}")); } catch {}
+      }
     };
     window.addEventListener("storage", handleStorage);
     return () => window.removeEventListener("storage", handleStorage);
   }, []);
+
+  useEffect(() => {
+    cleanupActivityStats(sessions.map(s => s.id));
+  }, [sessions]);
 
   useEffect(() => {
     try { localStorage.setItem("jac_archived", JSON.stringify(Array.from(archivedIds))); }
@@ -4752,6 +4797,7 @@ function JulesClient() {
             searchQuery={searchQuery} setSearchQuery={setSearchQuery}
             archivedIds={archivedIds} showArchived={showArchived} setShowArchived={setShowArchived}
             activitiesMap={{...activitiesMap}}
+            activityStatsMap={activityStatsMap}
             sessions={allSessions}
             error={globalErr} clearError={() => setGlobalErr(null)}
             isBoosted={isBoosted}
@@ -4815,7 +4861,9 @@ function JulesClient() {
             searchQuery={searchQuery} setSearchQuery={setSearchQuery}
             archivedIds={archivedIds} showArchived={showArchived} setShowArchived={setShowArchived}
             activitiesMap={activitiesMap}
+            activityStatsMap={activityStatsMap}
             error={globalErr} clearError={() => setGlobalErr(null)}
+
             isBoosted={isBoosted}
             readMap={readMap} />
         )}
@@ -4924,7 +4972,7 @@ function Shell({ children, desktop=false }) {
         }
         ::selection{background:${T.brandDim};color:${T.brand};}
         textarea::placeholder,input::placeholder{color:${T.muted};}
-        @media screen and (max-width: 1023px) and (orientation: landscape) {
+        @media screen and (max-width: 767px) and (orientation: landscape) {
           body {
             display: flex;
             align-items: center;
