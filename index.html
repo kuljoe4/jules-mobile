@@ -863,7 +863,7 @@ const Pill = ({status,small=false,hideLabel=false}) => {
       fontSize:small?10:11,fontWeight:800,letterSpacing:"0.08em",color:m.color,flexShrink:0,
       boxShadow:"none",
     }}>
-      {m.pulse&&<span style={{width:4,height:4,borderRadius:"50%",background:pulseColor,animation:"dot 1.2s ease-in-out infinite",flexShrink:0}}/>}
+      {m.pulse && status !== "COMPLETED" && <span style={{width:4,height:4,borderRadius:"50%",background:pulseColor,animation:"dot 1.2s ease-in-out infinite",flexShrink:0}}/>}
       {hideLabel ? <Ic n={m.icon} s={11} c={m.color}/> : m.label}
     </span>
   );
@@ -2595,8 +2595,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
 
   // Auto-switch to PLAN tab when AWAITING_PLAN_APPROVAL
   useEffect(() => {
-    if (session.state === "AWAITING_PLAN_APPROVAL" && latestPlan) setTab("plan");
-  }, [session.state, latestPlan]);
+    if (currentState === "AWAITING_PLAN_APPROVAL" && latestPlan) setTab("plan");
+  }, [currentState, latestPlan]);
 
   const TABS = [
     { id:"activity", label:"CHAT" },
@@ -2656,6 +2656,30 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                      <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:8, fontWeight:900}}>{b?.working || "main"}</span>
                    </a>
                  )}
+                 {isStale && !isFinished && <div style={{width:5, height:5, borderRadius:"50%", background:T.brand, animation:"pulse 2s infinite"}}/>}
+                 {pr && (
+                    <a href={pr.url} target="_blank" rel="noopener" style={{
+                      background:pr.state==="merged"?T.purpleDim:pr.state==="closed"?T.dim:T.brandDim,
+                      border:`1px solid ${pr.state==="merged"?T.purple:pr.state==="closed"?T.muted:T.brand}40`,
+                      borderRadius:3, padding:"1px 4px", display:"flex", alignItems:"center", gap:3,
+                      color:pr.state==="merged"?T.purple:pr.state==="closed"?T.muted:T.brand,
+                      textDecoration:"none", fontFamily:"'JetBrains Mono',monospace", fontSize:8, fontWeight:900, flexShrink:0
+                    }}>
+                      <Ic n={pr.state==="merged"?"git_merge":"git_pull"} s={9} c={pr.state==="merged"?T.purple:pr.state==="closed"?T.muted:T.brand}/>
+                      #{pr.number}
+                    </a>
+                  )}
+                  {checks && (
+                    <div style={{
+                      background:checks.state==="success"?T.brandDim:checks.state==="failure"?T.redDim:T.amberDim,
+                      border:`1px solid ${checks.state==="success"?T.brand:checks.state==="failure"?T.red:T.amber}40`,
+                      borderRadius:3, padding:"1px 4px", display:"flex", alignItems:"center", gap:3,
+                      color:checks.state==="success"?T.brandLight:checks.state==="failure"?T.red:T.amber,
+                      fontFamily:"'JetBrains Mono',monospace", fontSize:8, fontWeight:900, flexShrink:0
+                    }}>
+                      <Ic n={checks.state==="success"?"check":checks.state==="failure"?"x":"refresh"} s={9} c={checks.state==="success"?T.brandLight:checks.state==="failure"?T.red:T.amber}/>
+                    </div>
+                  )}
               </div>
             )}
           </div>
@@ -2692,7 +2716,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
         {/* Row 2: Secondary Metadata & Actions (Hidden when scrolled on mobile) */}
         {!scrolled && (
           <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:8, overflowX:"auto", scrollbarWidth:"none", WebkitOverflowScrolling:"touch", animation:"fadeIn .2s ease"}}>
-            {isStale && (
+            {isStale && !isFinished && (
               <div style={{display:"flex", alignItems:"center", gap:6, background:T.brandDim, border:`1px solid ${T.brandDark}40`, borderRadius:4, padding:"2px 8px", flexShrink:0}}>
                  <div style={{width:6, height:6, borderRadius:"50%", background:T.brandLight, animation:"pulse 2s infinite"}}/>
                  <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:9, fontWeight:800, color:T.brand}}>CACHED</span>
@@ -2767,49 +2791,6 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
           </div>
         )}
 
-        {/* Scrolled Mobile Metadata Row */}
-        {scrolled && !isDesktop && (
-          <div style={{display:"flex", alignItems:"center", gap:10, marginTop:2, animation:"fadeIn .2s ease"}}>
-            <div style={{flex:1, minWidth:0, display:"flex", alignItems:"center", gap:8}}>
-               <div style={{display:"flex", alignItems:"center", gap:4, minWidth:0}}>
-                 <Ic n="code" s={10} c={T.muted}/>
-                 <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:T.muted, fontWeight:700, opacity:0.8, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>{repo}</span>
-               </div>
-               {session.sourceContext?.source && (
-                 <a href={b?.repoUrl ? `${b.repoUrl}/branches` : "#"} target="_blank" rel="noopener" style={{display:"flex", alignItems:"center", gap:3, color:T.dim, textDecoration:"none", flexShrink:0}}>
-                   <Ic n="branch" s={10} c={T.dim}/>
-                   <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:8, fontWeight:700}}>{b?.working?.slice(0,12) || "main"}</span>
-                 </a>
-               )}
-            </div>
-            <div style={{display:"flex", gap:4, alignItems:"center", flexShrink:0}}>
-              {isStale && <div style={{width:5, height:5, borderRadius:"50%", background:T.brand, animation:"pulse 2s infinite"}}/>}
-              {pr && (
-                <a href={pr.url} target="_blank" rel="noopener" style={{
-                  background:pr.state==="merged"?T.purpleDim:pr.state==="closed"?T.dim:T.brandDim,
-                  border:`1px solid ${pr.state==="merged"?T.purple:pr.state==="closed"?T.muted:T.brand}40`,
-                  borderRadius:3, padding:"1px 4px", display:"flex", alignItems:"center", gap:3,
-                  color:pr.state==="merged"?T.purple:pr.state==="closed"?T.muted:T.brand,
-                  textDecoration:"none", fontFamily:"'JetBrains Mono',monospace", fontSize:8, fontWeight:900
-                }}>
-                  <Ic n={pr.state==="merged"?"git_merge":"git_pull"} s={9} c={pr.state==="merged"?T.purple:pr.state==="closed"?T.muted:T.brand}/>
-                  #{pr.number}
-                </a>
-              )}
-              {checks && (
-                <div style={{
-                  background:checks.state==="success"?T.brandDim:checks.state==="failure"?T.redDim:T.amberDim,
-                  border:`1px solid ${checks.state==="success"?T.brand:checks.state==="failure"?T.red:T.amber}40`,
-                  borderRadius:3, padding:"1px 4px", display:"flex", alignItems:"center", gap:3,
-                  color:checks.state==="success"?T.brandLight:checks.state==="failure"?T.red:T.amber,
-                  fontFamily:"'JetBrains Mono',monospace", fontSize:8, fontWeight:900
-                }}>
-                  <Ic n={checks.state==="success"?"check":checks.state==="failure"?"x":"refresh"} s={9} c={checks.state==="success"?T.brandLight:checks.state==="failure"?T.red:T.amber}/>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
       </div>
 
       <div style={{
@@ -2841,15 +2822,15 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
         </div>
 
 
-        {session.state==="AWAITING_PLAN_APPROVAL"&&(
+        {currentState==="AWAITING_PLAN_APPROVAL"&&(
           <div style={{marginBottom:8,padding:"7px 10px",background:T.purpleDim,border:`1px solid ${T.purple}40`,borderRadius:5,display:"flex",alignItems:"center",gap:8,cursor:"pointer"}} onClick={()=>setTab("plan")}>
-            <span style={{width:6,height:6,borderRadius:"50%",background:T.purple,animation:"dot 1.2s ease-in-out infinite",flexShrink:0}}/>
+            <span style={{width:6,height:6,borderRadius:"50%",background:T.purple,animation:currentState==="COMPLETED"?"none":"dot 1.2s ease-in-out infinite",flexShrink:0}}/>
             <div style={{flex:1,fontFamily:"'JetBrains Mono',monospace",fontSize:12,color:T.purple,fontWeight:700}}>PLAN READY — tap to review & approve</div>
             <Ic n="plan" s={13} c={T.purple}/>
           </div>
         )}
 
-        {session.state==="AWAITING_USER_FEEDBACK"&&(
+        {currentState==="AWAITING_USER_FEEDBACK"&&(
           <div style={{marginBottom:10,padding:"8px 10px",background:T.amberDim,border:`1px solid ${T.amber}40`,borderRadius:5,fontFamily:"'JetBrains Mono',monospace",fontSize:12,color:T.amber}}>
             ⚡ Jules needs your input — reply below
           </div>
@@ -2937,7 +2918,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
         {tab==="activity"&&(
           activities.length===0
           ?<div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>
-            {ACTIVE_STATES.has(session.state)?"Waiting for activity…":"No activities yet"}
+            {ACTIVE_STATES.has(currentState)?"Waiting for activity…":"No activities yet"}
           </div>
           :<ActivityFeed activities={activities} showAll={showAll} onShowAll={()=>setShowAll(true)} onMediaClick={setActiveMedia} onEditMessage={(text) => {
             setMsg(text);
@@ -3076,10 +3057,6 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
           bottom: 0, left: 0, right: 0, zIndex: 10,
           boxShadow: isDesktop ? "none" : "0 -8px 24px rgba(0,0,0,0.4)",
         }}>
-          <div style={{ display: "flex", flexDirection:"column", gap: 2, marginBottom: 4 }}>
-            <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:8, color:T.dim, fontWeight:800, letterSpacing:"0.05em", marginLeft:2}}>ROLES & FOCUS</div>
-            <MultiPersonaPicker personas={personas} selectedIds={selectedPersonas} onToggle={togglePersona} />
-          </div>
           <div style={{display:"flex",gap:8,alignItems:"flex-end", marginTop:2, position:"relative"}}>
             <textarea
               ref={txtRef}
@@ -3139,15 +3116,15 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
               <Ic n="send" s={14} c={msg.trim()&&!busy?"#000":T.muted}/>
             </button>
           </div>
-          <div style={{marginTop:6, display:"flex", alignItems:"flex-end", justifyContent:"space-between", gap:12}}>
-            <div style={{display:"flex", flexDirection:"column", gap:2, minWidth:0}}>
-               <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.textDim, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis"}}>↵ SEND · SHIFT+↵ NEWLINE</div>
-               <div style={{fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: T.brand, fontWeight:700, opacity: 0.8 }}>{fmtChars(msg.length)}</div>
+          <div style={{marginTop:6, display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, fontFamily:"'JetBrains Mono',monospace", fontSize:9}}>
+            <div style={{display:"flex", alignItems:"center", gap:10, minWidth:0}}>
+               <div style={{color:T.textDim, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis"}}>↵ SEND · SHIFT+↵ NEWLINE</div>
+               <div style={{color: T.brand, fontWeight:700, opacity: 0.8 }}>{fmtChars(msg.length)}</div>
             </div>
             <div style={{
               display:"flex", alignItems:"center", gap:8,
-              fontFamily:"'JetBrains Mono',monospace", fontSize:8, fontWeight:700, color:T.dim,
-              opacity:0.6, letterSpacing:"0.05em", whiteSpace:"nowrap", paddingBottom:1
+              fontSize:8, fontWeight:700, color:T.dim,
+              opacity:0.6, letterSpacing:"0.05em", whiteSpace:"nowrap"
             }}>
               <span title="Total activities loaded">{activityStats.count} ITEMS</span>
               <span style={{width:1, height:8, background:T.border}}/>
