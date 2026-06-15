@@ -428,7 +428,7 @@ function resetPersonas() {
 const MultiPersonaPicker = ({ personas, selectedIds, onToggle, style: s = {} }) => {
   return (
     <div style={{
-      display: "flex", gap: 6, overflowX: "auto", padding: "4px 2px",
+      display: "flex", gap: 5, overflowX: "auto", padding: "2px 2px",
       scrollbarWidth: "none", WebkitOverflowScrolling: "touch",
       ...s
     }}>
@@ -439,14 +439,14 @@ const MultiPersonaPicker = ({ personas, selectedIds, onToggle, style: s = {} }) 
             key={p.id}
             onClick={() => onToggle(p.id)}
             style={{
-              flexShrink: 0, padding: "5px 12px", borderRadius: 20,
+              flexShrink: 0, padding: "4px 10px", borderRadius: 20,
               background: isSelected ? `${p.color}20` : T.surfaceHi,
               border: `1px solid ${isSelected ? p.color : T.border}`,
               color: isSelected ? p.color : T.muted,
-              fontFamily: "'JetBrains Mono',monospace", fontSize: 10,
+              fontFamily: "'JetBrains Mono',monospace", fontSize: 9,
               fontWeight: isSelected ? 800 : 500, letterSpacing: "0.05em",
               cursor: "pointer", transition: "all .15s",
-              display: "flex", alignItems: "center", gap: 6,
+              display: "flex", alignItems: "center", gap: 5,
               boxShadow: "none",
             }}
           >
@@ -478,9 +478,9 @@ const T = {
 
 const STATUS_META = {
   QUEUED:                { label:"QUEUED",   color:T.textDim,   bg:"rgba(124,142,166,.1)", pulse:false, icon:"database" },
-  PLANNING:              { label:"PLANNING", color:T.blue,      bg:T.blueDim,              pulse:true,  icon:"plan" },
-  AWAITING_PLAN_APPROVAL:{ label:"APPROVE",  color:T.blue,      bg:T.blueDim,              pulse:true,  icon:"plan" },
-  AWAITING_USER_FEEDBACK:{ label:"INPUT",    color:T.blue,      bg:T.blueDim,              pulse:true,  icon:"tasks" },
+  PLANNING:              { label:"PLANNING", color:T.purple,    bg:T.purpleDim,            pulse:true,  icon:"plan" },
+  AWAITING_PLAN_APPROVAL:{ label:"APPROVE",  color:T.indigo,    bg:T.indigoDim,            pulse:true,  icon:"plan" },
+  AWAITING_USER_FEEDBACK:{ label:"INPUT",    color:T.amber,     bg:T.amberDim,             pulse:true,  icon:"tasks" },
   IN_PROGRESS:           { label:"WORKING",  color:T.blue,      bg:T.blueDim,              pulse:true,  icon:"refresh" },
   PAUSED:                { label:"PAUSED",   color:T.textDim,   bg:"rgba(124,142,166,.1)", pulse:false, icon:"layout_toggle" },
   COMPLETED:             { label:"DONE",     color:T.brand,     bg:T.brandDim,             pulse:false, icon:"check" },
@@ -2185,7 +2185,7 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], last
         </div>
       </div>
 
-      <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:8, marginLeft:26, flexWrap:"wrap"}}>
+      <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:4, marginLeft:26, flexWrap:"wrap"}}>
         {repo && (
           <div style={{display:"flex", alignItems:"center", gap:4, opacity:0.7}}>
             <Ic n="code" s={10} c={T.muted}/>
@@ -2213,11 +2213,7 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], last
         {isUnread && <div style={{width:4,height:4,borderRadius:"50%",background:T.indigo,animation:"dot 1s infinite"}}/>}
       </div>
 
-      <div style={{marginBottom:6, marginLeft:26}}>
-        <Bar pct={pct} status={currentState}/>
-      </div>
-
-      <div style={{display:"flex",alignItems:"center",gap:10,marginTop:4,marginLeft:26,fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.dim,opacity:0.6}}>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginTop:0,marginLeft:26,fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.dim,opacity:0.6}}>
         <div style={{display:"flex", alignItems:"center", gap:6}}>
           <span>{activityStats.count} ITEMS</span>
           <span>·</span>
@@ -2632,7 +2628,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
           <div style={{flex:1,minWidth:0,transition:"all .2s ease"}}>
             <div style={{
               fontFamily:"'IBM Plex Sans',sans-serif",
-              fontSize:scrolled?13:17,
+              fontSize:scrolled?13:16,
               fontWeight:700,
               color:T.textHi,
               lineHeight:1.2,
@@ -2646,12 +2642,21 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
             }}>
               {session.title||session.prompt}
             </div>
-            {scrolled && repo && (
-              <div style={{
-                fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:T.muted,
-                fontWeight:700, opacity:0.8, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
-                marginTop: 2
-              }}>{repo}</div>
+            {scrolled && (
+              <div style={{display:"flex", alignItems:"center", gap:8, marginTop: 2, animation:"fadeIn .2s ease"}}>
+                 {repo && (
+                   <div style={{display:"flex", alignItems:"center", gap:4, minWidth:0}}>
+                     <Ic n="code" s={9} c={T.dim}/>
+                     <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:8, color:T.dim, fontWeight:700, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>{repo}</span>
+                   </div>
+                 )}
+                 {session.sourceContext?.source && (
+                   <a href={b?.repoUrl ? `${b.repoUrl}/branches` : "#"} target="_blank" rel="noopener" style={{display:"flex", alignItems:"center", gap:3, color:T.blue, textDecoration:"none", flexShrink:0, borderBottom:`1px solid ${T.blue}40`}}>
+                     <Ic n="branch" s={9} c={T.blue}/>
+                     <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:8, fontWeight:900}}>{b?.working || "main"}</span>
+                   </a>
+                 )}
+              </div>
             )}
           </div>
 
@@ -2719,6 +2724,28 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
               </div>
             )}
 
+            {session.sourceContext?.source && (
+              <a href={b?.repoUrl ? `${b.repoUrl}/branches` : "#"} target="_blank" rel="noopener" style={{
+                background:T.blueDim, border:`1px solid ${T.blue}30`, borderRadius:4, padding:"3px 8px",
+                display:"flex", alignItems:"center", gap:4, color:T.blue, textDecoration:"none",
+                fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:900, flexShrink:0
+              }}>
+                <Ic n="branch" s={11} c={T.blue}/>
+                {b?.working || "main"}
+                {ahead > 0 && <span style={{fontSize:9}}>+{ahead}</span>}
+              </a>
+            )}
+
+            {session.url && (
+              <a href={session.url} target="_blank" rel="noopener" style={{
+                background:T.surfaceHi, border:`1px solid ${T.borderHi}`, borderRadius:4, padding:"3px 8px",
+                display:"flex", alignItems:"center", gap:4, color:T.muted, textDecoration:"none",
+                fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:900, flexShrink:0
+              }}>
+                WEB ↗
+              </a>
+            )}
+
             {!isDesktop && (
               <div style={{display:"flex", gap:6, marginLeft:"auto"}}>
                 <button
@@ -2742,12 +2769,20 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
 
         {/* Scrolled Mobile Metadata Row */}
         {scrolled && !isDesktop && (
-          <div style={{display:"flex", alignItems:"center", gap:10, marginTop:4, animation:"fadeIn .2s ease"}}>
-            <div style={{flex:1, minWidth:0, display:"flex", alignItems:"center", gap:4}}>
-               <Ic n="code" s={10} c={T.muted}/>
-               <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:T.muted, fontWeight:700, opacity:0.8, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>{repo}</span>
+          <div style={{display:"flex", alignItems:"center", gap:10, marginTop:2, animation:"fadeIn .2s ease"}}>
+            <div style={{flex:1, minWidth:0, display:"flex", alignItems:"center", gap:8}}>
+               <div style={{display:"flex", alignItems:"center", gap:4, minWidth:0}}>
+                 <Ic n="code" s={10} c={T.muted}/>
+                 <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:T.muted, fontWeight:700, opacity:0.8, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>{repo}</span>
+               </div>
+               {session.sourceContext?.source && (
+                 <a href={b?.repoUrl ? `${b.repoUrl}/branches` : "#"} target="_blank" rel="noopener" style={{display:"flex", alignItems:"center", gap:3, color:T.dim, textDecoration:"none", flexShrink:0}}>
+                   <Ic n="branch" s={10} c={T.dim}/>
+                   <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:8, fontWeight:700}}>{b?.working?.slice(0,12) || "main"}</span>
+                 </a>
+               )}
             </div>
-            <div style={{display:"flex", gap:6, alignItems:"center", flexShrink:0}}>
+            <div style={{display:"flex", gap:4, alignItems:"center", flexShrink:0}}>
               {isStale && <div style={{width:5, height:5, borderRadius:"50%", background:T.brand, animation:"pulse 2s infinite"}}/>}
               {pr && (
                 <a href={pr.url} target="_blank" rel="noopener" style={{
@@ -2787,30 +2822,22 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
 
         <div style={{
           display:"flex",gap:10,
-          height:scrolled?0:16,
+          height:scrolled?0:14,
           marginTop:0,
-          marginBottom:scrolled?0:10,
-          opacity:scrolled?0:1,
+          marginBottom:scrolled?0:8,
+          opacity:scrolled?0:0.6,
           overflow:"hidden",
-          fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.textDim,flexWrap:"nowrap",alignItems:"center",
+          fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.dim,flexWrap:"nowrap",alignItems:"center",
           transition:"all .25s ease",
           pointerEvents:scrolled?"none":"auto",
         }}>
-          <span>{session.id?.slice(0,10)}</span>
+          <span>ID: {session.id?.slice(0,10)}</span>
           {repo && (
-            <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:4, fontWeight:700, color:T.muted}}>
-              <Ic n="code" s={11} c={T.muted}/>
+            <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:4, fontWeight:600}}>
+              <Ic n="code" s={9} c={T.dim}/>
               {repo}
             </span>
           )}
-          {session.sourceContext?.source&&(
-            <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:4}}>
-              <Ic n="branch" s={11} c={T.muted}/>
-              {b?.working || session.sourceContext.githubRepoContext?.startingBranch || "main"}
-              {ahead > 0 && <span style={{color:T.blue, fontWeight:800}}>+{ahead}</span>}
-            </span>
-          )}
-          {session.url && <a href={session.url} target="_blank" rel="noopener" style={{color:T.textDim,textDecoration:"none",flexShrink:0,fontFamily:"'JetBrains Mono',monospace",fontSize:11}}>WEB↗</a>}
         </div>
 
 
@@ -2893,13 +2920,13 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
           </div>
         )}
 
-        <div style={{display:"flex", paddingBottom:scrolled?6:0, transition:"all .2s ease"}}>
+        <div style={{display:"flex", paddingBottom:scrolled?4:0, transition:"all .2s ease"}}>
           {TABS.map(t=>(
             <button key={t.id} onClick={()=>setTab(t.id)} style={{
-              flex:1,padding:"8px 0",background:"none",border:"none",
+              flex:1,padding:"6px 0",background:"none",border:"none",
               borderBottom:`2px solid ${tab===t.id?T.brand:"transparent"}`,
               color:tab===t.id?T.brand:T.muted,cursor:"pointer",
-              fontFamily:"'JetBrains Mono',monospace",fontSize:12,fontWeight:700,letterSpacing:"0.07em",
+              fontFamily:"'JetBrains Mono',monospace",fontSize:10,fontWeight:800,letterSpacing:"0.05em",
               transition:"color .15s, border-color .15s",
             }}>{t.label}</button>
           ))}
@@ -3040,7 +3067,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
       {/* ── Composer ── */}
       {canSend&&(
         <div style={{
-          padding:"10px 16px 14px", borderTop:`1px solid ${T.border}`, background:T.surface,
+          padding:"6px 12px 10px", borderTop:`1px solid ${T.border}`, background:T.surface,
           flexShrink:0, transition:"transform .3s cubic-bezier(0.4, 0, 0.2, 1), opacity .2s ease, visibility .3s",
           transform: (isDesktop || composerVisible) ? "translateY(0)" : "translateY(100%)",
           opacity: (isDesktop || composerVisible) ? 1 : 0,
@@ -3049,21 +3076,22 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
           bottom: 0, left: 0, right: 0, zIndex: 10,
           boxShadow: isDesktop ? "none" : "0 -8px 24px rgba(0,0,0,0.4)",
         }}>
-          <div style={{ display: "flex", flexDirection:"column", gap: 8, marginBottom: 8 }}>
+          <div style={{ display: "flex", flexDirection:"column", gap: 2, marginBottom: 4 }}>
+            <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:8, color:T.dim, fontWeight:800, letterSpacing:"0.05em", marginLeft:2}}>ROLES & FOCUS</div>
             <MultiPersonaPicker personas={personas} selectedIds={selectedPersonas} onToggle={togglePersona} />
           </div>
-          <div style={{display:"flex",gap:8,alignItems:"flex-end", marginTop:4, position:"relative"}}>
+          <div style={{display:"flex",gap:8,alignItems:"flex-end", marginTop:2, position:"relative"}}>
             <textarea
               ref={txtRef}
               value={msg}
               onChange={e=>setMsg(e.target.value)}
               onKeyDown={e=>e.key==="Enter"&&!e.shiftKey&&(e.preventDefault(),handleSend())}
               placeholder="Message Jules or give new instructions…"
-              rows={expanded?15:2}
+              rows={expanded?15:4}
               style={{
                 flex:1,background:T.surfaceHi,
                 border:`1px solid ${msg?T.brand+"66":T.border}`,
-                borderRadius:6,padding:`8px ${expanded?24:40}px 8px 10px`,color:T.text,
+                borderRadius:6,padding:`8px 50px 8px 10px`,color:T.text,
                 fontFamily:"'IBM Plex Sans',sans-serif",fontSize:15,lineHeight:1.4,
                 resize:"none",outline:"none",transition:"all .2s ease",
                 WebkitOverflowScrolling:"touch",
@@ -3074,13 +3102,13 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
               }}
             />
             {!expanded && (
-              <div style={{position:"absolute", top:8, right:46, display:"flex", gap:4}}>
+              <div style={{position:"absolute", bottom:8, right:46, display:"flex", gap:4}}>
                 {msg.trim() && (
-                  <button onClick={()=>setMsg("")} title="Clear" style={{background:"none", border:"none", padding:4, cursor:"pointer", display:"flex"}}>
+                  <button onClick={()=>setMsg("")} title="Clear" style={{background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:4, padding:4, cursor:"pointer", display:"flex"}}>
                     <Ic n="x" s={14} c={T.red}/>
                   </button>
                 )}
-                <button onClick={()=>setExpanded(true)} title="Expand" style={{background:"none", border:"none", padding:4, cursor:"pointer", display:"flex"}}>
+                <button onClick={()=>setExpanded(true)} title="Expand" style={{background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:4, padding:4, cursor:"pointer", display:"flex"}}>
                   <Ic n="expand" s={14} c={T.brand}/>
                 </button>
               </div>
@@ -3097,9 +3125,6 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                 </button>
               </div>
             )}
-            <div style={{ position: "absolute", bottom: -18, left: 2, fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: T.textDim, opacity: 0.8 }}>
-              {fmtChars(msg.length)}
-            </div>
             <button
               onClick={handleSend}
               disabled={!msg.trim()||busy}
@@ -3114,12 +3139,15 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
               <Ic n="send" s={14} c={msg.trim()&&!busy?"#000":T.muted}/>
             </button>
           </div>
-          <div style={{marginTop:4, display:"flex", alignItems:"center", justifyContent:"space-between"}}>
-            <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.textDim}}>↵ send · shift+↵ newline</div>
+          <div style={{marginTop:6, display:"flex", alignItems:"flex-end", justifyContent:"space-between", gap:12}}>
+            <div style={{display:"flex", flexDirection:"column", gap:2, minWidth:0}}>
+               <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.textDim, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis"}}>↵ SEND · SHIFT+↵ NEWLINE</div>
+               <div style={{fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: T.brand, fontWeight:700, opacity: 0.8 }}>{fmtChars(msg.length)}</div>
+            </div>
             <div style={{
-              display:"flex", alignItems:"center", gap:10,
-              fontFamily:"'JetBrains Mono',monospace", fontSize:9, fontWeight:700, color:T.dim,
-              opacity:0.6, letterSpacing:"0.05em", whiteSpace:"nowrap"
+              display:"flex", alignItems:"center", gap:8,
+              fontFamily:"'JetBrains Mono',monospace", fontSize:8, fontWeight:700, color:T.dim,
+              opacity:0.6, letterSpacing:"0.05em", whiteSpace:"nowrap", paddingBottom:1
             }}>
               <span title="Total activities loaded">{activityStats.count} ITEMS</span>
               <span style={{width:1, height:8, background:T.border}}/>
@@ -3211,7 +3239,6 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
   const [showBranches,setShowBranches] = useState(false);
   const [defaultBranch,setDefault] = useState("");   // e.g. "main"
   const [prompt,setPrompt]         = useState(draft?.prompt ?? "");
-  const [title,setTitle]           = useState(draft?.title ?? "");
   const [autoMode,setAutoMode]     = useState(draft?.autoMode ?? true);
   const [reqApproval,setReqApp]    = useState(draft?.reqApproval ?? false);
   const [selectedPersonas, setSelectedPersonas] = useState(new Set(draft?.selectedPersonas || []));
@@ -3223,7 +3250,6 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
 
 
   // ── Derive branches whenever selected source changes ─────────────────────
-  // Jules API returns branches[] + defaultBranch inline on each source object
   const srcObj = useMemo(() => sources.find(s => s.name === source) || null, [sources, source]);
 
   const getSourceDisplay = useCallback((s) => {
@@ -3257,7 +3283,6 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
     const def  = repo.defaultBranch?.displayName || bs[0] || "main";
     setBranches(bs);
     setDefault(def);
-    // Only auto-set branch if we don't have a saved draft branch for this source
     if (!draft?.branch || draft?.source !== source) setBranch(def);
   }, [srcObj, source]);
 
@@ -3273,20 +3298,18 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
     setSelectedPersonas(next);
   };
 
-  // Auto-disable AUTO PR for repoless sessions
   useEffect(() => {
     if (!source && autoMode) setAutoMode(false);
   }, [source, autoMode]);
 
-  // Persist on every change (debounced 400ms)
   const draftRef = useRef(null);
   useEffect(() => {
     clearTimeout(draftRef.current);
     draftRef.current = setTimeout(() => {
-      saveDraft({ source, branch, prompt, title, autoMode, reqApproval, selectedPersonas: Array.from(selectedPersonas) });
+      saveDraft({ source, branch, prompt, autoMode, reqApproval, selectedPersonas: Array.from(selectedPersonas) });
     }, 400);
     return () => clearTimeout(draftRef.current);
-  }, [source, branch, prompt, title, autoMode, reqApproval]);
+  }, [source, branch, prompt, autoMode, reqApproval]);
 
   useEffect(() => {
     (async () => {
@@ -3296,7 +3319,6 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
         const stats = loadRepoStats();
         const sorted = [...s].sort((a,b) => (stats[b.name]||0) - (stats[a.name]||0));
         setSources(sorted);
-        // Priority: Draft > Last Used > Top Ranked
         if (!draft?.source) {
           const last = loadLastSource();
           if (last && sorted.some(x => x.name === last)) setSource(last);
@@ -3309,7 +3331,7 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
 
   const handleClearDraft = () => {
     clearDraft();
-    setSource(""); setBranch(""); setPrompt(""); setTitle("");
+    setSource(""); setBranch(""); setPrompt("");
     setAutoMode(true); setReqApp(false); setSelectedPersonas(new Set());
     setSavedFlash(true);
     setTimeout(() => setSavedFlash(false), 1500);
@@ -3330,7 +3352,6 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
 
     const body = {
       prompt: finalPrompt,
-      ...(title.trim()&&{title:title.trim()}),
       ...(source&&{
         sourceContext:{ source, githubRepoContext:{ startingBranch:branch||defaultBranch||"main" } },
         ...(autoMode&&{automationMode:"AUTO_CREATE_PR"}),
@@ -3339,7 +3360,7 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
     };
     try {
       const d = await apiCall(apiKey, "/sessions", { method:"POST", body, _label:"Create session" });
-      clearDraft(); // clear after successful submit
+      clearDraft();
       if (source) {
         incRepoStat(source);
         saveLastSource(source);
@@ -3348,10 +3369,10 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
     } catch (err) { setErr(err.message); setSub(false); }
   };
 
-  const payloadEst = (JSON.stringify({prompt,title,source,branch}).length/1024).toFixed(1);
+  const payloadEst = (JSON.stringify({prompt,source,branch}).length/1024).toFixed(1);
 
   return (
-    <div style={{display:"flex",flexDirection:"column",height:"100%",minHeight:0}}>
+    <div style={{display:"flex",flexDirection:"column",height:"100%",minHeight:0,position:"relative"}}>
       {showConfirm && (
         <div style={{
           position:"fixed", inset:0, zIndex:2000,
@@ -3495,11 +3516,68 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
           <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.textDim,padding:"3px 9px"}}>CLEARED</span>
         )}
       </div>
-      <div style={{flex:1,overflowY:"auto",padding:"18px 24px",WebkitOverflowScrolling:"touch",minHeight:0}}>
+      <div style={{flex:1,overflowY:"auto",padding:"14px 20px",WebkitOverflowScrolling:"touch",minHeight:0}}>
         <div style={{maxWidth:560,margin:"0 auto"}}>
           {err&&<div style={{padding:"8px 12px",borderRadius:5,marginBottom:12,background:T.redDim,border:`1px solid ${T.red}40`,fontFamily:"'JetBrains Mono',monospace",fontSize:12,color:T.red}}>{err}</div>}
 
-          <Field label="REPOSITORY (SOURCE)">
+          <Field label="TASK PROMPT *" style={{marginBottom:12}}>
+            <div style={{ position: "relative" }}>
+              <div style={{ position: "absolute", top: -18, right: 0, fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: T.textDim, opacity: 0.8 }}>
+                {fmtChars(prompt.length)}
+              </div>
+              <textarea value={prompt} onChange={e=>setPrompt(e.target.value)}
+                placeholder="Describe the coding task for Jules to execute…"
+                rows={6} style={{
+                  ...inputSt, resize:"vertical", lineHeight:1.5,
+                  ...(expanded ? {
+                    position:"fixed", top:0, left:0, right:0, bottom:0, zIndex:1000,
+                    margin:0, borderRadius:0, height:"100vh", padding:"60px 24px 24px"
+                  } : {})
+                }}/>
+              <div style={{
+                position:expanded?"fixed":"absolute", top:expanded?16:8, right:expanded?16:8, zIndex:1001,
+                display:"flex", gap:8
+              }}>
+                {prompt.trim() && (
+                   <button onClick={()=>setPrompt("")} title="Clear Prompt" style={{background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:4, padding:4, cursor:"pointer", display:"flex", alignItems:"center"}}>
+                     <Ic n="x" s={14} c={T.red}/>
+                   </button>
+                )}
+                <button onClick={()=>setExpanded(!expanded)} title={expanded?"Minimize":"Expand"} style={{background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:4, padding:4, cursor:"pointer", display:"flex", alignItems:"center"}}>
+                  <Ic n={expanded?"chevron_down":"expand"} s={14} c={T.brand}/>
+                </button>
+              </div>
+            </div>
+          </Field>
+
+          <div style={{marginBottom:12}}>
+            <div style={{marginBottom:8,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.textDim,fontWeight:700,letterSpacing:"0.12em"}}>ROLES & FOCUS</div>
+            <MultiPersonaPicker personas={personas} selectedIds={selectedPersonas} onToggle={togglePersona} style={{marginBottom:8}} />
+
+            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+              {[
+                {label:"AUTO PR",    val:autoMode,   set:setAutoMode, hint:"Create PR when done", disabled:!source},
+                {label:"APPROVE PLAN",val:reqApproval,set:setReqApp,  hint:"Review plan first"},
+              ].map(opt=>(
+                <button
+                  key={opt.label}
+                  onClick={()=>!opt.disabled&&opt.set(v=>!v)}
+                  disabled={opt.disabled}
+                  style={{
+                    flex:"1 1 100px",padding:"8px",borderRadius:5,cursor:opt.disabled?"default":"pointer",
+                    background:opt.val?T.brandDim:T.surfaceHi,
+                    border:`1px solid ${opt.val?T.brand+"50":T.border}`,
+                    display:"flex",flexDirection:"column",alignItems:"center",gap:3,
+                    opacity:opt.disabled?0.4:1,
+                  }}>
+                  <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,fontWeight:700,color:opt.val?T.brand:T.muted,letterSpacing:"0.08em"}}>{opt.label}</div>
+                  <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.textDim}}>{opt.hint}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <Field label="REPOSITORY (SOURCE)" style={{marginBottom:12}}>
             {loadingSrc
               ?<div style={{...inputSt,color:T.textDim,fontSize:13}}>Loading sources…</div>
               :sources.length===0
@@ -3520,15 +3598,11 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
 
                 {showSources && (
                   <>
-                    <div
-                      style={{position:"fixed", inset:0, zIndex:100}}
-                      onClick={()=>{
-                        setShowSources(false);
-                        // Reset search text to current selection on close
-                        if (srcObj) setSourceSearch(getSourceDisplay(srcObj));
-                        else if (source === "") setSourceSearch("No repo (repoless)");
-                      }}
-                    />
+                    <Backdrop onClick={()=>{
+                      setShowSources(false);
+                      if (srcObj) setSourceSearch(getSourceDisplay(srcObj));
+                      else if (source === "") setSourceSearch("No repo (repoless)");
+                    }}/>
                     <div style={{
                       position:"absolute", top:"100%", left:0, right:0, zIndex:101,
                       marginTop:4, background:T.surfaceHi, border:`1px solid ${T.borderHi}`,
@@ -3574,7 +3648,7 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
           </Field>
 
           {source&&(
-            <Field label="STARTING BRANCH">
+            <Field label="STARTING BRANCH" style={{marginBottom:12}}>
               <div style={{position:"relative"}}>
                 <input
                   value={branch}
@@ -3589,13 +3663,10 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
 
                 {showBranches && (
                   <>
-                    <div
-                      style={{position:"fixed", inset:0, zIndex:100}}
-                      onClick={()=>{
-                        setShowBranches(false);
-                        setBranch(branch); // Trigger re-render/reset if needed
-                      }}
-                    />
+                    <Backdrop onClick={()=>{
+                      setShowBranches(false);
+                      setBranch(branch);
+                    }}/>
                     <div style={{
                       position:"absolute", top:"100%", left:0, right:0, zIndex:101,
                       marginTop:4, background:T.surfaceHi, border:`1px solid ${T.borderHi}`,
@@ -3655,74 +3726,13 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
             </Field>
           )}
 
-          <Field label="TITLE (optional)">
-            <input value={title} onChange={e=>setTitle(e.target.value)} placeholder="Auto-generated if blank" style={inputSt}/>
-          </Field>
-
-          <Field label="TASK PROMPT *">
-            <div style={{ position: "relative" }}>
-              <div style={{ position: "absolute", top: -18, right: 0, fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: T.textDim, opacity: 0.8 }}>
-                {fmtChars(prompt.length)}
-              </div>
-              <textarea value={prompt} onChange={e=>setPrompt(e.target.value)}
-                placeholder="Describe the coding task for Jules to execute…"
-                rows={6} style={{
-                  ...inputSt, resize:"vertical", lineHeight:1.5,
-                  ...(expanded ? {
-                    position:"fixed", top:0, left:0, right:0, bottom:0, zIndex:1000,
-                    margin:0, borderRadius:0, height:"100vh", padding:"60px 24px 24px"
-                  } : {})
-                }}/>
-              <div style={{
-                position:expanded?"fixed":"absolute", top:expanded?16:8, right:expanded?16:8, zIndex:1001,
-                display:"flex", gap:8
-              }}>
-                {prompt.trim() && (
-                   <button onClick={()=>setPrompt("")} title="Clear Prompt" style={{background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:4, padding:4, cursor:"pointer", display:"flex", alignItems:"center"}}>
-                     <Ic n="x" s={14} c={T.red}/>
-                   </button>
-                )}
-                <button onClick={()=>setExpanded(!expanded)} title={expanded?"Minimize":"Expand"} style={{background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:4, padding:4, cursor:"pointer", display:"flex", alignItems:"center"}}>
-                  <Ic n={expanded?"chevron_down":"expand"} s={14} c={T.brand}/>
-                </button>
-              </div>
-            </div>
-          </Field>
-
-          <div style={{marginBottom:16}}>
-            <div style={{marginBottom:8,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.textDim,fontWeight:700,letterSpacing:"0.12em"}}>ROLES & FOCUS</div>
-            <MultiPersonaPicker personas={personas} selectedIds={selectedPersonas} onToggle={togglePersona} style={{marginBottom:12}} />
-
-            <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
-              {[
-                {label:"AUTO PR",    val:autoMode,   set:setAutoMode, hint:"Create PR when done", disabled:!source},
-                {label:"APPROVE PLAN",val:reqApproval,set:setReqApp,  hint:"Review plan first"},
-              ].map(opt=>(
-                <button
-                  key={opt.label}
-                  onClick={()=>!opt.disabled&&opt.set(v=>!v)}
-                  disabled={opt.disabled}
-                  style={{
-                    flex:"1 1 100px",padding:"9px 8px",borderRadius:5,cursor:opt.disabled?"default":"pointer",
-                    background:opt.val?T.brandDim:T.surfaceHi,
-                    border:`1px solid ${opt.val?T.brand+"50":T.border}`,
-                    display:"flex",flexDirection:"column",alignItems:"center",gap:3,
-                    opacity:opt.disabled?0.4:1,
-                  }}>
-                  <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,fontWeight:700,color:opt.val?T.brand:T.muted,letterSpacing:"0.08em"}}>{opt.label}</div>
-                  <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.textDim}}>{opt.hint}</div>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div style={{padding:"8px 12px",borderRadius:5,marginBottom:10,background:T.brandDim,border:`1px solid ${T.brand}30`,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.brand,lineHeight:1.7}}>
+          <div style={{padding:"8px 12px",borderRadius:5,marginBottom:8,background:T.brandDim,border:`1px solid ${T.brand}30`,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.brand,lineHeight:1.7}}>
             ⚡ PAYLOAD: ~{payloadEst}KB<span style={{color:T.textDim}}> · web baseline ~180KB</span>
           </div>
 
           {plan&&(
             <div style={{
-              padding:"8px 12px",borderRadius:5,marginBottom:14,
+              padding:"8px 12px",borderRadius:5,marginBottom:12,
               background:todayCount.total>=plan.daily?T.redDim:T.surfaceHi,
               border:`1px solid ${todayCount.total>=plan.daily?T.red+"40":T.border}`,
               fontFamily:"'JetBrains Mono',monospace",fontSize:11,lineHeight:1.7,
