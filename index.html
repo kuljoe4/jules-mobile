@@ -3748,8 +3748,13 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
               color:todayCount.total>=plan.daily?T.red:T.muted,
             }}>
               {todayCount.total>=plan.daily
-                ? `⛔ Daily limit reached (${plan.daily} tasks on ${plan.label} plan). Upgrade at jules.google.com or wait for reset.`
-                : `📋 ${plan.label} plan · ${todayCount.total}/${plan.daily} tasks started · ${todayCount.done} PRs created · ${plan.concurrent} concurrent max`
+                ? `⛔ Daily limit reached (${plan.daily} tasks on ${plan.label} plan). Next recovery at ${fmtTime(todayCount.nextResetTs)} (in ${todayCount.resetIn}).`
+                : (
+                  <>
+                    <div>📋 {plan.label} plan · {todayCount.total}/{plan.daily} tasks started · {todayCount.done} PRs created</div>
+                    {todayCount.nextResetTs && <div style={{fontSize:11, color:T.amber, marginTop:4, fontWeight:700}}>Next slot recovered at {fmtTime(todayCount.nextResetTs)} ({todayCount.resetIn})</div>}
+                  </>
+                )
               }
             </div>
           )}
@@ -4082,9 +4087,16 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
                     }}/>
                   </div>
                   <div style={{marginTop:12,fontSize:11,color:T.textDim,fontFamily:"'IBM Plex Sans',sans-serif",lineHeight:1.6, opacity:0.8}}>
-                    {todayCount.done} Pull Requests created today<br/>
-                    {plan.model} · {plan.concurrent} concurrent max
-                    {todayCount.total>=plan.daily && <div style={{color:T.red,marginTop:4,fontWeight:600}}>⛔ Daily limit reached.</div>}
+                    <div style={{marginBottom:6}}>
+                      <div>{todayCount.done} Pull Requests created today</div>
+                      {todayCount.nextResetTs && (
+                        <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.amber, marginTop:4, fontWeight:700}}>
+                          NEXT SLOT RECOVERY: {fmtTime(todayCount.nextResetTs)} ({todayCount.resetIn})
+                        </div>
+                      )}
+                    </div>
+                    <div>{plan.model} · {plan.concurrent} concurrent max</div>
+                    {todayCount.total>=plan.daily && <div style={{color:T.red,marginTop:6,fontWeight:600, borderTop:`1px solid ${T.red}20`, paddingTop:6}}>⛔ Daily limit reached. Next recovery at {fmtTime(todayCount.nextResetTs)}.</div>}
                   </div>
                 </div>
               </div>
@@ -4392,7 +4404,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, selectedId, is
           <div style={{overflowX:"auto", padding:scrolled?0:"4px 2px 10px", scrollbarWidth:"none", WebkitOverflowScrolling:"touch"}}>
             <div style={{display:"flex",gap:5,minWidth:"max-content",padding:"4px 0", alignItems:"center"}}>
               <div
-                title={`QUOTA USAGE\nStarted: ${todayCount.total} of ${plan?.daily || 15}\nPRs Created: ${todayCount.done}\nIn Progress: ${todayCount.total - todayCount.done}\nResets in: ${todayCount.resetIn}`}
+                title={`QUOTA USAGE\nStarted: ${todayCount.total} of ${plan?.daily || 15}\nPRs Created: ${todayCount.done}\nIn Progress: ${todayCount.total - todayCount.done}\nNext Recovery: ${todayCount.nextResetTs ? fmtTime(todayCount.nextResetTs) : "N/A"} (${todayCount.resetIn})`}
                 style={{
                   display:"flex", alignItems:"center", gap:9, padding:"6px 14px", borderRadius:22,
                   background:`linear-gradient(135deg, ${T.surfaceHi}, ${T.bg})`,
@@ -4521,6 +4533,7 @@ function JulesClient() {
 
     // Pure sliding window reset: time until the oldest session in the current window expires
     let resetIn = "24h 0m";
+    let nextResetTs = null;
     if (windowSessions.length > 0) {
       const oldest = windowSessions.reduce((min, s) => {
         const t = new Date(s.createTime).getTime();
@@ -4528,6 +4541,7 @@ function JulesClient() {
       }, new Date(windowSessions[0].createTime).getTime());
 
       const expiry = oldest + 24 * 3600000;
+      nextResetTs = expiry;
       const msLeft = expiry - now;
       const h = Math.floor(msLeft / 3600000);
       const m = Math.floor((msLeft % 3600000) / 60000);
@@ -4536,7 +4550,7 @@ function JulesClient() {
 
     const prCreated = windowSessions.filter(s => !!getPR(s)).length;
 
-    return { total: windowSessions.length, done: prCreated, resetIn };
+    return { total: windowSessions.length, done: prCreated, resetIn, nextResetTs };
   }, [sessions]);
   const lastFetchTime = useRef(null);
 
