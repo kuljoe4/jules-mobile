@@ -3511,7 +3511,7 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
         {!isDesktop&&<button onClick={onBack} style={{background:"none",border:"none",cursor:"pointer",display:"flex"}}><Ic n="back" s={18} c={T.text}/></button>}
         <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.text,letterSpacing:"0.05em",fontWeight:700,flex:1}}>NEW SESSION</div>
         {/* Draft indicator */}
-        {draft&&(prompt||title||branch!=="main")&&!savedFlash&&(
+        {draft&&(prompt||branch!=="main")&&!savedFlash&&(
           <button onClick={handleClearDraft} title="Clear saved draft" style={{
             display:"flex",alignItems:"center",gap:5,padding:"3px 9px",borderRadius:20,
             background:T.amberDim,border:`1px solid ${T.amber}40`,cursor:"pointer",
