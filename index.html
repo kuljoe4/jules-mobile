@@ -2614,9 +2614,14 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     if (currentState === "AWAITING_PLAN_APPROVAL" && latestPlan) setTab("plan");
   }, [currentState, latestPlan]);
 
+  const reviews = useMemo(() => {
+    return activities.filter(a => a.progressUpdated && a.progressUpdated.title?.toLowerCase().includes("review"));
+  }, [activities]);
+
   const TABS = [
     { id:"activity", label:"CHAT" },
     { id:"prompt",   label:"PROMPT" },
+    ...(reviews.length > 0 ? [{ id: "reviews", label: "REVIEWS" }] : []),
     ...(latestPlan?[{ id:"plan", label:"PLAN" }]:[]),
     { id:"diff",     label:"DIFF" },
     ...(mediaArtifacts.length>0?[{ id:"media", label:"MEDIA" }]:[]),
@@ -2932,21 +2937,117 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
       {/* ── Content ── */}
       <div ref={contentRef} onScroll={handleScroll} style={{flex:1,overflowY:"auto",padding:"14px 16px",paddingBottom:isDesktop?80:220,WebkitOverflowScrolling:"touch",minHeight:200,position:"relative"}}>
         {tab==="activity"&&(
-          activities.length===0
-          ?<div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>
-            {ACTIVE_STATES.has(currentState)?"Waiting for activity…":"No activities yet"}
+          <>
+            <div style={{display:"flex", alignItems:"center", gap:6, marginBottom:16, flexWrap:"wrap"}}>
+              {["ALL", "MESSAGES", "REVIEWS", "SYSTEM"].map(f => (
+                <button
+                  key={f}
+                  onClick={() => setChatFilter(f)}
+                  style={{
+                    padding: "4px 10px", borderRadius: 12, border: "none",
+                    background: chatFilter === f ? T.brandDim : "transparent",
+                    color: chatFilter === f ? T.brand : T.muted,
+                    fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 800,
+                    cursor: "pointer", outline: chatFilter === f ? `1px solid ${T.brand}40` : `1px solid ${T.border}`,
+                    transition: "all .15s"
+                  }}
+                >
+                  {f}
+                </button>
+              ))}
+              <div style={{flex:1}}/>
+              <button
+                onClick={() => {
+                  const filtered = activities.filter(a => {
+                    if (chatFilter === "MESSAGES") return a.userMessaged || a.agentMessaged;
+                    if (chatFilter === "REVIEWS") return a.progressUpdated && a.progressUpdated.title?.toLowerCase().includes("review");
+                    if (chatFilter === "SYSTEM") return !a.userMessaged && !a.agentMessaged && !(a.progressUpdated && a.progressUpdated.title?.toLowerCase().includes("review"));
+                    return true;
+                  });
+                  const text = filtered.map(a => {
+                    if (a.userMessaged) return `[USER] ${a.userMessaged.userMessage}`;
+                    if (a.agentMessaged) return `[JULES] ${a.agentMessaged.agentMessage}`;
+                    if (a.progressUpdated) return `[SYSTEM] ${a.progressUpdated.title}: ${a.progressUpdated.description}`;
+                    return `[SYSTEM] ${Object.keys(a)[0]}`;
+                  }).join("\n\n");
+                  navigator.clipboard.writeText(text);
+                  alert("Copied filtered chat to clipboard");
+                }}
+                style={{
+                  background: "transparent", border: "none", color: T.brand,
+                  fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 800,
+                  cursor: "pointer", display: "flex", alignItems: "center", gap: 4
+                }}
+              >
+                <Ic n="copy" s={10} c={T.brand}/> COPY ALL
+              </button>
+            </div>
+            {activities.length===0
+              ?<div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>
+                {ACTIVE_STATES.has(currentState)?"Waiting for activity…":"No activities yet"}
+              </div>
+              :<ActivityFeed
+                  activities={activities.filter(a => {
+                    if (chatFilter === "MESSAGES") return a.userMessaged || a.agentMessaged;
+                    if (chatFilter === "REVIEWS") return a.progressUpdated && a.progressUpdated.title?.toLowerCase().includes("review");
+                    if (chatFilter === "SYSTEM") return !a.userMessaged && !a.agentMessaged && !(a.progressUpdated && a.progressUpdated.title?.toLowerCase().includes("review"));
+                    return true;
+                  })}
+                  showAll={showAll}
+                  onShowAll={()=>setShowAll(true)}
+                  onMediaClick={setActiveMedia}
+                  onEditMessage={(text) => {
+                    setMsg(text);
+                    setComposerVisible(true);
+                    requestAnimationFrame(() => {
+                      if (txtRef.current) {
+                        txtRef.current.focus();
+                        txtRef.current.setSelectionRange(text.length, text.length);
+                        txtRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+                      }
+                    });
+                  }}
+                />
+            }
+          </>
+        )}
+        {tab==="reviews" && (
+          <div style={{display:"flex", flexDirection:"column", gap:12}}>
+            {reviews.length === 0 ? (
+              <div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>
+                No reviews found
+              </div>
+            ) : (
+              reviews.map(act => {
+                const p = act.progressUpdated;
+                return (
+                  <div key={getActKey(act)} style={{
+                    background:T.surfaceHi, border:`1px solid ${T.borderHi}`,
+                    borderRadius:8, padding:16, position:"relative"
+                  }}>
+                    <div style={{fontFamily:"'IBM Plex Sans',sans-serif", fontSize:14, color:T.text, lineHeight:1.5, whiteSpace:"pre-wrap"}}>
+                      {p.description}
+                    </div>
+                    <div style={{marginTop:12, display:"flex", alignItems:"center", justifyContent:"space-between"}}>
+                       <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.dim}}>
+                         {fmtChars(p.description?.length || 0)}
+                       </div>
+                       <button
+                         onClick={() => { navigator.clipboard.writeText(p.description); alert("Copied review text"); }}
+                         style={{
+                           background:"transparent", border:"none", color:T.brand,
+                           fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:700,
+                           cursor:"pointer", display:"flex", alignItems:"center", gap:4
+                         }}
+                       >
+                         <Ic n="copy" s={12} c={T.brand}/> COPY
+                       </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
-          :<ActivityFeed activities={activities} showAll={showAll} onShowAll={()=>setShowAll(true)} onMediaClick={setActiveMedia} onEditMessage={(text) => {
-            setMsg(text);
-            setComposerVisible(true);
-            requestAnimationFrame(() => {
-              if (txtRef.current) {
-                txtRef.current.focus();
-                txtRef.current.setSelectionRange(text.length, text.length);
-                txtRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
-              }
-            });
-          }}/>
         )}
         {tab==="prompt"&&(
           <div style={{padding:"4px 0 20px", display:"flex", flexDirection:"column", gap:20}}>
