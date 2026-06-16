@@ -2361,7 +2361,7 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], stat
         <div
           title={m.label}
           aria-label={`Status: ${m.label}`}
-          style={{display:"flex",alignItems:"center",justifyContent:"center",width:18,height:18,borderRadius:4,background:m.bg,flexShrink:0}}
+          style={{display:"flex",alignItems:"center",justifyContent:"center",width:18,height:18,background:"transparent",flexShrink:0}}
         >
           <div style={{ display: "flex", animation: currentState === "IN_PROGRESS" ? "spin 3s linear infinite" : "none" }}>
             <Ic n={m.icon} s={11} c={m.color}/>
@@ -4768,9 +4768,9 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
             {!scrolled && <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:active>0?T.amber:T.muted}}>{active>0?`⚡ ${active} ACTIVE`:"AGENT CLIENT"}</div>}
           </div>
           <div style={{marginLeft:"auto",display:"flex",gap:6,alignItems:"center",flexShrink:0}}>
-            <button onClick={() => setSearchOpen(!searchOpen)} title="Search sessions" style={{width:30,height:30,borderRadius:5,background:searchOpen||searchQuery?T.blueDim:"transparent",border:`1px solid ${searchOpen||searchQuery?T.blue+"40":T.border}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="search" s={15} c={searchOpen||searchQuery?T.blue:T.muted}/></button>
-            {isDesktop&&<button onClick={onNew} title="New Session" style={{width:30,height:30,borderRadius:5,background:T.brandDim,border:`1px solid ${T.brand}40`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="plus" s={15} c={T.brand}/></button>}
-            <button onClick={onSettings} title="Settings" style={{width:30,height:30,borderRadius:5,background:T.surfaceHi,border:`1px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="settings" s={15} c={T.muted}/></button>
+            <button onClick={() => setSearchOpen(!searchOpen)} title="Search sessions" style={{width:30,height:30,borderRadius:5,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="search" s={15} c={searchOpen||searchQuery?T.blue:T.muted}/></button>
+            {isDesktop&&<button onClick={onNew} title="New Session" style={{width:30,height:30,borderRadius:5,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="plus" s={15} c={T.brand}/></button>}
+            <button onClick={onSettings} title="Settings" style={{width:30,height:30,borderRadius:5,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="settings" s={15} c={T.muted}/></button>
             <div style={{display:"flex", alignItems:"center", gap:4}}>
               {countdown > 0 && !refreshing && (
                 <div style={{

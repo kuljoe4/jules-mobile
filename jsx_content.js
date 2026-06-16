@@ -1388,7 +1388,7 @@ const TimelineEvent = memo(({ act, onMediaClick }) => {
       border:isMajor?`1px solid ${T.border}`:"none",
     }}>
       <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:0,flexShrink:0,width:24}}>
-        <div style={{width:24,height:24,borderRadius:6,background:`${ic.c}18`,border:`1px solid ${ic.c}40`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,boxShadow:"none"}}>
+        <div style={{width:24,height:24,borderRadius:6,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,boxShadow:"none"}}>
           <Ic n={ic.n} s={13} c={ic.c}/>
         </div>
         {detail&&<div style={{width:1,flex:1,background:T.border,marginTop:3}}/>}
