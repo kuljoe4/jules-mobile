@@ -2487,8 +2487,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
       // Remove temp, fetch real activities
       actMapRef.current.delete(tempKey);
       setTimeout(() => { loadActivities(); loadSession(); }, 1200);
-    } catch {
-      setErr(e.message);
+    } catch (err) {
+      setErr(err.message);
       setMsg(text);
       actMapRef.current.delete(tempKey);
       setActivities(prev => prev.filter(a => a.id !== tempKey));
@@ -3166,87 +3166,100 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
       {/* ── Composer ── */}
       {canSend&&(
         <div style={{
-          padding:"6px 12px 10px", borderTop:`1px solid ${T.border}`, background:T.surface,
+          padding:"10px 12px", borderTop:`1px solid ${T.border}`, background:T.surface,
           flexShrink:0, transition:"transform .3s cubic-bezier(0.4, 0, 0.2, 1), opacity .2s ease, visibility .3s",
           transform: (isDesktop || composerVisible) ? "translateY(0)" : "translateY(100%)",
           opacity: (isDesktop || composerVisible) ? 1 : 0,
           visibility: (isDesktop || composerVisible) ? "visible" : "hidden",
           position: isDesktop ? "relative" : "absolute",
           bottom: 0, left: 0, right: 0, zIndex: 10,
-          boxShadow: isDesktop ? "none" : "0 -8px 24px rgba(0,0,0,0.4)",
+          boxShadow: isDesktop ? "none" : "0 -12px 32px rgba(0,0,0,0.5)",
         }}>
-          <div style={{display:"flex",gap:8,alignItems:"flex-end", marginTop:2, position:"relative"}}>
+          <MultiPersonaPicker personas={personas} selectedIds={selectedPersonas} onToggle={togglePersona} style={{marginBottom:10}} />
+
+          <div style={{position:"relative", display:"flex", flexDirection:"column"}}>
             <textarea
               ref={txtRef}
               value={msg}
               onChange={e=>setMsg(e.target.value)}
               onKeyDown={e=>e.key==="Enter"&&!e.shiftKey&&(e.preventDefault(),handleSend())}
               placeholder="Message Jules or give new instructions…"
-              rows={expanded?15:4}
+              rows={expanded?15:3}
               style={{
-                flex:1,background:T.surfaceHi,
+                width:"100%", background:T.surfaceHi,
                 border:`1px solid ${msg?T.brand+"66":T.border}`,
-                borderRadius:6,padding:`8px 50px 8px 10px`,color:T.text,
-                fontFamily:"'IBM Plex Sans',sans-serif",fontSize:15,lineHeight:1.4,
-                resize:"none",outline:"none",transition:"all .2s ease",
+                borderRadius:10, padding:`12px 14px 44px`, color:T.text,
+                fontFamily:"'IBM Plex Sans',sans-serif", fontSize:15, lineHeight:1.45,
+                resize:"none", outline:"none", transition:"all .2s ease",
                 WebkitOverflowScrolling:"touch",
                 ...(expanded ? {
                   position:"fixed", top:0, left:0, right:0, bottom:0, zIndex:1000,
-                  margin:0, borderRadius:0, height:"100vh", padding:"60px 24px 24px"
+                  margin:0, borderRadius:0, height:"100vh", padding:"60px 24px 80px"
                 } : {})
               }}
             />
-            {!expanded && (
-              <div style={{position:"absolute", bottom:8, right:46, display:"flex", gap:4}}>
-                {msg.trim() && (
-                  <button onClick={()=>setMsg("")} title="Clear" style={{background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:4, padding:4, cursor:"pointer", display:"flex"}}>
-                    <Ic n="x" s={14} c={T.red}/>
-                  </button>
-                )}
-                <button onClick={()=>setExpanded(true)} title="Expand" style={{background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:4, padding:4, cursor:"pointer", display:"flex"}}>
-                  <Ic n="expand" s={14} c={T.brand}/>
+
+            {/* Input Toolbar (Inside Textarea area but positioned bottom-right) */}
+            <div style={{
+              position: expanded ? "fixed" : "absolute",
+              bottom: expanded ? 90 : 8,
+              right: expanded ? 24 : 8,
+              display: "flex", gap: 10, alignItems: "center", zIndex: 1001,
+              padding: "4px 8px", borderRadius: 8,
+              background: expanded ? T.surfaceHi : "rgba(11, 14, 20, 0.8)",
+              backdropFilter: expanded ? "none" : "blur(8px)",
+              border: expanded ? `1px solid ${T.border}` : "none",
+            }}>
+              {msg.trim() && (
+                <button onClick={()=>setMsg("")} title="Clear" style={{background:"transparent", border:"none", padding:4, cursor:"pointer", display:"flex", alignItems:"center"}}>
+                  <Ic n="x" s={16} c={T.red}/>
                 </button>
-              </div>
-            )}
+              )}
+              <button onClick={()=>setExpanded(!expanded)} title={expanded ? "Minimize" : "Expand"} style={{background:"transparent", border:"none", padding:4, cursor:"pointer", display:"flex", alignItems:"center"}}>
+                <Ic n={expanded ? "chevron_down" : "expand"} s={16} c={T.brand}/>
+              </button>
+              <div style={{width:1, height:16, background:T.border}}/>
+              <button
+                onClick={handleSend}
+                disabled={!msg.trim()||busy}
+                style={{
+                  background: "transparent", border: "none", cursor: msg.trim()&&!busy?"pointer":"default",
+                  display: "flex", alignItems: "center", justifyContent: "center", padding: 4,
+                  opacity: msg.trim()&&!busy ? 1 : 0.4, transition: "all .2s"
+                }}
+              >
+                <Ic n="send" s={20} c={msg.trim()&&!busy?T.brand:T.muted}/>
+              </button>
+            </div>
+
             {expanded && (
-              <div style={{position:"fixed", top:16, right:16, zIndex:1001, display:"flex", gap:8}}>
-                {msg.trim() && (
-                  <button onClick={()=>setMsg("")} title="Clear" style={{background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:4, padding:4, cursor:"pointer", display:"flex"}}>
-                    <Ic n="x" s={14} c={T.red}/>
-                  </button>
-                )}
-                <button onClick={()=>setExpanded(false)} title="Minimize" style={{background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:4, padding:4, cursor:"pointer", display:"flex"}}>
-                  <Ic n="chevron_down" s={14} c={T.brand}/>
-                </button>
-              </div>
+              <button
+                onClick={handleSend}
+                disabled={!msg.trim()||busy}
+                style={{
+                  position: "fixed", bottom: 16, left: 24, right: 24, zIndex: 1001, height: 48,
+                  borderRadius: 10, border: "none", background: T.brand, color: "#000",
+                  fontFamily: "'JetBrains Mono',monospace", fontSize: 13, fontWeight: 900,
+                  letterSpacing: "0.05em", cursor: "pointer", display: "flex", alignItems: "center",
+                  justifyContent: "center", gap: 10, boxShadow: `0 8px 24px ${T.brand}40`
+                }}
+              >
+                <Ic n="send" s={18} c="#000"/> SEND MESSAGE
+              </button>
             )}
-            <button
-              onClick={handleSend}
-              disabled={!msg.trim()||busy}
-              style={{
-                width:38,height:38,flexShrink:0,borderRadius:6,border:"none",
-                background:msg.trim()&&!busy?T.brand:T.dim,
-                cursor:msg.trim()&&!busy?"pointer":"default",
-                display:"flex",alignItems:"center",justifyContent:"center",
-                transition:"background .2s",
-              }}
-            >
-              <Ic n="send" s={14} c={msg.trim()&&!busy?"#000":T.muted}/>
-            </button>
           </div>
-          <div style={{marginTop:6, display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, fontFamily:"'JetBrains Mono',monospace", fontSize:9}}>
+
+          <div style={{marginTop:8, display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:T.dim}}>
             <div style={{display:"flex", alignItems:"center", gap:10, minWidth:0}}>
-               <div style={{color:T.textDim, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis"}}>↵ SEND · SHIFT+↵ NEWLINE</div>
+               <div style={{whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis"}}>↵ SEND · SHIFT+↵ NEWLINE</div>
                <div style={{color: T.brand, fontWeight:700, opacity: 0.8 }}>{fmtChars(msg.length)}</div>
             </div>
             <div style={{
-              display:"flex", alignItems:"center", gap:8,
-              fontSize:8, fontWeight:700, color:T.dim,
-              opacity:0.6, letterSpacing:"0.05em", whiteSpace:"nowrap"
+              display:"flex", alignItems:"center", gap:8, fontWeight:700, opacity:0.6, letterSpacing:"0.05em", whiteSpace:"nowrap"
             }}>
-              <span title="Total activities loaded">{activityStats.count} ITEMS</span>
+              <span>{activityStats.count} ITEMS</span>
               <span style={{width:1, height:8, background:T.border}}/>
-              <span title="Estimated activity data size">{fmtBytes(activityStats.size/1024)}</span>
+              <span>{fmtBytes(activityStats.size/1024)}</span>
             </div>
           </div>
         </div>
@@ -3516,31 +3529,122 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
 
             <div style={{display:"flex", flexDirection:"column", gap:16, marginBottom:28}}>
               <div style={{
-                background:T.surfaceHi, borderRadius:10, padding:16,
+                background:T.surfaceHi, borderRadius:10, padding:12,
                 border:`1px solid ${T.brand}40`,
-                animation:"pulseRepo 2s infinite ease-in-out",
-                boxShadow:`0 0 15px ${T.brand}10`,
+                animation: (showSources || showBranches) ? "none" : "pulseRepo 1s infinite ease-in-out",
+                transition: "all .2s"
               }}>
-                <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.brand, fontWeight:800, letterSpacing:"0.1em", marginBottom:8}}>TARGET REPOSITORY</div>
-                <div style={{display:"flex", alignItems:"center", gap:10}}>
-                  <div style={{width:24, height:24, borderRadius:6, background:T.brandDim, display:"flex", alignItems:"center", justifyContent:"center"}}>
-                    <Ic n="code" s={14} c={T.brand}/>
+                <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.brand, fontWeight:800, letterSpacing:"0.1em", marginBottom:6}}>TARGET REPOSITORY</div>
+                <div style={{position:"relative"}}>
+                  <input
+                    value={sourceSearch}
+                    onChange={e=>{setSourceSearch(e.target.value); setShowSources(true);}}
+                    onFocus={()=>setShowSources(true)}
+                    placeholder="Search repositories..."
+                    style={{...inputSt, paddingRight:36, fontSize:13, padding: "8px 10px"}}
+                  />
+                  <div style={{position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", display:"flex", alignItems:"center", pointerEvents:"none"}}>
+                    <Ic n="code" s={14} c={showSources?T.brand:T.muted}/>
                   </div>
-                  <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:14, color:T.text, fontWeight:800, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>
-                    {srcObj ? getSourceDisplay(srcObj).toUpperCase() : "REPOLESS SESSION"}
-                  </span>
+
+                  {showSources && (
+                    <>
+                      <Backdrop onClick={()=>{
+                        setShowSources(false);
+                        if (srcObj) setSourceSearch(getSourceDisplay(srcObj));
+                        else if (source === "") setSourceSearch("No repo (repoless)");
+                      }} zIndex={2100}/>
+                      <div style={{
+                        position:"absolute", bottom:"100%", left:0, right:0, zIndex:2101,
+                        marginBottom:4, background:T.surfaceHi, border:`1px solid ${T.borderHi}`,
+                        borderRadius:6, maxHeight:180, overflowY:"auto",
+                        boxShadow:"0 -10px 25px rgba(0,0,0,0.5)",
+                      }}>
+                        {filteredSources.map((s, idx) => {
+                          const isRepoless = s === null;
+                          const sName = isRepoless ? "" : s.name;
+                          const isSelected = sName === source;
+                          return (
+                            <button
+                              key={isRepoless ? "_repoless" : s.name}
+                              onClick={()=>{setSource(sName); setSourceSearch(getSourceDisplay(s)); setShowSources(false);}}
+                              style={{
+                                width:"100%", padding:"10px 12px", background:"none", border:"none",
+                                textAlign:"left", cursor:"pointer", display:"flex", alignItems:"center", gap:8,
+                                borderBottom:idx < filteredSources.length - 1 ? `1px solid ${T.border}` : "none",
+                                transition:"background .1s",
+                              }}
+                              onMouseEnter={e=>e.currentTarget.style.background=T.dim}
+                              onMouseLeave={e=>e.currentTarget.style.background="none"}
+                            >
+                              <Ic n="code" s={12} c={isSelected?T.brand:T.muted}/>
+                              <span style={{
+                                flex:1, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:14,
+                                color:isSelected?T.brand:T.text, fontWeight:isSelected?600:400,
+                                overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
+                              }}>{getSourceDisplay(s)}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
 
-              <div style={{background:T.surfaceHi, borderRadius:10, padding:16, border:`1px solid ${T.border}`}}>
-                <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.blue, fontWeight:800, letterSpacing:"0.1em", marginBottom:8}}>STARTING BRANCH</div>
-                <div style={{display:"flex", alignItems:"center", gap:10}}>
-                  <Ic n="branch" s={14} c={T.blue}/>
-                  <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:14, color:T.blue, fontWeight:800}}>
-                    {branch || defaultBranch || "main"}
-                  </span>
+              {source && (
+                <div style={{background:T.surfaceHi, borderRadius:10, padding:12, border:`1px solid ${T.border}`}}>
+                  <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.blue, fontWeight:800, letterSpacing:"0.1em", marginBottom:6}}>STARTING BRANCH</div>
+                  <div style={{position:"relative"}}>
+                    <input
+                      value={branch}
+                      onChange={e=>{setBranch(e.target.value); setShowBranches(true);}}
+                      onFocus={()=>setShowBranches(true)}
+                      placeholder={defaultBranch || "main"}
+                      style={{...inputSt, paddingRight:36, fontSize:13, padding: "8px 10px"}}
+                    />
+                    <div style={{position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", display:"flex", alignItems:"center", pointerEvents:"none"}}>
+                      <Ic n="branch" s={14} c={showBranches?T.brand:T.muted}/>
+                    </div>
+
+                    {showBranches && (
+                      <>
+                        <Backdrop onClick={()=>{
+                          setShowBranches(false);
+                          setBranch(branch);
+                        }} zIndex={2100}/>
+                        <div style={{
+                          position:"absolute", bottom:"100%", left:0, right:0, zIndex:2101,
+                          marginBottom:4, background:T.surfaceHi, border:`1px solid ${T.borderHi}`,
+                          borderRadius:6, maxHeight:150, overflowY:"auto",
+                          boxShadow:"0 -10px 25px rgba(0,0,0,0.5)",
+                        }}>
+                          {filteredBranches.map(b => (
+                            <button
+                              key={b}
+                              onClick={()=>{setBranch(b); setShowBranches(false);}}
+                              style={{
+                                width:"100%", padding:"10px 12px", background:"none", border:"none",
+                                textAlign:"left", cursor:"pointer", display:"flex", alignItems:"center", gap:8,
+                                borderBottom:`1px solid ${T.border}`, transition:"background .1s",
+                              }}
+                              onMouseEnter={e=>e.currentTarget.style.background=T.dim}
+                              onMouseLeave={e=>e.currentTarget.style.background="none"}
+                            >
+                              <Ic n="branch" s={12} c={b===branch?T.brand:T.muted}/>
+                              <span style={{
+                                flex:1, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:14,
+                                color:b===branch?T.brand:T.text, fontWeight:b===branch?600:400,
+                                overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
+                              }}>{b}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div style={{background:T.surfaceHi, borderRadius:10, padding:16, border:`1px solid ${T.border}`}}>
                 <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.purple, fontWeight:800, letterSpacing:"0.1em", marginBottom:8}}>PROMPT SUMMARY</div>
@@ -3640,21 +3744,25 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
                 placeholder="Describe the coding task for Jules to execute…"
                 rows={6} style={{
                   ...inputSt, resize:"vertical", lineHeight:1.5,
+                  paddingBottom: 40,
                   ...(expanded ? {
                     position:"fixed", top:0, left:0, right:0, bottom:0, zIndex:1000,
-                    margin:0, borderRadius:0, height:"100vh", padding:"60px 24px 24px"
+                    margin:0, borderRadius:0, height:"100vh", padding:"60px 24px 80px"
                   } : {})
                 }}/>
               <div style={{
-                position:expanded?"fixed":"absolute", top:expanded?16:8, right:expanded?16:8, zIndex:1001,
-                display:"flex", gap:8
+                position:expanded?"fixed":"absolute", bottom:expanded?24:8, right:expanded?24:8, zIndex:1001,
+                display:"flex", gap:8,
+                padding: "2px 6px", borderRadius: 6,
+                background: expanded ? T.surfaceHi : "rgba(11, 14, 20, 0.6)",
+                backdropFilter: expanded ? "none" : "blur(4px)",
               }}>
                 {prompt.trim() && (
-                   <button onClick={()=>setPrompt("")} title="Clear Prompt" style={{background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:4, padding:4, cursor:"pointer", display:"flex", alignItems:"center"}}>
+                   <button onClick={()=>setPrompt("")} title="Clear Prompt" style={{background:"transparent", border:"none", padding:4, cursor:"pointer", display:"flex", alignItems:"center"}}>
                      <Ic n="x" s={14} c={T.red}/>
                    </button>
                 )}
-                <button onClick={()=>setExpanded(!expanded)} title={expanded?"Minimize":"Expand"} style={{background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:4, padding:4, cursor:"pointer", display:"flex", alignItems:"center"}}>
+                <button onClick={()=>setExpanded(!expanded)} title={expanded?"Minimize":"Expand"} style={{background:"transparent", border:"none", padding:4, cursor:"pointer", display:"flex", alignItems:"center"}}>
                   <Ic n={expanded?"chevron_down":"expand"} s={14} c={T.brand}/>
                 </button>
               </div>
@@ -3688,154 +3796,6 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
             </div>
           </div>
 
-          <Field label="REPOSITORY (SOURCE)" style={{marginBottom:12}}>
-            {loadingSrc
-              ?<div style={{...inputSt,color:T.textDim,fontSize:13}}>Loading sources…</div>
-              :sources.length===0
-              ?<div style={{padding:"10px 12px",borderRadius:6,background:T.amberDim,border:`1px solid ${T.amber}40`,fontFamily:"'IBM Plex Sans',sans-serif",fontSize:14,color:T.amber}}>
-                No sources found. Connect a repo at <span style={{fontFamily:"'JetBrains Mono',monospace"}}>jules.google.com</span> first.
-              </div>
-              :<div style={{position:"relative"}}>
-                <input
-                  value={sourceSearch}
-                  onChange={e=>{setSourceSearch(e.target.value); setShowSources(true);}}
-                  onFocus={()=>setShowSources(true)}
-                  placeholder="Search repositories..."
-                  style={{...inputSt, paddingRight:36}}
-                />
-                <div style={{position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", display:"flex", alignItems:"center", pointerEvents:"none"}}>
-                  <Ic n="code" s={14} c={showSources?T.brand:T.muted}/>
-                </div>
-
-                {showSources && (
-                  <>
-                    <Backdrop onClick={()=>{
-                      setShowSources(false);
-                      if (srcObj) setSourceSearch(getSourceDisplay(srcObj));
-                      else if (source === "") setSourceSearch("No repo (repoless)");
-                    }}/>
-                    <div style={{
-                      position:"absolute", top:"100%", left:0, right:0, zIndex:101,
-                      marginTop:4, background:T.surfaceHi, border:`1px solid ${T.borderHi}`,
-                      borderRadius:6, maxHeight:200, overflowY:"auto",
-                      boxShadow:"0 10px 25px rgba(0,0,0,0.5)",
-                    }}>
-                      {filteredSources.length === 0 && (
-                        <div style={{padding:"12px", textAlign:"center", fontFamily:"'JetBrains Mono',monospace", fontSize:12, color:T.textDim}}>
-                          NO RESULTS FOUND
-                        </div>
-                      )}
-                      {filteredSources.map((s, idx) => {
-                        const isRepoless = s === null;
-                        const sName = isRepoless ? "" : s.name;
-                        const isSelected = sName === source;
-                        return (
-                          <button
-                            key={isRepoless ? "_repoless" : s.name}
-                            onClick={()=>{setSource(sName); setSourceSearch(getSourceDisplay(s)); setShowSources(false);}}
-                            style={{
-                              width:"100%", padding:"10px 12px", background:"none", border:"none",
-                              textAlign:"left", cursor:"pointer", display:"flex", alignItems:"center", gap:8,
-                              borderBottom:idx < filteredSources.length - 1 ? `1px solid ${T.border}` : "none",
-                              transition:"background .1s",
-                            }}
-                            onMouseEnter={e=>e.currentTarget.style.background=T.dim}
-                            onMouseLeave={e=>e.currentTarget.style.background="none"}
-                          >
-                            <Ic n="code" s={12} c={isSelected?T.brand:T.muted}/>
-                            <span style={{
-                              flex:1, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:15,
-                              color:isSelected?T.brand:T.text, fontWeight:isSelected?600:400,
-                              overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
-                            }}>{getSourceDisplay(s)}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </>
-                )}
-              </div>
-            }
-          </Field>
-
-          {source&&(
-            <Field label="STARTING BRANCH" style={{marginBottom:12}}>
-              <div style={{position:"relative"}}>
-                <input
-                  value={branch}
-                  onChange={e=>{setBranch(e.target.value); setShowBranches(true);}}
-                  onFocus={()=>setShowBranches(true)}
-                  placeholder={defaultBranch || "main"}
-                  style={{...inputSt, paddingRight:36}}
-                />
-                <div style={{position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", display:"flex", alignItems:"center", pointerEvents:"none"}}>
-                  <Ic n="branch" s={14} c={showBranches?T.brand:T.muted}/>
-                </div>
-
-                {showBranches && (
-                  <>
-                    <Backdrop onClick={()=>{
-                      setShowBranches(false);
-                      setBranch(branch);
-                    }}/>
-                    <div style={{
-                      position:"absolute", top:"100%", left:0, right:0, zIndex:101,
-                      marginTop:4, background:T.surfaceHi, border:`1px solid ${T.borderHi}`,
-                      borderRadius:6, maxHeight:200, overflowY:"auto",
-                      boxShadow:"0 10px 25px rgba(0,0,0,0.5)",
-                    }}>
-                      {filteredBranches.length === 0 && (
-                        <div style={{padding:"12px", textAlign:"center", fontFamily:"'JetBrains Mono',monospace", fontSize:12, color:T.textDim}}>
-                          NO RESULTS FOUND
-                        </div>
-                      )}
-                      {filteredBranches.map(b => (
-                        <button
-                          key={b}
-                          onClick={()=>{setBranch(b); setShowBranches(false);}}
-                          style={{
-                            width:"100%", padding:"10px 12px", background:"none", border:"none",
-                            textAlign:"left", cursor:"pointer", display:"flex", alignItems:"center", gap:8,
-                            borderBottom:`1px solid ${T.border}`, transition:"background .1s",
-                          }}
-                          onMouseEnter={e=>e.currentTarget.style.background=T.dim}
-                          onMouseLeave={e=>e.currentTarget.style.background="none"}
-                        >
-                          <Ic n="branch" s={12} c={b===branch?T.brand:T.muted}/>
-                          <span style={{
-                            flex:1, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:15,
-                            color:b===branch?T.brand:T.text, fontWeight:b===branch?600:400,
-                            overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
-                          }}>{b}</span>
-                          {b===defaultBranch && (
-                            <span style={{
-                              fontFamily:"'JetBrains Mono',monospace", fontSize:10,
-                              color:T.brand, background:T.brandDim, padding:"1px 5px", borderRadius:3,
-                            }}>DEFAULT</span>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
-              <div style={{
-                marginTop:5, display:"flex", gap:6, alignItems:"center",
-                fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.textDim,
-              }}>
-                <span>{branches.length || 0} branch{branches.length!==1?"es":""}</span>
-                {defaultBranch && <span>· default: <span style={{color:T.brand}}>{defaultBranch}</span></span>}
-                {branch !== defaultBranch && defaultBranch && (
-                  <button onClick={()=>setBranch(defaultBranch)} style={{
-                    marginLeft:4, padding:"1px 7px", borderRadius:3,
-                    background:"transparent", border:`1px solid ${T.border}`,
-                    color:T.textDim, cursor:"pointer",
-                    fontFamily:"'JetBrains Mono',monospace", fontSize:10,
-                  }}>reset</button>
-                )}
-              </div>
-            </Field>
-          )}
 
           <div style={{padding:"8px 12px",borderRadius:5,marginBottom:8,background:T.brandDim,border:`1px solid ${T.brand}30`,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.brand,lineHeight:1.7}}>
             ⚡ PAYLOAD: ~{payloadEst}KB<span style={{color:T.textDim}}> · web baseline ~180KB</span>
@@ -5083,7 +5043,7 @@ function Shell({ children, desktop=false }) {
         @keyframes slideUp{from{transform:translateY(20px);opacity:0;}to{transform:translateY(0);opacity:1;}}
         @keyframes pulseRepo {
           0% { border-color: ${T.brand}40; box-shadow: 0 0 0 ${T.brand}00; }
-          50% { border-color: ${T.brand}; box-shadow: 0 0 15px ${T.brand}30; }
+          50% { border-color: ${T.brand}; box-shadow: 0 0 25px ${T.brand}80; transform: scale(1.02); }
           100% { border-color: ${T.brand}40; box-shadow: 0 0 0 ${T.brand}00; }
         }
         ::selection{background:${T.brandDim};color:${T.brand};}
