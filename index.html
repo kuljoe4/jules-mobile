@@ -489,18 +489,65 @@ const STATUS_META = {
 
 // ─── Network tracker ──────────────────────────────────────────────────────────
 function makeNetTracker() {
-  let totalIn=0, totalOut=0, log=[];
-  const subs=[];
-  const notify = () => subs.forEach(f => f({ total: totalIn + totalOut, totalIn, totalOut, log:[...log] }));
+  const STATS_KEY = "jac_net_stats";
+  const initial = (() => {
+    try { return JSON.parse(localStorage.getItem(STATS_KEY)) || { overall: { in: 0, out: 0 }, daily: {} }; }
+    catch { return { overall: { in: 0, out: 0 }, daily: {} }; }
+  })();
+
+  let stats = initial;
+  let log = [];
+  const subs = [];
+
+  const save = () => {
+    try { localStorage.setItem(STATS_KEY, JSON.stringify(stats)); } catch {}
+  };
+
+  const getUsage = () => {
+    const now = new Date();
+    const todayKey = now.toISOString().split("T")[0];
+    const monthKey = todayKey.slice(0, 7);
+
+    const today = stats.daily[todayKey] || { in: 0, out: 0 };
+    const month = { in: 0, out: 0 };
+    Object.entries(stats.daily).forEach(([date, val]) => {
+      if (date.startsWith(monthKey)) {
+        month.in += val.in;
+        month.out += val.out;
+      }
+    });
+
+    return { today, month, overall: stats.overall };
+  };
+
+  const notify = () => {
+    const usage = getUsage();
+    subs.forEach(f => f({ ...usage, log: [...log] }));
+  };
+
   return {
     record(label, bytesIn, bytesOut, status) {
-      totalIn += bytesIn; totalOut += bytesOut;
-      log.unshift({ id:Math.random(), label, bytesIn, bytesOut, status, ts:Date.now() });
+      const now = new Date();
+      const todayKey = now.toISOString().split("T")[0];
+
+      if (!stats.daily[todayKey]) stats.daily[todayKey] = { in: 0, out: 0 };
+      stats.daily[todayKey].in += bytesIn;
+      stats.daily[todayKey].out += bytesOut;
+      stats.overall.in += bytesIn;
+      stats.overall.out += bytesOut;
+
+      // Keep only last 60 days of daily stats to prevent bloat
+      const dailyKeys = Object.keys(stats.daily).sort();
+      if (dailyKeys.length > 60) delete stats.daily[dailyKeys[0]];
+
+      log.unshift({ id: Math.random(), label, bytesIn, bytesOut, status, ts: now.getTime() });
       if (log.length > 80) log.length = 80;
+
+      save();
       notify();
     },
-    subscribe(fn) { subs.push(fn); return () => { const i=subs.indexOf(fn); if(i>-1) subs.splice(i,1); }; },
-    snapshot() { return { total: totalIn + totalOut, totalIn, totalOut, log:[...log] }; },
+    subscribe(fn) { subs.push(fn); return () => { const i = subs.indexOf(fn); if (i > -1) subs.splice(i, 1); }; },
+    snapshot() { return { ...getUsage(), log: [...log] }; },
   };
 }
 const NET = makeNetTracker();
@@ -4355,12 +4402,35 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
 
           {tab === "network" && (
             <div style={{animation:"fadeIn .2s ease", display:"flex", flexDirection:"column", gap:20}} role="region" aria-label="Network Activity">
+              <div>
+                <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.textDim,letterSpacing:"0.08em",fontWeight:700,marginBottom:12}}>BANDWIDTH USAGE</div>
+                <div style={{display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(140px, 1fr))", gap:12}}>
+                  {[
+                    { l: "TODAY", in: snap.today.in, out: snap.today.out, c: T.brand },
+                    { l: "MONTH", in: snap.month.in, out: snap.month.out, c: T.purple },
+                    { l: "OVERALL", in: snap.overall.in, out: snap.overall.out, c: T.amber },
+                  ].map(s => (
+                    <div key={s.l} style={{background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:12, padding:16}}>
+                      <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:T.dim, letterSpacing:"0.1em", fontWeight:800, marginBottom:8}}>{s.l}</div>
+                      <div style={{display:"flex", flexDirection:"column", gap:4}}>
+                        <div style={{display:"flex", justifyContent:"space-between", alignItems:"baseline"}}>
+                          <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.dim}}>IN</span>
+                          <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:14, fontWeight:900, color:s.c}}>{fmtBytes(s.in)}</span>
+                        </div>
+                        <div style={{display:"flex", justifyContent:"space-between", alignItems:"baseline"}}>
+                          <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.dim}}>OUT</span>
+                          <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:14, fontWeight:900, color:T.textHi}}>{fmtBytes(s.out)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}} role="list">
                 {[
-                  {l:"RECEIVED",   v:fmtBytes(totalIn), c:T.brand,  desc:"Total incoming data"},
-                  {l:"SENT",       v:fmtBytes(totalOut),c:T.purple, desc:"Total outgoing data"},
-                  {l:"EFFICIENCY", v:`${reduction}%`,   c:T.amber,  desc:"Data saved vs. standard"},
-                  {l:"REQUESTS",   v:log.length,        c:T.blue,   desc:"Total API calls made"},
+                  {l:"SESSIONS EFFICIENCY", v:`${reduction}%`,   c:T.brand,  desc:"Data saved vs. standard mobile"},
+                  {l:"REQUESTS LOGGED",   v:log.length,        c:T.blue,   desc:"API calls in current session"},
                 ].map(s=>(
                   <div key={s.l} style={{background:T.surfaceHi,border:`1px solid ${T.border}`,borderRadius:12,padding:16}} role="listitem">
                     <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.textDim,letterSpacing:"0.1em",marginBottom:6,fontWeight:700}}>{s.l}</div>
