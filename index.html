@@ -214,6 +214,7 @@ const MSG_TYPES     = new Set(["userMessaged","agentMessaged"]);
 // Configurable poll intervals (ms). 0 = manual-only.
 const POLL_OPTIONS = [
   { label:"OFF",  ms:0      },
+  { label:"10s",  ms:10000  },
   { label:"30s",  ms:30000  },
   { label:"1m",   ms:60000  },
   { label:"2m",   ms:120000 },
@@ -242,6 +243,7 @@ function saveActivePollMs(ms) { try { localStorage.setItem(ACTIVE_POLL_KEY,ms); 
 
 // ─── Session list limits ──────────────────────────────────────────────────────
 const LIMIT_OPTIONS = [
+  { label:"10",  val:10  },
   { label:"20",  val:20  },
   { label:"50",  val:50  },
   { label:"100", val:100 },
@@ -2277,7 +2279,7 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], stat
   const highActivityStyle = isVHighActivity ? { color: T.red, fontWeight: 900 } : isHighActivity ? { color: T.amber, fontWeight: 900 } : {};
 
   const bg = isSelected
-    ? `linear-gradient(135deg, ${T.brand}15, ${T.bg} 80%), radial-gradient(circle at top right, ${T.brand}10, transparent 60%)`
+    ? `${T.brand}20`
     : isUnread ? `${T.indigo}0a` : isWorking ? `${T.blue}06` : T.surface;
 
   const borderColor = isSelected ? `${T.brand}30` : isUnread ? `${T.indigo}20` : isWorking ? `${T.blue}20` : `${T.border}66`;
@@ -2293,7 +2295,7 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], stat
         position:"relative",
         transform:isSelected?"translateX(4px) scale(1.005)":"none",
         outline:"none",
-        boxShadow: isSelected ? `0 12px 32px -8px ${T.brand}35, inset 0 0 10px ${T.brand}10` : "none",
+        boxShadow: "none",
         zIndex: isSelected ? 2 : 1,
       }}
       onFocus={e => e.currentTarget.style.borderColor = T.brand}
@@ -5184,7 +5186,7 @@ function JulesClient() {
         {/* Sidebar */}
         <div style={{width:320,flexShrink:0,borderRight:`1px solid ${T.border}`,display:"flex",flexDirection:"column",height:"100vh",overflow:"hidden"}}>
           <SessionList
-            sessions={sessions} onSelect={handleSelect} onRefresh={()=>fetchSessions(false, true)}
+            onSelect={handleSelect} onRefresh={()=>fetchSessions(false, true)}
             refreshing={refreshing} justRefreshed={justRefreshed} selectedId={selected?.id}
             isDesktop onNew={()=>setDesktop("new")}
             onSettings={()=>setDesktop("settings")}
