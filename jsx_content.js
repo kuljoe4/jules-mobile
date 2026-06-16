@@ -1,205 +1,3 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="theme-color" content="#0891b2">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black">
-    <meta name="apple-mobile-web-app-title" content="Jules">
-    <meta name="application-name" content="Jules Agent">
-    <meta name="description" content="Jules AI coding agent client — monitor sessions, review plans, send messages">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%2307090c%22/><text y=%22.9em%22 x=%2250%25%22 font-size=%2270%22 text-anchor=%22middle%22 fill=%22%2306b6d4%22 font-family=%22monospace%22 font-weight=%22900%22>J</text></svg>">
-    <title>Jules Agent</title>
-    <!-- DNS preconnect for CDN resources -->
-    <link rel="preconnect" href="https://unpkg.com" crossorigin>
-    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <!-- Fonts early so they don't cause FOUT -->
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap">
-    <!-- Critical inline styles for instant splash render (no JS needed) -->
-    <style>
-      *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
-      html,body{height:100%;overflow:hidden;background:#07090c;}
-      #splash{
-        position:fixed;inset:0;z-index:9999;background:#07090c;
-        display:flex;flex-direction:column;align-items:center;justify-content:center;
-        gap:0;font-family:'JetBrains Mono',monospace;
-        transition:opacity .3s ease, visibility .3s ease;
-      }
-      #splash.hidden{opacity:0;visibility:hidden;pointer-events:none;}
-      #splash-logo{
-        width:60px;height:60px;border-radius:14px;background:#06b6d4;
-        display:flex;align-items:center;justify-content:center;
-        font-size:38px;font-weight:900;color:#000;
-        box-shadow:0 8px 32px rgba(6,182,212,.2);
-        margin-bottom:22px;
-      }
-      #splash-title{font-size:15px;font-weight:700;color:#c5d4e8;letter-spacing:.06em;margin-bottom:6px;}
-      #splash-sub{font-size:12px;color:#4a5e76;letter-spacing:.05em;margin-bottom:28px;}
-      #splash-bar-wrap{width:120px;height:2px;background:#1e2d3d;border-radius:2px;overflow:hidden;}
-      #splash-bar{
-        height:100%;width:0%;background:#06b6d4;border-radius:2px;
-        box-shadow:0 2px 10px rgba(6,182,212,.3);
-        animation:splash-load 2.4s cubic-bezier(.4,0,.2,1) forwards;
-      }
-      #splash-hint{margin-top:14px;font-size:12px;font-weight:700;color:#4a5e76;letter-spacing:.07em;}
-      #splash-step{margin-top:5px;font-size:11px;color:#2a3d52;letter-spacing:.06em;min-height:13px;transition:opacity .2s;}
-      @keyframes splash-load{
-        0%  {width:0%}
-        30% {width:35%}
-        60% {width:62%}
-        85% {width:80%}
-        100%{width:92%}   /* intentionally stops before 100 — React completes it */
-      }
-      /* Skeleton shimmer for list (shown inside #root before React paints) */
-      @keyframes shimmer{to{background-position:200% center;}}
-    </style>
-    <script>
-    // ── PWA Bootstrap ──────────────────────────────────────────────────────────
-    // Chrome PWA install requires:
-    //   1. HTTPS (or localhost) — file:// will NOT work
-    //   2. A web manifest reachable at the same origin
-    //   3. A service worker registered at the same origin
-    //
-    // Strategy for a single-file PWA:
-    //   • Manifest  → data: URI (Chrome accepts this for installability)
-    //   • SW        → written to the page origin via a self-fetching trick:
-    //                 the SW script is base64-encoded inside this file and
-    //                 registered by fetching the HTML itself and rewriting it.
-    //                 For true single-file, we use a same-origin fetch of this
-    //                 file's own URL, serve the SW JS via a custom response
-    //                 intercepted by a SharedWorker shim — but that's overkill.
-    //                 Simplest working approach: write SW source to a data: URL
-    //                 registered with `{scope:'/'}` which Chrome 89+ supports
-    //                 when the page itself is on an HTTP origin.
-    //
-    // Expose globals so React can read install state.
-    window.__pwa = { isFileProtocol: location.protocol === "file:", installPrompt: null, swOk: false };
-
-    (function pwaSetup() {
-      // ── 1. Manifest via data: URI (works on HTTP origins) ──────────────────
-      const mkIcon = (size, rx) => {
-        const fs = Math.floor(size * 0.625), y = Math.floor(size * 0.73);
-        const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}"><rect width="${size}" height="${size}" rx="${rx}" fill="#07090c"/><text x="${size/2}" y="${y}" font-size="${fs}" text-anchor="middle" fill="#06b6d4" font-weight="900" font-family="monospace">J</text></svg>`;
-        return { src:"data:image/svg+xml;base64,"+btoa(svg), sizes:`${size}x${size}`, type:"image/svg+xml", purpose:"maskable any" };
-      };
-      const isMobile = window.innerWidth < 768;
-      const manifest = {
-        name:"Jules Agent Client", short_name:"Jules",
-        description:"Monitor and control Jules AI coding sessions",
-        start_url: location.href.split("?")[0],
-        scope: location.href.split("?")[0].replace(/[^/]*$/, ""),
-        display:"standalone", background_color:"#07090c", theme_color:"#0891b2",
-        orientation: isMobile ? "portrait" : "natural",
-        categories:["developer","productivity"],
-        icons:[ mkIcon(192,24), mkIcon(512,64) ],
-      };
-      // data: URI — Chrome validates manifests here starting Chromium 93
-      const manifestJSON = JSON.stringify(manifest);
-      const manifestURI  = "data:application/manifest+json," + encodeURIComponent(manifestJSON);
-      const lnk = document.createElement("link");
-      lnk.rel = "manifest"; lnk.href = manifestURI;
-      document.head.appendChild(lnk);
-
-      // ── 2. Service Worker ──────────────────────────────────────────────────
-      // SW registered from a blob: URL is rejected by Chrome's PWA checker.
-      // Instead we write the SW source into a tiny JavaScript data: URL and
-      // register it — Chrome 91+ allows data: SW registration when the page
-      // is on a secure origin (https / localhost).
-      if ("serviceWorker" in navigator && !window.__pwa.isFileProtocol) {
-        const swSrc = [
-          'const C="jules-v3";',
-          'const PRE=["https://unpkg.com/react@18/umd/react.production.min.js","https://unpkg.com/react-dom@18/umd/react-dom.production.min.js","https://unpkg.com/@babel/standalone/babel.min.js"];',
-          'self.addEventListener("install",e=>{self.skipWaiting();e.waitUntil(caches.open(C).then(c=>c.addAll(PRE).catch(()=>{})));});',
-          'self.addEventListener("activate",e=>e.waitUntil(clients.claim()));',
-          'self.addEventListener("fetch",e=>{',
-          '  const u=e.request.url;',
-          '  if(u.includes("jules.googleapis.com"))return;',
-          '  if(u.includes("unpkg.com")||u.includes("fonts.googleapis")||u.includes("fonts.gstatic")){',
-          '    e.respondWith(caches.match(e.request).then(h=>h||fetch(e.request).then(r=>{',
-          '      const cl=r.clone();caches.open(C).then(ca=>ca.put(e.request,cl));return r;',
-          '    })));',
-          '  }',
-          '});',
-        ].join("");
-        // data: URI SW — same-origin restriction bypassed on secure origins
-        const swDataURI = "data:text/javascript;base64," + btoa(swSrc);
-        navigator.serviceWorker.register(swDataURI, { scope: "/" })
-          .then(() => { window.__pwa.swOk = true; })
-          .catch(() => {
-            // Fallback: blob URL (works for caching, not for install prompt)
-            const blob = new Blob([swSrc], { type:"text/javascript" });
-            navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(()=>{});
-          });
-      }
-
-      // ── 3. Capture install prompt ──────────────────────────────────────────
-      window.addEventListener("beforeinstallprompt", e => {
-        e.preventDefault();
-        window.__pwa.installPrompt = e;
-        // Notify React if it's already mounted
-        window.dispatchEvent(new Event("pwa-installable"));
-      });
-      window.addEventListener("appinstalled", () => {
-        window.__pwa.installPrompt = null;
-        window.dispatchEvent(new Event("pwa-installed"));
-      });
-    })();
-    </script>
-</head>
-<body style="margin:0;background:#07090c;height:100%;overflow:hidden;">
-
-<!-- ── Instant splash — renders before ANY JS loads ─────────────────────── -->
-<div id="splash">
-  <div id="splash-logo">J</div>
-  <div id="splash-title">JULES AGENT</div>
-  <div id="splash-sub">AI CODING SESSIONS</div>
-  <div id="splash-bar-wrap"><div id="splash-bar"></div></div>
-  <div id="splash-hint">INITIALISING…</div>
-  <div id="splash-step"></div>
-</div>
-
-<div id="root"></div>
-
-<!-- ── Progress tracker — updates splash as each dep loads ─────────────── -->
-<script>
-(function(){
-  var hint  = document.getElementById("splash-hint");
-  var step  = document.getElementById("splash-step");
-  var bar   = document.getElementById("splash-bar");
-  var t0    = Date.now();
-
-  function setMsg(h, s, pct) {
-    if (hint) hint.textContent = h;
-    if (step) step.textContent = s;
-    if (bar && pct !== undefined) {
-      bar.style.animation = "none";
-      bar.style.transition = "width .3s cubic-bezier(.4,0,.2,1)";
-      bar.style.width = pct + "%";
-    }
-  }
-  function elapsed() { return ((Date.now()-t0)/1000).toFixed(1)+"s"; }
-
-  // Expose for inline onload handlers below
-  window.__splashMsg = setMsg;
-  window.__splashElapsed = elapsed;
-
-  setMsg("LOADING REACT…", "core library · " + elapsed(), 8);
-})();
-</script>
-
-<!-- Scripts deferred to end of body so splash paints first -->
-<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"
-  onload="__splashMsg('LOADING RENDERER…','react-dom · '+__splashElapsed(),28)"
-  onerror="__splashMsg('CDN ERROR','react failed to load — check connection',0)"></script>
-<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"
-  onload="__splashMsg('LOADING COMPILER…','babel standalone · '+__splashElapsed(),50)"
-  onerror="__splashMsg('CDN ERROR','react-dom failed to load',0)"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"
-  onload="__splashMsg('COMPILING UI…','transforming jsx · '+__splashElapsed(),72)"
-  onerror="__splashMsg('CDN ERROR','babel failed to load',0)"></script>
 <script type="text/babel" data-presets="env,react">
 // Signal that Babel compilation is done and React is about to mount
 if (window.__splashMsg) __splashMsg("MOUNTING APP…", "building component tree · " + __splashElapsed(), 88);
@@ -522,13 +320,7 @@ function makeNetTracker() {
 
   const notify = () => {
     const usage = getUsage();
-    subs.forEach(f => f({
-      ...usage,
-      total: usage.overall.in + usage.overall.out,
-      totalIn: usage.overall.in,
-      totalOut: usage.overall.out,
-      log: [...log]
-    }));
+    subs.forEach(f => f({ ...usage, log: [...log] }));
   };
 
   return {
@@ -553,16 +345,7 @@ function makeNetTracker() {
       notify();
     },
     subscribe(fn) { subs.push(fn); return () => { const i = subs.indexOf(fn); if (i > -1) subs.splice(i, 1); }; },
-    snapshot() {
-      const usage = getUsage();
-      return {
-        ...usage,
-        total: usage.overall.in + usage.overall.out,
-        totalIn: usage.overall.in,
-        totalOut: usage.overall.out,
-        log: [...log]
-      };
-    },
+    snapshot() { return { ...getUsage(), log: [...log] }; },
   };
 }
 const NET = makeNetTracker();
@@ -4199,13 +3982,13 @@ const NetworkMonitor = ({ onBack, isDesktop }) => {
 
 const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPollInterval, setActPollInterval, activePollInterval, setActivePollInterval, sessionLimit, setSessionLimit, activityLimit, setActivityLimit, cacheLimit, setCacheLimit, personas, setPersonas, planId, setPlanId, customDaily, setCustomDaily, plan, todayCount }) => {
   const [tab, setTab] = useState("general");
-  const [hasSaved, setHasSaved] = useState(false);
+  const [saved, setSaved] = useState(false);
   const saveTimer = useRef(null);
 
   const triggerSaveFeedback = () => {
-    setHasSaved(true);
+    setSaved(true);
     clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => setHasSaved(false), 2000);
+    saveTimer.current = setTimeout(() => setSaved(false), 2000);
   };
   const [snap, setSnap] = useState(NET.snapshot());
   const [storage, setStorage] = useState(null);
@@ -4615,7 +4398,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
             </Btn>
           </div>
 
-          {hasSaved && (
+          {saved && (
             <div style={{
               position:"fixed", bottom:isDesktop?40:80, left:"50%", transform:"translateX(-50%)",
               background:T.brand, color:"#000", padding:"8px 16px", borderRadius:20,
@@ -5333,90 +5116,3 @@ function JulesClient() {
 }
 
 // ─── Shell ────────────────────────────────────────────────────────────────────
-function Shell({ children, desktop=false }) {
-  // Dismiss the pre-React splash screen on first paint
-  useEffect(() => {
-    const splash = document.getElementById("splash");
-    if (!splash) return;
-    // Fast-complete the progress bar then fade out
-    const bar = document.getElementById("splash-bar");
-    if (bar) { bar.style.animation = "none"; bar.style.width = "100%"; bar.style.transition = "width .18s ease"; }
-    const hint = document.getElementById("splash-hint");
-    if (hint) hint.textContent = "READY";
-    const t = setTimeout(() => { splash.classList.add("hidden"); }, 180);
-    return () => clearTimeout(t);
-  }, []);
-
-  return (
-    <div style={{
-      width:"100%",background:T.bg,display:"flex",isolation:"isolate",
-      fontFamily:"'IBM Plex Sans',sans-serif",overflow:"hidden",
-      ...(desktop
-        ? { minHeight:"100vh", flexDirection:"row" }
-        : { width:"100%", height:"100dvh", flexDirection:"column" }
-      ),
-    }}>
-      <style>{`
-        ::-webkit-scrollbar{width:3px;height:3px;}
-        ::-webkit-scrollbar-thumb{background:${T.dim};border-radius:3px;}
-        ::-webkit-scrollbar-track{background:transparent;}
-        select,input,textarea{color-scheme:dark;}
-        option{background:${T.surface};color:${T.text};}
-        @keyframes dot{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.4;transform:scale(.7);}}
-        @keyframes spin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
-        @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
-        @keyframes zoomIn{from{transform:scale(0.95);opacity:0;}to{transform:scale(1);opacity:1;}}
-        @keyframes slideUp{from{transform:translateY(20px);opacity:0;}to{transform:translateY(0);opacity:1;}}
-        @keyframes shimmerPulse {
-          0% { opacity: 0.7; transform: translateY(4px); }
-          50% { opacity: 1; transform: translateY(-2px); }
-          100% { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes pulseRepo {
-          0% { border-color: ${T.brand}40; box-shadow: 0 0 0 ${T.brand}00; }
-          50% { border-color: ${T.brand}; box-shadow: 0 0 25px ${T.brand}80; transform: scale(1.02); }
-          100% { border-color: ${T.brand}40; box-shadow: 0 0 0 ${T.brand}00; }
-        }
-        @media (prefers-reduced-motion: reduce) {
-          *, ::before, ::after {
-            animation-delay: -1ms !important;
-            animation-duration: 1ms !important;
-            animation-iteration-count: 1 !important;
-            background-attachment: initial !important;
-            scroll-behavior: auto !important;
-            transition-duration: 0s !important;
-            transition-delay: 0s !important;
-          }
-        }
-        ::selection{background:${T.brandDim};color:${T.brand};}
-        textarea::placeholder,input::placeholder{color:${T.muted};}
-        @media screen and (max-width: 767px) and (orientation: landscape) {
-          body {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-          }
-          body > #root { display: none; }
-          body::after {
-            content: "PLEASE ROTATE YOUR DEVICE TO PORTRAIT MODE";
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 14px;
-            font-weight: 700;
-            color: ${T.brand};
-            padding: 40px;
-            letter-spacing: 0.1em;
-            line-height: 1.6;
-          }
-        }
-      `}</style>
-      <PWABanner/>
-      {children}
-    </div>
-  );
-}
-
-ReactDOM.createRoot(document.getElementById("root")).render(<JulesClient/>);
-</script>
-</body>
-</html>
