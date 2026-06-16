@@ -466,25 +466,25 @@ const T = {
   brandLight:"#22d3ee",
   brandDark:"#0891b2",
   brandDim:"rgba(6, 182, 212, 0.12)",
-  indigo:"#818cf8", indigoDim:"rgba(129,140,248,0.12)",
-  amber:"#ffbc00", amberDim:"rgba(255,188,0,0.12)",
-  red:"#ff5566",   redDim:"rgba(255,85,102,0.12)",
-  blue:"#7dd3fc",  blueDim:"rgba(125,211,252,0.12)",
-  purple:"#a5b4fc",purpleDim:"rgba(165,180,252,0.12)",
+  indigo:"#818cf8", indigoDim:"rgba(129,140,248,0.15)",
+  amber:"#ffbc00", amberDim:"rgba(255,188,0,0.15)",
+  red:"#ff5566",   redDim:"rgba(255,85,102,0.15)",
+  blue:"#38bdf8",  blueDim:"rgba(56,189,248,0.15)",
+  purple:"#c084fc",purpleDim:"rgba(192,132,252,0.15)",
   text:"#ffffff",  textHi:"#f8fafc", textDim:"#e2e8f0",
   muted:"#cbd5e1", dim:"#94a3b8", line:"#111827",
   userBubble:"rgba(99,102,241,0.08)", agentBubble:"rgba(6, 182, 212, 0.06)",
 };
 
 const STATUS_META = {
-  QUEUED:                { label:"QUEUED",   color:T.textDim,   bg:"rgba(124,142,166,.1)", pulse:false, icon:"database" },
-  PLANNING:              { label:"PLANNING", color:T.purple,    bg:T.purpleDim,            pulse:true,  icon:"plan" },
-  AWAITING_PLAN_APPROVAL:{ label:"APPROVE",  color:T.indigo,    bg:T.indigoDim,            pulse:true,  icon:"plan" },
-  AWAITING_USER_FEEDBACK:{ label:"INPUT",    color:T.amber,     bg:T.amberDim,             pulse:true,  icon:"tasks" },
-  IN_PROGRESS:           { label:"WORKING",  color:T.blue,      bg:T.blueDim,              pulse:true,  icon:"refresh" },
-  PAUSED:                { label:"PAUSED",   color:T.textDim,   bg:"rgba(124,142,166,.1)", pulse:false, icon:"layout_toggle" },
-  COMPLETED:             { label:"DONE",     color:T.brand,     bg:T.brandDim,             pulse:false, icon:"check" },
-  FAILED:                { label:"FAILED",   color:T.red,      bg:T.redDim,               pulse:false, icon:"x" },
+  QUEUED:                { label:"QUEUED",   color:T.dim,       bg:"rgba(148,163,184,0.1)", pulse:false, icon:"database" },
+  PLANNING:              { label:"PLANNING", color:T.purple,    bg:T.purpleDim,             pulse:true,  icon:"plan" },
+  AWAITING_PLAN_APPROVAL:{ label:"APPROVE",  color:T.indigo,    bg:T.indigoDim,             pulse:true,  icon:"approve" },
+  AWAITING_USER_FEEDBACK:{ label:"INPUT",    color:T.amber,     bg:T.amberDim,              pulse:true,  icon:"tasks" },
+  IN_PROGRESS:           { label:"WORKING",  color:T.blue,      bg:T.blueDim,               pulse:true,  icon:"refresh" },
+  PAUSED:                { label:"PAUSED",   color:T.muted,     bg:"rgba(203,213,225,0.1)", pulse:false, icon:"pause" },
+  COMPLETED:             { label:"DONE",     color:T.brand,     bg:T.brandDim,              pulse:false, icon:"check" },
+  FAILED:                { label:"FAILED",   color:T.red,      bg:T.redDim,                pulse:false, icon:"x" },
 };
 
 // ─── Network tracker ──────────────────────────────────────────────────────────
@@ -827,6 +827,7 @@ const PATHS = {
   approve:"M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z",
   branch:"M6 3v12M18 9a3 3 0 100-6 3 3 0 000 6zM6 21a3 3 0 100-6 3 3 0 000 6zM18 9a9 9 0 01-9 9",
   download:"M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4m4-5l5 5 5-5m-5 5V3",
+  pause:"M6 4h4v16H6zM14 4h4v16h-4z",
   layout_toggle:"M12 4V2m0 20v-2m8-8h2M2 12h2m13.657-5.657l1.414-1.414m-14.142 14.142l1.414-1.414m0-14.142l-1.414-1.414m14.142 14.142l-1.414-1.414",
   git_pull:"M18 18a3 3 0 100-6 3 3 0 000 6zM6 18a3 3 0 100-6 3 3 0 000 6zM6 6a3 3 0 100-6 3 3 0 000 6zM6 9v6M13 6h3a2 2 0 012 2v7",
   git_merge:"M18 18a3 3 0 100-6 3 3 0 000 6zM6 6a3 3 0 100-6 3 3 0 000 6zM6 21V9a9 9 0 009 9",
@@ -1058,29 +1059,42 @@ const ExpandableContent = memo(({ text, limit = 300, showCopy = false }) => {
         maxHeight: expanded ? "none" : limit,
         overflow: "hidden",
         position: "relative",
-        transition: "max-height .3s ease"
+        transition: "max-height .4s cubic-bezier(0.4, 0, 0.2, 1)"
       }}>
         <Markdown text={text} />
         {!expanded && showToggle && (
           <div style={{
-            position: "absolute", bottom: 0, left: 0, right: 0, height: 60,
-            background: `linear-gradient(transparent, ${T.surfaceHi})`,
-            pointerEvents: "none"
-          }} />
+            position: "absolute", bottom: 0, left: 0, right: 0, height: 80,
+            background: `linear-gradient(transparent, ${T.surfaceHi} 90%)`,
+            pointerEvents: "none", display: "flex", alignItems: "flex-end", justifyContent: "center",
+            paddingBottom: 8
+          }}>
+            <button
+              onClick={(e) => { e.stopPropagation(); setExpanded(true); }}
+              style={{
+                background: T.brand, color: "#000", border: "none", cursor: "pointer",
+                fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 900,
+                padding: "6px 14px", borderRadius: 20, display: "flex", alignItems:"center", gap: 6,
+                boxShadow: `0 8px 20px ${T.brand}40`, pointerEvents: "auto",
+                transform: "translateY(4px)", animation: "fadeIn .3s ease"
+              }}
+            >
+              READ FULL MESSAGE <Ic n="chevron_down" s={12} c="#000" />
+            </button>
+          </div>
         )}
       </div>
       <div style={{ display:"flex", alignItems:"center", gap:16, marginTop:8 }}>
-        {showToggle && (
+        {expanded && showToggle && (
           <button
-            onClick={() => setExpanded(!expanded)}
+            onClick={() => setExpanded(false)}
             style={{
-              background: "none", border: "none", color: T.brand, cursor: "pointer",
-              fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 700,
-              padding: 0, display: "flex", alignItems:"center", gap: 4
+              background: "none", border: "none", color: T.dim, cursor: "pointer",
+              fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 700,
+              padding: 0, display: "flex", alignItems:"center", gap: 4, opacity: 0.8
             }}
           >
-            {expanded ? "SHOW LESS" : "SHOW MORE"}
-            <Ic n={expanded ? "chevron_up" : "chevron_down"} s={12} c={T.brand} />
+            SHOW LESS <Ic n="chevron_up" s={12} c={T.dim} />
           </button>
         )}
         {showCopy && (
@@ -2150,11 +2164,20 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], stat
     return { count, size };
   }, [activities, stats]);
 
+  const [flash, setFlash] = useState(false);
+  useEffect(() => {
+    if (activityStats.count > 0) {
+      setFlash(true);
+      const t = setTimeout(() => setFlash(false), 1000);
+      return () => clearTimeout(t);
+    }
+  }, [activityStats.count, activityStats.size]);
+
   const isHighActivity = activityStats.count > 200 || activityStats.size > 1024 * 1024;
   const highActivityStyle = isHighActivity ? { color: T.amber, fontWeight: 900 } : {};
 
-  const bg = isSelected ? `${T.brand}08` : isUnread ? `${T.indigo}0a` : isWorking ? `${T.blue}06` : T.surface;
-  const borderColor = isSelected ? `${T.brand}40` : isUnread ? `${T.indigo}40` : isWorking ? `${T.blue}30` : T.border;
+  const bg = isSelected ? `linear-gradient(135deg, ${T.brand}12, ${T.brand}06)` : isUnread ? `${T.indigo}0a` : isWorking ? `${T.blue}06` : T.surface;
+  const borderColor = isSelected ? `${T.brand}50` : isUnread ? `${T.indigo}40` : isWorking ? `${T.blue}30` : T.border;
 
   return (
     <button ref={cardRef} onClick={onPress}
@@ -2165,9 +2188,10 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], stat
         borderLeft:`2px solid ${isUnread ? T.indigo : (isSelected ? T.brand : T.border)}`,
         borderRadius:6, padding:"8px 12px", marginBottom:4, transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)",
         position:"relative",
-        transform:isSelected?"translateX(2px)":"none",
+        transform:isSelected?"translateX(4px) scale(1.005)":"none",
         outline:"none",
-        boxShadow: isSelected ? `0 8px 24px -6px ${T.brand}30` : "none",
+        boxShadow: isSelected ? `0 12px 32px -8px ${T.brand}35, inset 0 0 10px ${T.brand}10` : "none",
+        zIndex: isSelected ? 2 : 1,
       }}
       onFocus={e => e.currentTarget.style.borderColor = T.brand}
       onBlur={e => e.currentTarget.style.borderColor = borderColor}
@@ -2218,7 +2242,14 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], stat
       </div>
 
       <div style={{display:"flex",alignItems:"center",gap:10,marginTop:0,marginLeft:26,fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.dim,opacity:0.6}}>
-        <div style={{display:"flex", alignItems:"center", gap:6}}>
+        <div style={{
+          display:"flex", alignItems:"center", gap:6,
+          background: flash ? `${T.brand}20` : "transparent",
+          padding: "2px 6px", margin: "-2px -6px", borderRadius: 4,
+          transition: flash ? "none" : "background 1s ease",
+          color: flash ? T.brandLight : T.dim,
+          fontWeight: flash ? 800 : 500,
+        }}>
           <span style={highActivityStyle}>{activityStats.count} ITEMS</span>
           <span>·</span>
           <span style={highActivityStyle}>{fmtBytes(activityStats.size/1024)}</span>
@@ -2232,7 +2263,7 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], stat
 });
 
 // ─── Session Detail ───────────────────────────────────────────────────────────
-const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete, onSessionUpdate, isDesktop, pollInterval, setPollInterval, isArchived, onArchive, onUnarchive, cacheLimit, activityLimit }) => {
+const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete, onSessionUpdate, onStatsUpdate, isDesktop, pollInterval, setPollInterval, isArchived, onArchive, onUnarchive, cacheLimit, activityLimit }) => {
   const [session,setSession]     = useState(initSession);
   const [activities,setActivities] = useState(() => {
     try {
@@ -2247,6 +2278,9 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     return [];
   });
   const [isStale, setIsStale] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncPhase, setSyncProgress] = useState("IDLE"); // IDLE, CACHE, FETCH, SYNC, DONE
+  const [syncStats, setSyncPhaseStats] = useState({ count: 0, pages: 0 });
   const [showAll,setShowAll]     = useState(false);
   const [tab,setTab]             = useState("activity");
   const [chatFilter, setChatFilter] = useState("ALL");
@@ -2256,6 +2290,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   });
   const [selectedPersonas, setSelectedPersonas] = useState(new Set());
   const [busy,setBusy]           = useState(false);
+  const [justUpdated, setJustUpdated] = useState(false);
   const [err,setErr]             = useState(null);
   const [activeMedia,setActiveMedia] = useState(null);
   const [scrolled, handleScrollBase] = useScrollThreshold(10);
@@ -2308,12 +2343,18 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   // First load fetches all; subsequent loads fetch only new (createTime filter)
   const lastTsRef = useRef(null);
   const loadActivities = useCallback(async (sinceTs=null) => {
+    setIsSyncing(true);
+    setSyncProgress(sinceTs ? "FETCH" : "CACHE");
+    setSyncPhaseStats({ count: 0, pages: 0 });
+    let currentPages = 0;
+    let currentCount = 0;
     try {
       let pageToken = null;
       let changed = false;
       let latestTs = lastTsRef.current;
 
       do {
+        currentPages++;
         const pageSize = Math.min(activityLimit, 100);
         const qs = sinceTs
           ? `createTime=${encodeURIComponent(sinceTs)}&pageSize=${pageSize}`
@@ -2324,6 +2365,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
         });
 
         const incoming = d.activities || [];
+        currentCount += incoming.length;
+        setSyncPhaseStats({ count: currentCount, pages: currentPages });
         for (const act of incoming) {
           const k = getActKey(act);
           const existing = actMapRef.current.get(k);
@@ -2349,6 +2392,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
 
       if (latestTs) lastTsRef.current = latestTs;
       if (changed) {
+        setSyncProgress("SYNC");
         let sorted = Array.from(actMapRef.current.values())
           .filter(a => !a._temp)
           .sort((a,b) => new Date(a.createTime) - new Date(b.createTime));
@@ -2371,7 +2415,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
           const allStats = JSON.parse(localStorage.getItem(ACT_STATS_KEY) || "{}");
           allStats[session.id] = stats;
           localStorage.setItem(ACT_STATS_KEY, JSON.stringify(allStats));
-          window.dispatchEvent(new Event("storage"));
+          onStatsUpdate?.(session.id, stats);
+          window.dispatchEvent(new CustomEvent("jac_stats_updated", { detail: allStats }));
         } catch (e) { console.error("Failed to save stats", e); }
       }
 
@@ -2393,6 +2438,10 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
       }
     } catch (err) {
       console.error("[LoadActivities] Error:", err);
+    } finally {
+      setIsSyncing(false);
+      setSyncProgress("DONE");
+      setTimeout(() => setSyncProgress("IDLE"), 2000);
     }
   }, [apiKey, session.id, activityLimit, cacheLimit]);
 
@@ -2413,6 +2462,19 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     prevLenRef.current = 0;
     setShowAll(false);
     setErr(null);
+
+    // If we have cached activities, report their stats immediately
+    if (activities.length > 0) {
+      try {
+        const rawData = JSON.stringify(activities);
+        const size = new TextEncoder().encode(rawData).length;
+        onStatsUpdate?.(session.id, { count: activities.length, size });
+      } catch {}
+    }
+
+    // Set stale immediately if we have cache, to trigger syncing cue
+    if (activities.length > 0) setIsStale(true);
+
     loadActivities(null); // full load on first open
     loadSession();
   }, []); // intentional: component is keyed by session.id
@@ -2565,6 +2627,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     setBusy(true); setErr(null);
     try {
       await Promise.all([loadSession(), loadActivities(null)]);
+      setJustUpdated(true);
+      setTimeout(() => setJustUpdated(false), 2000);
     } catch (err) { setErr(err.message); }
     finally { setBusy(false); }
   };
@@ -2708,9 +2772,25 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
 
           <div style={{display:"flex",gap:6,alignItems:"center",flexShrink:0}}>
             {/* High Priority Actions */}
-            <button onClick={handleRefresh} disabled={busy} title="Refresh activity" style={{background:isStale?T.brand:T.surfaceHi, border:`1px solid ${isStale?T.brand:T.borderHi}`, borderRadius:4, cursor:busy?"default":"pointer", display:"flex", padding:4, opacity:busy?0.5:1, animation:busy?"spin 1s linear infinite":"none"}}>
-              <Ic n="refresh" s={14} c={busy?T.brand:(isStale?"#000":T.dim)}/>
-            </button>
+            <div style={{position: "relative"}}>
+              <button onClick={handleRefresh} disabled={busy} title="Refresh activity" style={{
+                background:justUpdated?T.brand:isStale?T.brand:T.surfaceHi,
+                border:`1px solid ${justUpdated?T.brand:isStale?T.brand:T.borderHi}`,
+                borderRadius:4, cursor:busy?"default":"pointer", display:"flex", padding:4,
+                opacity:busy?0.5:1, animation:busy?"spin 1s linear infinite":"none",
+                transition: "all .3s"
+              }}>
+                <Ic n={justUpdated?"check":"refresh"} s={14} c={busy?T.brand:(justUpdated||isStale?"#000":T.dim)}/>
+              </button>
+              {justUpdated && (
+                <div style={{
+                  position: "absolute", top: -20, left: "50%", transform: "translateX(-50%)",
+                  background: T.brand, color: "#000", fontSize: 8, fontWeight: 900,
+                  padding: "2px 6px", borderRadius: 4, fontFamily: "'JetBrains Mono',monospace",
+                  whiteSpace: "nowrap", animation: "slideUp .3s ease-out"
+                }}>UPDATED</div>
+              )}
+            </div>
             <Pill status={currentState} small hideLabel={scrolled}/>
 
             {/* Desktop-only side buttons in Row 1 */}
@@ -2738,10 +2818,26 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
         {/* Row 2: Secondary Metadata & Actions (Hidden when scrolled on mobile) */}
         {!scrolled && (
           <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:8, overflowX:"auto", scrollbarWidth:"none", WebkitOverflowScrolling:"touch", animation:"fadeIn .2s ease"}}>
-            {isStale && !isFinished && (
-              <div style={{display:"flex", alignItems:"center", gap:6, background:T.brandDim, border:`1px solid ${T.brandDark}40`, borderRadius:4, padding:"2px 8px", flexShrink:0}}>
-                 <div style={{width:6, height:6, borderRadius:"50%", background:T.brandLight, animation:"pulse 2s infinite"}}/>
-                 <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:9, fontWeight:800, color:T.brand}}>CACHED</span>
+            {(!isFinished || isSyncing || syncPhase === "DONE") && (
+              <div style={{
+                display:"flex", alignItems:"center", gap:6,
+                background: isSyncing ? `${T.amber}15` : (syncPhase === "DONE" ? `${T.brand}20` : T.brandDim),
+                border: `1px solid ${isSyncing ? T.amber : (syncPhase === "DONE" ? T.brand : T.brandDark) + "40"}`,
+                borderRadius:4, padding:"2px 8px", flexShrink:0,
+                transition: "all .3s ease"
+              }}>
+                 <div style={{
+                   width:6, height:6, borderRadius:"50%",
+                   background: isSyncing ? T.amber : T.brandLight,
+                   animation: isSyncing ? (syncPhase === "CACHE" ? "pulse 1s infinite" : "spin 1s linear infinite") : "pulse 2s infinite"
+                 }}/>
+                 <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:9, fontWeight:800, color: isSyncing ? T.amber : T.brand}}>
+                   {isSyncing ? (
+                     syncPhase === "CACHE" ? "RECOVERING CACHE..." :
+                     syncPhase === "FETCH" ? `FETCHING (${syncStats.count} ITEMS)...` :
+                     syncPhase === "SYNC" ? "RECONCILING..." : "SYNCING..."
+                   ) : `UP TO DATE · ${activities.length} ITEMS`}
+                 </span>
               </div>
             )}
 
@@ -2751,7 +2847,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                 border:`1px solid ${pr.state==="merged"?T.purple:pr.state==="closed"?T.muted:T.brand}40`,
                 borderRadius:4, padding:"3px 8px", display:"flex", alignItems:"center", gap:4,
                 color:pr.state==="merged"?T.purple:pr.state==="closed"?T.muted:T.brand,
-                textDecoration:"none", fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:900, flexShrink:0
+                textDecoration:"none", fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:900, flexShrink:0,
+                animation: isSyncing ? "shimmerPulse 1.5s infinite" : "none"
               }}>
                 <Ic n={pr.state==="merged"?"git_merge":"git_pull"} s={11} c={pr.state==="merged"?T.purple:pr.state==="closed"?T.muted:T.brand}/>
                 #{pr.number} <span style={{fontSize:8, opacity:0.8}}>{pr.state.toUpperCase()}</span>
@@ -2763,7 +2860,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                 display:"flex", alignItems:"center", gap:4, background:checks.state==="success"?T.brandDim:checks.state==="failure"?T.redDim:T.amberDim,
                 border:`1px solid ${checks.state==="success"?T.brand:checks.state==="failure"?T.red:T.amber}40`,
                 borderRadius:4, padding:"3px 8px", color:checks.state==="success"?T.brandLight:checks.state==="failure"?T.red:T.amber,
-                fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:900, cursor:checks.url?"pointer":"default", flexShrink:0
+                fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:900, cursor:checks.url?"pointer":"default", flexShrink:0,
+                animation: isSyncing ? "shimmerPulse 1.5s infinite 0.2s" : "none"
               }} onClick={() => checks.url && window.open(checks.url, "_blank")}>
                 <Ic n={checks.state==="success"?"check":checks.state==="failure"?"x":"refresh"} s={10} c={checks.state==="success"?T.brandLight:checks.state==="failure"?T.red:T.amber}/>
                 {checks.label}
@@ -2774,7 +2872,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
               <a href={b?.repoUrl ? `${b.repoUrl}/branches` : "#"} target="_blank" rel="noopener" style={{
                 background:T.blueDim, border:`1px solid ${T.blue}30`, borderRadius:4, padding:"3px 8px",
                 display:"flex", alignItems:"center", gap:4, color:T.blue, textDecoration:"none",
-                fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:900, flexShrink:0
+                fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:900, flexShrink:0,
+                animation: isSyncing ? "shimmerPulse 1.5s infinite 0.4s" : "none"
               }}>
                 <Ic n="branch" s={11} c={T.blue}/>
                 {b?.working || "main"}
@@ -2922,6 +3021,33 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
             )}
           </div>
         )}
+
+        {/* Sync Progress Bar */}
+        <div style={{
+          height: isSyncing ? 3 : 0,
+          background: T.line,
+          overflow: "hidden",
+          transition: "height .3s ease",
+          position: "relative",
+          zIndex: 10
+        }}>
+          <div style={{
+            height: "100%",
+            width: isSyncing ? `${Math.min(98, (syncStats.pages / (activityLimit / 50)) * 100)}%` : "100%",
+            background: isSyncing ? `linear-gradient(90deg, ${T.amber}, ${T.brand})` : T.brand,
+            boxShadow: `0 0 10px ${isSyncing ? T.amber : T.brand}80`,
+            transition: "width .6s cubic-bezier(0.4, 0, 0.2, 1)",
+            position: "relative"
+          }}>
+            {isSyncing && (
+              <div style={{
+                position: "absolute", inset: 0,
+                background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)",
+                animation: "shimmer 1.5s infinite"
+              }}/>
+            )}
+          </div>
+        </div>
 
         <div style={{display:"flex", paddingBottom:scrolled?4:0, transition:"all .2s ease"}}>
           {TABS.map(t=>(
@@ -3320,7 +3446,10 @@ function cleanupActivityStats(validIds) {
         changed = true;
       }
     }
-    if (changed) localStorage.setItem(ACT_STATS_KEY, JSON.stringify(stats));
+    if (changed) {
+      localStorage.setItem(ACT_STATS_KEY, JSON.stringify(stats));
+      window.dispatchEvent(new CustomEvent("jac_stats_updated", { detail: stats }));
+    }
   } catch {}
 }
 
@@ -4363,7 +4492,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
 const FILTERS = ["ALL","QUEUED","PLANNING","AWAITING_PLAN_APPROVAL","IN_PROGRESS","COMPLETED","FAILED"];
 const FILTER_LABELS = { AWAITING_PLAN_APPROVAL:"APPROVE", ALL:"ALL" };
 
-const SessionList = ({ sessions, onSelect, onRefresh, refreshing, selectedId, isDesktop, onNew,  onSettings, pollInterval, sessionLimit, countdown, plan, todayCount, searchQuery, setSearchQuery, archivedIds, showArchived, setShowArchived, activitiesMap = {}, activityStatsMap = {}, error, clearError, isBoosted, readMap }) => {
+const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed, selectedId, isDesktop, onNew,  onSettings, pollInterval, sessionLimit, countdown, plan, todayCount, searchQuery, setSearchQuery, archivedIds, showArchived, setShowArchived, activitiesMap = {}, activityStatsMap = {}, error, clearError, isBoosted, readMap }) => {
   const [filter,setFilter] = useState("ALL");
   const [scrolled, handleScroll] = useScrollThreshold();
   const [searchOpen, setSearchOpen] = useState(false);
@@ -4429,7 +4558,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, selectedId, is
                     />
                   </svg>
                 )}
-                <Ic n="refresh" s={16} c={refreshing?T.brand:T.textDim}/>
+                <Ic n={justRefreshed ? "check" : "refresh"} s={16} c={refreshing?T.brand:(justRefreshed?T.brandLight:T.textDim)}/>
               </button>
             </div>
           </div>
@@ -4556,6 +4685,7 @@ function JulesClient() {
   const [selected,setSelected] = useState(null);
   const [mobileScreen,setMobileRaw] = useState("list");
   const [lastSessionScreen, setLastSessionScreen] = useState("list");
+  const [justRefreshed, setJustRefreshed] = useState(false);
   const [supplementalSessions, setSupplementalSessions] = useState([]);
   const allSessions = useMemo(() => {
     const map = new Map();
@@ -4651,13 +4781,20 @@ function JulesClient() {
         try { setActivityStatsMap(JSON.parse(e.newValue || "{}")); } catch {}
       }
     };
+    const handleCustomStats = (e) => {
+      if (e.detail) setActivityStatsMap(e.detail);
+    };
     window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
+    window.addEventListener("jac_stats_updated", handleCustomStats);
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener("jac_stats_updated", handleCustomStats);
+    };
   }, []);
 
   useEffect(() => {
-    cleanupActivityStats(sessions.map(s => s.id));
-  }, [sessions]);
+    cleanupActivityStats(allSessions.map(s => s.id));
+  }, [allSessions]);
 
   useEffect(() => {
     try { localStorage.setItem("jac_archived", JSON.stringify(Array.from(archivedIds))); }
@@ -4798,6 +4935,11 @@ function JulesClient() {
       } else if (forceFull) {
         lastFetchTime.current = null;
       }
+
+      if (!quiet) {
+        setJustRefreshed(true);
+        setTimeout(() => setJustRefreshed(false), 2000);
+      }
     } catch (err) {
       console.error("[FetchSessions] Error:", err);
       if (!quiet) setGlobalErr(err.message);
@@ -4817,6 +4959,10 @@ function JulesClient() {
 
   const handleSessionUpdate = useCallback(updated => {
     setSessions(prev => prev.map(s=>s.id===updated.id?updated:s));
+  }, []);
+
+  const handleStatsUpdate = useCallback((id, stats) => {
+    setActivityStatsMap(prev => ({ ...prev, [id]: stats }));
   }, []);
 
   const handleDelete = useCallback(id => {
@@ -4863,7 +5009,7 @@ function JulesClient() {
         <div style={{width:320,flexShrink:0,borderRight:`1px solid ${T.border}`,display:"flex",flexDirection:"column",height:"100vh",overflow:"hidden"}}>
           <SessionList
             sessions={sessions} onSelect={handleSelect} onRefresh={()=>fetchSessions(false, true)}
-            refreshing={refreshing} selectedId={selected?.id}
+            refreshing={refreshing} justRefreshed={justRefreshed} selectedId={selected?.id}
             isDesktop onNew={()=>setDesktop("new")}
             onSettings={()=>setDesktop("settings")}
             pollInterval={effectivePollInterval}
@@ -4894,7 +5040,9 @@ function JulesClient() {
             <SessionDetail key={selected.id} session={selected} apiKey={apiKey}
               personas={personas}
               onBack={()=>setDesktop("empty")} onDelete={handleDelete}
-              onSessionUpdate={handleSessionUpdate} isDesktop
+              onSessionUpdate={handleSessionUpdate}
+              onStatsUpdate={handleStatsUpdate}
+              isDesktop
               pollInterval={actPollInterval} setPollInterval={setActPollInterval}
               cacheLimit={cacheLimit} activityLimit={activityLimit}
               isArchived={archivedIds.has(selected.id)}
@@ -4928,7 +5076,7 @@ function JulesClient() {
       <div style={{flex:1,overflow:"hidden",display:"flex",flexDirection:"column",minHeight:0}}>
         {mobileScreen==="list"&&(
           <SessionList sessions={allSessions} onSelect={handleSelect} onRefresh={()=>fetchSessions(false, true)}
-            refreshing={refreshing} selectedId={selected?.id} isDesktop={false}
+            refreshing={refreshing} justRefreshed={justRefreshed} selectedId={selected?.id} isDesktop={false}
             onSettings={()=>setMobile("settings")}
             pollInterval={effectivePollInterval}
             sessionLimit={sessionLimit}
@@ -4947,7 +5095,9 @@ function JulesClient() {
           <SessionDetail key={selected.id} session={selected} apiKey={apiKey}
             personas={personas}
             onBack={()=>{ setMobile("list"); fetchSessions(true); }}
-            onDelete={handleDelete} onSessionUpdate={handleSessionUpdate} isDesktop={false}
+            onDelete={handleDelete} onSessionUpdate={handleSessionUpdate}
+            onStatsUpdate={handleStatsUpdate}
+            isDesktop={false}
             pollInterval={actPollInterval} setPollInterval={setActPollInterval}
             cacheLimit={cacheLimit} activityLimit={activityLimit}
             isArchived={archivedIds.has(selected.id)}
@@ -5041,6 +5191,11 @@ function Shell({ children, desktop=false }) {
         @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
         @keyframes zoomIn{from{transform:scale(0.95);opacity:0;}to{transform:scale(1);opacity:1;}}
         @keyframes slideUp{from{transform:translateY(20px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+        @keyframes shimmerPulse {
+          0% { opacity: 1; }
+          50% { opacity: 0.6; }
+          100% { opacity: 1; }
+        }
         @keyframes pulseRepo {
           0% { border-color: ${T.brand}40; box-shadow: 0 0 0 ${T.brand}00; }
           50% { border-color: ${T.brand}; box-shadow: 0 0 25px ${T.brand}80; transform: scale(1.02); }
