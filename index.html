@@ -186,6 +186,12 @@
   window.__splashMsg = setMsg;
   window.__splashElapsed = elapsed;
 
+  // Global error handler to catch failures during boot
+  window.addEventListener("error", function(e) {
+    var msg = e.message || "Unknown runtime error";
+    if (window.__splashMsg) window.__splashMsg("BOOT ERROR", msg.toUpperCase(), 0);
+  });
+
   setMsg("LOADING REACT…", "core library · " + elapsed(), 8);
 })();
 </script>
@@ -205,6 +211,55 @@
 if (window.__splashMsg) __splashMsg("MOUNTING APP…", "building component tree · " + __splashElapsed(), 88);
 
 const { useState, useEffect, useRef, useCallback, useMemo, memo } = React;
+
+// ─── Error Boundary ──────────────────────────────────────────────────────────
+class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { hasError: false, error: null }; }
+  static getDerivedStateFromError(error) { return { hasError: true, error }; }
+  componentDidCatch(error, errorInfo) { console.error("[ErrorBoundary] Caught error:", error, errorInfo); }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{
+          height: "100vh", background: "#07090c", display: "flex", flexDirection: "column",
+          alignItems: "center", justifyContent: "center", padding: 32, textAlign: "center",
+          fontFamily: "'JetBrains Mono',monospace", color: "#fb7185"
+        }}>
+          <div style={{fontSize: 48, marginBottom: 24}}>⚠️</div>
+          <div style={{fontSize: 16, fontWeight: 900, marginBottom: 12}}>APPLICATION CRASHED</div>
+          <div style={{fontSize: 12, color: "#94a3b8", marginBottom: 32, maxWidth: 400, lineHeight: 1.6}}>
+            {this.state.error?.message || "An unexpected error occurred in the React component tree."}
+          </div>
+          <button
+            onClick={() => { localStorage.clear(); location.reload(); }}
+            style={{
+              background: "#fb7185", color: "#000", border: "none", padding: "12px 24px",
+              borderRadius: 8, fontWeight: 900, cursor: "pointer", fontSize: 12
+            }}
+          >HARD RESET & RELOAD</button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+// ─── Browser Notifications ───────────────────────────────────────────────────
+const NOTIFY_KEY = "jac_notifications";
+function loadNotify() { try { return localStorage.getItem(NOTIFY_KEY)==="1"; } catch { return false; } }
+function saveNotify(v) { try { localStorage.setItem(NOTIFY_KEY,v?"1":"0"); } catch {} }
+
+function requestNotificationPermission() {
+  if (!("Notification" in window)) return Promise.resolve(false);
+  if (Notification.permission === "granted") return Promise.resolve(true);
+  return Notification.requestPermission().then(p => p === "granted");
+}
+
+function sendNotification(title, body, tag) {
+  if (!loadNotify() || !("Notification" in window) || Notification.permission !== "granted") return;
+  // Use tag to replace existing notifications for the same session
+  new Notification(title, { body, tag, icon: "data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%2307090c%22/><text y=%22.9em%22 x=%2250%25%22 font-size=%2270%22 text-anchor=%22middle%22 fill=%22%2306b6d4%22 font-family=%22monospace%22 font-weight=%22900%22>J</text></svg>" });
+}
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const BASE          = "https://jules.googleapis.com/v1alpha";
@@ -2461,9 +2516,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
       do {
         currentPages++;
         const pageSize = Math.min(activityLimit, 100);
-        const qs = sinceTs
-          ? `createTime=${encodeURIComponent(sinceTs)}&pageSize=${pageSize}`
-          : `pageSize=${pageSize}${pageToken ? `&pageToken=${pageToken}` : ""}`;
+        const qs = `pageSize=${pageSize}${pageToken ? `&pageToken=${pageToken}` : ""}`;
 
         const d = await apiCall(apiKey, `/sessions/${session.id}/activities?${qs}`, {
           _label:`Acts ${sinceTs?"Δ":"full"} ${session.id?.slice(0,6)}`
@@ -2738,11 +2791,18 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     finally { setBusy(false); }
   };
 
-  const diffArtifact = useMemo(() => {
-    for (const a of activities) {
-      if (a.artifacts) for (const art of a.artifacts) if (art.changeSet?.gitPatch?.unidiffPatch) return art.changeSet.gitPatch;
-    }
-    return null;
+  const diffArtifacts = useMemo(() => {
+    const patches = [];
+    activities.forEach(a => {
+      if (a.artifacts) {
+        a.artifacts.forEach(art => {
+          if (art.changeSet?.gitPatch?.unidiffPatch) {
+            patches.push({ patch: art.changeSet.gitPatch.unidiffPatch, ts: a.createTime });
+          }
+        });
+      }
+    });
+    return patches.reverse(); // Newest first
   }, [activities]);
 
   const mediaArtifacts = useMemo(() =>
@@ -3349,7 +3409,30 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
             busy={busy}
           />
         )}
-        {tab==="diff"&&<DiffViewer patch={diffArtifact?.unidiffPatch||null}/>}
+        {tab==="diff"&&(
+          <div style={{display:"flex", flexDirection:"column", gap:24}}>
+            {diffArtifacts.length === 0 ? (
+              <div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>
+                No diff available yet
+              </div>
+            ) : (
+              diffArtifacts.map((d, i) => (
+                <div key={i}>
+                  <div style={{
+                    fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.brand,
+                    fontWeight:800, letterSpacing:"0.1em", marginBottom:12,
+                    display:"flex", alignItems:"center", gap:8
+                  }}>
+                    {i === 0 ? "LATEST PATCH" : `PREVIOUS PATCH #${diffArtifacts.length - i}`}
+                    <div style={{height:1, flex:1, background:T.brandDim}}/>
+                    <span style={{color:T.textDim, fontSize:10}}>{fmtTime(new Date(d.ts).getTime())}</span>
+                  </div>
+                  <DiffViewer patch={d.patch}/>
+                </div>
+              ))
+            )}
+          </div>
+        )}
         {tab==="media"&&(
           mediaArtifacts.length===0
           ?<div style={{textAlign:"center",padding:"40px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>No media artifacts</div>
@@ -4197,7 +4280,7 @@ const NetworkMonitor = ({ onBack, isDesktop }) => {
   );
 };
 
-const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPollInterval, setActPollInterval, activePollInterval, setActivePollInterval, sessionLimit, setSessionLimit, activityLimit, setActivityLimit, cacheLimit, setCacheLimit, personas, setPersonas, planId, setPlanId, customDaily, setCustomDaily, plan, todayCount }) => {
+const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPollInterval, setActPollInterval, activePollInterval, setActivePollInterval, sessionLimit, setSessionLimit, activityLimit, setActivityLimit, cacheLimit, setCacheLimit, personas, setPersonas, planId, setPlanId, customDaily, setCustomDaily, plan, todayCount, notifications, setNotifications }) => {
   const [tab, setTab] = useState("general");
   const [hasSaved, setHasSaved] = useState(false);
   const saveTimer = useRef(null);
@@ -4333,6 +4416,28 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
                   </div>
                   <div style={{marginTop:6, fontSize:10, color:T.textDim, fontFamily:"'IBM Plex Sans',sans-serif"}}>
                     Controls the maximum number of activity items loaded and stored per session.
+                  </div>
+                </div>
+
+                <div style={{marginBottom:20}}>
+                  <div style={{fontSize:11, color:T.textDim, marginBottom:8, fontFamily:"'JetBrains Mono',monospace", fontWeight:700}}>BROWSER NOTIFICATIONS</div>
+                  <div style={{display:"flex", gap:12, alignItems:"center"}}>
+                     <button
+                       onClick={() => { setNotifications(!notifications); triggerSaveFeedback(); }}
+                       style={{
+                         padding: "6px 12px", borderRadius: 6, border: "none", cursor: "pointer",
+                         background: notifications ? T.brand : T.surfaceHi,
+                         color: notifications ? "#000" : T.muted,
+                         fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 800,
+                         outline: `1px solid ${notifications ? T.brand : T.border}`,
+                         transition: "all .2s"
+                       }}
+                     >
+                       {notifications ? "ENABLED" : "DISABLED"}
+                     </button>
+                     <div style={{fontSize:10, color:T.textDim, fontFamily:"'IBM Plex Sans',sans-serif", lineHeight:1.3}}>
+                       Notify on status changes like "DONE" or "APPROVE".
+                     </div>
                   </div>
                 </div>
 
@@ -4820,6 +4925,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
 function JulesClient() {
   const [apiKey,setApiKey]     = useState(() => { try { return localStorage.getItem("jac_key")||""; } catch (e) { return ""; } });
   const [sessions,setSessions] = useState([]);
+  const lastStates = useRef(new Map()); // id -> state
   const [activitiesMap, setActivitiesMap] = useState(() => {
     try { return JSON.parse(localStorage.getItem(ACT_MAP_KEY)) || {}; } catch { return {}; }
   });
@@ -4854,6 +4960,7 @@ function JulesClient() {
   const [sessionLimit,setSessionLimitRaw] = useState(loadLimit);
   const [activityLimit, setActivityLimitRaw] = useState(loadActivityLimit);
   const [cacheLimit, setCacheLimitRaw] = useState(loadCacheLimit);
+  const [notifications, setNotificationsRaw] = useState(loadNotify);
 
   const [sessionRegistry, setSessionRegistry] = useState(() => {
     try { return JSON.parse(localStorage.getItem("jac_session_registry") || "{}"); }
@@ -5013,6 +5120,15 @@ function JulesClient() {
     setCacheLimitRaw(v);
   }, []);
 
+  const setNotifications = useCallback(async v => {
+    if (v) {
+      const ok = await requestNotificationPermission();
+      if (!ok) { alert("Please enable notifications in your browser settings."); return; }
+    }
+    saveNotify(v);
+    setNotificationsRaw(v);
+  }, []);
+
   const fetchSupplemental = useCallback(async (ids) => {
     if (!apiKey || ids.length === 0) return;
     try {
@@ -5097,6 +5213,21 @@ function JulesClient() {
           return bTime - aTime;
         });
 
+        // ── Status Notifications ──
+        if (loadNotify()) {
+          incoming.forEach(s => {
+            const lastState = lastStates.current.get(s.id);
+            if (lastState && lastState !== s.state) {
+              const label = s.title || s.prompt || s.id;
+              if (s.state === "AWAITING_PLAN_APPROVAL") sendNotification("PLAN READY", `Session: ${label}`, s.id);
+              else if (s.state === "AWAITING_USER_FEEDBACK") sendNotification("INPUT NEEDED", `Session: ${label}`, s.id);
+              else if (s.state === "COMPLETED") sendNotification("SESSION DONE", `Session: ${label}`, s.id);
+              else if (s.state === "FAILED") sendNotification("SESSION FAILED", `Session: ${label}`, s.id);
+            }
+            lastStates.current.set(s.id, s.state);
+          });
+        }
+
         return sorted;
       });
 
@@ -5133,6 +5264,15 @@ function JulesClient() {
   const countdown = useAutoPoll(effectivePollInterval, useCallback(() => fetchSessions(true), [fetchSessions]));
 
   const handleSessionUpdate = useCallback(updated => {
+    const lastState = lastStates.current.get(updated.id);
+    if (loadNotify() && lastState && lastState !== updated.state) {
+      const label = updated.title || updated.prompt || updated.id;
+      if (updated.state === "AWAITING_PLAN_APPROVAL") sendNotification("PLAN READY", `Session: ${label}`, updated.id);
+      else if (updated.state === "AWAITING_USER_FEEDBACK") sendNotification("INPUT NEEDED", `Session: ${label}`, updated.id);
+      else if (updated.state === "COMPLETED") sendNotification("SESSION DONE", `Session: ${label}`, updated.id);
+      else if (updated.state === "FAILED") sendNotification("SESSION FAILED", `Session: ${label}`, updated.id);
+    }
+    lastStates.current.set(updated.id, updated.state);
     setSessions(prev => prev.map(s=>s.id===updated.id?updated:s));
   }, []);
 
@@ -5141,6 +5281,7 @@ function JulesClient() {
   }, []);
 
   const handleDelete = useCallback(id => {
+    lastStates.current.delete(id);
     setSessions(prev => prev.filter(s=>s.id!==id));
     try { localStorage.removeItem(`jac_draft_${id}`); } catch {}
     setSelected(null);
@@ -5158,6 +5299,7 @@ function JulesClient() {
 
   const handleCreate = useCallback(s => {
     setSessionRegistry(prev => ({ ...prev, [s.id]: s.createTime }));
+    lastStates.current.set(s.id, s.state);
     setSessions(prev => [s, ...prev]);
     setSelected(s);
     if (isDesktop) setDesktop("detail"); else setMobile("list");
@@ -5239,7 +5381,8 @@ function JulesClient() {
               personas={personas} setPersonas={setPersonas}
               planId={planId} setPlanId={setPlanId}
               customDaily={customDaily} setCustomDaily={setCustomDaily}
-              plan={plan} todayCount={todayCount} />
+              plan={plan} todayCount={todayCount}
+              notifications={notifications} setNotifications={setNotifications} />
           )}
         </div>
       </Shell>
@@ -5294,7 +5437,8 @@ function JulesClient() {
             personas={personas} setPersonas={setPersonas}
             planId={planId} setPlanId={setPlanId}
             customDaily={customDaily} setCustomDaily={setCustomDaily}
-            plan={plan} todayCount={todayCount} />
+            plan={plan} todayCount={todayCount}
+            notifications={notifications} setNotifications={setNotifications} />
         )}
       </div>
       <nav style={{display:"flex",borderTop:`1px solid ${T.border}`,background:T.surface,transform:"translateZ(0)",flexShrink:0}}>
@@ -5416,7 +5560,11 @@ function Shell({ children, desktop=false }) {
   );
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(<JulesClient/>);
+ReactDOM.createRoot(document.getElementById("root")).render(
+  <ErrorBoundary>
+    <JulesClient/>
+  </ErrorBoundary>
+);
 </script>
 </body>
 </html>
