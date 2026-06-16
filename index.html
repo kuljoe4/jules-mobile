@@ -2241,12 +2241,11 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], stat
         <div
           title={m.label}
           aria-label={`Status: ${m.label}`}
-          style={{
-            display:"flex",alignItems:"center",justifyContent:"center",width:18,height:18,borderRadius:4,background:m.bg,flexShrink:0,
-            animation: currentState === "IN_PROGRESS" ? "spin 3s linear infinite" : "none"
-          }}
+          style={{display:"flex",alignItems:"center",justifyContent:"center",width:18,height:18,borderRadius:4,background:m.bg,flexShrink:0}}
         >
-          <Ic n={m.icon} s={11} c={m.color}/>
+          <div style={{ display: "flex", animation: currentState === "IN_PROGRESS" ? "spin 3s linear infinite" : "none" }}>
+            <Ic n={m.icon} s={11} c={m.color}/>
+          </div>
         </div>
         <div style={{flex:1,minWidth:0,fontFamily:"'IBM Plex Sans',sans-serif",fontSize:13,fontWeight:600,color:isSelected?T.textHi:T.textDim,lineHeight:1.3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
           {s.title||s.prompt}
@@ -2820,10 +2819,12 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                 background:justUpdated?T.brand:isStale?T.brand:T.surfaceHi,
                 border:`1px solid ${justUpdated?T.brand:isStale?T.brand:T.borderHi}`,
                 borderRadius:4, cursor:busy?"default":"pointer", display:"flex", padding:4,
-                opacity:busy?0.5:1, animation:busy?"spin 1s linear infinite":"none",
+                opacity:busy?0.5:1,
                 transition: "all .3s"
               }}>
-                <Ic n={justUpdated?"check":"refresh"} s={14} c={busy?T.brand:(justUpdated||isStale?"#000":T.dim)}/>
+                <div style={{ display: "flex", animation: busy ? "spin 1s linear infinite" : "none" }}>
+                  <Ic n={justUpdated?"check":"refresh"} s={14} c={busy?T.brand:(justUpdated||isStale?"#000":T.dim)}/>
+                </div>
               </button>
               {justUpdated && (
                 <div style={{
@@ -4595,8 +4596,6 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
                 style={{
                   background:"none", border:"none", cursor:refreshing?"default":"pointer",
                   display:"flex", padding:4, borderRadius:20, transition:"all .15s",
-                  animation:refreshing?"spin 1s linear infinite":"none",
-                  transformOrigin:"center",
                   background:refreshing?T.brandDim:"transparent",
                   position:"relative",
                   outline: countdown > 0 && !refreshing ? `1px solid ${T.brand}10` : "none",
@@ -4615,7 +4614,9 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
                     />
                   </svg>
                 )}
-                <Ic n={justRefreshed ? "check" : "refresh"} s={16} c={refreshing?T.brand:(justRefreshed?T.brandLight:T.textDim)}/>
+                <div style={{ display: "flex", animation: refreshing ? "spin 1s linear infinite" : "none" }}>
+                  <Ic n={justRefreshed ? "check" : "refresh"} s={16} c={refreshing?T.brand:(justRefreshed?T.brandLight:T.textDim)}/>
+                </div>
               </button>
             </div>
           </div>
