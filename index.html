@@ -2210,8 +2210,9 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], stat
     }
   }, [activityStats.count, activityStats.size]);
 
-  const isHighActivity = activityStats.count > 200 || activityStats.size > 1024 * 1024;
-  const highActivityStyle = isHighActivity ? { color: T.amber, fontWeight: 900 } : {};
+  const isVHighActivity = activityStats.count >= 300 || activityStats.size >= 5 * 1024 * 1024;
+  const isHighActivity = activityStats.count >= 200 || activityStats.size >= 1 * 1024 * 1024;
+  const highActivityStyle = isVHighActivity ? { color: T.red, fontWeight: 900 } : isHighActivity ? { color: T.amber, fontWeight: 900 } : {};
 
   const bg = isSelected
     ? `linear-gradient(135deg, ${T.brand}15, ${T.bg} 80%), radial-gradient(circle at top right, ${T.brand}10, transparent 60%)`
