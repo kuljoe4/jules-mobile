@@ -2249,6 +2249,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   const [isStale, setIsStale] = useState(true);
   const [showAll,setShowAll]     = useState(false);
   const [tab,setTab]             = useState("activity");
+  const [chatFilter, setChatFilter] = useState("ALL");
   const [msg,setMsg]             = useState(() => {
     try { return localStorage.getItem(`jac_draft_${initSession.id}`) || ""; }
     catch { return ""; }
