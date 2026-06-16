@@ -466,11 +466,11 @@ const T = {
   brandLight:"#22d3ee",
   brandDark:"#0891b2",
   brandDim:"rgba(6, 182, 212, 0.12)",
-  indigo:"#818cf8", indigoDim:"rgba(129,140,248,0.15)",
-  amber:"#ffbc00", amberDim:"rgba(255,188,0,0.15)",
-  red:"#ff5566",   redDim:"rgba(255,85,102,0.15)",
-  blue:"#38bdf8",  blueDim:"rgba(56,189,248,0.15)",
-  purple:"#c084fc",purpleDim:"rgba(192,132,252,0.15)",
+  indigo:"#a5b4fc", indigoDim:"rgba(165,180,252,0.15)",
+  amber:"#fcd34d", amberDim:"rgba(252,211,77,0.15)",
+  red:"#fb7185",   redDim:"rgba(251,113,133,0.15)",
+  blue:"#60a5fa",  blueDim:"rgba(96,165,250,0.15)",
+  purple:"#d8b4fe",purpleDim:"rgba(216,180,254,0.15)",
   text:"#ffffff",  textHi:"#f8fafc", textDim:"#e2e8f0",
   muted:"#cbd5e1", dim:"#94a3b8", line:"#111827",
   userBubble:"rgba(99,102,241,0.08)", agentBubble:"rgba(6, 182, 212, 0.06)",
@@ -481,8 +481,8 @@ const STATUS_META = {
   PLANNING:              { label:"PLANNING", color:T.purple,    bg:T.purpleDim,             pulse:true,  icon:"plan" },
   AWAITING_PLAN_APPROVAL:{ label:"APPROVE",  color:T.indigo,    bg:T.indigoDim,             pulse:true,  icon:"approve" },
   AWAITING_USER_FEEDBACK:{ label:"INPUT",    color:T.amber,     bg:T.amberDim,              pulse:true,  icon:"tasks" },
-  IN_PROGRESS:           { label:"WORKING",  color:T.blue,      bg:T.blueDim,               pulse:true,  icon:"refresh" },
-  PAUSED:                { label:"PAUSED",   color:T.muted,     bg:"rgba(203,213,225,0.1)", pulse:false, icon:"pause" },
+  IN_PROGRESS:           { label:"WORKING",  color:"#34d399",      bg:"rgba(52,211,153,0.15)", pulse:true,  icon:"refresh" },
+  PAUSED:                { label:"PAUSED",   color:T.dim,       bg:"rgba(148,163,184,0.1)", pulse:false, icon:"pause" },
   COMPLETED:             { label:"DONE",     color:T.brand,     bg:T.brandDim,              pulse:false, icon:"check" },
   FAILED:                { label:"FAILED",   color:T.red,      bg:T.redDim,                pulse:false, icon:"x" },
 };
@@ -865,7 +865,11 @@ const Pill = ({status,small=false,hideLabel=false}) => {
       boxShadow:"none",
     }}>
       {m.pulse && status !== "COMPLETED" && <span style={{width:4,height:4,borderRadius:"50%",background:pulseColor,animation:"dot 1.2s ease-in-out infinite",flexShrink:0}}/>}
-      {hideLabel ? <Ic n={m.icon} s={11} c={m.color}/> : m.label}
+      {hideLabel ? (
+        <div style={{ display: "flex", animation: status === "IN_PROGRESS" ? "spin 2s linear infinite" : "none" }}>
+          <Ic n={m.icon} s={11} c={m.color}/>
+        </div>
+      ) : m.label}
     </span>
   );
 };
@@ -1061,7 +1065,11 @@ const ExpandableContent = memo(({ text, limit = 300, showCopy = false }) => {
         position: "relative",
         transition: "max-height .4s cubic-bezier(0.4, 0, 0.2, 1)"
       }}>
-        <Markdown text={text} />
+        <div style={{
+          animation: expanded ? "shimmerPulse 0.8s ease-out" : "none"
+        }}>
+          <Markdown text={text} />
+        </div>
         {!expanded && showToggle && (
           <div style={{
             position: "absolute", bottom: 0, left: 0, right: 0, height: 80,
@@ -1070,13 +1078,19 @@ const ExpandableContent = memo(({ text, limit = 300, showCopy = false }) => {
             paddingBottom: 8
           }}>
             <button
-              onClick={(e) => { e.stopPropagation(); setExpanded(true); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                setExpanded(true);
+              }}
+              onMouseDown={e => e.currentTarget.style.transform = "translateY(6px) scale(0.96)"}
+              onMouseUp={e => e.currentTarget.style.transform = "translateY(4px) scale(1)"}
               style={{
                 background: T.brand, color: "#000", border: "none", cursor: "pointer",
                 fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 900,
                 padding: "6px 14px", borderRadius: 20, display: "flex", alignItems:"center", gap: 6,
                 boxShadow: `0 8px 20px ${T.brand}40`, pointerEvents: "auto",
-                transform: "translateY(4px)", animation: "fadeIn .3s ease"
+                transform: "translateY(4px)", animation: "fadeIn .3s ease",
+                transition: "transform .1s cubic-bezier(0.2, 0, 0.2, 1)"
               }}
             >
               READ FULL MESSAGE <Ic n="chevron_down" s={12} c="#000" />
@@ -1935,7 +1949,7 @@ const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFeedback,
 
 // ─── Diff Viewer ──────────────────────────────────────────────────────────────
 const DiffViewer = ({ patch }) => {
-  const [collapsed, setCollapsed] = useState(new Set());
+  const [collapsed, setCollapsed] = useState(null);
 
   const groups = useMemo(() => {
     if (!patch) return [];
@@ -1947,7 +1961,7 @@ const DiffViewer = ({ patch }) => {
       if (line.startsWith("--- ") || line.startsWith("diff --git")) return;
       if (line.startsWith("+++ ")) {
         const file = line.slice(4).replace(/^b\//, "");
-        currentGroup = { file, hunks: [] };
+        currentGroup = { file, hunks: [], adds: 0, rems: 0 };
         grps.push(currentGroup);
         return;
       }
@@ -1957,10 +1971,21 @@ const DiffViewer = ({ patch }) => {
         currentGroup.hunks.push({ header: line, lines: [] });
       } else if (currentGroup.hunks.length > 0) {
         currentGroup.hunks[currentGroup.hunks.length - 1].lines.push(line);
+        if (line.startsWith("+")) currentGroup.adds++;
+        else if (line.startsWith("-")) currentGroup.rems++;
       }
     });
     return grps;
   }, [patch]);
+
+  useEffect(() => {
+    if (groups.length > 0 && collapsed === null) {
+      setCollapsed(new Set(groups.map((_, i) => i)));
+    }
+  }, [groups, collapsed]);
+
+  const totalAdds = useMemo(() => groups.reduce((acc, g) => acc + g.adds, 0), [groups]);
+  const totalRems = useMemo(() => groups.reduce((acc, g) => acc + g.rems, 0), [groups]);
 
   if (!patch || groups.length === 0) return (
     <div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>
@@ -1968,8 +1993,10 @@ const DiffViewer = ({ patch }) => {
     </div>
   );
 
+  const safeCollapsed = collapsed || new Set();
+
   const toggleFile = (idx) => {
-    const next = new Set(collapsed);
+    const next = new Set(safeCollapsed);
     if (next.has(idx)) next.delete(idx);
     else next.add(idx);
     setCollapsed(next);
@@ -1983,17 +2010,23 @@ const DiffViewer = ({ patch }) => {
   return (
     <div style={{display:"flex", flexDirection:"column", gap:16}}>
       <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 4px"}}>
-        <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:700, color:T.textDim, letterSpacing:"0.05em"}}>
-          {groups.length} FILE{groups.length!==1?'S':''} CHANGED
+        <div style={{display:"flex", alignItems:"center", gap:12}}>
+          <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:700, color:T.textDim, letterSpacing:"0.05em"}}>
+            {groups.length} FILE{groups.length!==1?'S':''} CHANGED
+          </div>
+          <div style={{display:"flex", alignItems:"center", gap:6, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:800}}>
+            <span style={{color:T.brand}}>+{totalAdds}</span>
+            <span style={{color:T.red}}>-{totalRems}</span>
+          </div>
         </div>
         <div style={{display:"flex", gap:8}}>
-          <PickerBtn label="EXPAND ALL" isAct={collapsed.size === 0} onClick={() => toggleAll(false)} />
-          <PickerBtn label="COLLAPSE ALL" isAct={collapsed.size === groups.length} onClick={() => toggleAll(true)} />
+          <PickerBtn label="EXPAND ALL" isAct={safeCollapsed.size === 0} onClick={() => toggleAll(false)} />
+          <PickerBtn label="COLLAPSE ALL" isAct={safeCollapsed.size === groups.length} onClick={() => toggleAll(true)} />
         </div>
       </div>
 
       {groups.map((g, gi) => {
-        const isCollapsed = collapsed.has(gi);
+        const isCollapsed = safeCollapsed.has(gi);
         return (
           <div key={gi} style={{background:"#040507", border:`1px solid ${T.border}`, borderRadius:8, overflow:"hidden"}}>
             <div
@@ -2010,6 +2043,10 @@ const DiffViewer = ({ patch }) => {
               <Ic n={isCollapsed ? "chevron_right" : "chevron_down"} s={16} c={T.muted}/>
               <Ic n="code" s={14} c={T.brand}/>
               <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:13, fontWeight:700, color:T.text, flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>{g.file}</span>
+              <div style={{display:"flex", alignItems:"center", gap:6, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:800, opacity:0.8}}>
+                <span style={{color:T.brand}}>+{g.adds}</span>
+                <span style={{color:T.red}}>-{g.rems}</span>
+              </div>
             </div>
 
             <div style={{
@@ -2168,7 +2205,7 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], stat
   useEffect(() => {
     if (activityStats.count > 0) {
       setFlash(true);
-      const t = setTimeout(() => setFlash(false), 1000);
+      const t = setTimeout(() => setFlash(false), 20000);
       return () => clearTimeout(t);
     }
   }, [activityStats.count, activityStats.size]);
@@ -2176,8 +2213,11 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], stat
   const isHighActivity = activityStats.count > 200 || activityStats.size > 1024 * 1024;
   const highActivityStyle = isHighActivity ? { color: T.amber, fontWeight: 900 } : {};
 
-  const bg = isSelected ? `linear-gradient(135deg, ${T.brand}12, ${T.brand}06)` : isUnread ? `${T.indigo}0a` : isWorking ? `${T.blue}06` : T.surface;
-  const borderColor = isSelected ? `${T.brand}50` : isUnread ? `${T.indigo}40` : isWorking ? `${T.blue}30` : T.border;
+  const bg = isSelected
+    ? `linear-gradient(135deg, ${T.brand}15, ${T.bg} 80%), radial-gradient(circle at top right, ${T.brand}10, transparent 60%)`
+    : isUnread ? `${T.indigo}0a` : isWorking ? `${T.blue}06` : T.surface;
+
+  const borderColor = isSelected ? `${T.brand}30` : isUnread ? `${T.indigo}20` : isWorking ? `${T.blue}20` : `${T.border}66`;
 
   return (
     <button ref={cardRef} onClick={onPress}
@@ -2201,7 +2241,10 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], stat
         <div
           title={m.label}
           aria-label={`Status: ${m.label}`}
-          style={{display:"flex",alignItems:"center",justifyContent:"center",width:18,height:18,borderRadius:4,background:m.bg,flexShrink:0}}
+          style={{
+            display:"flex",alignItems:"center",justifyContent:"center",width:18,height:18,borderRadius:4,background:m.bg,flexShrink:0,
+            animation: currentState === "IN_PROGRESS" ? "spin 3s linear infinite" : "none"
+          }}
         >
           <Ic n={m.icon} s={11} c={m.color}/>
         </div>
@@ -2244,9 +2287,9 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], stat
       <div style={{display:"flex",alignItems:"center",gap:10,marginTop:0,marginLeft:26,fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.dim,opacity:0.6}}>
         <div style={{
           display:"flex", alignItems:"center", gap:6,
-          background: flash ? `${T.brand}20` : "transparent",
+          background: flash ? `${T.brand}25` : "transparent",
           padding: "2px 6px", margin: "-2px -6px", borderRadius: 4,
-          transition: flash ? "none" : "background 1s ease",
+          transition: flash ? "none" : "background 5s ease",
           color: flash ? T.brandLight : T.dim,
           fontWeight: flash ? 800 : 500,
         }}>
@@ -2707,7 +2750,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
       }}>
         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:scrolled?0:6}}>
           {!isDesktop&&(
-            <button onClick={onBack} style={{background:"none",border:"none",cursor:"pointer",padding:3,display:"flex",flexShrink:0}}>
+            <button onClick={onBack} aria-label="Go back" style={{background:"none",border:"none",cursor:"pointer",padding:3,display:"flex",flexShrink:0}}>
               <Ic n="back" s={18} c={T.text}/>
             </button>
           )}
@@ -3393,8 +3436,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
 
       {/* ── Refined Floating Scroll Actions ── */}
       <div style={{
-        position:"absolute", right:16,
-        bottom: (isDesktop || composerVisible) ? (isDesktop ? 100 : 220) : 20,
+        position:"absolute", right:20,
+        bottom: (isDesktop || composerVisible) ? (isDesktop ? 110 : 240) : 30,
         zIndex:100, pointerEvents:"none",
         transition:"bottom .3s cubic-bezier(0.4, 0, 0.2, 1)",
       }}>
@@ -4289,6 +4332,20 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
                     <div>{plan.model} · {plan.concurrent} concurrent max</div>
                     {todayCount.total>=plan.daily && <div style={{color:T.red,marginTop:6,fontWeight:600, borderTop:`1px solid ${T.red}20`, paddingTop:6}}>⛔ Daily limit reached. Next recovery at {fmtTime(todayCount.nextResetTs)}.</div>}
                   </div>
+
+                  {todayCount.upcomingResets?.length > 0 && (
+                    <div style={{marginTop:20, borderTop:`1px solid ${T.border}`, paddingTop:16}}>
+                      <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.dim, fontWeight:800, letterSpacing:"0.1em", marginBottom:12}}>UPCOMING SLOT RECOVERIES</div>
+                      <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:8}}>
+                        {todayCount.upcomingResets.map((r, i) => (
+                          <div key={i} style={{background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:6, padding:"8px 10px", display:"flex", flexDirection:"column", gap:2}}>
+                            <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.text, fontWeight:700}}>{fmtTime(r.ts)}</div>
+                            <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:T.amber, fontWeight:800}}>IN {r.in}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -4710,40 +4767,51 @@ function JulesClient() {
   const [sessionLimit,setSessionLimitRaw] = useState(loadLimit);
   const [activityLimit, setActivityLimitRaw] = useState(loadActivityLimit);
   const [cacheLimit, setCacheLimitRaw] = useState(loadCacheLimit);
+
+  const [sessionRegistry, setSessionRegistry] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("jac_session_registry") || "{}"); }
+    catch { return {}; }
+  });
+
   const [planId,setPlanIdRaw]      = useState(loadPlan);
   const [customDaily,setCustomDailyRaw] = useState(loadCustomDaily);
   const todayCount = useMemo(() => {
-    // Rolling 24h Window Logic
-    // Quota acts as a sliding window where tasks expire exactly 24h after creation.
+    // Rolling 24h Window Logic using SessionRegistry for accuracy
     const now = Date.now();
-    const windowStart = new Date(now - 24 * 3600000);
+    const windowStart = now - 24 * 3600000;
 
-    const windowSessions = sessions.filter(s => {
-      if (!s.createTime) return false;
-      return new Date(s.createTime) >= windowStart;
-    });
+    const allKnown = Object.entries(sessionRegistry).map(([id, time]) => ({
+      id, ts: new Date(time).getTime()
+    })).filter(s => s.ts >= windowStart);
 
-    // Pure sliding window reset: time until the oldest session in the current window expires
+    allKnown.sort((a, b) => a.ts - b.ts);
+
     let resetIn = "24h 0m";
     let nextResetTs = null;
-    if (windowSessions.length > 0) {
-      const oldest = windowSessions.reduce((min, s) => {
-        const t = new Date(s.createTime).getTime();
-        return t < min ? t : min;
-      }, new Date(windowSessions[0].createTime).getTime());
+    const upcomingResets = [];
 
-      const expiry = oldest + 24 * 3600000;
-      nextResetTs = expiry;
-      const msLeft = expiry - now;
+    if (allKnown.length > 0) {
+      nextResetTs = allKnown[0].ts + 24 * 3600000;
+      const msLeft = nextResetTs - now;
       const h = Math.floor(msLeft / 3600000);
       const m = Math.floor((msLeft % 3600000) / 60000);
       resetIn = `${h}h ${m}m`;
+
+      allKnown.slice(0, 4).forEach(s => {
+        const rTs = s.ts + 24 * 3600000;
+        const diff = rTs - now;
+        upcomingResets.push({
+          ts: rTs,
+          in: `${Math.floor(diff / 3600000)}h ${Math.floor((diff % 3600000) / 60000)}m`
+        });
+      });
     }
 
-    const prCreated = windowSessions.filter(s => !!getPR(s)).length;
+    const windowIds = new Set(allKnown.map(s => s.id));
+    const prCreated = sessions.filter(s => windowIds.has(s.id) && !!getPR(s)).length;
 
-    return { total: windowSessions.length, done: prCreated, resetIn, nextResetTs };
-  }, [sessions]);
+    return { total: allKnown.length, done: prCreated, resetIn, nextResetTs, upcomingResets };
+  }, [sessions, sessionRegistry]);
   const lastFetchTime = useRef(null);
 
   const [archivedIds, setArchivedIds] = useState(() => {
@@ -4805,6 +4873,11 @@ function JulesClient() {
     try { localStorage.setItem("jac_read_map", JSON.stringify(readMap)); }
     catch {}
   }, [readMap]);
+
+  useEffect(() => {
+    try { localStorage.setItem("jac_session_registry", JSON.stringify(sessionRegistry)); }
+    catch {}
+  }, [sessionRegistry]);
 
   const handleArchive = useCallback(id => {
     setArchivedIds(prev => {
@@ -4899,6 +4972,21 @@ function JulesClient() {
       } while (pageToken);
 
       setGlobalErr(null); // Clear error on success
+
+      if (incoming.length > 0) {
+        setSessionRegistry(prev => {
+          const next = { ...prev };
+          let changed = false;
+          incoming.forEach(s => {
+            if (!next[s.id]) {
+              next[s.id] = s.createTime;
+              changed = true;
+            }
+          });
+          return changed ? next : prev;
+        });
+      }
+
       setSessions(prev => {
         let merged = [];
         if (isFull) {
@@ -4982,6 +5070,7 @@ function JulesClient() {
   }, [isDesktop]);
 
   const handleCreate = useCallback(s => {
+    setSessionRegistry(prev => ({ ...prev, [s.id]: s.createTime }));
     setSessions(prev => [s, ...prev]);
     setSelected(s);
     if (isDesktop) setDesktop("detail"); else setMobile("list");
@@ -5187,19 +5276,30 @@ function Shell({ children, desktop=false }) {
         select,input,textarea{color-scheme:dark;}
         option{background:${T.surface};color:${T.text};}
         @keyframes dot{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.4;transform:scale(.7);}}
-        @keyframes spin{to{transform:rotate(360deg);}}
+        @keyframes spin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
         @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
         @keyframes zoomIn{from{transform:scale(0.95);opacity:0;}to{transform:scale(1);opacity:1;}}
         @keyframes slideUp{from{transform:translateY(20px);opacity:0;}to{transform:translateY(0);opacity:1;}}
         @keyframes shimmerPulse {
-          0% { opacity: 1; }
-          50% { opacity: 0.6; }
-          100% { opacity: 1; }
+          0% { opacity: 0.7; transform: translateY(4px); }
+          50% { opacity: 1; transform: translateY(-2px); }
+          100% { opacity: 1; transform: translateY(0); }
         }
         @keyframes pulseRepo {
           0% { border-color: ${T.brand}40; box-shadow: 0 0 0 ${T.brand}00; }
           50% { border-color: ${T.brand}; box-shadow: 0 0 25px ${T.brand}80; transform: scale(1.02); }
           100% { border-color: ${T.brand}40; box-shadow: 0 0 0 ${T.brand}00; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          *, ::before, ::after {
+            animation-delay: -1ms !important;
+            animation-duration: 1ms !important;
+            animation-iteration-count: 1 !important;
+            background-attachment: initial !important;
+            scroll-behavior: auto !important;
+            transition-duration: 0s !important;
+            transition-delay: 0s !important;
+          }
         }
         ::selection{background:${T.brandDim};color:${T.brand};}
         textarea::placeholder,input::placeholder{color:${T.muted};}
