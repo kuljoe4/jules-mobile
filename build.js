@@ -34,15 +34,27 @@ async function build() {
       `<script>${result.code}</script>`
     );
 
-    // 4. Remove Babel loader script
+    // 4. Remove Babel loader script and its onload/onerror handlers
     optimizedHtml = optimizedHtml.replace(
-      /<script src="https:\/\/unpkg\.com\/@babel\/standalone\/babel\.min\.js"[^>]*><\/script>/,
+      /<script src="https:\/\/unpkg\.com\/@babel\/standalone\/babel\.min\.js"[\s\S]*?><\/script>/,
       ''
     );
 
-    // 5. Cleanup splash screen updates that reference Babel
+    // 5. Cleanup splash screen updates and references to Babel/JSX
     optimizedHtml = optimizedHtml.replace(
-      /onload="__splashMsg\('COMPILING UI[^"]*"\)/g,
+      /onload="__splashMsg\('COMPILING UI[\s\S]*?'\+__splashElapsed\(\),\d+\)"/g,
+      ''
+    );
+    optimizedHtml = optimizedHtml.replace(
+      /onerror="__splashMsg\('CDN ERROR','babel failed to load',0\)"/g,
+      ''
+    );
+    optimizedHtml = optimizedHtml.replace(
+      /onload="__splashMsg\('LOADING COMPILER[\s\S]*?'\+__splashElapsed\(\),\d+\)"/g,
+      ''
+    );
+    optimizedHtml = optimizedHtml.replace(
+      /if \(window\.__splashMsg\) __splashMsg\("MOUNTING APP[^"]*", "building component tree [^"]*" \+ __splashElapsed\(\), 88\);/,
       ''
     );
 
@@ -52,7 +64,19 @@ async function build() {
       ''
     );
 
-    // 7. Write production HTML
+    // 7. Adjust splash screen percentages for faster visual feedback in production
+    optimizedHtml = optimizedHtml.replace(
+      /elapsed\(\),\s*8\)/g,
+      'elapsed(), 15)'
+    ).replace(
+      /(__splashElapsed\(\)),\s*28\)/g,
+      '$1, 45)'
+    ).replace(
+      /(__splashElapsed\(\)),\s*50\)/g,
+      '$1, 80)'
+    );
+
+    // 8. Write production HTML
     const distDir = path.join(__dirname, 'dist');
     if (!fs.existsSync(distDir)) {
       fs.mkdirSync(distDir, { recursive: true });
