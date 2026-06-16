@@ -12,8 +12,6 @@
     "@babel/helper-string-parser": "^7.29.7",
     "@babel/preset-env": "^7.29.7",
     "@babel/preset-react": "^7.29.7",
-    "@playwright/test": "^1.60.0"
-  },
-  "dependencies": {
+    "@playwright/test": "^1.61.0"
   }
 }
