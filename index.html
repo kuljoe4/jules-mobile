@@ -58,8 +58,8 @@
     </style>
     <script>
     // ── Global Error Handling ──────────────────────────────────────────────────
-    window.onerror = function(msg, url, lineNo, columnNo, error) {
-      console.error('CRITICAL BOOT ERROR:', msg, 'at', url, 'line', lineNo);
+    function handleBootError(msg, error) {
+      console.error('CRITICAL BOOT ERROR:', msg, error);
       const splash = document.getElementById('splash');
       if (splash) {
         const hint = document.getElementById('splash-hint');
@@ -69,14 +69,22 @@
           hint.style.color = '#fb7185';
         }
         if (step) {
-          step.textContent = (msg || 'Unknown error') + (lineNo ? ' (line ' + lineNo + ')' : '');
+          step.textContent = (msg || 'Unknown error').toUpperCase();
           step.style.color = '#fb7185';
           step.style.opacity = '1';
         }
         const resetBtn = document.getElementById('emergency-reset');
         if (resetBtn) resetBtn.style.display = 'block';
       }
+    }
+
+    window.onerror = function(msg, url, lineNo, columnNo, error) {
+      handleBootError(msg + (lineNo ? ' (line ' + lineNo + ')' : ''), error);
       return false;
+    };
+
+    window.onunhandledrejection = function(event) {
+      handleBootError('Async error: ' + (event.reason?.message || event.reason || 'Unknown promise rejection'), event.reason);
     };
 
     // ── PWA Bootstrap ──────────────────────────────────────────────────────────
@@ -101,6 +109,10 @@
     window.__pwa = { isFileProtocol: location.protocol === "file:", installPrompt: null, swOk: false };
 
     (function pwaSetup() {
+      const base = location.pathname.replace(/\/[^/]*$/, "/") || "/";
+      const origin = location.origin;
+      const fullBase = origin + base;
+
       // ── 1. Manifest via data: URI (works on HTTP origins) ──────────────────
       const mkIcon = (size, rx) => {
         const fs = Math.floor(size * 0.625), y = Math.floor(size * 0.73);
@@ -111,8 +123,8 @@
       const manifest = {
         name:"Jules Agent Client", short_name:"Jules",
         description:"Monitor and control Jules AI coding sessions",
-        start_url: location.href.split("?")[0],
-        scope: location.href.split("?")[0].replace(/[^/]*$/, ""),
+        start_url: fullBase,
+        scope: base,
         display:"standalone", background_color:"#07090c", theme_color:"#0891b2",
         orientation: isMobile ? "portrait" : "natural",
         categories:["developer","productivity"],
@@ -148,12 +160,12 @@
         ].join("");
         // data: URI SW — same-origin restriction bypassed on secure origins
         const swDataURI = "data:text/javascript;base64," + btoa(swSrc);
-        navigator.serviceWorker.register(swDataURI, { scope: "/" })
+        navigator.serviceWorker.register(swDataURI, { scope: base })
           .then(() => { window.__pwa.swOk = true; })
           .catch(() => {
             // Fallback: blob URL (works for caching, not for install prompt)
             const blob = new Blob([swSrc], { type:"text/javascript" });
-            navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(()=>{});
+            navigator.serviceWorker.register(URL.createObjectURL(blob), { scope: base }).catch(()=>{});
           });
       }
 
@@ -263,10 +275,27 @@ function requestNotificationPermission() {
   return Notification.requestPermission().then(p => p === "granted");
 }
 
-function sendNotification(title, body, tag) {
+async function sendNotification(title, body, tag) {
   if (!loadNotify() || !("Notification" in window) || Notification.permission !== "granted") return;
-  // Use tag to replace existing notifications for the same session
-  new Notification(title, { body, tag, icon: "data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%2307090c%22/><text y=%22.9em%22 x=%2250%25%22 font-size=%2270%22 text-anchor=%22middle%22 fill=%22%2306b6d4%22 font-family=%22monospace%22 font-weight=%22900%22>J</text></svg>" });
+  const icon = "data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%2307090c%22/><text y=%22.9em%22 x=%2250%25%22 font-size=%2270%22 text-anchor=%22middle%22 fill=%22%2306b6d4%22 font-family=%22monospace%22 font-weight=%22900%22>J</text></svg>";
+
+  // Try SW notification first (more robust in mobile/background)
+  if ("serviceWorker" in navigator) {
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      if (reg && reg.showNotification) {
+        await reg.showNotification(title, { body, tag, icon });
+        return;
+      }
+    } catch (e) { console.warn("[Notify] SW notification failed, falling back", e); }
+  }
+
+  // Fallback to standard Notification constructor
+  try {
+    new Notification(title, { body, tag, icon });
+  } catch (e) {
+    console.error("[Notify] Notification constructor failed", e);
+  }
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -560,6 +589,8 @@ function makeNetTracker() {
     catch { return { overall: { in: 0, out: 0 }, daily: {} }; }
   })();
 
+  const sessionStart = Date.now();
+  let sessionUsage = { in: 0, out: 0 };
   let stats = initial;
   let log = [];
   const subs = [];
@@ -582,7 +613,13 @@ function makeNetTracker() {
       }
     });
 
-    return { today, month, overall: stats.overall };
+    const sessionDurationMs = now.getTime() - sessionStart;
+    const h = Math.floor(sessionDurationMs / 3600000);
+    const m = Math.floor((sessionDurationMs % 3600000) / 60000);
+    const s = Math.floor((sessionDurationMs % 60000) / 1000);
+    const duration = h > 0 ? `${h}h ${m}m ${s}s` : m > 0 ? `${m}m ${s}s` : `${s}s`;
+
+    return { today, month, overall: stats.overall, session: sessionUsage, duration };
   };
 
   const notify = () => {
@@ -606,6 +643,8 @@ function makeNetTracker() {
       stats.daily[todayKey].out += bytesOut;
       stats.overall.in += bytesIn;
       stats.overall.out += bytesOut;
+      sessionUsage.in += bytesIn;
+      sessionUsage.out += bytesOut;
 
       // Keep only last 60 days of daily stats to prevent bloat
       const dailyKeys = Object.keys(stats.daily).sort();
@@ -2078,66 +2117,52 @@ const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFeedback,
 const DiffViewer = ({ activities = [] }) => {
   const [collapsed, setCollapsed] = useState(null);
 
-  const patches = useMemo(() => {
-    const p = [];
-    // Iterate backwards to show most recent first
+  const latestPatch = useMemo(() => {
+    // Find only the most recent patch artifact
     for (let i = activities.length - 1; i >= 0; i--) {
       const a = activities[i];
       if (a.artifacts) {
         for (const art of a.artifacts) {
           if (art.changeSet?.gitPatch?.unidiffPatch) {
-            p.push({
+            return {
               patch: art.changeSet.gitPatch.unidiffPatch,
               ts: a.createTime,
               id: a.id || i
-            });
+            };
           }
         }
       }
     }
-    return p;
+    return null;
   }, [activities]);
 
   const groups = useMemo(() => {
-    if (!patches.length) return [];
-    // For now, we just aggregate all files from all patches
-    // but show them as a single list. In the future we might want
-    // to group by timestamp or by file across all patches.
+    if (!latestPatch) return [];
+    const { patch, ts } = latestPatch;
     const allGroups = [];
-    const seenFiles = new Set();
-
-    patches.forEach(({ patch, ts }) => {
-      const lines = patch.split("\n");
-    const grps = [];
+    const lines = patch.split("\n");
     let currentGroup = null;
 
-      lines.forEach((line) => {
-        if (line.startsWith("--- ") || line.startsWith("diff --git")) return;
-        if (line.startsWith("+++ ")) {
-          const file = line.slice(4).replace(/^b\//, "");
-          // We only show each file once, from the most recent patch it appeared in
-          if (seenFiles.has(file)) {
-            currentGroup = null;
-          } else {
-            seenFiles.add(file);
-            currentGroup = { file, hunks: [], adds: 0, rems: 0, ts };
-            allGroups.push(currentGroup);
-          }
-          return;
-        }
-        if (!currentGroup) return;
+    lines.forEach((line) => {
+      if (line.startsWith("--- ") || line.startsWith("diff --git")) return;
+      if (line.startsWith("+++ ")) {
+        const file = line.slice(4).replace(/^b\//, "");
+        currentGroup = { file, hunks: [], adds: 0, rems: 0, ts };
+        allGroups.push(currentGroup);
+        return;
+      }
+      if (!currentGroup) return;
 
-        if (line.startsWith("@@")) {
-          currentGroup.hunks.push({ header: line, lines: [] });
-        } else if (currentGroup.hunks.length > 0) {
-          currentGroup.hunks[currentGroup.hunks.length - 1].lines.push(line);
-          if (line.startsWith("+")) currentGroup.adds++;
-          else if (line.startsWith("-")) currentGroup.rems++;
-        }
-      });
+      if (line.startsWith("@@")) {
+        currentGroup.hunks.push({ header: line, lines: [] });
+      } else if (currentGroup.hunks.length > 0) {
+        currentGroup.hunks[currentGroup.hunks.length - 1].lines.push(line);
+        if (line.startsWith("+")) currentGroup.adds++;
+        else if (line.startsWith("-")) currentGroup.rems++;
+      }
     });
     return allGroups;
-  }, [patches]);
+  }, [latestPatch]);
 
   useEffect(() => {
     if (groups.length > 0 && collapsed === null) {
@@ -2859,7 +2884,6 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   const isActuallyDone = activities.some(a => a.sessionCompleted);
   const currentState = isActuallyDone ? "COMPLETED" : session.state;
   const isFinished = currentState === "COMPLETED" || currentState === "FAILED";
-  console.log("isFinished in SessionDetail:", isFinished);
   const m       = STATUS_META[currentState] || STATUS_META.QUEUED;
   const repo    = session.sourceContext?.source?.replace("sources/github/","");
   const pct     = pctFromState(currentState);
@@ -4186,6 +4210,24 @@ const NetworkMonitor = ({ onBack, isDesktop }) => {
       <div style={{flex:1,overflowY:"auto",padding:"20px 24px",WebkitOverflowScrolling:"touch",minHeight:0}}>
         <div style={{maxWidth:560,margin:"0 auto"}}>
           <div style={{animation:"fadeIn .2s ease", display:"flex", flexDirection:"column", gap:20}}>
+            <div style={{background:T.brandDim, border:`1px solid ${T.brand}40`, borderRadius:12, padding:16, display:"flex", justifyContent:"space-between", alignItems:"center"}}>
+              <div>
+                <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.brand, fontWeight:800, letterSpacing:"0.1em", marginBottom:4}}>CURRENT SESSION BUCKET</div>
+                <div style={{display:"flex", gap:16, alignItems:"baseline"}}>
+                  <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:24, fontWeight:900, color:T.textHi}}>
+                    {fmtBytes(snap.session.in + snap.session.out)}
+                  </div>
+                  <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.brand, fontWeight:700}}>
+                    {snap.duration}
+                  </div>
+                </div>
+              </div>
+              <div style={{textAlign:"right"}}>
+                <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.dim, fontWeight:700}}>↑ {fmtBytes(snap.session.out)}</div>
+                <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.brand, fontWeight:700}}>↓ {fmtBytes(snap.session.in)}</div>
+              </div>
+            </div>
+
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}} role="list">
               {[
                 {l:"RECEIVED",   v:fmtBytes(totalIn), c:T.brand,  desc:"Total incoming data"},
@@ -4532,6 +4574,24 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
 
           {tab === "network" && (
             <div style={{animation:"fadeIn .2s ease", display:"flex", flexDirection:"column", gap:20}} role="region" aria-label="Network Activity">
+              <div style={{background:T.brandDim, border:`1px solid ${T.brand}40`, borderRadius:12, padding:16, display:"flex", justifyContent:"space-between", alignItems:"center"}}>
+                <div>
+                  <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.brand, fontWeight:800, letterSpacing:"0.1em", marginBottom:4}}>CURRENT SESSION BUCKET</div>
+                  <div style={{display:"flex", gap:16, alignItems:"baseline"}}>
+                    <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:24, fontWeight:900, color:T.textHi}}>
+                      {fmtBytes(snap.session.in + snap.session.out)}
+                    </div>
+                    <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.brand, fontWeight:700}}>
+                      {snap.duration}
+                    </div>
+                  </div>
+                </div>
+                <div style={{textAlign:"right"}}>
+                  <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.dim, fontWeight:700}}>↑ {fmtBytes(snap.session.out)}</div>
+                  <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.brand, fontWeight:700}}>↓ {fmtBytes(snap.session.in)}</div>
+                </div>
+              </div>
+
               <div>
                 <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.textDim,letterSpacing:"0.08em",fontWeight:700,marginBottom:12}}>BANDWIDTH USAGE</div>
                 <div style={{display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(140px, 1fr))", gap:12}}>
