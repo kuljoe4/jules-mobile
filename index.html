@@ -144,7 +144,7 @@
       // is on a secure origin (https / localhost).
       if ("serviceWorker" in navigator && !window.__pwa.isFileProtocol) {
         const swSrc = [
-          'const C="jules-v3";',
+          'const C="jules-v4";',
           'const PRE=["https://unpkg.com/react@18/umd/react.production.min.js","https://unpkg.com/react-dom@18/umd/react-dom.production.min.js","https://unpkg.com/@babel/standalone/babel.min.js"];',
           'self.addEventListener("install",e=>{self.skipWaiting();e.waitUntil(caches.open(C).then(c=>c.addAll(PRE).catch(()=>{})));});',
           'self.addEventListener("activate",e=>e.waitUntil(clients.claim()));',
@@ -2194,27 +2194,36 @@ const DiffViewer = ({ activities = [] }) => {
   };
 
   return (
-    <div style={{display:"flex", flexDirection:"column", gap:16}}>
+    <div style={{display:"flex", flexDirection:"column", gap:12}}>
       <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 4px"}}>
-        <div style={{display:"flex", alignItems:"center", gap:12}}>
-          <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:700, color:T.textDim, letterSpacing:"0.05em"}}>
-            {groups.length} FILE{groups.length!==1?'S':''} CHANGED
+        <div style={{display:"flex", alignItems:"center", gap:10}}>
+          <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:800, color:T.dim, letterSpacing:"0.08em"}}>
+            {groups.length} FILE{groups.length!==1?'S':''}
           </div>
           <div style={{display:"flex", alignItems:"center", gap:6, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:800}}>
             <span style={{color:T.brand}}>+{totalAdds}</span>
             <span style={{color:T.red}}>-{totalRems}</span>
           </div>
         </div>
-        <div style={{display:"flex", gap:8}}>
-          <PickerBtn label="EXPAND ALL" isAct={safeCollapsed.size === 0} onClick={() => toggleAll(false)} />
-          <PickerBtn label="COLLAPSE ALL" isAct={safeCollapsed.size === groups.length} onClick={() => toggleAll(true)} />
+        <div style={{display:"flex", gap:6}}>
+          <PickerBtn label="EXPAND" isAct={safeCollapsed.size === 0} onClick={() => toggleAll(false)} />
+          <PickerBtn label="COLLAPSE" isAct={safeCollapsed.size === groups.length} onClick={() => toggleAll(true)} />
         </div>
       </div>
 
       {groups.map((g, gi) => {
         const isCollapsed = safeCollapsed.has(gi);
+        const parts = g.file.split("/");
+        const base = parts.pop();
+        const dir = parts.join("/");
+
         return (
-          <div key={gi} style={{background:"#040507", border:`1px solid ${T.border}`, borderRadius:8, overflow:"hidden"}}>
+          <div key={gi} style={{
+            background:T.surface, border:`1px solid ${isCollapsed ? T.border : T.borderHi}`,
+            borderRadius:8, overflow:"hidden", marginBottom: 4,
+            boxShadow: isCollapsed ? "none" : "0 4px 20px rgba(0,0,0,0.2), inset 0 0 1px rgba(255,255,255,0.05)",
+            transition: "all .2s ease"
+          }}>
             <div
               role="button"
               tabIndex={0}
@@ -2222,19 +2231,26 @@ const DiffViewer = ({ activities = [] }) => {
               onClick={() => toggleFile(gi)}
               onKeyDown={e => (e.key === "Enter" || e.key === " ") && toggleFile(gi)}
               style={{
-                padding:"8px 12px", background:T.surface, borderBottom:isCollapsed? "none" : `1px solid ${T.border}`,
-                display:"flex", alignItems:"center", gap:8, cursor:"pointer", userSelect:"none", outline:"none"
+                padding:"8px 12px", background: isCollapsed ? "transparent" : T.surfaceHi,
+                borderBottom:isCollapsed? "none" : `1px solid ${T.border}`,
+                display:"flex", alignItems:"center", gap:10, cursor:"pointer", userSelect:"none", outline:"none",
+                transition: "background .2s"
               }}
             >
-              <Ic n={isCollapsed ? "chevron_right" : "chevron_down"} s={16} c={T.muted}/>
-              <Ic n="code" s={14} c={T.brand}/>
-              <div style={{flex:1, minWidth:0, display:"flex", flexDirection:"column"}}>
-                <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:13, fontWeight:700, color:T.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>{g.file}</span>
-                <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:T.dim}}>{fmtAgo(new Date(g.ts).getTime())}</span>
+              <div style={{
+                display:"flex", alignItems:"center", justifyContent:"center",
+                width:20, height:20, borderRadius:4, background: isCollapsed ? "transparent" : `${T.brand}15`,
+                transition: "all .2s"
+              }}>
+                <Ic n={isCollapsed ? "chevron_right" : "chevron_down"} s={14} c={isCollapsed ? T.dim : T.brand}/>
               </div>
-              <div style={{display:"flex", alignItems:"center", gap:6, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:800, opacity:0.8}}>
-                <span style={{color:T.brand}}>+{g.adds}</span>
-                <span style={{color:T.red}}>-{g.rems}</span>
+              <div style={{flex:1, minWidth:0, display:"flex", flexDirection:"column", gap:0}}>
+                {dir && <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.dim, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", opacity: 0.8, letterSpacing:"0.02em"}}>{dir}/</div>}
+                <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:12, fontWeight:700, color:isCollapsed ? T.textDim : T.textHi, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", marginTop: dir ? -1 : 0}}>{base}</div>
+              </div>
+              <div style={{display:"flex", alignItems:"center", gap:6, fontFamily:"'JetBrains Mono',monospace", fontSize:9, fontWeight:800}}>
+                <div style={{padding:"2px 6px", borderRadius:4, background:`${T.brand}10`, color:T.brandLight, border:`1px solid ${T.brand}20`}}>+{g.adds}</div>
+                <div style={{padding:"2px 6px", borderRadius:4, background:`${T.red}10`, color:T.redLight, border:`1px solid ${T.red}20` }}>-{g.rems}</div>
               </div>
             </div>
 
@@ -2242,28 +2258,45 @@ const DiffViewer = ({ activities = [] }) => {
               maxHeight: isCollapsed ? 0 : 20000,
               opacity: isCollapsed ? 0 : 1,
               overflow: "hidden",
-              transition: "all .3s cubic-bezier(0.4, 0, 0.2, 1)",
-              fontFamily:"'JetBrains Mono',monospace", fontSize:13, lineHeight:1.5
+              transition: "all .4s cubic-bezier(0.4, 0, 0.2, 1)",
+              fontFamily:"'JetBrains Mono',monospace", fontSize:11, lineHeight:1.4
             }}>
               {g.hunks.map((h, hi) => (
-                <div key={hi}>
-                  <div style={{padding:"4px 12px", background:"rgba(77,166,255,.05)", color:T.blue, fontSize:12, borderBottom:`1px solid ${T.border}40`}}>
+                <div key={hi} style={{ borderTop: hi > 0 ? `1px solid ${T.border}40` : "none" }}>
+                  <div style={{
+                    padding:"3px 12px", background:"rgba(30,41,59,0.5)", color:T.blue, fontSize:10,
+                    fontWeight:700, borderBottom:`1px solid ${T.border}20`, display:"flex", alignItems:"center", gap:6
+                  }}>
+                    <div style={{ width:4, height:4, borderRadius:"50%", background:T.blue, opacity:0.5 }}/>
                     {h.header}
                   </div>
                   {h.lines.map((line, li) => {
                     const isAdd = line.startsWith("+");
                     const isRem = line.startsWith("-");
-                    const c = isAdd ? T.brand : isRem ? T.red : T.muted;
-                    const bg = isAdd ? "rgba(0,232,122,.05)" : isRem ? "rgba(255,68,85,.05)" : "transparent";
+                    const c = isAdd ? T.brandLight : isRem ? T.redLight : T.muted;
+                    const bg = isAdd ? "rgba(6, 182, 212, 0.08)" : isRem ? "rgba(255, 113, 133, 0.08)" : "transparent";
                     const symbol = isAdd ? "+" : isRem ? "-" : " ";
                     const content = (isAdd || isRem) ? line.slice(1) : line;
 
                     return (
-                      <div key={li} style={{display:"flex", background:bg, minHeight:20, borderLeft:`2px solid ${isAdd?T.brand+'40':isRem?T.red+'40':'transparent'}`}}>
-                        <div style={{width:22, flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", color:c, opacity:0.8, fontSize:12, userSelect:"none", fontWeight:700, fontFamily:"monospace"}}>
+                      <div key={li} style={{
+                        display:"flex", background:bg, minHeight:20,
+                        borderLeft:`3px solid ${isAdd ? T.brand : isRem ? T.red : "transparent"}`,
+                        transition: "background .1s"
+                      }}>
+                        <div style={{
+                          width:24, flexShrink:0, display:"flex", alignItems:"center",
+                          justifyContent:"center", color:c, opacity:0.7, fontSize:11,
+                          userSelect:"none", fontWeight:800, fontFamily:"monospace"
+                        }}>
                           {symbol}
                         </div>
-                        <div style={{padding:"2px 10px", color:isAdd?T.brand:isRem?T.red:T.text, whiteSpace:"pre-wrap", wordBreak:"break-all", flex:1, opacity: (isAdd||isRem)?1:0.7}}>
+                        <div style={{
+                          padding:"2px 10px", color:isAdd?T.textHi:isRem?T.textHi:T.textDim,
+                          whiteSpace:"pre-wrap", wordBreak:"break-all", flex:1,
+                          opacity: (isAdd||isRem)?1:0.8,
+                          fontSize: 11,
+                        }}>
                           {content || " "}
                         </div>
                       </div>
@@ -2719,6 +2752,13 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     }
     prevLenRef.current = len;
   }, [activities, tab]);
+
+  // Ensure non-activity tabs start at the top
+  useEffect(() => {
+    if (tab !== "activity" && contentRef.current) {
+      contentRef.current.scrollTop = 0;
+    }
+  }, [tab]);
 
   const togglePersona = (id) => {
     const next = new Set(selectedPersonas);
