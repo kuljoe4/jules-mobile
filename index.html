@@ -57,6 +57,28 @@
       @keyframes shimmer{to{background-position:200% center;}}
     </style>
     <script>
+    // ── Global Error Handling ──────────────────────────────────────────────────
+    window.onerror = function(msg, url, lineNo, columnNo, error) {
+      console.error('CRITICAL BOOT ERROR:', msg, 'at', url, 'line', lineNo);
+      const splash = document.getElementById('splash');
+      if (splash) {
+        const hint = document.getElementById('splash-hint');
+        const step = document.getElementById('splash-step');
+        if (hint) {
+          hint.textContent = 'BOOT ERROR';
+          hint.style.color = '#fb7185';
+        }
+        if (step) {
+          step.textContent = (msg || 'Unknown error') + (lineNo ? ' (line ' + lineNo + ')' : '');
+          step.style.color = '#fb7185';
+          step.style.opacity = '1';
+        }
+        const resetBtn = document.getElementById('emergency-reset');
+        if (resetBtn) resetBtn.style.display = 'block';
+      }
+      return false;
+    };
+
     // ── PWA Bootstrap ──────────────────────────────────────────────────────────
     // Chrome PWA install requires:
     //   1. HTTPS (or localhost) — file:// will NOT work
@@ -159,7 +181,24 @@
   <div id="splash-bar-wrap"><div id="splash-bar"></div></div>
   <div id="splash-hint">INITIALISING…</div>
   <div id="splash-step"></div>
+  <button id="emergency-reset" onclick="handleEmergencyReset()" style="margin-top:30px; display:none; background:rgba(251,113,133,0.1); border:1px solid rgba(251,113,133,0.3); color:#fb7185; padding:8px 16px; border-radius:6px; font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; cursor:pointer; letter-spacing:0.05em;">EMERGENCY HARD RESET</button>
 </div>
+<script>
+  async function handleEmergencyReset() {
+    if (!confirm("This will clear all local data, settings, and cache. Proceed?")) return;
+    localStorage.clear();
+    sessionStorage.clear();
+    if ('caches' in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+    }
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r => r.unregister()));
+    }
+    location.reload(true);
+  }
+</script>
 
 <div id="root"></div>
 
@@ -212,37 +251,6 @@ if (window.__splashMsg) __splashMsg("MOUNTING APP…", "building component tree 
 
 const { useState, useEffect, useRef, useCallback, useMemo, memo } = React;
 
-// ─── Error Boundary ──────────────────────────────────────────────────────────
-class ErrorBoundary extends React.Component {
-  constructor(props) { super(props); this.state = { hasError: false, error: null }; }
-  static getDerivedStateFromError(error) { return { hasError: true, error }; }
-  componentDidCatch(error, errorInfo) { console.error("[ErrorBoundary] Caught error:", error, errorInfo); }
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div style={{
-          height: "100vh", background: "#07090c", display: "flex", flexDirection: "column",
-          alignItems: "center", justifyContent: "center", padding: 32, textAlign: "center",
-          fontFamily: "'JetBrains Mono',monospace", color: "#fb7185"
-        }}>
-          <div style={{fontSize: 48, marginBottom: 24}}>⚠️</div>
-          <div style={{fontSize: 16, fontWeight: 900, marginBottom: 12}}>APPLICATION CRASHED</div>
-          <div style={{fontSize: 12, color: "#94a3b8", marginBottom: 32, maxWidth: 400, lineHeight: 1.6}}>
-            {this.state.error?.message || "An unexpected error occurred in the React component tree."}
-          </div>
-          <button
-            onClick={() => { localStorage.clear(); location.reload(); }}
-            style={{
-              background: "#fb7185", color: "#000", border: "none", padding: "12px 24px",
-              borderRadius: 8, fontWeight: 900, cursor: "pointer", fontSize: 12
-            }}
-          >HARD RESET & RELOAD</button>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
 
 // ─── Browser Notifications ───────────────────────────────────────────────────
 const NOTIFY_KEY = "jac_notifications";
@@ -2065,35 +2073,69 @@ const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFeedback,
 });
 
 // ─── Diff Viewer ──────────────────────────────────────────────────────────────
-const DiffViewer = ({ patch }) => {
+const DiffViewer = ({ activities = [] }) => {
   const [collapsed, setCollapsed] = useState(null);
 
+  const patches = useMemo(() => {
+    const p = [];
+    // Iterate backwards to show most recent first
+    for (let i = activities.length - 1; i >= 0; i--) {
+      const a = activities[i];
+      if (a.artifacts) {
+        for (const art of a.artifacts) {
+          if (art.changeSet?.gitPatch?.unidiffPatch) {
+            p.push({
+              patch: art.changeSet.gitPatch.unidiffPatch,
+              ts: a.createTime,
+              id: a.id || i
+            });
+          }
+        }
+      }
+    }
+    return p;
+  }, [activities]);
+
   const groups = useMemo(() => {
-    if (!patch) return [];
-    const lines = patch.split("\n");
+    if (!patches.length) return [];
+    // For now, we just aggregate all files from all patches
+    // but show them as a single list. In the future we might want
+    // to group by timestamp or by file across all patches.
+    const allGroups = [];
+    const seenFiles = new Set();
+
+    patches.forEach(({ patch, ts }) => {
+      const lines = patch.split("\n");
     const grps = [];
     let currentGroup = null;
 
-    lines.forEach((line) => {
-      if (line.startsWith("--- ") || line.startsWith("diff --git")) return;
-      if (line.startsWith("+++ ")) {
-        const file = line.slice(4).replace(/^b\//, "");
-        currentGroup = { file, hunks: [], adds: 0, rems: 0 };
-        grps.push(currentGroup);
-        return;
-      }
-      if (!currentGroup) return;
+      lines.forEach((line) => {
+        if (line.startsWith("--- ") || line.startsWith("diff --git")) return;
+        if (line.startsWith("+++ ")) {
+          const file = line.slice(4).replace(/^b\//, "");
+          // We only show each file once, from the most recent patch it appeared in
+          if (seenFiles.has(file)) {
+            currentGroup = null;
+          } else {
+            seenFiles.add(file);
+            currentGroup = { file, hunks: [], adds: 0, rems: 0, ts };
+            allGroups.push(currentGroup);
+          }
+          return;
+        }
+        if (!currentGroup) return;
 
-      if (line.startsWith("@@")) {
-        currentGroup.hunks.push({ header: line, lines: [] });
-      } else if (currentGroup.hunks.length > 0) {
-        currentGroup.hunks[currentGroup.hunks.length - 1].lines.push(line);
-        if (line.startsWith("+")) currentGroup.adds++;
-        else if (line.startsWith("-")) currentGroup.rems++;
-      }
+        if (line.startsWith("@@")) {
+          currentGroup.hunks.push({ header: line, lines: [] });
+        } else if (currentGroup.hunks.length > 0) {
+          currentGroup.hunks[currentGroup.hunks.length - 1].lines.push(line);
+          if (line.startsWith("+")) currentGroup.adds++;
+          else if (line.startsWith("-")) currentGroup.rems++;
+        }
+      });
     });
-    return grps;
-  }, [patch]);
+    return allGroups;
+  }, [patches]);
 
   useEffect(() => {
     if (groups.length > 0 && collapsed === null) {
@@ -2104,7 +2146,7 @@ const DiffViewer = ({ patch }) => {
   const totalAdds = useMemo(() => groups.reduce((acc, g) => acc + g.adds, 0), [groups]);
   const totalRems = useMemo(() => groups.reduce((acc, g) => acc + g.rems, 0), [groups]);
 
-  if (!patch || groups.length === 0) return (
+  if (groups.length === 0) return (
     <div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>
       No diff available yet
     </div>
@@ -2159,7 +2201,10 @@ const DiffViewer = ({ patch }) => {
             >
               <Ic n={isCollapsed ? "chevron_right" : "chevron_down"} s={16} c={T.muted}/>
               <Ic n="code" s={14} c={T.brand}/>
-              <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:13, fontWeight:700, color:T.text, flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>{g.file}</span>
+              <div style={{flex:1, minWidth:0, display:"flex", flexDirection:"column"}}>
+                <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:13, fontWeight:700, color:T.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>{g.file}</span>
+                <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:T.dim}}>{fmtAgo(new Date(g.ts).getTime())}</span>
+              </div>
               <div style={{display:"flex", alignItems:"center", gap:6, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:800, opacity:0.8}}>
                 <span style={{color:T.brand}}>+{g.adds}</span>
                 <span style={{color:T.red}}>-{g.rems}</span>
@@ -2791,20 +2836,6 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     finally { setBusy(false); }
   };
 
-  const diffArtifacts = useMemo(() => {
-    const patches = [];
-    activities.forEach(a => {
-      if (a.artifacts) {
-        a.artifacts.forEach(art => {
-          if (art.changeSet?.gitPatch?.unidiffPatch) {
-            patches.push({ patch: art.changeSet.gitPatch.unidiffPatch, ts: a.createTime });
-          }
-        });
-      }
-    });
-    return patches.reverse(); // Newest first
-  }, [activities]);
-
   const mediaArtifacts = useMemo(() =>
     activities.flatMap(a => (a.artifacts||[]).filter(x=>x.media?.data).map(x=>({...x.media,ts:a.createTime})))
   , [activities]);
@@ -3409,30 +3440,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
             busy={busy}
           />
         )}
-        {tab==="diff"&&(
-          <div style={{display:"flex", flexDirection:"column", gap:24}}>
-            {diffArtifacts.length === 0 ? (
-              <div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>
-                No diff available yet
-              </div>
-            ) : (
-              diffArtifacts.map((d, i) => (
-                <div key={i}>
-                  <div style={{
-                    fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.brand,
-                    fontWeight:800, letterSpacing:"0.1em", marginBottom:12,
-                    display:"flex", alignItems:"center", gap:8
-                  }}>
-                    {i === 0 ? "LATEST PATCH" : `PREVIOUS PATCH #${diffArtifacts.length - i}`}
-                    <div style={{height:1, flex:1, background:T.brandDim}}/>
-                    <span style={{color:T.textDim, fontSize:10}}>{fmtTime(new Date(d.ts).getTime())}</span>
-                  </div>
-                  <DiffViewer patch={d.patch}/>
-                </div>
-              ))
-            )}
-          </div>
-        )}
+        {tab==="diff"&&<DiffViewer activities={activities}/>}
         {tab==="media"&&(
           mediaArtifacts.length===0
           ?<div style={{textAlign:"center",padding:"40px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>No media artifacts</div>
@@ -5474,6 +5482,37 @@ function JulesClient() {
       </nav>
     </Shell>
   );
+}
+
+class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { hasError: false, error: null }; }
+  static getDerivedStateFromError(error) { return { hasError: true, error }; }
+  componentDidCatch(error, errorInfo) { console.error("Uncaught component error:", error, errorInfo); }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ height: "100vh", background: "#07090c", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, textAlign: "center" }}>
+          <div style={{ width: 60, height: 60, background: T.redDim, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}>
+            <Ic n="x" s={30} c={T.red} />
+          </div>
+          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 18, fontWeight: 900, color: "#fff", marginBottom: 10 }}>APPLICATION CRASHED</div>
+          <div style={{ fontFamily: "'IBM Plex Sans',sans-serif", fontSize: 14, color: T.textDim, marginBottom: 30, maxWidth: 400 }}>
+            An unexpected error occurred in the UI. You can try to reload or perform a hard reset if the issue persists.
+          </div>
+          <div style={{ background: "#040507", border: `1px solid ${T.border}`, borderRadius: 8, padding: 12, marginBottom: 30, width: "100%", maxWidth: 500, overflow: "auto", maxHeight: 200 }}>
+            <pre style={{ margin: 0, fontFamily: "'JetBrains Mono',monospace", fontSize: 12, color: T.red, textAlign: "left" }}>
+              {this.state.error?.toString()}
+            </pre>
+          </div>
+          <div style={{ display: "flex", gap: 12 }}>
+            <Btn onClick={() => location.reload()} sm>RELOAD APP</Btn>
+            <Btn onClick={() => handleEmergencyReset()} sm color={T.red} outline>HARD RESET</Btn>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 // ─── Shell ────────────────────────────────────────────────────────────────────

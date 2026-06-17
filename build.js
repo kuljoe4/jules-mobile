@@ -24,59 +24,63 @@ async function build() {
     
     // 2. Transpile the JSX code
     console.log('  -> Transpiling JSX...');
+    // Explicitly target environments that don't support ESM if needed,
+    // but mainly ensure we are not outputting imports/exports.
     const result = await babel.transformAsync(jsxCode, {
-      presets: ['@babel/preset-env', '@babel/preset-react'],
+      presets: [
+        ['@babel/preset-env', { modules: 'cjs' }],
+        '@babel/preset-react'
+      ],
+      compact: true,
+      minified: true,
+      comments: false
     });
 
     // 3. Replace the script tag
+    // We remove the type="text/babel" and data-presets
     let optimizedHtml = htmlContent.replace(
       scriptRegex,
       `<script>${result.code}</script>`
     );
 
-    // 4. Remove Babel loader script and its onload/onerror handlers
+    // 4. Remove Babel loader script entirely
     optimizedHtml = optimizedHtml.replace(
       /<script src="https:\/\/unpkg\.com\/@babel\/standalone\/babel\.min\.js"[\s\S]*?><\/script>/,
       ''
     );
+    // Cleanup any lingering preconnect
+    optimizedHtml = optimizedHtml.replace(/<link rel="preconnect" href="https:\/\/unpkg\.com" crossorigin>/, '');
 
     // 5. Cleanup splash screen updates and references to Babel/JSX
-    optimizedHtml = optimizedHtml.replace(
-      /onload="__splashMsg\('COMPILING UI[\s\S]*?'\+__splashElapsed\(\),\d+\)"/g,
-      ''
-    );
-    optimizedHtml = optimizedHtml.replace(
-      /onerror="__splashMsg\('CDN ERROR','babel failed to load',0\)"/g,
-      ''
-    );
-    optimizedHtml = optimizedHtml.replace(
-      /onload="__splashMsg\('LOADING COMPILER[\s\S]*?'\+__splashElapsed\(\),\d+\)"/g,
-      ''
-    );
+    // Remove the onload/onerror handlers from the Babel script tag if they weren't caught by the regex above
+    optimizedHtml = optimizedHtml.replace(/onload="__splashMsg\('COMPILING UI[^']*'\+__splashElapsed\(\),\d+\)"/g, '');
+    optimizedHtml = optimizedHtml.replace(/onerror="__splashMsg\('CDN ERROR','babel failed to load',0\)"/g, '');
+    optimizedHtml = optimizedHtml.replace(/onload="__splashMsg\('LOADING COMPILER[^']*'\+__splashElapsed\(\),\d+\)"/g, '');
+
+    // Remove specific mounting message that references Babel elapsed time
     optimizedHtml = optimizedHtml.replace(
       /if \(window\.__splashMsg\) __splashMsg\("MOUNTING APP[^"]*", "building component tree [^"]*" \+ __splashElapsed\(\), 88\);/,
       ''
     );
 
-    // 6. Remove Babel from Service Worker PRE cache
+    // 6. Remove Babel from Service Worker PRE cache and update Cache Version
     optimizedHtml = optimizedHtml.replace(
       /,"https:\/\/unpkg\.com\/@babel\/standalone\/babel\.min\.js"/,
       ''
     );
+    // Increment cache version to force update
+    optimizedHtml = optimizedHtml.replace(/const C="jules-v\d+";/, 'const C="jules-v4";');
 
     // 7. Adjust splash screen percentages for faster visual feedback in production
+    // Since we skipped Babel loading (28% -> 50% -> 72%), we re-map the remaining steps
     optimizedHtml = optimizedHtml.replace(
-      /elapsed\(\),\s*8\)/g,
-      'elapsed(), 15)'
-    ).replace(
-      /(__splashElapsed\(\)),\s*28\)/g,
-      '$1, 45)'
-    ).replace(
-      /(__splashElapsed\(\)),\s*50\)/g,
-      '$1, 80)'
+      /onload="__splashMsg\('LOADING RENDERER[^']*'\+__splashElapsed\(\),28\)"/,
+      `onload="__splashMsg('LOADING RENDERER…','react-dom · '+__splashElapsed(),60)"`
     );
 
-    // 8. Write production HTML
+    // 8. Final polish: Remove whitespace and comments from the HTML (optional but good)
+    // For now, let's just make sure we didn't leave any "text/babel" hints
+
     const distDir = path.join(__dirname, 'dist');
     if (!fs.existsSync(distDir)) {
       fs.mkdirSync(distDir, { recursive: true });
