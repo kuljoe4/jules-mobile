@@ -78,7 +78,23 @@ The application is designed as a single-file React app that is transpiled during
 - ✅ Single-file app compatible with GitHub Pages
 - ✅ PWA-ready with offline support
 - ✅ Mobile-responsive UI
+- ✅ High-density Quota Tracking with sliding 24h window
+- ✅ Unified Progress Architecture (Session + Sync synchronization)
 - ✅ Automatic deployments via GitHub Actions
+
+## Architecture Details
+
+### Transpilation & Build
+The application uses a custom `build.js` script to ensure maximum compatibility and performance:
+- **Classic JSX Runtime**: Uses `React.createElement` for maximum compatibility with CDN-delivered React.
+- **CommonJS-Free Output**: Prevents `ReferenceError: require is not defined` by ensuring Babel does not inject module imports.
+- **Automatic Cleanup**: Removes development-only scripts (like `@babel/standalone`) from the production build.
+
+### Quota Management
+Jules Mobile implements a sophisticated rolling 24-hour window for quota tracking:
+- **Real-time Recovery**: Displays exactly when next slots will be available.
+- **History Tracking**: Shows recently recovered slots for transparency.
+- **Efficiency**: Uses smart delta-polling to minimize bandwidth while maintaining up-to-date status.
 
 ## Notes
 
