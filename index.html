@@ -1057,11 +1057,33 @@ const Pill = ({status,small=false,hideLabel=false}) => {
   );
 };
 
-const Bar = ({pct,status}) => {
+const Bar = ({pct,status,syncing}) => {
   const c = (STATUS_META[status]||STATUS_META.QUEUED).color;
+  const isComplete = status === "COMPLETED";
   return (
-    <div style={{height:3,background:T.line,borderRadius:2,overflow:"hidden"}}>
-      <div style={{height:"100%",width:`${pct}%`,borderRadius:2,background:c,boxShadow:`0 0 8px ${c}60`,transition:"width .5s ease",transform:"translateZ(0)"}}/>
+    <div style={{height:3,background:T.line,borderRadius:2,overflow:"hidden",position:"relative"}}>
+      <div style={{
+        height:"100%",width:`${pct}%`,borderRadius:2,background:c,
+        boxShadow:`0 0 8px ${c}60`,transition:"width .5s ease",transform:"translateZ(0)",
+        position:"relative",
+        overflow:"hidden"
+      }}>
+        {syncing && !isComplete && (
+          <div style={{
+            position:"absolute",top:0,left:0,right:0,bottom:0,
+            background:"linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)",
+            backgroundSize:"200% 100%",
+            animation:"barShimmer 1.5s infinite linear"
+          }}/>
+        )}
+      </div>
+      {syncing && pct === 0 && (
+        <div style={{
+          position:"absolute",top:0,height:"100%",width:"30%",
+          background:T.amber,borderRadius:2,
+          animation:"barIndeterminate 1.5s infinite ease-in-out"
+        }}/>
+      )}
     </div>
   );
 };
@@ -3099,7 +3121,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
 
         {/* Row 2: Secondary Metadata & Actions (Hidden when scrolled on mobile) */}
         <div style={{
-          height: scrolled ? 0 : "auto",
+          height: scrolled ? 0 : 22,
           maxHeight: scrolled ? 0 : 40,
           opacity: scrolled ? 0 : 1,
           overflow: "hidden",
@@ -3107,29 +3129,28 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
           alignItems: "center",
           gap: 8,
           marginBottom: scrolled ? 0 : 8,
-          transition: "all .2s ease",
+          transition: "all .2s ease, height .2s ease",
           pointerEvents: scrolled ? "none" : "auto",
+          contain: "size layout",
         }}>
           <div style={{display:"flex", alignItems:"center", gap:8, overflowX:"auto", scrollbarWidth:"none", WebkitOverflowScrolling:"touch", width:"100%"}}>
-            {(!isFinished || isSyncing || syncPhase === "DONE") && (
+            {isSyncing && (
               <div style={{
                 display:"flex", alignItems:"center", gap:6,
-                background: isSyncing ? `${T.amber}15` : (syncPhase === "DONE" ? `${T.brand}20` : T.brandDim),
-                border: `1px solid ${isSyncing ? T.amber : (syncPhase === "DONE" ? T.brand : T.brandDark) + "40"}`,
+                background: `${T.amber}15`,
+                border: `1px solid ${T.amber}40`,
                 borderRadius:4, padding:"2px 8px", flexShrink:0,
                 transition: "all .3s ease"
               }}>
                  <div style={{
                    width:6, height:6, borderRadius:"50%",
-                   background: isSyncing ? T.amber : T.brandLight,
-                   animation: isSyncing ? (syncPhase === "CACHE" ? "pulse 1s infinite" : "spin 1s linear infinite") : "pulse 2s infinite"
+                   background: T.amber,
+                   animation: (syncPhase === "CACHE" ? "pulse 1s infinite" : "spin 1s linear infinite")
                  }}/>
-                 <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:9, fontWeight:800, color: isSyncing ? T.amber : T.brand}}>
-                   {isSyncing ? (
-                     syncPhase === "CACHE" ? "RECOVERING CACHE..." :
+                 <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:9, fontWeight:800, color: T.amber}}>
+                    {syncPhase === "CACHE" ? "RECOVERING CACHE..." :
                      syncPhase === "FETCH" ? `FETCHING (${syncStats.count} ITEMS)...` :
-                     syncPhase === "SYNC" ? "RECONCILING..." : "SYNCING..."
-                   ) : `UP TO DATE · ${activities.length} ITEMS`}
+                     syncPhase === "SYNC" ? "RECONCILING..." : "SYNCING..."}
                  </span>
               </div>
             )}
@@ -3212,7 +3233,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
           marginBottom:scrolled?0:6, opacity:scrolled?0:1,
           pointerEvents:scrolled?"none":"auto",
         }}>
-          <Bar pct={pct} status={currentState}/>
+          <Bar pct={pct} status={currentState} syncing={isSyncing || syncPhase === "DONE"}/>
         </div>
 
         <div style={{
@@ -3799,7 +3820,7 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
   const [savedFlash,setSavedFlash] = useState(false);
   const [expanded,setExpanded]     = useState(false);
   const [showConfirm,setShowConfirm] = useState(false);
-  const [sourceInteracted, setSourceInteracted] = useState(!!(draft?.source));
+  const [sourceInteracted, setSourceInteracted] = useState(false);
 
 
   // ── Derive branches whenever selected source changes ─────────────────────
@@ -3959,7 +3980,9 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
             <div style={{display:"flex", flexDirection:"column", gap:16, marginBottom:28}}>
               <div style={{
                 background:T.surfaceHi, borderRadius:10, padding:12,
-                border:`1px solid ${T.border}`,
+              border: (!sourceInteracted && !showSources && !showBranches) ? `1px solid ${T.brand}` : `1px solid ${T.border}`,
+              boxShadow: (!sourceInteracted && !showSources && !showBranches) ? `0 0 15px ${T.brand}40` : "none",
+              animation: (!sourceInteracted && !showSources && !showBranches) ? "pulseRepo 1s infinite ease-in-out" : "none",
                 transition: "all .2s"
               }}>
                 <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.brand, fontWeight:800, letterSpacing:"0.1em", marginBottom:6}}>TARGET REPOSITORY</div>
@@ -3972,8 +3995,7 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
                     style={{
                       ...inputSt,
                       paddingRight:36, fontSize:13, padding: "8px 10px",
-                      animation: (!source && !sourceInteracted && !showSources && !showBranches) ? "pulseRepo 1s infinite ease-in-out" : "none",
-                      border: (!source && !sourceInteracted && !showSources && !showBranches) ? `1px solid ${T.brand}40` : inputSt.border,
+                    border: "none", background: "transparent",
                     }}
                   />
                   <div style={{position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", display:"flex", alignItems:"center", pointerEvents:"none"}}>
@@ -4639,6 +4661,20 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
                     {todayCount.total>=plan.daily && <div style={{color:T.red,marginTop:6,fontWeight:600, borderTop:`1px solid ${T.red}20`, paddingTop:6}}>⛔ Daily limit reached. Next recovery at {fmtTime(todayCount.nextResetTs)}.</div>}
                   </div>
 
+                  {todayCount.recentResets?.length > 0 && (
+                    <div style={{marginTop:20, borderTop:`1px solid ${T.border}`, paddingTop:16}}>
+                      <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.dim, fontWeight:800, letterSpacing:"0.1em", marginBottom:12}}>RECENTLY RECOVERED SLOTS</div>
+                      <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:8}}>
+                        {todayCount.recentResets.map((r, i) => (
+                          <div key={i} style={{background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:6, padding:"8px 10px", display:"flex", flexDirection:"column", gap:2, opacity: 0.7}}>
+                            <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.text, fontWeight:700}}>{fmtTime(r.ts)}</div>
+                            <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:T.brand, fontWeight:800}}>{r.ago.toUpperCase()}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {todayCount.upcomingResets?.length > 0 && (
                     <div style={{marginTop:20, borderTop:`1px solid ${T.border}`, paddingTop:16}}>
                       <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.dim, fontWeight:800, letterSpacing:"0.1em", marginBottom:12}}>UPCOMING SLOT RECOVERIES</div>
@@ -5138,6 +5174,7 @@ function JulesClient() {
     let resetIn = "24h 0m";
     let nextResetTs = null;
     const upcomingResets = [];
+    const recentResets = [];
 
     if (allKnown.length > 0) {
       nextResetTs = allKnown[0].ts + 24 * 3600000;
@@ -5156,10 +5193,22 @@ function JulesClient() {
       });
     }
 
+    // ── Find the last 2 resets that happened ───────────────────────────
+    const windowEnd = now - 24 * 3600000;
+    const recentlyDone = Object.entries(sessionRegistry)
+      .map(([id, time]) => ({ id, ts: new Date(time).getTime() }))
+      .filter(s => s.ts < windowEnd)
+      .sort((a, b) => b.ts - a.ts); // sort descending (newest reset first)
+
+    recentlyDone.slice(0, 2).forEach(s => {
+      const resetTs = s.ts + 24 * 3600000;
+      recentResets.push({ ts: resetTs, ago: fmtAgo(resetTs) });
+    });
+
     const windowIds = new Set(allKnown.map(s => s.id));
     const prCreated = sessions.filter(s => windowIds.has(s.id) && !!getPR(s)).length;
 
-    return { total: allKnown.length, done: prCreated, resetIn, nextResetTs, upcomingResets };
+    return { total: allKnown.length, done: prCreated, resetIn, nextResetTs, upcomingResets, recentResets };
   }, [sessions, sessionRegistry]);
   const lastFetchTime = useRef(null);
 
@@ -5701,6 +5750,14 @@ function Shell({ children, desktop=false }) {
           0% { opacity: 0.7; transform: translateY(4px); }
           50% { opacity: 1; transform: translateY(-2px); }
           100% { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes barShimmer {
+          0% { background-position: -200% 0; }
+          100% { background-position: 200% 0; }
+        }
+        @keyframes barIndeterminate {
+          0% { left: -35%; }
+          100% { left: 100%; }
         }
         @keyframes pulseRepo {
           0% { border-color: ${T.brand}40; box-shadow: 0 0 0 ${T.brand}00; }
