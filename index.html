@@ -3980,22 +3980,23 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
             <div style={{display:"flex", flexDirection:"column", gap:16, marginBottom:28}}>
               <div style={{
                 background:T.surfaceHi, borderRadius:10, padding:12,
-              border: (!sourceInteracted && !showSources && !showBranches) ? `1px solid ${T.brand}` : `1px solid ${T.border}`,
-              boxShadow: (!sourceInteracted && !showSources && !showBranches) ? `0 0 15px ${T.brand}40` : "none",
-              animation: (!sourceInteracted && !showSources && !showBranches) ? "pulseRepo 1s infinite ease-in-out" : "none",
+                border: `1px solid ${T.border}`,
                 transition: "all .2s"
               }}>
                 <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.brand, fontWeight:800, letterSpacing:"0.1em", marginBottom:6}}>TARGET REPOSITORY</div>
                 <div style={{position:"relative"}}>
                   <input
                     value={sourceSearch}
-                    onChange={e=>{setSourceSearch(e.target.value); setShowSources(true);}}
-                    onFocus={()=>setShowSources(true)}
+                    onChange={e=>{setSourceSearch(e.target.value); setShowSources(true); setSourceInteracted(true);}}
+                    onFocus={()=>{setShowSources(true); setSourceInteracted(true);}}
                     placeholder="Search repositories..."
                     style={{
                       ...inputSt,
                       paddingRight:36, fontSize:13, padding: "8px 10px",
-                    border: "none", background: "transparent",
+                      background: "transparent",
+                      border: (!sourceInteracted && !showSources && !showBranches) ? `1px solid ${T.brand}` : `1px solid ${T.border}`,
+                      boxShadow: (!sourceInteracted && !showSources && !showBranches) ? `0 0 15px ${T.brand}40` : "none",
+                      animation: (!sourceInteracted && !showSources && !showBranches) ? "pulseRepo 1s infinite ease-in-out" : "none",
                     }}
                   />
                   <div style={{position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", display:"flex", alignItems:"center", pointerEvents:"none"}}>
@@ -4439,6 +4440,102 @@ const NetworkMonitor = ({ onBack, isDesktop }) => {
   );
 };
 
+const QuotaTimeline = ({ todayCount, plan }) => {
+  const now = Date.now();
+  const windowStart = now - 24 * 3600000;
+  const windowEnd = now + 24 * 3600000;
+  const totalWidth = 24 * 2 * 3600000; // 48 hours total
+
+  const getPos = (ts) => ((ts - windowStart) / totalWidth) * 100;
+
+  const events = [
+    ...(todayCount.recentResets || []).map(r => ({ ts: r.ts, type: "recent" })),
+    ...(todayCount.upcomingResets || []).map(r => ({ ts: r.ts, type: "upcoming" })),
+  ].filter(e => e.ts >= windowStart && e.ts <= windowEnd);
+
+  return (
+    <div style={{ marginTop: 24, marginBottom: 24 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10, fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: T.dim, fontWeight: 800, letterSpacing: "0.05em" }}>
+        <span>-24H</span>
+        <span style={{ color: T.brand }}>NOW</span>
+        <span>+24H</span>
+      </div>
+
+      <div style={{ position: "relative", height: 40, display: "flex", alignItems: "center" }}>
+        {/* Track */}
+        <div style={{ position: "absolute", left: 0, right: 0, height: 2, background: T.border, borderRadius: 1 }} />
+        <div style={{ position: "absolute", left: 0, width: "50%", height: 2, background: `${T.brand}40`, borderRadius: 1 }} />
+
+        {/* Graduation Markers */}
+        {[0, 6, 12, 18, 24, 30, 36, 42, 48].map(h => (
+          <div key={h} style={{
+            position: "absolute", left: `${(h / 48) * 100}%`, top: "50%",
+            width: 1, height: h % 12 === 0 ? 8 : 4, background: T.border,
+            transform: "translateY(-50%)"
+          }} />
+        ))}
+
+        {/* Events */}
+        {events.map((e, i) => {
+          const pos = getPos(e.ts);
+          const color = e.type === "recent" ? T.brand : T.amber;
+          const isTop = i % 2 === 0;
+          return (
+            <div key={i} style={{
+              position: "absolute", left: `${pos}%`, top: "50%",
+              transform: "translate(-50%, -50%)",
+              display: "flex", flexDirection: "column", alignItems: "center",
+              zIndex: 2
+            }}>
+              <div style={{
+                width: 6, height: 6, borderRadius: "50%", background: color,
+                boxShadow: `0 0 8px ${color}80`, border: `1.5px solid ${T.bg}`
+              }} />
+              <div style={{
+                position: "absolute", [isTop ? "bottom" : "top"]: 10, whiteSpace: "nowrap",
+                fontFamily: "'JetBrains Mono',monospace", fontSize: 7, color: color, fontWeight: 800,
+                opacity: 0.8
+              }}>
+                {fmtTime(e.ts)}
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Current Time Marker */}
+        <div style={{
+          position: "absolute", left: "50%", top: "50%",
+          transform: "translate(-50%, -50%)", zIndex: 10,
+          display: "flex", flexDirection: "column", alignItems: "center"
+        }}>
+          <div style={{
+            width: 10, height: 10, borderRadius: "50%", background: T.brand,
+            boxShadow: `0 0 15px ${T.brand}`, animation: "dot 1.5s infinite",
+            border: `2px solid ${T.bg}`
+          }} />
+          <div style={{
+            position: "absolute", bottom: 12, whiteSpace: "nowrap",
+            fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: T.brand, fontWeight: 900
+          }}>
+            {fmtTime(now)}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ marginTop: 24, display: "flex", gap: 16, justifyContent: "center" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <div style={{ width: 6, height: 6, borderRadius: "50%", background: T.brand }} />
+          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: T.dim, fontWeight: 700 }}>RECOVERED</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <div style={{ width: 6, height: 6, borderRadius: "50%", background: T.amber }} />
+          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: T.dim, fontWeight: 700 }}>UPCOMING</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPollInterval, setActPollInterval, activePollInterval, setActivePollInterval, sessionLimit, setSessionLimit, activityLimit, setActivityLimit, cacheLimit, setCacheLimit, personas, setPersonas, planId, setPlanId, customDaily, setCustomDaily, plan, todayCount, notifications, setNotifications }) => {
   const [tab, setTab] = useState("general");
   const [hasSaved, setHasSaved] = useState(false);
@@ -4651,41 +4748,19 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
                   <div style={{marginTop:12,fontSize:11,color:T.textDim,fontFamily:"'IBM Plex Sans',sans-serif",lineHeight:1.6, opacity:0.8}}>
                     <div style={{marginBottom:6}}>
                       <div>{todayCount.done} Pull Requests created today</div>
-                      {todayCount.nextResetTs && (
-                        <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.amber, marginTop:4, fontWeight:700}}>
-                          NEXT SLOT RECOVERY: {fmtTime(todayCount.nextResetTs)} ({todayCount.resetIn})
-                        </div>
-                      )}
                     </div>
                     <div>{plan.model} · {plan.concurrent} concurrent max</div>
-                    {todayCount.total>=plan.daily && <div style={{color:T.red,marginTop:6,fontWeight:600, borderTop:`1px solid ${T.red}20`, paddingTop:6}}>⛔ Daily limit reached. Next recovery at {fmtTime(todayCount.nextResetTs)}.</div>}
                   </div>
 
-                  {todayCount.recentResets?.length > 0 && (
-                    <div style={{marginTop:20, borderTop:`1px solid ${T.border}`, paddingTop:16}}>
-                      <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.dim, fontWeight:800, letterSpacing:"0.1em", marginBottom:12}}>RECENTLY RECOVERED SLOTS</div>
-                      <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:8}}>
-                        {todayCount.recentResets.map((r, i) => (
-                          <div key={i} style={{background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:6, padding:"8px 10px", display:"flex", flexDirection:"column", gap:2, opacity: 0.7}}>
-                            <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.text, fontWeight:700}}>{fmtTime(r.ts)}</div>
-                            <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:T.brand, fontWeight:800}}>{r.ago.toUpperCase()}</div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                  <QuotaTimeline todayCount={todayCount} plan={plan} />
 
-                  {todayCount.upcomingResets?.length > 0 && (
-                    <div style={{marginTop:20, borderTop:`1px solid ${T.border}`, paddingTop:16}}>
-                      <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.dim, fontWeight:800, letterSpacing:"0.1em", marginBottom:12}}>UPCOMING SLOT RECOVERIES</div>
-                      <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:8}}>
-                        {todayCount.upcomingResets.map((r, i) => (
-                          <div key={i} style={{background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:6, padding:"8px 10px", display:"flex", flexDirection:"column", gap:2}}>
-                            <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.text, fontWeight:700}}>{fmtTime(r.ts)}</div>
-                            <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:T.amber, fontWeight:800}}>IN {r.in}</div>
-                          </div>
-                        ))}
+                  {todayCount.total>=plan.daily && (
+                    <div style={{background:T.redDim, border:`1px solid ${T.red}40`, borderRadius:8, padding:12, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:11, color:T.red, lineHeight:1.5, marginTop:16}}>
+                      <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:4}}>
+                        <span style={{fontSize:16}}>⛔</span>
+                        <strong style={{fontSize:10, letterSpacing:"0.05em"}}>DAILY LIMIT REACHED</strong>
                       </div>
+                      You have used all {plan.daily} sessions for today. The next slot will be recovered at {fmtTime(todayCount.nextResetTs)}.
                     </div>
                   )}
                 </div>
