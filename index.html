@@ -79,12 +79,20 @@
     }
 
     window.onerror = function(msg, url, lineNo, columnNo, error) {
-      handleBootError(msg + (lineNo ? ' (line ' + lineNo + ')' : ''), error);
+      const diag = [
+        msg,
+        url ? 'at ' + url : '',
+        lineNo ? 'line ' + lineNo : '',
+        columnNo ? 'col ' + columnNo : ''
+      ].filter(Boolean).join(' ');
+      handleBootError(diag, error);
       return false;
     };
 
     window.onunhandledrejection = function(event) {
-      handleBootError('Async error: ' + (event.reason?.message || event.reason || 'Unknown promise rejection'), event.reason);
+      const reason = event.reason;
+      const msg = reason?.message || reason?.toString() || 'Unknown promise rejection';
+      handleBootError('Async error: ' + msg, reason);
     };
 
     // ── PWA Bootstrap ──────────────────────────────────────────────────────────
@@ -144,7 +152,7 @@
       // is on a secure origin (https / localhost).
       if ("serviceWorker" in navigator && !window.__pwa.isFileProtocol) {
         const swSrc = [
-          'const C="jules-v4";',
+          'const C="jules-v5";',
           'const PRE=["https://unpkg.com/react@18/umd/react.production.min.js","https://unpkg.com/react-dom@18/umd/react-dom.production.min.js","https://unpkg.com/@babel/standalone/babel.min.js"];',
           'self.addEventListener("install",e=>{self.skipWaiting();e.waitUntil(caches.open(C).then(c=>c.addAll(PRE).catch(()=>{})));});',
           'self.addEventListener("activate",e=>e.waitUntil(clients.claim()));',
@@ -249,17 +257,26 @@
 
 <!-- Scripts deferred to end of body so splash paints first -->
 <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"
-  onload="__splashMsg('LOADING RENDERER…','react-dom · '+__splashElapsed(),28)"
-  onerror="__splashMsg('CDN ERROR','react failed to load — check connection',0)"></script>
+  onload="__splashMsg('LOADING RENDERER…','react-dom · '+__splashElapsed(),30)"
+  onerror="handleBootError('React failed to load', event)"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"
-  onload="__splashMsg('LOADING COMPILER…','babel standalone · '+__splashElapsed(),50)"
-  onerror="__splashMsg('CDN ERROR','react-dom failed to load',0)"></script>
+  onload="__splashMsg('WAITING FOR UI…','preparing environment · '+__splashElapsed(),60)"
+  onerror="handleBootError('React-DOM failed to load', event)"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"
-  onload="__splashMsg('COMPILING UI…','transforming jsx · '+__splashElapsed(),72)"
-  onerror="__splashMsg('CDN ERROR','babel failed to load',0)"></script>
+  onload="__splashMsg('COMPILING UI…','transforming jsx · '+__splashElapsed(),80)"
+  onerror="handleBootError('Babel failed to load', event)"></script>
 <script type="text/babel" data-presets="env,react">
 // Signal that Babel compilation is done and React is about to mount
-if (window.__splashMsg) __splashMsg("MOUNTING APP…", "building component tree · " + __splashElapsed(), 88);
+if (window.__splashMsg) __splashMsg("MOUNTING APP…", "building component tree · " + __splashElapsed(), 90);
+
+// Strict dependency check before proceeding
+(function checkDeps() {
+  const deps = { React: typeof React, ReactDOM: typeof ReactDOM };
+  console.log('[Boot] Checking dependencies:', deps);
+  if (deps.React === 'undefined' || deps.ReactDOM === 'undefined') {
+    throw new Error('Critical dependencies missing: ' + JSON.stringify(deps));
+  }
+})();
 
 const { useState, useEffect, useRef, useCallback, useMemo, memo } = React;
 

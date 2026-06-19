@@ -28,8 +28,8 @@ async function build() {
     // but mainly ensure we are not outputting imports/exports.
     const result = await babel.transformAsync(jsxCode, {
       presets: [
-        ['@babel/preset-env', { modules: 'cjs' }],
-        '@babel/preset-react'
+        ['@babel/preset-env', { modules: false }],
+        ['@babel/preset-react', { runtime: 'classic' }]
       ],
       compact: true,
       minified: true,
@@ -54,12 +54,12 @@ async function build() {
     // 5. Cleanup splash screen updates and references to Babel/JSX
     // Remove the onload/onerror handlers from the Babel script tag if they weren't caught by the regex above
     optimizedHtml = optimizedHtml.replace(/onload="__splashMsg\('COMPILING UI[^']*'\+__splashElapsed\(\),\d+\)"/g, '');
-    optimizedHtml = optimizedHtml.replace(/onerror="__splashMsg\('CDN ERROR','babel failed to load',0\)"/g, '');
+    optimizedHtml = optimizedHtml.replace(/onerror="handleBootError\('Babel failed to load', event\)"/g, '');
     optimizedHtml = optimizedHtml.replace(/onload="__splashMsg\('LOADING COMPILER[^']*'\+__splashElapsed\(\),\d+\)"/g, '');
 
     // Remove specific mounting message that references Babel elapsed time
     optimizedHtml = optimizedHtml.replace(
-      /if \(window\.__splashMsg\) __splashMsg\("MOUNTING APP[^"]*", "building component tree [^"]*" \+ __splashElapsed\(\), 88\);/,
+      /if \(window\.__splashMsg\) __splashMsg\("MOUNTING APP[^"]*", "building component tree · " \+ __splashElapsed\(\), \d+\);/,
       ''
     );
 
@@ -69,13 +69,17 @@ async function build() {
       ''
     );
     // Increment cache version to force update
-    optimizedHtml = optimizedHtml.replace(/const C="jules-v\d+";/, 'const C="jules-v4";');
+    optimizedHtml = optimizedHtml.replace(/const C="jules-v\d+";/, 'const C="jules-v5";');
 
     // 7. Adjust splash screen percentages for faster visual feedback in production
-    // Since we skipped Babel loading (28% -> 50% -> 72%), we re-map the remaining steps
+    // Since we skipped Babel loading, we re-map the remaining steps
     optimizedHtml = optimizedHtml.replace(
-      /onload="__splashMsg\('LOADING RENDERER[^']*'\+__splashElapsed\(\),28\)"/,
+      /onload="__splashMsg\('LOADING RENDERER[^']*'\+__splashElapsed\(\),30\)"/,
       `onload="__splashMsg('LOADING RENDERER…','react-dom · '+__splashElapsed(),60)"`
+    );
+    optimizedHtml = optimizedHtml.replace(
+      /onload="__splashMsg\('WAITING FOR UI[^']*'\+__splashElapsed\(\),60\)"/,
+      `onload="__splashMsg('MOUNTING APP…','building component tree · '+__splashElapsed(),90)"`
     );
 
     // 8. Final polish: Remove whitespace and comments from the HTML (optional but good)
