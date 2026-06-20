@@ -2598,6 +2598,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   const [err,setErr]             = useState(null);
   const [activeMedia,setActiveMedia] = useState(null);
   const [scrolled, handleScrollBase] = useScrollThreshold(10);
+  const [headerExpanded, setHeaderExpanded] = useState(true);
   const [composerVisible, setComposerVisible] = useState(true);
   const [expanded, setExpanded] = useState(false);
   const [showScroll, setShowScroll] = useState(false);
@@ -2619,16 +2620,23 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     }
 
     // Smart visibility logic:
-    // 1. Always show if near bottom (within 80px - more strict for stability)
+    // 1. Always show if near bottom (within 80px)
     // 2. Hide if scrolling down deep (> 300px)
     // 3. Show if scrolling up
     if (h - y - vh < 80) {
       setComposerVisible(true);
+      setHeaderExpanded(true);
     } else if (y > 300) {
-      if (scrollDir.current === 1) setComposerVisible(false);
-      else if (scrollDir.current === -1) setComposerVisible(true);
+      if (scrollDir.current === 1) {
+        setComposerVisible(false);
+        setHeaderExpanded(false);
+      } else if (scrollDir.current === -1) {
+        setComposerVisible(true);
+        setHeaderExpanded(true);
+      }
     } else {
       setComposerVisible(true);
+      setHeaderExpanded(true);
     }
 
     const canScroll = h - vh > 200;
@@ -3105,7 +3113,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                 }}>UPDATED</div>
               )}
             </div>
-            <Pill status={currentState} small hideLabel={scrolled}/>
+            <Pill status={currentState} small hideLabel={!headerExpanded && scrolled}/>
 
             {/* Desktop-only side buttons in Row 1 */}
             {isDesktop && (
@@ -3129,18 +3137,18 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
           </div>
         </div>
 
-        {/* Row 2: Secondary Metadata & Actions (Hidden when scrolled on mobile) */}
+        {/* Row 2: Secondary Metadata & Actions (Hidden when scrolled on mobile, expanded on scroll up) */}
         <div style={{
-          height: scrolled ? 0 : 22,
-          maxHeight: scrolled ? 0 : 40,
-          opacity: scrolled ? 0 : 1,
+          height: headerExpanded ? 22 : 0,
+          maxHeight: headerExpanded ? 40 : 0,
+          opacity: headerExpanded ? 1 : 0,
           overflow: "hidden",
           display: "flex",
           alignItems: "center",
           gap: 8,
-          marginBottom: scrolled ? 0 : 8,
+          marginBottom: headerExpanded ? 8 : 0,
           transition: "all .2s ease, height .2s ease",
-          pointerEvents: scrolled ? "none" : "auto",
+          pointerEvents: headerExpanded ? "auto" : "none",
           contain: "size layout",
         }}>
           <div style={{display:"flex", alignItems:"center", gap:8, overflowX:"auto", scrollbarWidth:"none", WebkitOverflowScrolling:"touch", width:"100%"}}>
@@ -4526,7 +4534,10 @@ const QuotaTimeline = ({ todayCount, plan }) => {
         {events.map((e, i) => {
           const pos = getPos(e.ts);
           const color = e.type === "recent" ? T.brand : T.amber;
-          const isTop = i % 2 === 0;
+          // Hierarchy: use alternating positions AND different vertical offsets to prevent overlap
+          const verticalOffset = (i % 2 === 0) ? 14 : -14;
+          const labelDir = verticalOffset > 0 ? "top" : "bottom";
+
           return (
             <div key={i} style={{
               position: "absolute", left: `${pos}%`, top: "50%",
@@ -4535,13 +4546,16 @@ const QuotaTimeline = ({ todayCount, plan }) => {
               zIndex: 2
             }}>
               <div style={{
-                width: 6, height: 6, borderRadius: "50%", background: color,
-                boxShadow: `0 0 8px ${color}80`, border: `1.5px solid ${T.bg}`
+                width: 5, height: 5, borderRadius: "50%", background: color,
+                boxShadow: `0 0 8px ${color}80`, border: `1px solid ${T.bg}`
               }} />
               <div style={{
-                position: "absolute", [isTop ? "bottom" : "top"]: 12, whiteSpace: "nowrap",
-                fontFamily: "'JetBrains Mono',monospace", fontSize: 7, color: color, fontWeight: 800,
-                opacity: 0.9, letterSpacing: "0.02em"
+                position: "absolute", [labelDir]: verticalOffset > 0 ? verticalOffset : -verticalOffset,
+                whiteSpace: "nowrap",
+                fontFamily: "'JetBrains Mono',monospace", fontSize: 6.5, color: color, fontWeight: 800,
+                opacity: 0.9, letterSpacing: "0.01em",
+                background: T.bg, padding: "1px 3px", borderRadius: 3,
+                boxShadow: `0 0 4px ${T.bg}`
               }}>
                 {fmtTime(e.ts)}
               </div>
@@ -4561,8 +4575,9 @@ const QuotaTimeline = ({ todayCount, plan }) => {
             border: `2px solid ${T.bg}`
           }} />
           <div style={{
-            position: "absolute", bottom: 12, whiteSpace: "nowrap",
-            fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: T.brand, fontWeight: 900
+            position: "absolute", bottom: 16, whiteSpace: "nowrap",
+            fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: T.brand, fontWeight: 900,
+            background: T.bg, padding: "2px 5px", borderRadius: 4, border: `1px solid ${T.brand}40`
           }}>
             {fmtTime(now)}
           </div>
