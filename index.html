@@ -134,7 +134,7 @@
         start_url: fullBase,
         scope: base,
         display:"standalone", background_color:"#07090c", theme_color:"#0891b2",
-        orientation: "landscape",
+        orientation: "any",
         categories:["developer","productivity"],
         icons:[ mkIcon(192,24), mkIcon(512,64) ],
       };
@@ -5958,23 +5958,22 @@ function Shell({ children, desktop=false }) {
         }
         ::selection{background:${T.brandDim};color:${T.brand};}
         textarea::placeholder,input::placeholder{color:${T.muted};}
-        @media screen and (max-width: 1366px) and (orientation: portrait) {
-          body {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-          }
+        @media screen and (min-width: 768px) and (max-width: 1366px) and (orientation: portrait) {
+          body { display: flex; align-items: center; justify-content: center; text-align: center; }
           body > #root { display: none; }
           body::after {
-            content: "PLEASE ROTATE YOUR DEVICE TO LANDSCAPE MODE";
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 14px;
-            font-weight: 700;
-            color: ${T.brand};
-            padding: 40px;
-            letter-spacing: 0.1em;
-            line-height: 1.6;
+            content: "PLEASE ROTATE YOUR TABLET TO LANDSCAPE MODE";
+            font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 700; color: ${T.brand};
+            padding: 40px; letter-spacing: 0.1em; line-height: 1.6;
+          }
+        }
+        @media screen and (max-width: 767px) and (orientation: landscape) {
+          body { display: flex; align-items: center; justify-content: center; text-align: center; }
+          body > #root { display: none; }
+          body::after {
+            content: "PLEASE ROTATE YOUR PHONE TO PORTRAIT MODE";
+            font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 700; color: ${T.brand};
+            padding: 40px; letter-spacing: 0.1em; line-height: 1.6;
           }
         }
       `}</style>
