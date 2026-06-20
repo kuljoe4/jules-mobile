@@ -134,7 +134,7 @@
         start_url: fullBase,
         scope: base,
         display:"standalone", background_color:"#07090c", theme_color:"#0891b2",
-        orientation: isMobile ? "portrait" : "natural",
+        orientation: "landscape",
         categories:["developer","productivity"],
         icons:[ mkIcon(192,24), mkIcon(512,64) ],
       };
@@ -2781,14 +2781,18 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     loadSession();
   }, []); // intentional: component is keyed by session.id
 
-  const countdown = useAutoPoll(pollInterval, useCallback(() => Promise.all([loadSession(), loadActivities(lastTsRef.current)]), [loadSession, loadActivities]));
-
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     const len = activities.length;
     if (len > prevLenRef.current && tab === "activity" && feedEndRef.current) {
-      feedEndRef.current.scrollIntoView({ behavior: len - prevLenRef.current > 8 ? "instant" : "smooth" });
+      const el = contentRef.current;
+      const isNearBottom = el ? (el.scrollHeight - el.scrollTop - el.offsetHeight < 150) : false;
+
+      if (userSentRef.current || isNearBottom) {
+        feedEndRef.current.scrollIntoView({ behavior: len - prevLenRef.current > 8 ? "instant" : "smooth" });
+      }
     }
+    userSentRef.current = false;
     prevLenRef.current = len;
   }, [activities, tab]);
 
@@ -2818,9 +2822,12 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     return () => clearTimeout(draftRef.current);
   }, [msg, session.id]);
 
+  const userSentRef = useRef(false);
+
   // ── Actions ─────────────────────────────────────────────────────────────────
   const handleSend = async () => {
     if (!msg.trim() || busy) return;
+    userSentRef.current = true;
     let text = msg.trim();
     if (selectedPersonas.size > 0) {
       const personaPrompts = Array.from(selectedPersonas)
@@ -2960,13 +2967,16 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   const summary = session.outputs?.find(o=>o.sessionSummary)?.sessionSummary;
   const pri = useMemo(() => getPRInfo(session, activities), [session, activities]);
   const pr = pri;
-  const isActuallyDone = activities.some(a => a.sessionCompleted);
+  const isActuallyDone = activities.length > 0 && activities[activities.length - 1].sessionCompleted;
   const currentState = isActuallyDone ? "COMPLETED" : session.state;
   const isFinished = currentState === "COMPLETED" || currentState === "FAILED";
   const m       = STATUS_META[currentState] || STATUS_META.QUEUED;
   const repo    = session.sourceContext?.source?.replace("sources/github/","");
   const pct     = pctFromState(currentState);
   const canSend = true; // Always allow follow-up messages
+
+  const effectiveInterval = (isFinished && !busy) ? 0 : pollInterval;
+  const countdown = useAutoPoll(effectiveInterval, useCallback(() => Promise.all([loadSession(), loadActivities(lastTsRef.current)]), [loadSession, loadActivities]));
 
   const latestPlan = useMemo(() => {
     for (let i = activities.length - 1; i >= 0; i--) {
@@ -3456,6 +3466,42 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                   }}
                 />
             }
+            <div style={{
+              marginTop: 16, marginBottom: 8, display: "flex", alignItems: "center", justifyContent: "center",
+              gap: 8, fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: T.muted,
+              opacity: 0.8, animation: "fadeIn .3s ease"
+            }}>
+              {pollInterval > 0 && !isFinished ? (
+                <>
+                  <div style={{ position: "relative", width: 14, height: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <svg width="14" height="14" viewBox="0 0 14 14" style={{ transform: "rotate(-90deg)" }}>
+                      <circle cx="7" cy="7" r="5.5" fill="none" stroke={T.border} strokeWidth="1.5" />
+                      <circle cx="7" cy="7" r="5.5" fill="none" stroke={T.brand} strokeWidth="1.5"
+                        strokeDasharray={2 * Math.PI * 5.5}
+                        strokeDashoffset={2 * Math.PI * 5.5 * (1 - (countdown / (pollInterval / 1000)))}
+                        style={{ transition: "stroke-dashoffset 1s linear" }}
+                      />
+                    </svg>
+                    <div style={{
+                      position: "absolute", width: 4, height: 4, borderRadius: "50%", background: T.brand,
+                      animation: countdown <= 3 ? "pulse 1s infinite" : "none", opacity: countdown <= 3 ? 1 : 0.5
+                    }} />
+                  </div>
+                  <span style={{
+                    color: countdown <= 3 ? T.brand : T.muted,
+                    fontWeight: countdown <= 3 ? 700 : 400,
+                    transition: "color .3s"
+                  }}>
+                    REFRESH IN {countdown}S
+                  </span>
+                </>
+              ) : (
+                <>
+                  <Ic n="refresh" s={12} c={T.muted} style={{ opacity: 0.5 }} />
+                  <span>{isFinished ? "SESSION COMPLETED" : "AUTO-REFRESH OFF"}</span>
+                </>
+              )}
+            </div>
           </>
         )}
         {tab==="reviews" && (
@@ -4442,23 +4488,24 @@ const NetworkMonitor = ({ onBack, isDesktop }) => {
 
 const QuotaTimeline = ({ todayCount, plan }) => {
   const now = Date.now();
-  const windowStart = now - 24 * 3600000;
-  const windowEnd = now + 24 * 3600000;
-  const totalWidth = 24 * 2 * 3600000; // 48 hours total
+  const windowStart = now - 6 * 3600000;
+  const windowEnd = now + 6 * 3600000;
+  const totalWidth = 12 * 3600000; // 12 hours total (6h past, 6h future) for maximum zoom
 
   const getPos = (ts) => ((ts - windowStart) / totalWidth) * 100;
 
   const events = [
     ...(todayCount.recentResets || []).map(r => ({ ts: r.ts, type: "recent" })),
     ...(todayCount.upcomingResets || []).map(r => ({ ts: r.ts, type: "upcoming" })),
-  ].filter(e => e.ts >= windowStart && e.ts <= windowEnd);
+  ].filter(e => e.ts >= windowStart && e.ts <= windowEnd)
+   .sort((a, b) => a.ts - b.ts);
 
   return (
     <div style={{ marginTop: 24, marginBottom: 24 }}>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10, fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: T.dim, fontWeight: 800, letterSpacing: "0.05em" }}>
-        <span>-24H</span>
+        <span>-6H</span>
         <span style={{ color: T.brand }}>NOW</span>
-        <span>+24H</span>
+        <span>+6H</span>
       </div>
 
       <div style={{ position: "relative", height: 40, display: "flex", alignItems: "center" }}>
@@ -4467,10 +4514,10 @@ const QuotaTimeline = ({ todayCount, plan }) => {
         <div style={{ position: "absolute", left: 0, width: "50%", height: 2, background: `${T.brand}40`, borderRadius: 1 }} />
 
         {/* Graduation Markers */}
-        {[0, 6, 12, 18, 24, 30, 36, 42, 48].map(h => (
+        {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(h => (
           <div key={h} style={{
-            position: "absolute", left: `${(h / 48) * 100}%`, top: "50%",
-            width: 1, height: h % 12 === 0 ? 8 : 4, background: T.border,
+            position: "absolute", left: `${(h / 12) * 100}%`, top: "50%",
+            width: 1, height: h % 3 === 0 ? 8 : 4, background: T.border,
             transform: "translateY(-50%)"
           }} />
         ))}
@@ -4492,9 +4539,9 @@ const QuotaTimeline = ({ todayCount, plan }) => {
                 boxShadow: `0 0 8px ${color}80`, border: `1.5px solid ${T.bg}`
               }} />
               <div style={{
-                position: "absolute", [isTop ? "bottom" : "top"]: 10, whiteSpace: "nowrap",
+                position: "absolute", [isTop ? "bottom" : "top"]: 12, whiteSpace: "nowrap",
                 fontFamily: "'JetBrains Mono',monospace", fontSize: 7, color: color, fontWeight: 800,
-                opacity: 0.8
+                opacity: 0.9, letterSpacing: "0.02em"
               }}>
                 {fmtTime(e.ts)}
               </div>
@@ -5852,7 +5899,7 @@ function Shell({ children, desktop=false }) {
         }
         ::selection{background:${T.brandDim};color:${T.brand};}
         textarea::placeholder,input::placeholder{color:${T.muted};}
-        @media screen and (max-width: 767px) and (orientation: landscape) {
+        @media screen and (max-width: 1366px) and (orientation: portrait) {
           body {
             display: flex;
             align-items: center;
@@ -5861,7 +5908,7 @@ function Shell({ children, desktop=false }) {
           }
           body > #root { display: none; }
           body::after {
-            content: "PLEASE ROTATE YOUR DEVICE TO PORTRAIT MODE";
+            content: "PLEASE ROTATE YOUR DEVICE TO LANDSCAPE MODE";
             font-family: 'JetBrains Mono', monospace;
             font-size: 14px;
             font-weight: 700;
