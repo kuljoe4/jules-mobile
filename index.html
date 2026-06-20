@@ -870,6 +870,13 @@ const getAheadCount = (activities = []) => {
   return Math.max(count, pushHashes.size);
 };
 
+const fmtDuration = ms => {
+  const d = Math.abs(ms);
+  if (d < 60000) return `${Math.floor(d / 1000)}s`;
+  if (d < 3600000) return `${Math.floor(d / 60000)}m`;
+  if (d < 86400000) return `${Math.floor(d / 3600000)}h ${Math.floor((d % 3600000) / 60000)}m`;
+  return `${Math.floor(d / 86400000)}d`;
+};
 const fmtAgo = ts => { const d=Date.now()-ts; if(d<60000)return`${Math.floor(d/1000)}s ago`; if(d<3600000)return`${Math.floor(d/60000)}m ago`; if(d<86400000)return`${Math.floor(d/3600000)}h ago`; return`${Math.floor(d/86400000)}d ago`; };
 const fmtTime = ts => new Date(ts).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
 const pctFromState = s => ({QUEUED:5,PLANNING:20,AWAITING_PLAN_APPROVAL:35,IN_PROGRESS:65,AWAITING_USER_FEEDBACK:60,COMPLETED:100,FAILED:30,PAUSED:50}[s]||0);
@@ -4495,10 +4502,15 @@ const NetworkMonitor = ({ onBack, isDesktop }) => {
 };
 
 const QuotaTimeline = ({ todayCount, plan }) => {
-  const now = Date.now();
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const i = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(i);
+  }, []);
+
   const windowStart = now - 6 * 3600000;
   const windowEnd = now + 6 * 3600000;
-  const totalWidth = 12 * 3600000; // 12 hours total (6h past, 6h future) for maximum zoom
+  const totalWidth = 12 * 3600000;
 
   const getPos = (ts) => ((ts - windowStart) / totalWidth) * 100;
 
@@ -4508,54 +4520,66 @@ const QuotaTimeline = ({ todayCount, plan }) => {
   ].filter(e => e.ts >= windowStart && e.ts <= windowEnd)
    .sort((a, b) => a.ts - b.ts);
 
+  // Smart Collision Avoidance
+  const labelSlots = events.map(e => ({ ...e, pos: getPos(e.ts) }));
+  labelSlots.forEach((e, i) => {
+    const isNearNow = Math.abs(e.pos - 50) < 12;
+    const prev = labelSlots[i-1];
+    let v = isNearNow ? 20 : (i % 2 === 0 ? -18 : 18);
+    if (prev && Math.abs(e.pos - prev.pos) < 15) {
+      if (Math.abs(v - prev.vOffset) < 5) {
+        if (isNearNow) v = 38; // Stack downwards to avoid NOW label
+        else v = -v; // Flip
+      }
+    }
+    e.vOffset = v;
+  });
+
   return (
     <div style={{ marginTop: 24, marginBottom: 24 }}>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10, fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: T.dim, fontWeight: 800, letterSpacing: "0.05em" }}>
         <span>-6H</span>
-        <span style={{ color: T.brand }}>NOW</span>
+        <span style={{ color: T.brand, opacity: 0.8 }}>NOW</span>
         <span>+6H</span>
       </div>
 
-      <div style={{ position: "relative", height: 40, display: "flex", alignItems: "center" }}>
+      <div style={{ position: "relative", height: 60, display: "flex", alignItems: "center" }}>
         {/* Track */}
         <div style={{ position: "absolute", left: 0, right: 0, height: 2, background: T.border, borderRadius: 1 }} />
-        <div style={{ position: "absolute", left: 0, width: "50%", height: 2, background: `${T.brand}40`, borderRadius: 1 }} />
+        <div style={{ position: "absolute", left: 0, width: "50%", height: 2, background: `linear-gradient(to right, transparent, ${T.brand}40)`, borderRadius: 1 }} />
 
         {/* Graduation Markers */}
         {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(h => (
           <div key={h} style={{
             position: "absolute", left: `${(h / 12) * 100}%`, top: "50%",
             width: 1, height: h % 3 === 0 ? 8 : 4, background: T.border,
-            transform: "translateY(-50%)"
+            transform: "translateY(-50%)", opacity: 0.5
           }} />
         ))}
 
         {/* Events */}
-        {events.map((e, i) => {
-          const pos = getPos(e.ts);
+        {labelSlots.map((e, i) => {
           const color = e.type === "recent" ? T.brand : T.amber;
-          // Hierarchy: use alternating positions AND different vertical offsets to prevent overlap
-          const verticalOffset = (i % 2 === 0) ? 14 : -14;
-          const labelDir = verticalOffset > 0 ? "top" : "bottom";
+          const labelDir = e.vOffset > 0 ? "top" : "bottom";
 
           return (
             <div key={i} style={{
-              position: "absolute", left: `${pos}%`, top: "50%",
+              position: "absolute", left: `${e.pos}%`, top: "50%",
               transform: "translate(-50%, -50%)",
               display: "flex", flexDirection: "column", alignItems: "center",
-              zIndex: 2
+              zIndex: 2, transition: "all 0.3s ease-out"
             }}>
               <div style={{
-                width: 5, height: 5, borderRadius: "50%", background: color,
-                boxShadow: `0 0 8px ${color}80`, border: `1px solid ${T.bg}`
+                width: 6, height: 6, borderRadius: "50%", background: color,
+                boxShadow: `0 0 10px ${color}80`, border: `1.5px solid ${T.bg}`
               }} />
               <div style={{
-                position: "absolute", [labelDir]: verticalOffset > 0 ? verticalOffset : -verticalOffset,
+                position: "absolute", [labelDir]: Math.abs(e.vOffset),
                 whiteSpace: "nowrap",
-                fontFamily: "'JetBrains Mono',monospace", fontSize: 6.5, color: color, fontWeight: 800,
-                opacity: 0.9, letterSpacing: "0.01em",
-                background: T.bg, padding: "1px 3px", borderRadius: 3,
-                boxShadow: `0 0 4px ${T.bg}`
+                fontFamily: "'JetBrains Mono',monospace", fontSize: 7, color: color, fontWeight: 800,
+                opacity: 0.95, letterSpacing: "0.02em",
+                background: T.bg, padding: "2px 4px", borderRadius: 3,
+                boxShadow: `0 0 6px ${T.bg}`, border: `1px solid ${color}30`
               }}>
                 {fmtTime(e.ts)}
               </div>
@@ -4570,14 +4594,15 @@ const QuotaTimeline = ({ todayCount, plan }) => {
           display: "flex", flexDirection: "column", alignItems: "center"
         }}>
           <div style={{
-            width: 10, height: 10, borderRadius: "50%", background: T.brand,
-            boxShadow: `0 0 15px ${T.brand}`, animation: "dot 1.5s infinite",
-            border: `2px solid ${T.bg}`
-          }} />
+            width: 12, height: 12, borderRadius: "50%", background: T.brand,
+            boxShadow: `0 0 20px ${T.brand}`, animation: "dot 1.5s infinite",
+            border: `2px solid ${T.bg}`, cursor: "help"
+          }} title="Current Time" />
           <div style={{
-            position: "absolute", bottom: 16, whiteSpace: "nowrap",
+            position: "absolute", bottom: 18, whiteSpace: "nowrap",
             fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: T.brand, fontWeight: 900,
-            background: T.bg, padding: "2px 5px", borderRadius: 4, border: `1px solid ${T.brand}40`
+            background: T.bg, padding: "2px 6px", borderRadius: 4, border: `1px solid ${T.brand}`,
+            boxShadow: `0 0 10px ${T.brand}30`
           }}>
             {fmtTime(now)}
           </div>
@@ -4594,6 +4619,11 @@ const QuotaTimeline = ({ todayCount, plan }) => {
           <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: T.dim, fontWeight: 700 }}>UPCOMING</span>
         </div>
       </div>
+      {todayCount.upcomingResets?.length > 0 && (
+        <div style={{ marginTop: 16, textAlign: "center", fontFamily: "'JetBrains Mono',monospace", fontSize: 8, color: T.amber, fontWeight: 700, letterSpacing: "0.03em", opacity: 0.8 }}>
+          NEXT RECOVERY IN {fmtDuration(todayCount.upcomingResets[0].ts - now).toUpperCase()}
+        </div>
+      )}
     </div>
   );
 };
@@ -5291,8 +5321,19 @@ function JulesClient() {
   const [notifications, setNotificationsRaw] = useState(loadNotify);
 
   const [sessionRegistry, setSessionRegistry] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("jac_session_registry") || "{}"); }
-    catch { return {}; }
+    try {
+      const reg = JSON.parse(localStorage.getItem("jac_session_registry") || "{}");
+      // Prune old entries on load (older than 48h)
+      const now = Date.now();
+      const cutoff = now - 48 * 3600000;
+      let changed = false;
+      const pruned = {};
+      Object.entries(reg).forEach(([id, time]) => {
+        if (new Date(time).getTime() > cutoff) pruned[id] = time;
+        else changed = true;
+      });
+      return pruned;
+    } catch { return {}; }
   });
 
   const [planId,setPlanIdRaw]      = useState(loadPlan);
@@ -5344,6 +5385,9 @@ function JulesClient() {
 
     const windowIds = new Set(allKnown.map(s => s.id));
     const prCreated = sessions.filter(s => windowIds.has(s.id) && !!getPR(s)).length;
+
+    // Sort upcoming by ts
+    upcomingResets.sort((a, b) => a.ts - b.ts);
 
     return { total: allKnown.length, done: prCreated, resetIn, nextResetTs, upcomingResets, recentResets };
   }, [sessions, sessionRegistry]);
