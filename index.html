@@ -3817,6 +3817,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
 const NS_KEY = "jac_ns_draft";
 const REPO_STATS_KEY = "jac_repo_stats";
 const LAST_SOURCE_KEY = "jac_last_source";
+const LAST_BRANCHES_KEY = "jac_last_branches";
 const ACT_MAP_KEY = "jac_act_map";
 const ACT_STATS_KEY = "jac_act_stats";
 const SESSION_CACHE_KEY = "jac_session_cache";
@@ -3858,6 +3859,18 @@ function loadLastSource() {
 }
 function saveLastSource(name) {
   try { localStorage.setItem(LAST_SOURCE_KEY, name || ""); } catch {}
+}
+function loadLastBranch(source) {
+  if (!source) return null;
+  try { return JSON.parse(localStorage.getItem(LAST_BRANCHES_KEY) || "{}")[source]; } catch { return null; }
+}
+function saveLastBranch(source, branch) {
+  if (!source || !branch) return;
+  try {
+    const data = JSON.parse(localStorage.getItem(LAST_BRANCHES_KEY) || "{}");
+    data[source] = branch;
+    localStorage.setItem(LAST_BRANCHES_KEY, JSON.stringify(data));
+  } catch {}
 }
 function saveDraft(d) {
   try { localStorage.setItem(NS_KEY, JSON.stringify(d)); } catch {}
@@ -3923,7 +3936,10 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
     const def  = repo.defaultBranch?.displayName || bs[0] || "main";
     setBranches(bs);
     setDefault(def);
-    if (!draft?.branch || draft?.source !== source) setBranch(def);
+    if (!draft?.branch || draft?.source !== source) {
+      const last = loadLastBranch(source);
+      setBranch(last || def);
+    }
   }, [srcObj, source]);
 
   const filteredBranches = useMemo(() => {
@@ -4004,6 +4020,7 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
       if (source) {
         incRepoStat(source);
         saveLastSource(source);
+        saveLastBranch(source, branch);
       }
       onCreate(d);
     } catch (err) { setErr(err.message); setSub(false); }
