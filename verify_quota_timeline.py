@@ -12,17 +12,35 @@ async def run():
         file_path = "file://" + os.path.abspath("dist/index.html")
         await page.goto(file_path)
 
+        # Inject fake API key and some session data to trigger quota
+        await page.evaluate("""() => {
+            localStorage.setItem('jac_key', 'AIza_fake_key');
+            const now = new Date().toISOString();
+            const reg = {
+                'sess1': now,
+                'sess2': new Date(Date.now() - 1000 * 60 * 30).toISOString(),
+                'sess3': new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
+                'sess4': new Date(Date.now() - 1000 * 60 * 60 * 2.1).toISOString()
+            };
+            localStorage.setItem('jac_session_registry', JSON.stringify(reg));
+        }""")
+
+        await page.reload()
+
         # Wait for splash to disappear
         await page.wait_for_selector("#splash", state="hidden")
 
-        # Click Settings button
-        await page.get_by_role("button", name="Settings", exact=True).click()
+        # Click Settings button in bottom nav
+        await page.click("text=SETTINGS")
 
         # Wait for Quota Section
         await page.wait_for_selector("text=QUOTA USAGE")
 
+        # Give it a second to render markers
+        await page.wait_for_timeout(1000)
+
         # Take screenshot of the timeline
-        await page.screenshot(path="verification/screenshots/quota_timeline_final.png", full_page=True)
+        await page.screenshot(path="verification/screenshots/quota_timeline_final.png")
 
         await browser.close()
 
