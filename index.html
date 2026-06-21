@@ -1062,7 +1062,10 @@ const Pill = ({status,small=false,hideLabel=false}) => {
     }}>
       {m.pulse && status !== "COMPLETED" && <span style={{width:4,height:4,borderRadius:"50%",background:pulseColor,animation:"dot 1.2s ease-in-out infinite",flexShrink:0}}/>}
       {hideLabel ? (
-        <div style={{ display: "flex", animation: status === "IN_PROGRESS" ? "spin 2s linear infinite" : "none" }}>
+        <div style={{
+          display: "flex",
+          animation: status === "IN_PROGRESS" ? "spin 2s linear infinite, dot 1.5s ease-in-out infinite" : (m.pulse ? "dot 1.5s ease-in-out infinite" : "none")
+        }}>
           <Ic n={m.icon} s={11} c={m.color}/>
         </div>
       ) : m.label}
@@ -2444,7 +2447,7 @@ const SetupScreen = ({ onSave }) => {
 };
 
 // ─── Session Card ─────────────────────────────────────────────────────────────
-const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], stats, lastReadTs }) => {
+const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], stats, lastReadTs, justUpdated }) => {
   const cardRef = useRef(null);
 
   useEffect(() => {
@@ -2493,7 +2496,7 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], stat
     ? `${T.brand}20`
     : isUnread ? `${T.indigo}0a` : isWorking ? `${T.blue}06` : T.surface;
 
-  const borderColor = isSelected ? `${T.brand}30` : isUnread ? `${T.indigo}20` : isWorking ? `${T.blue}20` : `${T.border}66`;
+  const borderColor = isSelected ? `${T.brand}30` : (justUpdated === 'status' ? m.color : (isUnread ? `${T.indigo}20` : (isWorking ? `${T.blue}20` : `${T.border}66`)));
 
   return (
     <button ref={cardRef} onClick={onPress}
@@ -2508,6 +2511,8 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], stat
         outline:"none",
         boxShadow: "none",
         zIndex: isSelected ? 2 : 1,
+        animation: justUpdated === 'new' ? 'newEntry 0.4s ease-out' : (justUpdated === 'status' ? 'statusPulse 2s infinite' : 'none'),
+        '--pulse-color': `${m.color}40`,
       }}
       onFocus={e => e.currentTarget.style.borderColor = T.brand}
       onBlur={e => e.currentTarget.style.borderColor = borderColor}
@@ -2517,9 +2522,16 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], stat
         <div
           title={m.label}
           aria-label={`Status: ${m.label}`}
-          style={{display:"flex",alignItems:"center",justifyContent:"center",width:18,height:18,background:"transparent",flexShrink:0}}
+          style={{
+            display:"flex",alignItems:"center",justifyContent:"center",width:18,height:18,
+            background: justUpdated === 'status' ? m.bg : (m.pulse ? `${m.color}10` : "transparent"),
+            borderRadius: 4, flexShrink:0, transition: "background .3s"
+          }}
         >
-          <div style={{ display: "flex", animation: currentState === "IN_PROGRESS" ? "spin 3s linear infinite" : "none" }}>
+          <div style={{
+            display: "flex",
+            animation: currentState === "IN_PROGRESS" ? "spin 3s linear infinite, dot 1.5s ease-in-out infinite" : (m.pulse ? "dot 1.5s ease-in-out infinite" : "none")
+          }}>
             <Ic n={m.icon} s={11} c={m.color}/>
           </div>
         </div>
@@ -2878,6 +2890,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     setActivities(prev => [...prev, tempAct]);
 
     try {
+      // Proactive
+      setTimeout(() => { loadActivities(); loadSession(); }, 1500);
       await apiCall(apiKey, `/sessions/${session.id}:sendMessage`, {
         method:"POST",
         body:{
@@ -2889,7 +2903,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
       try { localStorage.removeItem(`jac_draft_${session.id}`); } catch {}
       // Remove temp, fetch real activities
       actMapRef.current.delete(tempKey);
-      setTimeout(() => { loadActivities(); loadSession(); }, 1200);
+      setTimeout(() => { loadActivities(); loadSession(); }, 2500);
     } catch (err) {
       setErr(err.message);
       setMsg(text);
@@ -2901,8 +2915,11 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   const handleApprove = async () => {
     setBusy(true); setErr(null);
     try {
+      // Proactive
+      setTimeout(() => { loadSession(); loadActivities(); }, 1500);
       await apiCall(apiKey, `/sessions/${session.id}:approvePlan`, { method:"POST", body:{}, _label:`Approve ${session.id?.slice(0,6)}` });
-      await loadSession(); await loadActivities(lastTsRef.current);
+      // Final sync
+      setTimeout(() => { loadSession(); loadActivities(); }, 3500);
     } catch (err) { setErr(err.message); }
     finally { setBusy(false); }
   };
@@ -3000,7 +3017,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   const pct     = pctFromState(currentState);
   const canSend = true; // Always allow follow-up messages
 
-  const effectiveInterval = (isFinished && !busy) ? 0 : pollInterval;
+  const isWaitingUser = currentState === "AWAITING_PLAN_APPROVAL" || currentState === "AWAITING_USER_FEEDBACK";
+  const effectiveInterval = (isFinished && !busy) ? 0 : (isWaitingUser && !busy ? Math.max(pollInterval * 2, 60000) : pollInterval);
   const countdown = useAutoPoll(effectiveInterval, useCallback(() => Promise.all([loadSession(), loadActivities(lastTsRef.current)]), [loadSession, loadActivities]));
 
   const latestPlan = useMemo(() => {
@@ -5147,7 +5165,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
 const FILTERS = ["ALL","QUEUED","PLANNING","AWAITING_PLAN_APPROVAL","IN_PROGRESS","COMPLETED","FAILED"];
 const FILTER_LABELS = { AWAITING_PLAN_APPROVAL:"APPROVE", ALL:"ALL" };
 
-const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed, selectedId, isDesktop, onNew,  onSettings, pollInterval, sessionLimit, countdown, plan, todayCount, searchQuery, setSearchQuery, archivedIds, showArchived, setShowArchived, activitiesMap = {}, activityStatsMap = {}, error, clearError, isBoosted, readMap }) => {
+const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed, selectedId, isDesktop, onNew,  onSettings, pollInterval, sessionLimit, countdown, plan, todayCount, searchQuery, setSearchQuery, archivedIds, showArchived, setShowArchived, activitiesMap = {}, activityStatsMap = {}, justUpdated = {}, error, clearError, isBoosted, readMap }) => {
   const [filter,setFilter] = useState("ALL");
   const [scrolled, handleScroll] = useScrollThreshold();
   const [searchOpen, setSearchOpen] = useState(false);
@@ -5321,7 +5339,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
       <div onScroll={handleScroll} style={{flex:1,overflowY:"auto",padding:"10px 12px",WebkitOverflowScrolling:"touch",minHeight:200}}>
         {refreshing&&sessions.length===0&&<div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>Loading sessions…</div>}
         {!refreshing&&filtered.length===0&&<div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>{filter==="ALL"?"No sessions yet":"No sessions with this status"}</div>}
-        {filtered.map((s,i)=><SessionCard key={s.id||s.name} index={i+1} s={s} onPress={()=>onSelect(s)} isSelected={s.id===selectedId} activities={activitiesMap[s.id] || []} stats={activityStatsMap[s.id]} lastReadTs={readMap[s.id]}/>)}
+        {filtered.map((s,i)=><SessionCard key={s.id||s.name} index={i+1} s={s} onPress={()=>onSelect(s)} isSelected={s.id===selectedId} activities={activitiesMap[s.id] || []} stats={activityStatsMap[s.id]} lastReadTs={readMap[s.id]} justUpdated={justUpdated[s.id]}/>)}
       </div>
     </div>
   );
@@ -5331,6 +5349,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
 function JulesClient() {
   const [apiKey,setApiKey]     = useState(() => { try { return localStorage.getItem("jac_key")||""; } catch (e) { return ""; } });
   const [sessions,setSessions] = useState([]);
+  const [justUpdated, setJustUpdated] = useState({}); // id -> 'status' | 'new'
   const lastStates = useRef(new Map()); // id -> state
   const [activitiesMap, setActivitiesMap] = useState(() => {
     try { return JSON.parse(localStorage.getItem(ACT_MAP_KEY)) || {}; } catch { return {}; }
@@ -5623,6 +5642,36 @@ function JulesClient() {
         });
       }
 
+      // ── Status Tracking & Notifications ──
+      const updates = {};
+      incoming.forEach(s => {
+        const lastState = lastStates.current.get(s.id);
+        if (lastState === undefined) {
+          if (!isFull) updates[s.id] = 'new';
+        } else if (lastState !== s.state) {
+          updates[s.id] = 'status';
+          if (loadNotify()) {
+            const label = s.title || s.prompt || s.id;
+            if (s.state === "AWAITING_PLAN_APPROVAL") sendNotification("PLAN READY", `Session: ${label}`, s.id);
+            else if (s.state === "AWAITING_USER_FEEDBACK") sendNotification("INPUT NEEDED", `Session: ${label}`, s.id);
+            else if (s.state === "COMPLETED") sendNotification("SESSION DONE", `Session: ${label}`, s.id);
+            else if (s.state === "FAILED") sendNotification("SESSION FAILED", `Session: ${label}`, s.id);
+          }
+        }
+        lastStates.current.set(s.id, s.state);
+      });
+
+      if (Object.keys(updates).length > 0) {
+        setJustUpdated(prev => ({ ...prev, ...updates }));
+        setTimeout(() => {
+          setJustUpdated(prev => {
+            const next = { ...prev };
+            Object.keys(updates).forEach(id => delete next[id]);
+            return next;
+          });
+        }, 8000); // Highlight for 8 seconds
+      }
+
       setSessions(prev => {
         let merged = [];
         if (isFull) {
@@ -5645,21 +5694,6 @@ function JulesClient() {
           const bTime = new Date(b.updateTime || b.createTime).getTime();
           return bTime - aTime;
         });
-
-        // ── Status Notifications ──
-        if (loadNotify()) {
-          incoming.forEach(s => {
-            const lastState = lastStates.current.get(s.id);
-            if (lastState && lastState !== s.state) {
-              const label = s.title || s.prompt || s.id;
-              if (s.state === "AWAITING_PLAN_APPROVAL") sendNotification("PLAN READY", `Session: ${label}`, s.id);
-              else if (s.state === "AWAITING_USER_FEEDBACK") sendNotification("INPUT NEEDED", `Session: ${label}`, s.id);
-              else if (s.state === "COMPLETED") sendNotification("SESSION DONE", `Session: ${label}`, s.id);
-              else if (s.state === "FAILED") sendNotification("SESSION FAILED", `Session: ${label}`, s.id);
-            }
-            lastStates.current.set(s.id, s.state);
-          });
-        }
 
         return sorted;
       });
@@ -5772,6 +5806,7 @@ function JulesClient() {
             activitiesMap={{...activitiesMap}}
             activityStatsMap={activityStatsMap}
             sessions={allSessions}
+            justUpdated={justUpdated}
             error={globalErr} clearError={() => setGlobalErr(null)}
             isBoosted={isBoosted}
             readMap={readMap}
@@ -5838,6 +5873,7 @@ function JulesClient() {
             archivedIds={archivedIds} showArchived={showArchived} setShowArchived={setShowArchived}
             activitiesMap={activitiesMap}
             activityStatsMap={activityStatsMap}
+            justUpdated={justUpdated}
             error={globalErr} clearError={() => setGlobalErr(null)}
 
             isBoosted={isBoosted}
@@ -5992,6 +6028,15 @@ function Shell({ children, desktop=false }) {
           0% { border-color: ${T.brand}40; box-shadow: 0 0 0 ${T.brand}00; }
           50% { border-color: ${T.brand}; box-shadow: 0 0 25px ${T.brand}80; transform: scale(1.02); }
           100% { border-color: ${T.brand}40; box-shadow: 0 0 0 ${T.brand}00; }
+        }
+        @keyframes statusPulse {
+          0% { box-shadow: 0 0 0 0 var(--pulse-color); }
+          70% { box-shadow: 0 0 0 10px rgba(0, 0, 0, 0); }
+          100% { box-shadow: 0 0 0 0 rgba(0, 0, 0, 0); }
+        }
+        @keyframes newEntry {
+          from { transform: translateX(-10px); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
         }
         @media (prefers-reduced-motion: reduce) {
           *, ::before, ::after {
