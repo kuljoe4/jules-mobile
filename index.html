@@ -2887,33 +2887,38 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     // Optimistic: add temp bubble immediately
     const tempKey = `_temp_${Date.now()}`;
     const tempAct = {
-      id:tempKey,
-      createTime:new Date().toISOString(),
-      userMessaged:{ userMessage:text },
-      _temp:true
+      id: tempKey,
+      createTime: new Date().toISOString(),
+      userMessaged: { userMessage: text },
+      _temp: true
     };
     actMapRef.current.set(tempKey, tempAct);
     setActivities(prev => [...prev, tempAct]);
 
     try {
       await apiCall(apiKey, `/sessions/${session.id}:sendMessage`, {
-        method:"POST",
-        body:{
-          prompt:text,
-        },
-        _label:`Message → ${session.id?.slice(0,6)}`,
+        method: "POST",
+        body: { prompt: text },
+        _label: `Msg -> ${session.id?.slice(0,6)}`
       });
       // Success: clear local draft
-      try { localStorage.removeItem(`jac_draft_${session.id}`); } catch {}
-      // Remove temp, fetch real activities
+      try { localStorage.removeItem(`jac_draft_${session.id}`); } catch (e) {}
+      // Switch back to chat to show Jules' response
+      setTab("activity");
+      // Remove temp, fetch real activities with smart polling
       actMapRef.current.delete(tempKey);
-      setTimeout(() => { loadActivities(); loadSession(); }, 1200);
+      setTimeout(() => {
+        loadActivities(lastTsRef.current);
+        loadSession();
+      }, 1200);
     } catch (err) {
       setErr(err.message);
-      setMsg(text);
+      setMsg(text); // restore draft on error
       actMapRef.current.delete(tempKey);
       setActivities(prev => prev.filter(a => a.id !== tempKey));
-    } finally { setBusy(false); }
+    } finally {
+      setBusy(false);
+    }
   };
 
   const handleApprove = async () => {
@@ -2930,18 +2935,26 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
 
     setBusy(true); setErr(null);
     try {
-      await apiCall(apiKey, `/sessions/${session.id}:approvePlan`, { method:"POST", body:{}, _label:`Approve ${session.id?.slice(0,6)}` });
-      await loadSession(); await loadActivities(lastTsRef.current);
+      await apiCall(apiKey, `/sessions/${session.id}:approvePlan`, {
+        method: "POST",
+        body: {},
+        _label: `Approve ${session.id?.slice(0,6)}`
+      });
+      await loadSession();
+      await loadActivities(lastTsRef.current);
       setTab("activity");
     } catch (err) {
-      if (err.message.includes("400") && err.message.toLowerCase().includes("already approved")) {
-        await loadSession(); await loadActivities(lastTsRef.current);
+      const isAlready = err.message?.includes("400") && err.message.toLowerCase().includes("already approved");
+      if (isAlready) {
+        await loadSession();
+        await loadActivities(lastTsRef.current);
         setTab("activity");
       } else {
         setErr(err.message);
       }
+    } finally {
+      setBusy(false);
     }
-    finally { setBusy(false); }
   };
 
   useEffect(() => {
@@ -2955,7 +2968,6 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
         setShowScroll(canScroll && (y > 100 || h - y - vh > 100));
         setScrollDirMode(y > (h - vh) / 2 ? "top" : "bottom");
       };
-      // Use requestAnimationFrame to avoid forced synchronous layout during effect
       const raf = requestAnimationFrame(check);
       window.addEventListener("resize", check);
       return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", check); };
@@ -2975,23 +2987,33 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
       }
     }
     const tempKey = `_temp_${Date.now()}`;
-    const tempAct = { id:tempKey, createTime:new Date().toISOString(), userMessaged:{ userMessage:text }, _temp:true };
+    const tempAct = {
+      id: tempKey,
+      createTime: new Date().toISOString(),
+      userMessaged: { userMessage: text },
+      _temp: true
+    };
     actMapRef.current.set(tempKey, tempAct);
     setActivities(prev => [...prev, tempAct]);
     try {
       await apiCall(apiKey, `/sessions/${session.id}:sendMessage`, {
-        method:"POST", body:{ prompt:text }, _label:`Message → ${session.id?.slice(0,6)}`,
+        method: "POST",
+        body: { prompt: text },
+        _label: `Msg -> ${session.id?.slice(0,6)}`
       });
       actMapRef.current.delete(tempKey);
-      if (stayOnTab !== true) setTab("activity"); // switch back to chat to show Jules' response
-      setTimeout(() => { loadActivities(lastTsRef.current); loadSession(); }, 1500);
+      if (stayOnTab !== true) setTab("activity");
+      setTimeout(() => {
+        loadActivities(lastTsRef.current);
+        loadSession();
+      }, 1500);
     } catch (err) {
       setErr(err.message);
       actMapRef.current.delete(tempKey);
       setActivities(prev => prev.filter(a => a.id !== tempKey));
       throw err;
     }
-  }, [apiKey, session.id, loadActivities, loadSession]);
+  }, [apiKey, session.id, loadActivities, loadSession, selectedPersonas, personas, setTab]);
 
   const handleDelete = async () => {
     setBusy(true);
