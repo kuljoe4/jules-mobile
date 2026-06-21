@@ -134,7 +134,7 @@
         start_url: fullBase,
         scope: base,
         display:"standalone", background_color:"#07090c", theme_color:"#0891b2",
-        orientation: "any",
+        orientation: isMobile ? "portrait" : "landscape",
         categories:["developer","productivity"],
         icons:[ mkIcon(192,24), mkIcon(512,64) ],
       };
@@ -150,6 +150,11 @@
       // Instead we write the SW source into a tiny JavaScript data: URL and
       // register it — Chrome 91+ allows data: SW registration when the page
       // is on a secure origin (https / localhost).
+      // Try to lock orientation if in standalone mode
+      if (window.matchMedia('(display-mode: standalone)').matches && screen.orientation && screen.orientation.lock) {
+        screen.orientation.lock(isMobile ? "portrait" : "landscape").catch(() => {});
+      }
+
       if ("serviceWorker" in navigator && !window.__pwa.isFileProtocol) {
         const swSrc = [
           'const C="jules-v5";',
@@ -1031,6 +1036,7 @@ const PATHS = {
   search:"M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z",
   archive:"M21 8v13H3V8M1 3h22v5H1V3m10 8h2",
   unarchive:"M21 8v13H3V8M1 3h22v5H1V3m7 11l4-4 4 4m-4-4v10",
+  more: "M12 5h.01M12 12h.01M12 19h.01",
   settings:"M12 15a3 3 0 100-6 3 3 0 000 6zM19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H4a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V4a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H20a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z",
 };
 const Ic = ({n,s=16,c=T.muted}) => (
@@ -2600,6 +2606,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     catch { return ""; }
   });
   const [selectedPersonas, setSelectedPersonas] = useState(new Set());
+  const [showMenu, setShowMenu] = useState(false);
   const [busy,setBusy]           = useState(false);
   const [justUpdated, setJustUpdated] = useState(false);
   const [err,setErr]             = useState(null);
@@ -2607,6 +2614,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   const [scrolled, handleScrollBase] = useScrollThreshold(10);
   const [headerExpanded, setHeaderExpanded] = useState(true);
   const [composerVisible, setComposerVisible] = useState(true);
+  const [composerMinimized, setComposerMinimized] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [showScroll, setShowScroll] = useState(false);
   const [scrollDirMode, setScrollDirMode] = useState("bottom"); // "top" or "bottom"
@@ -2632,6 +2640,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     // 3. Show if scrolling up
     if (h - y - vh < 80) {
       setComposerVisible(true);
+      setComposerMinimized(false);
       setHeaderExpanded(true);
     } else if (y > 300) {
       if (scrollDir.current === 1) {
@@ -2639,10 +2648,12 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
         setHeaderExpanded(false);
       } else if (scrollDir.current === -1) {
         setComposerVisible(true);
+        setComposerMinimized(true);
         setHeaderExpanded(true);
       }
     } else {
       setComposerVisible(true);
+      setComposerMinimized(false);
       setHeaderExpanded(true);
     }
 
@@ -3098,49 +3109,59 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
           </div>
 
           <div style={{display:"flex",gap:6,alignItems:"center",flexShrink:0}}>
-            {/* High Priority Actions */}
-            <div style={{position: "relative"}}>
-              <button onClick={handleRefresh} disabled={busy} title="Refresh activity" style={{
-                background:justUpdated?T.brand:isStale?T.brand:T.surfaceHi,
-                border:`1px solid ${justUpdated?T.brand:isStale?T.brand:T.borderHi}`,
-                borderRadius:4, cursor:busy?"default":"pointer", display:"flex", padding:4,
-                opacity:busy?0.5:1,
-                transition: "all .3s"
-              }}>
-                <div style={{ display: "flex", animation: busy ? "spin 1s linear infinite" : "none" }}>
-                  <Ic n={justUpdated?"check":"refresh"} s={14} c={busy?T.brand:(justUpdated||isStale?"#000":T.dim)}/>
-                </div>
-              </button>
-              {justUpdated && (
-                <div style={{
-                  position: "absolute", top: -20, left: "50%", transform: "translateX(-50%)",
-                  background: T.brand, color: "#000", fontSize: 8, fontWeight: 900,
-                  padding: "2px 6px", borderRadius: 4, fontFamily: "'JetBrains Mono',monospace",
-                  whiteSpace: "nowrap", animation: "slideUp .3s ease-out"
-                }}>UPDATED</div>
-              )}
-            </div>
             <Pill status={currentState} small hideLabel={!headerExpanded && scrolled}/>
 
-            {/* Desktop-only side buttons in Row 1 */}
-            {isDesktop && (
-              <>
-                <button
-                  onClick={() => isArchived ? onUnarchive(session.id) : onArchive(session.id)}
-                  title={isArchived ? "Unarchive session" : "Archive session"}
-                  style={{
-                    background:isArchived ? T.purpleDim : T.surfaceHi,
-                    border:`1px solid ${isArchived ? T.purple+"40" : T.borderHi}`,
-                    borderRadius:4, cursor:"pointer", display:"flex", alignItems:"center", padding:4, transition:"all .2s"
-                  }}
-                >
-                  <Ic n={isArchived ? "unarchive" : "archive"} s={14} c={isArchived ? T.purple : T.muted}/>
-                </button>
-                <button onClick={() => { if(confirm("Delete this session?")) handleDelete(); }} disabled={busy} title="Delete session" style={{background:T.redDim, border:`1px solid ${T.red}30`, borderRadius:4, cursor:"pointer", display:"flex", alignItems:"center", padding:4, transition:"opacity .2s"}}>
-                  <Ic n="trash" s={14} c={T.red}/>
-                </button>
-              </>
-            )}
+            <div style={{position:"relative"}}>
+              <button onClick={() => setShowMenu(!showMenu)} style={{
+                background:T.surfaceHi, border:`1px solid ${T.borderHi}`,
+                borderRadius:4, cursor:"pointer", display:"flex", padding:4,
+              }}>
+                <Ic n="more" s={14} c={T.muted}/>
+              </button>
+
+              {showMenu && (
+                <>
+                  <Backdrop onClick={() => setShowMenu(false)}/>
+                  <div style={{
+                    position:"absolute", top:"100%", right:0, zIndex:101, marginTop:8,
+                    background:T.surfaceHi, border:`1px solid ${T.borderHi}`,
+                    borderRadius:8, width:180, boxShadow:"0 10px 32px rgba(0,0,0,0.6)",
+                    overflow:"hidden", animation: "zoomIn 0.15s cubic-bezier(0.2, 0, 0.2, 1)"
+                  }}>
+                    <div style={{
+                      padding:"10px 14px", borderBottom:`1px solid ${T.border}`,
+                      display:"flex", alignItems:"center", justifyContent:"space-between"
+                    }}>
+                      <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:800, color:T.dim}}>ACTIONS</div>
+                      {busy && <div style={{animation:"spin 1s linear infinite"}}><Ic n="refresh" s={10} c={T.brand}/></div>}
+                    </div>
+                    <button onClick={() => { handleRefresh(); setShowMenu(false); }} disabled={busy} style={{
+                      width:"100%", padding:"12px 14px", background:"none", border:"none",
+                      color:T.text, textAlign:"left", fontFamily:"'JetBrains Mono',monospace",
+                      fontSize:11, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:10,
+                      borderBottom:`1px solid ${T.border}`, opacity: busy ? 0.5 : 1
+                    }}>
+                      <Ic n="refresh" s={14} c={T.brand}/> REFRESH
+                    </button>
+                    <button onClick={() => { isArchived ? onUnarchive(session.id) : onArchive(session.id); setShowMenu(false); }} style={{
+                      width:"100%", padding:"12px 14px", background:"none", border:"none",
+                      color:T.text, textAlign:"left", fontFamily:"'JetBrains Mono',monospace",
+                      fontSize:11, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:10,
+                      borderBottom:`1px solid ${T.border}`
+                    }}>
+                      <Ic n={isArchived ? "unarchive" : "archive"} s={14} c={T.purple}/> {isArchived ? "UNARCHIVE" : "ARCHIVE"}
+                    </button>
+                    <button onClick={() => { if(confirm("Delete session?")) { handleDelete(); setShowMenu(false); } }} disabled={busy} style={{
+                      width:"100%", padding:"12px 14px", background:"none", border:"none",
+                      color:T.red, textAlign:"left", fontFamily:"'JetBrains Mono',monospace",
+                      fontSize:11, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:10
+                    }}>
+                      <Ic n="trash" s={14} c={T.red}/> DELETE
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
 
@@ -3232,24 +3253,6 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
           </div>
         </div>
 
-        {!isDesktop && (
-          <div style={{display:"flex", gap:6, marginLeft:"auto"}}>
-            <button
-              onClick={() => isArchived ? onUnarchive(session.id) : onArchive(session.id)}
-              title={isArchived ? "Unarchive session" : "Archive session"}
-              style={{
-                background:isArchived ? T.purpleDim : T.surfaceHi,
-                border:`1px solid ${isArchived ? T.purple+"40" : T.borderHi}`,
-                borderRadius:4, cursor:"pointer", display:"flex", alignItems:"center", padding:5, transition:"all .2s"
-              }}
-            >
-              <Ic n={isArchived ? "unarchive" : "archive"} s={13} c={isArchived ? T.purple : T.muted}/>
-            </button>
-            <button onClick={() => { if(confirm("Delete this session?")) handleDelete(); }} disabled={busy} title="Delete session" style={{background:T.redDim, border:`1px solid ${T.red}30`, borderRadius:4, cursor:"pointer", display:"flex", alignItems:"center", padding:5}}>
-              <Ic n="trash" s={13} c={T.red}/>
-            </button>
-          </div>
-        )}
 
       </div>
 
@@ -3261,25 +3264,6 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
           <Bar pct={pct} status={currentState} syncing={isSyncing || syncPhase === "DONE"}/>
         </div>
 
-        <div style={{
-          display:"flex",gap:10,
-          height:scrolled?0:14,
-          marginTop:0,
-          marginBottom:scrolled?0:10,
-          opacity:scrolled?0:0.6,
-          overflow:"hidden",
-          fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.dim,flexWrap:"nowrap",alignItems:"center",
-          transition:"all .2s ease",
-          pointerEvents:scrolled?"none":"auto",
-        }}>
-          <span>ID: {session.id?.slice(0,10)}</span>
-          {repo && (
-            <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:4, fontWeight:600}}>
-              <Ic n="code" s={9} c={T.dim}/>
-              {repo}
-            </span>
-          )}
-        </div>
 
 
         <div style={{
@@ -3407,7 +3391,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
         </div>
 
       {/* ── Content ── */}
-      <div ref={contentRef} onScroll={handleScroll} style={{flex:1,overflowY:"auto",padding:"14px 16px",paddingBottom:isDesktop?80:220,WebkitOverflowScrolling:"touch",minHeight:200,position:"relative"}}>
+      <div ref={contentRef} onScroll={handleScroll} style={{flex:1,overflowY:"auto",padding:"14px 16px",paddingBottom:isDesktop?80:(composerMinimized?130:220),WebkitOverflowScrolling:"touch",minHeight:200,position:"relative"}}>
         {tab==="activity"&&(
           <>
             <div style={{display:"flex", alignItems:"center", gap:6, marginBottom:16, flexWrap:"wrap"}}>
@@ -3682,76 +3666,98 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
           bottom: 0, left: 0, right: 0, zIndex: 10,
           boxShadow: isDesktop ? "none" : "0 -12px 32px rgba(0,0,0,0.5)",
         }}>
-          <MultiPersonaPicker personas={personas} selectedIds={selectedPersonas} onToggle={togglePersona} style={{marginBottom:10}} />
+          {!composerMinimized && <MultiPersonaPicker personas={personas} selectedIds={selectedPersonas} onToggle={togglePersona} style={{marginBottom:10}} />}
 
           <div style={{position:"relative", display:"flex", flexDirection:"column"}}>
-            <textarea
-              ref={txtRef}
-              value={msg}
-              onChange={e=>setMsg(e.target.value)}
-              onKeyDown={e=>e.key==="Enter"&&!e.shiftKey&&(e.preventDefault(),handleSend())}
-              placeholder="Message Jules or give new instructions…"
-              rows={expanded?15:3}
-              style={{
-                width:"100%", background:T.surfaceHi,
-                border:`1px solid ${msg?T.brand+"66":T.border}`,
-                borderRadius:10, padding:`12px 14px 44px`, color:T.text,
-                fontFamily:"'IBM Plex Sans',sans-serif", fontSize:15, lineHeight:1.45,
-                resize:"none", outline:"none", transition:"all .2s ease",
-                WebkitOverflowScrolling:"touch",
-                ...(expanded ? {
-                  position:"fixed", top:0, left:0, right:0, bottom:0, zIndex:1000,
-                  margin:0, borderRadius:0, height:"100vh", padding:"60px 24px 80px"
-                } : {})
-              }}
-            />
+            {!composerMinimized ? (
+              <>
+                <textarea
+                  ref={txtRef}
+                  value={msg}
+                  onChange={e=>setMsg(e.target.value)}
+                  onKeyDown={e=>e.key==="Enter"&&!e.shiftKey&&(e.preventDefault(),handleSend())}
+                  placeholder="Message Jules or give new instructions…"
+                  rows={expanded?15:3}
+                  style={{
+                    width:"100%", background:T.surfaceHi,
+                    border:`1px solid ${msg?T.brand+"66":T.border}`,
+                    borderRadius:10, padding:`12px 14px 44px`, color:T.text,
+                    fontFamily:"'IBM Plex Sans',sans-serif", fontSize:15, lineHeight:1.45,
+                    resize:"none", outline:"none", transition:"all .2s ease",
+                    WebkitOverflowScrolling:"touch",
+                    ...(expanded ? {
+                      position:"fixed", top:0, left:0, right:0, bottom:0, zIndex:1000,
+                      margin:0, borderRadius:0, height:"100vh", padding:"60px 24px 80px"
+                    } : {})
+                  }}
+                />
 
-            {/* Input Toolbar (Inside Textarea area but positioned bottom-right) */}
-            <div style={{
-              position: expanded ? "fixed" : "absolute",
-              bottom: expanded ? 90 : 8,
-              right: expanded ? 24 : 8,
-              display: "flex", gap: 10, alignItems: "center", zIndex: 1001,
-              padding: "4px 8px", borderRadius: 8,
-              background: expanded ? T.surfaceHi : "rgba(11, 14, 20, 0.8)",
-              backdropFilter: expanded ? "none" : "blur(8px)",
-              border: expanded ? `1px solid ${T.border}` : "none",
-            }}>
-              {msg.trim() && (
-                <button onClick={()=>setMsg("")} title="Clear" style={{background:"transparent", border:"none", padding:4, cursor:"pointer", display:"flex", alignItems:"center"}}>
-                  <Ic n="x" s={16} c={T.red}/>
-                </button>
-              )}
-              <button onClick={()=>setExpanded(!expanded)} title={expanded ? "Minimize" : "Expand"} style={{background:"transparent", border:"none", padding:4, cursor:"pointer", display:"flex", alignItems:"center"}}>
-                <Ic n={expanded ? "chevron_down" : "expand"} s={16} c={T.brand}/>
-              </button>
-              <div style={{width:1, height:16, background:T.border}}/>
+                {/* Input Toolbar (Inside Textarea area but positioned bottom-right) */}
+                <div style={{
+                  position: expanded ? "fixed" : "absolute",
+                  bottom: expanded ? 90 : 8,
+                  right: expanded ? 24 : 8,
+                  display: "flex", gap: 10, alignItems: "center", zIndex: 1001,
+                  padding: "4px 8px", borderRadius: 8,
+                  background: expanded ? T.surfaceHi : "rgba(11, 14, 20, 0.8)",
+                  backdropFilter: expanded ? "none" : "blur(8px)",
+                  border: expanded ? `1px solid ${T.border}` : "none",
+                }}>
+                  {msg.trim() && (
+                    <button onClick={()=>setMsg("")} title="Clear" style={{background:"transparent", border:"none", padding:4, cursor:"pointer", display:"flex", alignItems:"center"}}>
+                      <Ic n="x" s={16} c={T.red}/>
+                    </button>
+                  )}
+                  <button onClick={()=>setExpanded(!expanded)} title={expanded ? "Minimize" : "Expand"} style={{background:"transparent", border:"none", padding:4, cursor:"pointer", display:"flex", alignItems:"center"}}>
+                    <Ic n={expanded ? "chevron_down" : "expand"} s={16} c={T.brand}/>
+                  </button>
+                  <div style={{width:1, height:16, background:T.border}}/>
+                  <button
+                    onClick={handleSend}
+                    disabled={!msg.trim()||busy}
+                    style={{
+                      background: "transparent", border: "none", cursor: msg.trim()&&!busy?"pointer":"default",
+                      display: "flex", alignItems: "center", justifyContent: "center", padding: 4,
+                      opacity: msg.trim()&&!busy ? 1 : 0.4, transition: "all .2s"
+                    }}
+                  >
+                    <Ic n="send" s={20} c={msg.trim()&&!busy?T.brand:T.muted}/>
+                  </button>
+                </div>
+
+                {expanded && (
+                  <button
+                    onClick={handleSend}
+                    disabled={!msg.trim()||busy}
+                    style={{
+                      position: "fixed", bottom: 16, left: 24, right: 24, zIndex: 1001, height: 48,
+                      borderRadius: 10, border: "none", background: T.brand, color: "#000",
+                      fontFamily: "'JetBrains Mono',monospace", fontSize: 13, fontWeight: 900,
+                      letterSpacing: "0.05em", cursor: "pointer", display: "flex", alignItems: "center",
+                      justifyContent: "center", gap: 10, boxShadow: `0 8px 24px ${T.brand}40`
+                    }}
+                  >
+                    <Ic n="send" s={18} c="#000"/> SEND MESSAGE
+                  </button>
+                )}
+              </>
+            ) : (
               <button
-                onClick={handleSend}
-                disabled={!msg.trim()||busy}
+                onClick={() => setComposerMinimized(false)}
                 style={{
-                  background: "transparent", border: "none", cursor: msg.trim()&&!busy?"pointer":"default",
-                  display: "flex", alignItems: "center", justifyContent: "center", padding: 4,
-                  opacity: msg.trim()&&!busy ? 1 : 0.4, transition: "all .2s"
+                  width:"100%", background:T.surfaceHi, border:`1px solid ${T.borderHi}`,
+                  borderRadius:8, padding:"12px 16px", display:"flex", alignItems:"center",
+                  justifyContent:"space-between", cursor:"pointer", transition:"all .2s",
+                  boxShadow:`0 4px 12px rgba(0,0,0,0.3)`
                 }}
               >
-                <Ic n="send" s={20} c={msg.trim()&&!busy?T.brand:T.muted}/>
-              </button>
-            </div>
-
-            {expanded && (
-              <button
-                onClick={handleSend}
-                disabled={!msg.trim()||busy}
-                style={{
-                  position: "fixed", bottom: 16, left: 24, right: 24, zIndex: 1001, height: 48,
-                  borderRadius: 10, border: "none", background: T.brand, color: "#000",
-                  fontFamily: "'JetBrains Mono',monospace", fontSize: 13, fontWeight: 900,
-                  letterSpacing: "0.05em", cursor: "pointer", display: "flex", alignItems: "center",
-                  justifyContent: "center", gap: 10, boxShadow: `0 8px 24px ${T.brand}40`
-                }}
-              >
-                <Ic n="send" s={18} c="#000"/> SEND MESSAGE
+                <span style={{fontFamily:"'IBM Plex Sans',sans-serif", fontSize:14, color:T.muted}}>
+                  {msg.trim() ? "Continue follow-up..." : "Send a message..."}
+                </span>
+                <div style={{display:"flex", alignItems:"center", gap:10}}>
+                  {msg.trim() && <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.brand, fontWeight:800}}>{fmtChars(msg.length)}</span>}
+                  <Ic n="expand" s={16} c={T.brand}/>
+                </div>
               </button>
             )}
           </div>
@@ -3775,7 +3781,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
       {/* ── Refined Floating Scroll Actions ── */}
       <div style={{
         position:"absolute", right:20,
-        bottom: (isDesktop || composerVisible) ? (isDesktop ? 110 : 240) : 30,
+        bottom: (isDesktop || composerVisible) ? (isDesktop ? 110 : (composerMinimized ? 110 : 240)) : 30,
         zIndex:100, pointerEvents:"none",
         transition:"bottom .3s cubic-bezier(0.4, 0, 0.2, 1)",
       }}>
@@ -4503,14 +4509,16 @@ const NetworkMonitor = ({ onBack, isDesktop }) => {
 
 const QuotaTimeline = ({ todayCount, plan }) => {
   const [now, setNow] = useState(Date.now());
+  const [zoomHours, setZoomHours] = useState(12); // Default 12h window
+
   useEffect(() => {
     const i = setInterval(() => setNow(Date.now()), 30000);
     return () => clearInterval(i);
   }, []);
 
-  const windowStart = now - 6 * 3600000;
-  const windowEnd = now + 6 * 3600000;
-  const totalWidth = 12 * 3600000;
+  const windowStart = now - (zoomHours / 2) * 3600000;
+  const windowEnd = now + (zoomHours / 2) * 3600000;
+  const totalWidth = zoomHours * 3600000;
 
   const getPos = (ts) => ((ts - windowStart) / totalWidth) * 100;
 
@@ -4520,39 +4528,83 @@ const QuotaTimeline = ({ todayCount, plan }) => {
   ].filter(e => e.ts >= windowStart && e.ts <= windowEnd)
    .sort((a, b) => a.ts - b.ts);
 
-  // Smart Collision Avoidance
+  // Pinch-to-zoom support
+  const touchStartDist = useRef(null);
+  const handleTouchStart = (e) => {
+    if (e.touches.length === 2) {
+      touchStartDist.current = Math.hypot(
+        e.touches[0].pageX - e.touches[1].pageX,
+        e.touches[0].pageY - e.touches[1].pageY
+      );
+    }
+  };
+  const handleTouchMove = (e) => {
+    if (e.touches.length === 2 && touchStartDist.current) {
+      const dist = Math.hypot(
+        e.touches[0].pageX - e.touches[1].pageX,
+        e.touches[0].pageY - e.touches[1].pageY
+      );
+      const ratio = touchStartDist.current / dist;
+      const nextZoom = Math.max(1, Math.min(24, zoomHours * ratio));
+      setZoomHours(nextZoom);
+      touchStartDist.current = dist;
+    }
+  };
+
+  // Smart Collision Avoidance (Staggered Height)
   const labelSlots = events.map(e => ({ ...e, pos: getPos(e.ts) }));
   labelSlots.forEach((e, i) => {
     const isNearNow = Math.abs(e.pos - 50) < 12;
     const prev = labelSlots[i-1];
+
+    // Base offsets: Stagger top/bottom unless near NOW (where we only stack bottom)
     let v = isNearNow ? 20 : (i % 2 === 0 ? -18 : 18);
+
     if (prev && Math.abs(e.pos - prev.pos) < 15) {
-      if (Math.abs(v - prev.vOffset) < 5) {
-        if (isNearNow) v = 38; // Stack downwards to avoid NOW label
-        else v = -v; // Flip
+      // Collision detected with previous label
+      if (isNearNow) {
+        // Near center 'NOW' marker: Stack deeply downwards
+        // Hierarchical offsets: 20, 38, 56...
+        let collisionCount = 0;
+        for (let j = i - 1; j >= 0; j--) {
+          if (Math.abs(e.pos - labelSlots[j].pos) < 15 && Math.abs(labelSlots[j].pos - 50) < 12) collisionCount++;
+          else break;
+        }
+        v = 20 + (collisionCount * 20);
+      } else {
+        // Outside center: Try to flip or push further
+        if (Math.sign(v) === Math.sign(prev.vOffset)) {
+          v = prev.vOffset + (20 * Math.sign(v));
+        }
       }
     }
     e.vOffset = v;
   });
 
+  const zoomH = Math.round(zoomHours);
+
   return (
     <div style={{ marginTop: 24, marginBottom: 24 }}>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10, fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: T.dim, fontWeight: 800, letterSpacing: "0.05em" }}>
-        <span>-6H</span>
+        <span>-{zoomH/2}H</span>
         <span style={{ color: T.brand, opacity: 0.8 }}>NOW</span>
-        <span>+6H</span>
+        <span>+{zoomH/2}H</span>
       </div>
 
-      <div style={{ position: "relative", height: 60, display: "flex", alignItems: "center" }}>
+      <div
+        style={{ position: "relative", height: 60, display: "flex", alignItems: "center", touchAction: "none" }}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+      >
         {/* Track */}
         <div style={{ position: "absolute", left: 0, right: 0, height: 2, background: T.border, borderRadius: 1 }} />
         <div style={{ position: "absolute", left: 0, width: "50%", height: 2, background: `linear-gradient(to right, transparent, ${T.brand}40)`, borderRadius: 1 }} />
 
         {/* Graduation Markers */}
-        {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(h => (
+        {Array.from({ length: zoomH + 1 }).map((_, h) => (
           <div key={h} style={{
-            position: "absolute", left: `${(h / 12) * 100}%`, top: "50%",
-            width: 1, height: h % 3 === 0 ? 8 : 4, background: T.border,
+            position: "absolute", left: `${(h / zoomH) * 100}%`, top: "50%",
+            width: 1, height: h % (zoomH > 12 ? 4 : 2) === 0 ? 8 : 4, background: T.border,
             transform: "translateY(-50%)", opacity: 0.5
           }} />
         ))}
@@ -4609,14 +4661,29 @@ const QuotaTimeline = ({ todayCount, plan }) => {
         </div>
       </div>
 
-      <div style={{ marginTop: 24, display: "flex", gap: 16, justifyContent: "center" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <div style={{ width: 6, height: 6, borderRadius: "50%", background: T.brand }} />
-          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: T.dim, fontWeight: 700 }}>RECOVERED</span>
+      <div style={{ marginTop: 24, display: "flex", alignItems: "center", gap: 20 }}>
+        <div style={{ flex: 1, display: "flex", gap: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <div style={{ width: 6, height: 6, borderRadius: "50%", background: T.brand }} />
+            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: T.dim, fontWeight: 700 }}>RECOVERED</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <div style={{ width: 6, height: 6, borderRadius: "50%", background: T.amber }} />
+            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: T.dim, fontWeight: 700 }}>UPCOMING</span>
+          </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <div style={{ width: 6, height: 6, borderRadius: "50%", background: T.amber }} />
-          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: T.dim, fontWeight: 700 }}>UPCOMING</span>
+
+        {/* Zoom Control */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, background: T.surfaceHi, padding: "4px 8px", borderRadius: 20, border: `1px solid ${T.border}` }}>
+          <button onClick={() => setZoomHours(h => Math.min(24, h + 2))} title="Zoom out" style={{ background: "none", border: "none", color: T.muted, cursor: "pointer", display: "flex" }}>
+             <Ic n="plus" s={10} c={T.muted} style={{ transform: "rotate(45deg)" }} />
+          </button>
+          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: T.brand, fontWeight: 800, minWidth: 24, textAlign: "center" }}>
+            {Math.round(zoomHours)}H
+          </span>
+          <button onClick={() => setZoomHours(h => Math.max(1, h - 2))} title="Zoom in" style={{ background: "none", border: "none", color: T.muted, cursor: "pointer", display: "flex" }}>
+             <Ic n="plus" s={10} c={T.muted} />
+          </button>
         </div>
       </div>
       {todayCount.upcomingResets?.length > 0 && (
