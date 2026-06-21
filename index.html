@@ -26,7 +26,7 @@
         position:fixed;inset:0;z-index:9999;background:#07090c;
         display:flex;flex-direction:column;align-items:center;justify-content:center;
         gap:0;font-family:'JetBrains Mono',monospace;
-        transition:opacity .3s ease, visibility .3s ease;
+        transition:opacity .3s cubic-bezier(0.4, 0, 0.2, 1), visibility .3s cubic-bezier(0.4, 0, 0.2, 1);
       }
       #splash.hidden{opacity:0;visibility:hidden;pointer-events:none;}
       #splash-logo{
@@ -45,7 +45,7 @@
         animation:splash-load 2.4s cubic-bezier(.4,0,.2,1) forwards;
       }
       #splash-hint{margin-top:14px;font-size:12px;font-weight:700;color:#4a5e76;letter-spacing:.07em;}
-      #splash-step{margin-top:5px;font-size:11px;color:#2a3d52;letter-spacing:.06em;min-height:13px;transition:opacity .2s;}
+      #splash-step{margin-top:5px;font-size:11px;color:#2a3d52;letter-spacing:.06em;min-height:13px;transition:opacity .2s cubic-bezier(0.4, 0, 0.2, 1);}
       @keyframes splash-load{
         0%  {width:0%}
         30% {width:35%}
@@ -561,7 +561,7 @@ const MultiPersonaPicker = ({ personas, selectedIds, onToggle, style: s = {} }) 
               color: isSelected ? p.color : T.muted,
               fontFamily: "'JetBrains Mono',monospace", fontSize: 9,
               fontWeight: isSelected ? 800 : 500, letterSpacing: "0.05em",
-              cursor: "pointer", transition: "all .15s",
+              cursor: "pointer", transition: "all .15s cubic-bezier(0.4, 0, 0.2, 1)",
               display: "flex", alignItems: "center", gap: 5,
               boxShadow: "none",
             }}
@@ -1077,7 +1077,7 @@ const Bar = ({pct,status,syncing}) => {
     <div style={{height:3,background:T.line,borderRadius:2,overflow:"hidden",position:"relative"}}>
       <div style={{
         height:"100%",width:`${pct}%`,borderRadius:2,background:c,
-        boxShadow:`0 0 8px ${c}60`,transition:"width .5s ease",transform:"translateZ(0)",
+        boxShadow:`0 0 8px ${c}60`,transition:"width .5s cubic-bezier(0.4, 0, 0.2, 1)",transform:"translateZ(0)",
         position:"relative",
         overflow:"hidden"
       }}>
@@ -1109,7 +1109,7 @@ const Btn = ({children,onClick,color=T.brand,disabled=false,outline=false,sm=fal
     padding:sm?"8px 14px":"12px 18px",
     color:disabled?T.muted:(outline?color:"#000"),
     fontFamily:"'JetBrains Mono',monospace",fontSize:sm?11:12,fontWeight:800,letterSpacing:"0.08em",
-    transition:"all .15s",opacity:disabled?.5:1,
+    transition:"all .15s cubic-bezier(0.4, 0, 0.2, 1)",opacity:disabled?.5:1,
     display:"flex",alignItems:"center",justifyContent:"center",gap:8,
     boxShadow:outline?"none":(disabled?"none":`0 4px 12px ${color}30`),
     ...s,
@@ -1130,7 +1130,7 @@ const PickerBtn = ({ label, isAct, onClick, activeColor=T.brand, activeBg=null }
     outline:`1px solid ${isAct ? `${activeColor}60` : T.border}`,
     color:isAct ? activeColor : T.muted,
     fontFamily:"'JetBrains Mono',monospace", fontSize:9, fontWeight:isAct?700:400,
-    letterSpacing:"0.05em", cursor:"pointer", transition:"all .12s",
+    letterSpacing:"0.05em", cursor:"pointer", transition:"all .12s cubic-bezier(0.4, 0, 0.2, 1)",
   }}>{label}</button>
 );
 
@@ -1177,7 +1177,7 @@ const SearchPicker = ({ value, search, onSearch, onSelect, onHide, options, plac
                     width:"100%", padding:"10px 12px", background:"none", border:"none",
                     textAlign:"left", cursor:"pointer", display:"flex", alignItems:"center", gap:8,
                     borderBottom:idx < options.length - 1 ? `1px solid ${T.border}` : "none",
-                    transition:"background .1s",
+                    transition:"background .1s cubic-bezier(0.4, 0, 0.2, 1)",
                   }}
                   onMouseEnter={e=>e.currentTarget.style.background=T.dim}
                   onMouseLeave={e=>e.currentTarget.style.background="none"}
@@ -1337,7 +1337,7 @@ const ExpandableContent = memo(({ text, limit = 300, showCopy = false }) => {
               style={{
                 background: "none", border: "none", color: copied ? T.brand : T.muted, cursor: "pointer",
                 fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 700,
-                padding: 0, display: "flex", alignItems:"center", gap: 4, transition: "color .2s"
+                padding: 0, display: "flex", alignItems:"center", gap: 4, transition: "color .2s cubic-bezier(0.4, 0, 0.2, 1)"
               }}
             >
               <Ic n="copy" s={12} c={copied ? T.brand : T.muted} />
@@ -1366,7 +1366,7 @@ const Markdown = memo(({ text }) => {
           borderRadius:6, overflow:"hidden", fontFamily:"'JetBrains Mono',monospace", fontSize:13,
         }}>
           {lang && (
-            <div style={{padding:"4px 10px", background:T.surface, borderBottom:`1px solid ${T.border}`, fontSize:11, color:T.textDim, textTransform:"uppercase", letterSpacing:"0.05em"}}>
+            <div style={{padding:"4px 10px", background:T.surface, borderBottom:`1px solid ${T.border}33`, fontSize:11, color:T.textDim, textTransform:"uppercase", letterSpacing:"0.05em"}}>
               {lang}
             </div>
           )}
@@ -1442,7 +1442,7 @@ const Markdown = memo(({ text }) => {
 const inputSt = {
   width:"100%",background:T.surfaceHi,border:`1px solid ${T.border}`,borderRadius:6,
   padding:"10px 12px",color:T.text,fontFamily:"'IBM Plex Sans',sans-serif",fontSize:15,
-  outline:"none",boxSizing:"border-box",transition:"border-color .18s",
+  outline:"none",boxSizing:"border-box",transition:"border-color .18s cubic-bezier(0.4, 0, 0.2, 1)",
 };
 
 // ─── Media Artifacts ──────────────────────────────────────────────────────────
@@ -1462,7 +1462,7 @@ const MediaArtifacts = memo(({ artifacts, ts, onMediaClick }) => {
               padding:0, border:`1px solid ${T.border}`, borderRadius:6,
               background:T.surfaceHi, cursor:"pointer", overflow:"hidden",
               width:100, height:70, display:"flex", alignItems:"center",
-              justifyContent:"center", transition:"border-color .15s",
+              justifyContent:"center", transition:"border-color .15s cubic-bezier(0.4, 0, 0.2, 1)",
             }}
             onMouseEnter={e => e.currentTarget.style.borderColor = T.brand}
             onMouseLeave={e => e.currentTarget.style.borderColor = T.border}
@@ -1528,7 +1528,7 @@ const ChatBubble = memo(({ act, type, onMediaClick, onEdit }) => {
         borderRadius:isUser?"14px 14px 4px 14px":"14px 14px 14px 4px",
         padding:"14px 18px",
         opacity:isTemp?0.6:1,
-        transition:"opacity .2s",
+        transition:"opacity .2s cubic-bezier(0.4, 0, 0.2, 1)",
         boxShadow:"none",
       }}>
         <div style={{
@@ -1554,7 +1554,7 @@ const ChatBubble = memo(({ act, type, onMediaClick, onEdit }) => {
                 style={{
                   background:"none", border:"none", padding:"0 2px", cursor:"pointer",
                   color:copied?T.brand:T.muted, fontWeight:800, fontSize:9, letterSpacing:"0.05em",
-                  display:"flex", alignItems:"center", gap:3, transition: "color .2s"
+                  display:"flex", alignItems:"center", gap:3, transition: "color .2s cubic-bezier(0.4, 0, 0.2, 1)"
                 }}
               >
                 <Ic n="copy" s={10} c={copied?T.brand:T.muted}/>
@@ -1900,7 +1900,12 @@ const ActivityFeed = memo(({ activities, showAll, onShowAll, onMediaClick, onEdi
   const deduped = useMemo(() => {
     const list = [];
     let lastPKey = null;
+    let lastType = null;
     for (const a of visible) {
+      const type = getActType(a);
+      if (type === "planApproved" && lastType === "planApproved") continue;
+      if (type === "sessionCompleted" && lastType === "sessionCompleted") continue;
+
       if (a.progressUpdated) {
         const p = a.progressUpdated;
         const pKey = `${p.title || ""}:${p.description || ""}`;
@@ -1910,6 +1915,7 @@ const ActivityFeed = memo(({ activities, showAll, onShowAll, onMediaClick, onEdi
         lastPKey = null;
       }
       list.push(a);
+      lastType = type;
     }
     return list;
   }, [visible]);
@@ -2036,7 +2042,7 @@ const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFeedback,
             <div key={st.id||i} style={{
               background:T.surface,border:`1px solid ${hasNote?T.amber+"50":T.border}`,
               borderLeft:`2px solid ${hasNote?T.amber:T.purple+"60"}`,
-              borderRadius:6,overflow:"hidden",transition:"border-color .15s",
+              borderRadius:6,overflow:"hidden",transition:"border-color .15s cubic-bezier(0.4, 0, 0.2, 1)",
             }}>
               {/* Step row */}
               <div style={{display:"flex",gap:10,alignItems:"flex-start",padding:"10px 12px"}}>
@@ -2073,7 +2079,7 @@ const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFeedback,
                     outline:`1px solid ${isOpen?(hasNote?T.amber+"40":T.purple+"40"):T.border}`,
                     fontFamily:"'JetBrains Mono',monospace",fontSize:10,fontWeight:700,
                     color:isOpen?(hasNote?T.amber:T.purple):T.muted,
-                    transition:"all .12s",letterSpacing:"0.06em",
+                    transition:"all .12s cubic-bezier(0.4, 0, 0.2, 1)",letterSpacing:"0.06em",
                   }}>{hasNote?"EDIT":"NOTE"}</button>
                 )}
               </div>
@@ -2126,7 +2132,7 @@ const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFeedback,
               borderRadius:5,padding:"8px 10px",color:T.text,
               fontFamily:"'IBM Plex Sans',sans-serif",fontSize:14,lineHeight:1.4,
               resize:"vertical",outline:"none",boxSizing:"border-box",
-              transition:"border-color .18s",marginBottom:10,
+              transition:"border-color .18s cubic-bezier(0.4, 0, 0.2, 1)",marginBottom:10,
             }}
           />
 
@@ -2168,7 +2174,7 @@ const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFeedback,
 
 // ─── Diff Viewer ──────────────────────────────────────────────────────────────
 const DiffViewer = ({ activities = [] }) => {
-  const [collapsed, setCollapsed] = useState(null);
+  const [collapsed, setCollapsed] = useState(null); // null = auto-collapse all on first load
 
   const latestPatch = useMemo(() => {
     // Find only the most recent patch artifact
@@ -2217,11 +2223,10 @@ const DiffViewer = ({ activities = [] }) => {
     return allGroups;
   }, [latestPatch]);
 
-  useEffect(() => {
-    if (groups.length > 0 && collapsed === null) {
-      setCollapsed(new Set(groups.map((_, i) => i)));
-    }
-  }, [groups, collapsed]);
+  const safeCollapsed = useMemo(() => {
+    if (collapsed !== null) return collapsed;
+    return new Set(groups.map((_, i) => i));
+  }, [collapsed, groups]);
 
   const totalAdds = useMemo(() => groups.reduce((acc, g) => acc + g.adds, 0), [groups]);
   const totalRems = useMemo(() => groups.reduce((acc, g) => acc + g.rems, 0), [groups]);
@@ -2231,8 +2236,6 @@ const DiffViewer = ({ activities = [] }) => {
       No diff available yet
     </div>
   );
-
-  const safeCollapsed = collapsed || new Set();
 
   const toggleFile = (idx) => {
     const next = new Set(safeCollapsed);
@@ -2275,7 +2278,7 @@ const DiffViewer = ({ activities = [] }) => {
             background:T.surface, border:`1px solid ${isCollapsed ? T.border : T.borderHi}`,
             borderRadius:8, overflow:"hidden", marginBottom: 4,
             boxShadow: isCollapsed ? "none" : "0 4px 20px rgba(0,0,0,0.2), inset 0 0 1px rgba(255,255,255,0.05)",
-            transition: "all .2s ease"
+            transition: "all .2s cubic-bezier(0.4, 0, 0.2, 1)"
           }}>
             <div
               role="button"
@@ -2287,13 +2290,13 @@ const DiffViewer = ({ activities = [] }) => {
                 padding:"8px 12px", background: isCollapsed ? "transparent" : T.surfaceHi,
                 borderBottom:isCollapsed? "none" : `1px solid ${T.border}`,
                 display:"flex", alignItems:"center", gap:10, cursor:"pointer", userSelect:"none", outline:"none",
-                transition: "background .2s"
+                transition: "background .2s cubic-bezier(0.4, 0, 0.2, 1)"
               }}
             >
               <div style={{
                 display:"flex", alignItems:"center", justifyContent:"center",
                 width:20, height:20, borderRadius:4, background: isCollapsed ? "transparent" : `${T.brand}15`,
-                transition: "all .2s"
+                transition: "all .2s cubic-bezier(0.4, 0, 0.2, 1)"
               }}>
                 <Ic n={isCollapsed ? "chevron_right" : "chevron_down"} s={14} c={isCollapsed ? T.dim : T.brand}/>
               </div>
@@ -2335,7 +2338,7 @@ const DiffViewer = ({ activities = [] }) => {
                       <div key={li} style={{
                         display:"flex", background:bg, minHeight:20,
                         borderLeft:`3px solid ${isAdd ? T.brand : isRem ? T.red : "transparent"}`,
-                        transition: "background .1s"
+                        transition: "background .1s cubic-bezier(0.4, 0, 0.2, 1)"
                       }}>
                         <div style={{
                           width:24, flexShrink:0, display:"flex", alignItems:"center",
@@ -2453,7 +2456,17 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], stat
     }
   }, [isSelected]);
 
-  const isActuallyDone = activities.some(a => a.sessionCompleted);
+  const isActuallyDone = useMemo(() => {
+    if (ACTIVE_STATES.has(s.state)) return false;
+    let lastComp = -1, lastUser = -1;
+    for (let i = activities.length - 1; i >= 0; i--) {
+      const type = getActType(activities[i]);
+      if (lastComp === -1 && type === "sessionCompleted") lastComp = i;
+      if (lastUser === -1 && type === "userMessaged") lastUser = i;
+      if (lastComp !== -1 && lastUser !== -1) break;
+    }
+    return lastComp !== -1 && lastComp > lastUser;
+  }, [activities, s.state]);
   const currentState = isActuallyDone ? "COMPLETED" : s.state;
   const isWorking = ACTIVE_STATES.has(currentState);
   const isFinished = currentState === "COMPLETED" || currentState === "FAILED";
@@ -2564,7 +2577,7 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], stat
           display:"flex", alignItems:"center", gap:6,
           background: flash ? `${T.brand}25` : "transparent",
           padding: "2px 6px", margin: "-2px -6px", borderRadius: 4,
-          transition: flash ? "none" : "background 5s ease",
+          transition: flash ? "none" : "background 5s cubic-bezier(0.4, 0, 0.2, 1)",
           color: flash ? T.brandLight : T.dim,
           fontWeight: flash ? 800 : 500,
         }}>
@@ -2636,19 +2649,18 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     }
 
     // Smart visibility logic:
-    // 1. Always show if near bottom (within 80px)
-    // 2. Hide if scrolling down deep (> 300px)
+    // 1. Always show if near bottom (within 100px)
+    // 2. Hide if scrolling down deep (> 200px)
     // 3. Show if scrolling up
-    if (h - y - vh < 80) {
+    if (h - y - vh < 100) {
       setComposerVisible(true);
       setHeaderExpanded(true);
-    } else if (y > 300) {
+    } else if (y > 200) {
       if (scrollDir.current === 1) {
         setComposerVisible(false);
         setHeaderExpanded(false);
       } else if (scrollDir.current === -1) {
         setComposerVisible(true);
-        setComposerMinimized(true);
         setHeaderExpanded(true);
       }
     } else {
@@ -2672,8 +2684,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   // First load fetches all; subsequent loads fetch only new (createTime filter)
   const lastTsRef = useRef(null);
   const loadActivities = useCallback(async (sinceTs=null) => {
-    setIsSyncing(true);
-    setSyncProgress(sinceTs ? "FETCH" : "CACHE");
+    setIsSyncing(true); setIsStale(true);
+    setSyncProgress(sinceTs ? (busy ? "SYNC" : "FETCH") : "CACHE");
     setSyncPhaseStats({ count: 0, pages: 0 });
     let currentPages = 0;
     let currentCount = 0;
@@ -2766,7 +2778,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     } catch (err) {
       console.error("[LoadActivities] Error:", err);
     } finally {
-      setIsSyncing(false);
+      setIsSyncing(false); setIsStale(false);
       setSyncProgress("DONE");
       setTimeout(() => setSyncProgress("IDLE"), 2000);
     }
@@ -2834,6 +2846,12 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     setSelectedPersonas(next);
   };
 
+  const handleExpandComposer = useCallback(() => {
+    setComposerMinimized(false);
+    setComposerVisible(true);
+    setTimeout(() => { if (txtRef.current) txtRef.current.focus(); }, 50);
+  }, []);
+
   // Persist draft follow-up message
   const draftRef = useRef(null);
   useEffect(() => {
@@ -2899,11 +2917,30 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   };
 
   const handleApprove = async () => {
+    if (busy) return;
+    let planTs = null;
+    for (let i = activities.length - 1; i >= 0; i--) {
+      if (activities[i].planGenerated) { planTs = activities[i].createTime; break; }
+    }
+    const alreadyApproved = activities.some(a => a.planApproved && (!planTs || a.createTime >= planTs));
+    if (alreadyApproved) {
+      setTab("activity");
+      return;
+    }
+
     setBusy(true); setErr(null);
     try {
       await apiCall(apiKey, `/sessions/${session.id}:approvePlan`, { method:"POST", body:{}, _label:`Approve ${session.id?.slice(0,6)}` });
       await loadSession(); await loadActivities(lastTsRef.current);
-    } catch (err) { setErr(err.message); }
+      setTab("activity");
+    } catch (err) {
+      if (err.message.includes("400") && err.message.toLowerCase().includes("already approved")) {
+        await loadSession(); await loadActivities(lastTsRef.current);
+        setTab("activity");
+      } else {
+        setErr(err.message);
+      }
+    }
     finally { setBusy(false); }
   };
 
@@ -2992,7 +3029,17 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   const summary = session.outputs?.find(o=>o.sessionSummary)?.sessionSummary;
   const pri = useMemo(() => getPRInfo(session, activities), [session, activities]);
   const pr = pri;
-  const isActuallyDone = activities.length > 0 && activities[activities.length - 1].sessionCompleted;
+  const isActuallyDone = useMemo(() => {
+    if (ACTIVE_STATES.has(session.state)) return false;
+    let lastComp = -1, lastUser = -1;
+    for (let i = activities.length - 1; i >= 0; i--) {
+      const type = getActType(activities[i]);
+      if (lastComp === -1 && type === "sessionCompleted") lastComp = i;
+      if (lastUser === -1 && type === "userMessaged") lastUser = i;
+      if (lastComp !== -1 && lastUser !== -1) break;
+    }
+    return lastComp !== -1 && lastComp > lastUser;
+  }, [activities, session.state]);
   const currentState = isActuallyDone ? "COMPLETED" : session.state;
   const isFinished = currentState === "COMPLETED" || currentState === "FAILED";
   const m       = STATUS_META[currentState] || STATUS_META.QUEUED;
@@ -3010,10 +3057,18 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     return null;
   }, [activities]);
 
+  const isApproved = useMemo(() => {
+    let planTs = null;
+    for (let i = activities.length - 1; i >= 0; i--) {
+      if (activities[i].planGenerated) { planTs = activities[i].createTime; break; }
+    }
+    return activities.some(a => a.planApproved && (!planTs || a.createTime >= planTs));
+  }, [activities]);
+
   // Auto-switch to PLAN tab when AWAITING_PLAN_APPROVAL
   useEffect(() => {
-    if (currentState === "AWAITING_PLAN_APPROVAL" && latestPlan) setTab("plan");
-  }, [currentState, latestPlan]);
+    if (currentState === "AWAITING_PLAN_APPROVAL" && latestPlan && !isApproved) setTab("plan");
+  }, [currentState, latestPlan, isApproved]);
 
   const reviews = useMemo(() => {
     return activities.filter(a => a.progressUpdated && a.progressUpdated.title?.toLowerCase().includes("review"));
@@ -3034,12 +3089,12 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
       {/* ── Header ── */}
       <div style={{
         padding:scrolled?"8px 12px":"12px 16px 0",
-        borderBottom:`1px solid ${T.border}`,
         background:T.surface,
         flexShrink:0,
-        transition:"padding .2s ease-out",
+        transition:"padding .2s cubic-bezier(0.4, 0, 0.2, 1)",
         zIndex: 5,
         contain: "layout",
+        position: "relative",
       }}>
         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:scrolled?0:6, minHeight:scrolled?24:44}}>
           {!isDesktop&&(
@@ -3060,12 +3115,12 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
               display: "-webkit-box",
               WebkitLineClamp:scrolled?1:2,
               WebkitBoxOrient:"vertical",
-              transition:"all .2s ease",
+              transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)",
               minHeight: scrolled ? 18 : 38,
             }}>
               {session.title||session.prompt}
             </div>
-            <div style={{display:"flex", alignItems:"center", gap:8, marginTop: 2, animation:"fadeIn .2s ease", height: (repo || (scrolled && !headerExpanded)) ? 14 : 0, overflow: "hidden", transition: "all .2s ease"}}>
+            <div style={{display:"flex", alignItems:"center", gap:8, marginTop: 2, animation:"fadeIn .2s ease", height: (repo || (scrolled && !headerExpanded)) ? 14 : 0, overflow: "hidden", transition: "all .2s cubic-bezier(0.4, 0, 0.2, 1)"}}>
                {repo && (
                  <div style={{display:"flex", alignItems:"center", gap:4, minWidth:0}}>
                    <Ic n="code" s={9} c={T.dim}/>
@@ -3117,10 +3172,12 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                 onClick={() => setShowMenu(!showMenu)}
                 onMouseEnter={e => { e.currentTarget.style.background = T.border; e.currentTarget.style.borderColor = T.brand; }}
                 onMouseLeave={e => { e.currentTarget.style.background = T.surfaceHi; e.currentTarget.style.borderColor = T.borderHi; }}
+                onMouseDown={e => { e.currentTarget.style.transform = "scale(0.92)"; }}
+                onMouseUp={e => { e.currentTarget.style.transform = "scale(1)"; }}
                 style={{
                   background:T.surfaceHi, border:`1px solid ${T.borderHi}`,
                   borderRadius:4, cursor:"pointer", display:"flex", padding:4,
-                  transition: "all .15s ease",
+                  transition: "all .15s cubic-bezier(0.4, 0, 0.2, 1)",
                 }}
               >
                 <Ic n="more" s={14} c={showMenu ? T.brand : T.muted}/>
@@ -3136,33 +3193,59 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                     overflow:"hidden", animation: "zoomIn 0.15s cubic-bezier(0.2, 0, 0.2, 1)"
                   }}>
                     <div style={{
-                      padding:"10px 14px", borderBottom:`1px solid ${T.border}`,
+                      padding:"10px 14px", borderBottom:`1px solid ${T.border}33`,
                       display:"flex", alignItems:"center", justifyContent:"space-between"
                     }}>
                       <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:800, color:T.dim}}>ACTIONS</div>
                       {busy && <div style={{animation:"spin 1s linear infinite"}}><Ic n="refresh" s={10} c={T.brand}/></div>}
                     </div>
-                    <button onClick={() => { handleRefresh(); setShowMenu(false); }} disabled={busy} style={{
-                      width:"100%", padding:"12px 14px", background:"none", border:"none",
-                      color:T.text, textAlign:"left", fontFamily:"'JetBrains Mono',monospace",
-                      fontSize:11, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:10,
-                      borderBottom:`1px solid ${T.border}`, opacity: busy ? 0.5 : 1
-                    }}>
+                    <button
+                      onClick={() => { handleRefresh(); setShowMenu(false); }}
+                      disabled={busy}
+                      onMouseEnter={e => e.currentTarget.style.background = T.border}
+                      onMouseLeave={e => e.currentTarget.style.background = "none"}
+                      onMouseDown={e => e.currentTarget.style.transform = "scale(0.96)"}
+                      onMouseUp={e => e.currentTarget.style.transform = "scale(1)"}
+                      style={{
+                        width:"100%", padding:"12px 14px", background:"none", border:"none",
+                        color:T.text, textAlign:"left", fontFamily:"'JetBrains Mono',monospace",
+                        fontSize:11, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:10,
+                        borderBottom:`1px solid ${T.border}33`, opacity: busy ? 0.5 : 1,
+                        transition: "all .1s cubic-bezier(0.4, 0, 0.2, 1)"
+                      }}
+                    >
                       <Ic n="refresh" s={14} c={T.brand}/> REFRESH
                     </button>
-                    <button onClick={() => { isArchived ? onUnarchive(session.id) : onArchive(session.id); setShowMenu(false); }} style={{
-                      width:"100%", padding:"12px 14px", background:"none", border:"none",
-                      color:T.text, textAlign:"left", fontFamily:"'JetBrains Mono',monospace",
-                      fontSize:11, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:10,
-                      borderBottom:`1px solid ${T.border}`
-                    }}>
+                    <button
+                      onClick={() => { isArchived ? onUnarchive(session.id) : onArchive(session.id); setShowMenu(false); }}
+                      onMouseEnter={e => e.currentTarget.style.background = T.border}
+                      onMouseLeave={e => e.currentTarget.style.background = "none"}
+                      onMouseDown={e => e.currentTarget.style.transform = "scale(0.96)"}
+                      onMouseUp={e => e.currentTarget.style.transform = "scale(1)"}
+                      style={{
+                        width:"100%", padding:"12px 14px", background:"none", border:"none",
+                        color:T.text, textAlign:"left", fontFamily:"'JetBrains Mono',monospace",
+                        fontSize:11, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:10,
+                        borderBottom:`1px solid ${T.border}33`,
+                        transition: "all .1s cubic-bezier(0.4, 0, 0.2, 1)"
+                      }}
+                    >
                       <Ic n={isArchived ? "unarchive" : "archive"} s={14} c={T.purple}/> {isArchived ? "UNARCHIVE" : "ARCHIVE"}
                     </button>
-                    <button onClick={() => { if(confirm("Delete session?")) { handleDelete(); setShowMenu(false); } }} disabled={busy} style={{
-                      width:"100%", padding:"12px 14px", background:"none", border:"none",
-                      color:T.red, textAlign:"left", fontFamily:"'JetBrains Mono',monospace",
-                      fontSize:11, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:10
-                    }}>
+                    <button
+                      onClick={() => { if(confirm("Delete session?")) { handleDelete(); setShowMenu(false); } }}
+                      disabled={busy}
+                      onMouseEnter={e => e.currentTarget.style.background = T.border}
+                      onMouseLeave={e => e.currentTarget.style.background = "none"}
+                      onMouseDown={e => e.currentTarget.style.transform = "scale(0.96)"}
+                      onMouseUp={e => e.currentTarget.style.transform = "scale(1)"}
+                      style={{
+                        width:"100%", padding:"12px 14px", background:"none", border:"none",
+                        color:T.red, textAlign:"left", fontFamily:"'JetBrains Mono',monospace",
+                        fontSize:11, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:10,
+                        transition: "all .1s cubic-bezier(0.4, 0, 0.2, 1)"
+                      }}
+                    >
                       <Ic n="trash" s={14} c={T.red}/> DELETE
                     </button>
                   </div>
@@ -3182,7 +3265,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
           alignItems: "center",
           gap: 8,
           marginBottom: headerExpanded ? 8 : 0,
-          transition: "all .2s ease, height .2s ease",
+          transition: "all .2s cubic-bezier(0.4, 0, 0.2, 1), height .2s ease",
           pointerEvents: headerExpanded ? "auto" : "none",
           contain: "size layout",
         }}>
@@ -3193,7 +3276,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                 background: `${T.amber}15`,
                 border: `1px solid ${T.amber}40`,
                 borderRadius:4, padding:"2px 8px", flexShrink:0,
-                transition: "all .3s ease"
+                transition: "all .3s cubic-bezier(0.4, 0, 0.2, 1)"
               }}>
                  <div style={{
                    width:6, height:6, borderRadius:"50%",
@@ -3260,23 +3343,20 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
           </div>
         </div>
 
-
-      </div>
-
-      <div style={{
-          height:3, overflow:"hidden", transition:"all .2s ease",
-          marginBottom:6,
-          pointerEvents:scrolled?"none":"auto",
+        <div style={{
+          position: "absolute", bottom: 0, left: 0, right: 0,
+          height: 3, overflow: "hidden", transition: "all .2s cubic-bezier(0.4, 0, 0.2, 1)",
         }}>
-          <Bar pct={pct} status={currentState} syncing={isSyncing || syncPhase === "DONE"}/>
+          <Bar pct={pct} status={currentState} syncing={isSyncing || busy || syncPhase === "DONE"}/>
         </div>
+      </div>
 
 
 
         <div style={{
           maxHeight: (currentState==="AWAITING_PLAN_APPROVAL" || currentState==="AWAITING_USER_FEEDBACK") ? 100 : 0,
           overflow: "hidden",
-          transition: "max-height .3s ease"
+          transition: "max-height .3s cubic-bezier(0.4, 0, 0.2, 1)"
         }}>
           {currentState==="AWAITING_PLAN_APPROVAL"&&(
             <div style={{marginBottom:8,padding:"7px 10px",background:T.purpleDim,border:`1px solid ${T.purple}40`,borderRadius:5,display:"flex",alignItems:"center",gap:8,cursor:"pointer"}} onClick={()=>setTab("plan")}>
@@ -3333,7 +3413,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
             maxHeight:scrolled?0:500, overflow:"hidden", opacity:scrolled?0:1,
             marginBottom:scrolled?0:12, padding:scrolled?0:"12px 16px",
             background:T.surfaceHi, border:`${scrolled?0:1}px solid ${T.borderHi}`,
-            borderRadius:8, transition:"all .25s ease",
+            borderRadius:8, transition:"all .25s cubic-bezier(0.4, 0, 0.2, 1)",
             pointerEvents:scrolled?"none":"auto",
             boxShadow:"none",
           }}>
@@ -3359,14 +3439,14 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
         )}
 
 
-        <div style={{display:"flex", paddingBottom:scrolled?4:0, transition:"all .2s ease"}}>
+        <div style={{display:"flex", paddingBottom:scrolled?4:0, transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)"}}>
           {TABS.map(t=>(
             <button key={t.id} onClick={()=>setTab(t.id)} style={{
               flex:1,padding:"6px 0",background:"none",border:"none",
               borderBottom:`2px solid ${tab===t.id?T.brand:"transparent"}`,
               color:tab===t.id?T.brand:T.muted,cursor:"pointer",
               fontFamily:"'JetBrains Mono',monospace",fontSize:10,fontWeight:800,letterSpacing:"0.05em",
-              transition:"color .15s, border-color .15s",
+              transition:"color .15s cubic-bezier(0.4, 0, 0.2, 1), border-color .15s cubic-bezier(0.4, 0, 0.2, 1)",
             }}>{t.label}</button>
           ))}
         </div>
@@ -3386,7 +3466,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                     color: chatFilter === f ? T.brand : T.muted,
                     fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 800,
                     cursor: "pointer", outline: chatFilter === f ? `1px solid ${T.brand}40` : `1px solid ${T.border}`,
-                    transition: "all .15s"
+                    transition: "all .15s cubic-bezier(0.4, 0, 0.2, 1)"
                   }}
                 >
                   {f}
@@ -3447,40 +3527,49 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                 />
             }
             <div style={{
-              marginTop: 16, marginBottom: 8, display: "flex", alignItems: "center", justifyContent: "center",
-              gap: 8, fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: T.muted,
-              opacity: 0.8, animation: "fadeIn .3s ease"
+              marginTop: 20, marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "center",
             }}>
-              {pollInterval > 0 && !isFinished ? (
-                <>
+              <button
+                onClick={handleRefresh}
+                disabled={busy}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = T.brand; e.currentTarget.style.background = T.brandDim; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.background = "transparent"; }}
+                onMouseDown={e => { e.currentTarget.style.transform = "scale(0.95)"; }}
+                onMouseUp={e => { e.currentTarget.style.transform = "scale(1)"; }}
+                style={{
+                  display: "flex", alignItems: "center", gap: 10, padding: "8px 16px",
+                  borderRadius: 20, border: `1px solid ${busy ? T.brand : T.border}`,
+                  background: busy ? T.brandDim : "transparent",
+                  fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: busy ? T.brand : T.muted,
+                  cursor: busy ? "default" : "pointer", transition: "all .2s cubic-bezier(0.4, 0, 0.2, 1)",
+                  opacity: 0.9, boxShadow: busy ? `0 4px 12px ${T.brand}20` : "none"
+                }}
+              >
+                {pollInterval > 0 && !isFinished && !busy ? (
                   <div style={{ position: "relative", width: 14, height: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>
                     <svg width="14" height="14" viewBox="0 0 14 14" style={{ transform: "rotate(-90deg)" }}>
-                      <circle cx="7" cy="7" r="5.5" fill="none" stroke={T.border} strokeWidth="1.5" />
-                      <circle cx="7" cy="7" r="5.5" fill="none" stroke={T.brand} strokeWidth="1.5"
+                      <circle cx="7" cy="7" r="5.5" fill="none" stroke={T.border} strokeWidth="1.5" opacity="0.3" />
+                      <circle cx="7" cy="7" r="5.5" fill="none" stroke={T.brand} strokeWidth="2"
                         strokeDasharray={2 * Math.PI * 5.5}
                         strokeDashoffset={2 * Math.PI * 5.5 * (1 - (countdown / (pollInterval / 1000)))}
-                        style={{ transition: "stroke-dashoffset 1s linear" }}
+                        style={{ transition: "stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1)" }}
                       />
                     </svg>
                     <div style={{
-                      position: "absolute", width: 4, height: 4, borderRadius: "50%", background: T.brand,
-                      animation: countdown <= 3 ? "pulse 1s infinite" : "none", opacity: countdown <= 3 ? 1 : 0.5
+                      position: "absolute", width: 3, height: 3, borderRadius: "50%", background: T.brand,
+                      animation: countdown <= 3 ? "dot 1s infinite" : "none"
                     }} />
                   </div>
-                  <span style={{
-                    color: countdown <= 3 ? T.brand : T.muted,
-                    fontWeight: countdown <= 3 ? 700 : 400,
-                    transition: "color .3s"
-                  }}>
-                    REFRESH IN {countdown}S
-                  </span>
-                </>
-              ) : (
-                <>
-                  <Ic n="refresh" s={12} c={T.muted} style={{ opacity: 0.5 }} />
-                  <span>{isFinished ? "SESSION COMPLETED" : "AUTO-REFRESH OFF"}</span>
-                </>
-              )}
+                ) : (
+                  <div style={{ display: "flex", animation: busy ? "spin 1s linear infinite" : "none" }}>
+                    <Ic n="refresh" s={12} c={busy ? T.brand : T.muted} />
+                  </div>
+                )}
+                <span style={{ fontWeight: 800, letterSpacing: "0.05em" }}>
+                  {busy ? "REFRESHING..." : isFinished ? "COMPLETED — TAP TO REFRESH" : pollInterval > 0 ? `REFRESH IN ${countdown}S` : "MANUAL REFRESH"}
+                </span>
+                {justUpdated && !busy && <span style={{ color: T.brand, fontSize: 9 }}>✓ UPDATED</span>}
+              </button>
             </div>
           </>
         )}
@@ -3602,7 +3691,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                   style={{
                     background:T.surface, border:`1px solid ${T.border}`, borderRadius:8,
                     overflow:"hidden", cursor:"pointer", padding:0, textAlign:"left",
-                    transition:"transform .15s, border-color .15s",
+                    transition:"transform .15s cubic-bezier(0.4, 0, 0.2, 1), border-color .15s cubic-bezier(0.4, 0, 0.2, 1)",
                   }}
                   onMouseEnter={e => { e.currentTarget.style.borderColor = T.brand; e.currentTarget.style.transform = "translateY(-2px)"; }}
                   onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.transform = "none"; }}
@@ -3664,7 +3753,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                     border:`1px solid ${msg?T.brand+"66":T.border}`,
                     borderRadius:10, padding:`12px 14px 44px`, color:T.text,
                     fontFamily:"'IBM Plex Sans',sans-serif", fontSize:15, lineHeight:1.45,
-                    resize:"none", outline:"none", transition:"all .2s ease",
+                    resize:"none", outline:"none", transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)",
                     WebkitOverflowScrolling:"touch",
                     ...(expanded ? {
                       position:"fixed", top:0, left:0, right:0, bottom:0, zIndex:1000,
@@ -3699,7 +3788,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                     style={{
                       background: "transparent", border: "none", cursor: msg.trim()&&!busy?"pointer":"default",
                       display: "flex", alignItems: "center", justifyContent: "center", padding: 4,
-                      opacity: msg.trim()&&!busy ? 1 : 0.4, transition: "all .2s"
+                      opacity: msg.trim()&&!busy ? 1 : 0.4, transition: "all .2s cubic-bezier(0.4, 0, 0.2, 1)"
                     }}
                   >
                     <Ic n="send" s={20} c={msg.trim()&&!busy?T.brand:T.muted}/>
@@ -3724,11 +3813,11 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
               </>
             ) : (
               <button
-                onClick={() => setComposerMinimized(false)}
+                onClick={handleExpandComposer}
                 style={{
                   width:"100%", background:T.surfaceHi, border:`1px solid ${T.borderHi}`,
                   borderRadius:8, padding:"12px 16px", display:"flex", alignItems:"center",
-                  justifyContent:"space-between", cursor:"pointer", transition:"all .2s",
+                  justifyContent:"space-between", cursor:"pointer", transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)",
                   boxShadow:`0 4px 12px rgba(0,0,0,0.3)`
                 }}
               >
@@ -4029,7 +4118,7 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
               <div style={{
                 background:T.surfaceHi, borderRadius:10, padding:12,
                 border: `1px solid ${T.border}`,
-                transition: "all .2s"
+                transition: "all .2s cubic-bezier(0.4, 0, 0.2, 1)"
               }}>
                 <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.brand, fontWeight:800, letterSpacing:"0.1em", marginBottom:6}}>TARGET REPOSITORY</div>
                 <div style={{position:"relative"}}>
@@ -4081,7 +4170,7 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
                                 width:"100%", padding:"10px 12px", background:"none", border:"none",
                                 textAlign:"left", cursor:"pointer", display:"flex", alignItems:"center", gap:8,
                                 borderBottom:idx < filteredSources.length - 1 ? `1px solid ${T.border}` : "none",
-                                transition:"background .1s",
+                                transition:"background .1s cubic-bezier(0.4, 0, 0.2, 1)",
                               }}
                               onMouseEnter={e=>e.currentTarget.style.background=T.dim}
                               onMouseLeave={e=>e.currentTarget.style.background="none"}
@@ -4135,7 +4224,7 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
                               style={{
                                 width:"100%", padding:"10px 12px", background:"none", border:"none",
                                 textAlign:"left", cursor:"pointer", display:"flex", alignItems:"center", gap:8,
-                                borderBottom:`1px solid ${T.border}`, transition:"background .1s",
+                                borderBottom:`1px solid ${T.border}33`, transition:"background .1s cubic-bezier(0.4, 0, 0.2, 1)",
                               }}
                               onMouseEnter={e=>e.currentTarget.style.background=T.dim}
                               onMouseLeave={e=>e.currentTarget.style.background="none"}
@@ -4199,7 +4288,7 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
                   flex:1, padding:"14px", borderRadius:10, border:`1px solid ${T.border}`,
                   background:"transparent", color:T.muted, cursor:"pointer",
                   fontFamily:"'JetBrains Mono',monospace", fontSize:12, fontWeight:700,
-                  transition:"all .2s"
+                  transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)"
                 }}
                 onMouseEnter={e => e.currentTarget.style.background = T.surfaceHi}
                 onMouseLeave={e => e.currentTarget.style.background = "transparent"}
@@ -4211,7 +4300,7 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
                   flex:2, padding:"14px", borderRadius:10, border:"none",
                   background:T.brand, color:"#000", cursor:"pointer",
                   fontFamily:"'JetBrains Mono',monospace", fontSize:12, fontWeight:900,
-                  boxShadow:`0 8px 24px ${T.brand}40`, transition:"transform .2s"
+                  boxShadow:`0 8px 24px ${T.brand}40`, transition:"transform .2s cubic-bezier(0.4, 0, 0.2, 1)"
                 }}
                 onMouseEnter={e => e.currentTarget.style.transform = "translateY(-2px)"}
                 onMouseLeave={e => e.currentTarget.style.transform = "none"}
@@ -4222,7 +4311,7 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
           </div>
         </div>
       )}
-      <div style={{padding:"12px 16px",borderBottom:`1px solid ${T.border}`,background:T.surface,display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
+      <div style={{padding:"12px 16px",borderBottom:`1px solid ${T.border}33`,background:T.surface,display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
         {!isDesktop&&<button onClick={onBack} style={{background:"none",border:"none",cursor:"pointer",display:"flex"}}><Ic n="back" s={18} c={T.text}/></button>}
         <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.text,letterSpacing:"0.05em",fontWeight:700,flex:1}}>NEW SESSION</div>
         {/* Draft indicator */}
@@ -4353,7 +4442,7 @@ const NetworkMonitor = ({ onBack, isDesktop }) => {
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%",minHeight:0}} role="region" aria-label="Network and Storage Monitor">
-      <div style={{padding:"12px 16px",borderBottom:`1px solid ${T.border}`,background:T.surface,display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
+      <div style={{padding:"12px 16px",borderBottom:`1px solid ${T.border}33`,background:T.surface,display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
         {!isDesktop&&<button onClick={onBack} aria-label="Go back" style={{background:"none",border:"none",cursor:"pointer",display:"flex"}}><Ic n="back" s={18} c={T.text}/></button>}
         <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.text,letterSpacing:"0.05em",fontWeight:700,flex:1}}>NETWORK & STORAGE</div>
         {isDesktop && (
@@ -4409,7 +4498,7 @@ const NetworkMonitor = ({ onBack, isDesktop }) => {
                 <button onClick={clearDataOnly} style={{
                   width:"100%", padding:"10px", borderRadius:8, background:`${T.purple}15`, border:`1px solid ${T.purple}30`,
                   color:T.purple, fontSize:10, fontWeight:800, fontFamily:"'JetBrains Mono',monospace", cursor:"pointer",
-                  transition:"all .2s"
+                  transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)"
                 }} onMouseEnter={e=>e.currentTarget.style.background=`${T.purple}25`} onMouseLeave={e=>e.currentTarget.style.background=`${T.purple}15`}>CLEAR DATA</button>
               </div>
 
@@ -4422,7 +4511,7 @@ const NetworkMonitor = ({ onBack, isDesktop }) => {
                 <button onClick={clearCacheOnly} style={{
                   width:"100%", padding:"10px", borderRadius:8, background:`${T.blue}15`, border:`1px solid ${T.blue}30`,
                   color:T.blue, fontSize:10, fontWeight:800, fontFamily:"'JetBrains Mono',monospace", cursor:"pointer",
-                  transition:"all .2s"
+                  transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)"
                 }} onMouseEnter={e=>e.currentTarget.style.background=`${T.blue}25`} onMouseLeave={e=>e.currentTarget.style.background=`${T.blue}15`}>CLEAR CACHE</button>
               </div>
             </div>
@@ -4600,7 +4689,7 @@ const QuotaTimeline = ({ todayCount, plan }) => {
               position: "absolute", left: `${e.pos}%`, top: "50%",
               transform: "translate(-50%, -50%)",
               display: "flex", flexDirection: "column", alignItems: "center",
-              zIndex: 2, transition: "all 0.3s ease-out"
+              zIndex: 2, transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
             }}>
               <div style={{
                 width: 6, height: 6, borderRadius: "50%", background: color,
@@ -4705,7 +4794,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%",minHeight:0}}>
-      <div style={{padding:"12px 16px 0",borderBottom:`1px solid ${T.border}`,background:T.surface,flexShrink:0}}>
+      <div style={{padding:"12px 16px 0",borderBottom:`1px solid ${T.border}33`,background:T.surface,flexShrink:0}}>
         <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
           {!isDesktop&&<button onClick={onBack} style={{background:"none",border:"none",cursor:"pointer",display:"flex"}}><Ic n="back" s={18} c={T.text}/></button>}
           <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.text,letterSpacing:"0.05em",fontWeight:700,flex:1}}>APP SETTINGS</div>
@@ -4715,14 +4804,14 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
             </button>
           )}
         </div>
-          <div style={{display:"flex", gap:16, position:"relative", borderBottom: `1px solid ${T.border}`, overflowX: "auto", scrollbarWidth: "none", WebkitOverflowScrolling: "touch"}}>
+          <div style={{display:"flex", gap:16, position:"relative", borderBottom:`1px solid ${T.border}33`, overflowX: "auto", scrollbarWidth: "none", WebkitOverflowScrolling: "touch"}}>
           {TABS.map(t => (
             <button key={t.id} onClick={() => setTab(t.id)} style={{
               padding:"8px 4px", background:"none", border:"none", cursor:"pointer",
               borderBottom:`2px solid ${tab===t.id?T.brand:"transparent"}`,
               marginBottom: -1, whiteSpace: "nowrap",
               color:tab===t.id?T.text:T.muted, fontFamily:"'JetBrains Mono',monospace",
-              fontSize:11, fontWeight:tab===t.id?800:600, letterSpacing:"0.05em", transition:"all .2s",
+              fontSize:11, fontWeight:tab===t.id?800:600, letterSpacing:"0.05em", transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)",
               display:"flex", alignItems:"center", gap:6,
             }}
             onMouseEnter={(e) => { e.currentTarget.style.color = T.text; }}
@@ -4826,7 +4915,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
                          color: notifications ? "#000" : T.muted,
                          fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 800,
                          outline: `1px solid ${notifications ? T.brand : T.border}`,
-                         transition: "all .2s"
+                         transition: "all .2s cubic-bezier(0.4, 0, 0.2, 1)"
                        }}
                      >
                        {notifications ? "ENABLED" : "DISABLED"}
@@ -5067,7 +5156,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
                   <button onClick={clearDataOnly} style={{
                     width:"100%", padding:"10px", borderRadius:8, background:`${T.purple}15`, border:`1px solid ${T.purple}30`,
                     color:T.purple, fontSize:10, fontWeight:800, fontFamily:"'JetBrains Mono',monospace", cursor:"pointer",
-                    transition:"all .2s"
+                    transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)"
                   }} onMouseEnter={e=>e.currentTarget.style.background=`${T.purple}25`} onMouseLeave={e=>e.currentTarget.style.background=`${T.purple}15`}>CLEAR DATA</button>
                 </div>
 
@@ -5080,7 +5169,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
                   <button onClick={clearCacheOnly} style={{
                     width:"100%", padding:"10px", borderRadius:8, background:`${T.blue}15`, border:`1px solid ${T.blue}30`,
                     color:T.blue, fontSize:10, fontWeight:800, fontFamily:"'JetBrains Mono',monospace", cursor:"pointer",
-                    transition:"all .2s"
+                    transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)"
                   }} onMouseEnter={e=>e.currentTarget.style.background=`${T.blue}25`} onMouseLeave={e=>e.currentTarget.style.background=`${T.blue}15`}>CLEAR CACHE</button>
                 </div>
               </div>
@@ -5113,7 +5202,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
                   background:T.red, border:"none",
                   color:"#000", fontFamily:"'JetBrains Mono',monospace", fontSize:12,
                   fontWeight:900, letterSpacing:"0.1em", cursor:"pointer",
-                  boxShadow:`0 8px 24px ${T.red}40`, transition:"transform .2s"
+                  boxShadow:`0 8px 24px ${T.red}40`, transition:"transform .2s cubic-bezier(0.4, 0, 0.2, 1)"
                 }} onMouseEnter={e=>e.currentTarget.style.transform="scale(1.02)"} onMouseLeave={e=>e.currentTarget.style.transform="scale(1)"}>FULL SYSTEM RESET</button>
               </div>
             </div>
@@ -5164,10 +5253,10 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%",minHeight:0}}>
-      <div style={{padding:scrolled?"8px 16px 8px":"12px 16px 0",background:T.surface,borderBottom:`1px solid ${T.border}`,flexShrink:0,transition:"padding .2s ease-out, background .2s ease-out",zIndex: 5, contain: "layout"}}>
+      <div style={{padding:scrolled?"8px 16px 8px":"12px 16px 0",background:T.surface,borderBottom:`1px solid ${T.border}33`,flexShrink:0,transition:"padding .2s cubic-bezier(0.4, 0, 0.2, 1), background .2s cubic-bezier(0.4, 0, 0.2, 1)",zIndex: 5, contain: "layout"}}>
         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:scrolled?0:10}}>
-          <div style={{width:scrolled?20:32,height:scrolled?20:32,borderRadius:6,background:T.brand,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace",fontSize:scrolled?11:18,fontWeight:900,color:"#000",boxShadow:scrolled?"none":`0 0 12px ${T.brandDark}40`,flexShrink:0,transition:"all .2s ease"}}>J</div>
-          <div style={{minWidth:0, transition:"all .2s ease"}}>
+          <div style={{width:scrolled?20:32,height:scrolled?20:32,borderRadius:6,background:T.brand,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace",fontSize:scrolled?11:18,fontWeight:900,color:"#000",boxShadow:scrolled?"none":`0 0 12px ${T.brandDark}40`,flexShrink:0,transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)"}}>J</div>
+          <div style={{minWidth:0, transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)"}}>
             <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:scrolled?12:14,fontWeight:700,color:T.text}}>JULES</div>
             {!scrolled && <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:active>0?T.amber:T.muted}}>{active>0?`⚡ ${active} ACTIVE`:"AGENT CLIENT"}</div>}
           </div>
@@ -5192,7 +5281,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
                 title={`Refresh now ${countdown > 0 ? `(Auto in ${countdown}s)` : ""}`}
                 style={{
                   background:"none", border:"none", cursor:refreshing?"default":"pointer",
-                  display:"flex", padding:4, borderRadius:20, transition:"all .15s",
+                  display:"flex", padding:4, borderRadius:20, transition:"all .15s cubic-bezier(0.4, 0, 0.2, 1)",
                   background:refreshing?T.brandDim:"transparent",
                   position:"relative",
                   outline: countdown > 0 && !refreshing ? `1px solid ${T.brand}10` : "none",
@@ -5207,7 +5296,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
                       fill="none" stroke={T.brand} strokeWidth="2"
                       strokeDasharray="100%"
                       strokeDashoffset={`${100 - (countdown / (pollInterval / 1000 || 1)) * 100}%`}
-                      style={{ transition: "stroke-dashoffset 1s linear", opacity: 0.35 }}
+                      style={{ transition: "stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1)", opacity: 0.35 }}
                     />
                   </svg>
                 )}
@@ -5230,7 +5319,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
           </div>
         )}
         {(searchOpen || searchQuery) && (
-          <div style={{height:scrolled?0:42, overflow:"hidden", opacity:scrolled?0:1, transition:"all .25s ease", marginBottom:scrolled?0:8, padding:scrolled?0:"4px 2px", pointerEvents:scrolled?"none":"auto"}}>
+          <div style={{height:scrolled?0:42, overflow:"hidden", opacity:scrolled?0:1, transition:"all .25s cubic-bezier(0.4, 0, 0.2, 1)", marginBottom:scrolled?0:8, padding:scrolled?0:"4px 2px", pointerEvents:scrolled?"none":"auto"}}>
             <div style={{position:"relative", display:"flex", alignItems:"center"}}>
               <div style={{position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", pointerEvents:"none"}}><Ic n="search" s={14} c={T.blue}/></div>
               <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search by title, prompt or ID..." style={{...inputSt, paddingLeft:34, paddingRight:34, borderColor:T.blue+"40", background:T.surfaceHi}} autoFocus />
@@ -5239,13 +5328,13 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
           </div>
         )}
         {isDesktop && (
-          <div style={{display:"flex", gap:4, alignItems:"center", height:scrolled?0:22, overflow:"hidden", opacity:scrolled?0:1, marginBottom:scrolled?0:8, padding:scrolled?0:"4px 2px", transition:"all .25s ease", pointerEvents:scrolled?"none":"auto"}}>
+          <div style={{display:"flex", gap:4, alignItems:"center", height:scrolled?0:22, overflow:"hidden", opacity:scrolled?0:1, marginBottom:scrolled?0:8, padding:scrolled?0:"4px 2px", transition:"all .25s cubic-bezier(0.4, 0, 0.2, 1)", pointerEvents:scrolled?"none":"auto"}}>
             <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.textDim, letterSpacing:"0.08em", flexShrink:0, paddingRight:2}}>SESSIONS</span>
-            <button onClick={() => setShowArchived(false)} style={{flexShrink:0, padding:"3px 9px", borderRadius:20, border:"none", background:!showArchived ? T.brandDim : "transparent", outline:`1px solid ${!showArchived ? T.brand+"60" : T.border}`, color:!showArchived ? T.brand : T.muted, fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:!showArchived?700:400, letterSpacing:"0.05em", cursor:"pointer", transition:"all .12s"}}>ACTIVE</button>
-            <button onClick={() => setShowArchived(true)} style={{flexShrink:0, padding:"3px 9px", borderRadius:20, border:"none", background:showArchived ? T.purpleDim : "transparent", outline:`1px solid ${showArchived ? T.purple+"60" : T.border}`, color:showArchived ? T.purple : T.muted, fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:showArchived?700:400, letterSpacing:"0.05em", cursor:"pointer", transition:"all .12s"}}>ARCHIVED</button>
+            <button onClick={() => setShowArchived(false)} style={{flexShrink:0, padding:"3px 9px", borderRadius:20, border:"none", background:!showArchived ? T.brandDim : "transparent", outline:`1px solid ${!showArchived ? T.brand+"60" : T.border}`, color:!showArchived ? T.brand : T.muted, fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:!showArchived?700:400, letterSpacing:"0.05em", cursor:"pointer", transition:"all .12s cubic-bezier(0.4, 0, 0.2, 1)"}}>ACTIVE</button>
+            <button onClick={() => setShowArchived(true)} style={{flexShrink:0, padding:"3px 9px", borderRadius:20, border:"none", background:showArchived ? T.purpleDim : "transparent", outline:`1px solid ${showArchived ? T.purple+"60" : T.border}`, color:showArchived ? T.purple : T.muted, fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:showArchived?700:400, letterSpacing:"0.05em", cursor:"pointer", transition:"all .12s cubic-bezier(0.4, 0, 0.2, 1)"}}>ARCHIVED</button>
           </div>
         )}
-        <div style={{position: "relative", maxHeight:scrolled?0:60, opacity:scrolled?0:1, transition:"all .25s ease", pointerEvents:scrolled?"none":"auto"}}>
+        <div style={{position: "relative", maxHeight:scrolled?0:60, opacity:scrolled?0:1, transition:"all .25s cubic-bezier(0.4, 0, 0.2, 1)", pointerEvents:scrolled?"none":"auto"}}>
           {!scrolled && <div style={{position:"absolute", right:0, top:0, bottom:10, width:40, background:`linear-gradient(to left, ${T.bg}, transparent)`, pointerEvents:"none", zIndex:2}}/>}
           <div style={{overflowX:"auto", padding:scrolled?0:"4px 2px 10px", scrollbarWidth:"none", WebkitOverflowScrolling:"touch"}}>
             <div style={{display:"flex",gap:5,minWidth:"max-content",padding:"4px 0", alignItems:"center"}}>
@@ -5256,7 +5345,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
                   background:`linear-gradient(135deg, ${T.surfaceHi}, ${T.bg})`,
                   border:`1px solid ${T.borderHi}`, marginRight:10, flexShrink:0, cursor:"help",
                   boxShadow:`0 4px 12px rgba(0,0,0,0.3), inset 0 0 10px ${T.brand}05`,
-                  transition:"all .2s ease", position:"relative", overflow:"hidden"
+                  transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)", position:"relative", overflow:"hidden"
                 }}
                 onMouseEnter={e => {
                   e.currentTarget.style.transform = "translateY(-1px)";
@@ -5311,7 +5400,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
                 const isAct = f===filter;
                 const ac = STATUS_META[f]?.color || T.brand;
                 return (
-                  <button key={f} onClick={()=>setFilter(f)} style={{flexShrink:0,padding:"4px 10px",borderRadius:20,border:"none",background:isAct?`${ac}20`:"transparent",outline:`1px solid ${isAct?`${ac}80`:T.border}`,color:isAct?ac:T.muted,fontFamily:"'JetBrains Mono',monospace",fontSize:11,fontWeight:700,letterSpacing:"0.06em",cursor:"pointer",transition:"background .12s, color .12s"}}>{FILTER_LABELS[f]||f} {cnt>0?cnt:""}</button>
+                  <button key={f} onClick={()=>setFilter(f)} style={{flexShrink:0,padding:"4px 10px",borderRadius:20,border:"none",background:isAct?`${ac}20`:"transparent",outline:`1px solid ${isAct?`${ac}80`:T.border}`,color:isAct?ac:T.muted,fontFamily:"'JetBrains Mono',monospace",fontSize:11,fontWeight:700,letterSpacing:"0.06em",cursor:"pointer",transition:"background .12s cubic-bezier(0.4, 0, 0.2, 1), color .12s cubic-bezier(0.4, 0, 0.2, 1)"}}>{FILTER_LABELS[f]||f} {cnt>0?cnt:""}</button>
                 );
               })}
             </div>
