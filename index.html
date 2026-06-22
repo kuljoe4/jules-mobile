@@ -2676,7 +2676,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     setScrollDirMode(y > (h - vh) / 2 ? "top" : "bottom");
 
     lastScrollY.current = y;
-  }, [handleScrollBase]);
+  }, [scrolled]);
 
   const txtRef       = useRef(null);
   const feedEndRef   = useRef(null);
