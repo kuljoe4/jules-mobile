@@ -2625,7 +2625,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   const [justUpdated, setJustUpdated] = useState(false);
   const [err,setErr]             = useState(null);
   const [activeMedia,setActiveMedia] = useState(null);
-  const [scrolled, handleScrollBase] = useScrollThreshold(10);
+  const [scrolled, setScrolled] = useState(false);
   const [headerExpanded, setHeaderExpanded] = useState(true);
   const [composerVisible, setComposerVisible] = useState(true);
   const [composerMinimized, setComposerMinimized] = useState(true);
@@ -2636,9 +2636,9 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   const scrollDir = useRef(0); // 1 = down, -1 = up
 
   const contentRef = useRef(null);
+  const composerRef = useRef(null);
 
   const handleScroll = useCallback(e => {
-    handleScrollBase(e);
     const y = e.target.scrollTop;
     const h = e.target.scrollHeight;
     const vh = e.target.offsetHeight;
@@ -2648,14 +2648,17 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
       scrollDir.current = diff > 0 ? 1 : -1;
     }
 
-    // Smart visibility logic:
-    // 1. Always show if near bottom (within 100px)
-    // 2. Hide if scrolling down deep (> 200px)
-    // 3. Show if scrolling up
-    if (h - y - vh < 100) {
+    const isNearBottom = h - y - vh < 100;
+    const canHeaderShrink = h - vh > 250; // Only allow shrinking if there's significant content
+
+    // Scrolled state for visual transitions
+    if (y > 10 !== scrolled) setScrolled(y > 10);
+
+    // Visibility logic:
+    if (isNearBottom) {
       setComposerVisible(true);
       setHeaderExpanded(true);
-    } else if (y > 200) {
+    } else if (y > 150 && canHeaderShrink) {
       if (scrollDir.current === 1) {
         setComposerVisible(false);
         setHeaderExpanded(false);
@@ -2663,7 +2666,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
         setComposerVisible(true);
         setHeaderExpanded(true);
       }
-    } else {
+    } else if (y < 50) {
       setComposerVisible(true);
       setHeaderExpanded(true);
     }
@@ -2882,6 +2885,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
       }
     }
     setMsg("");
+    setComposerMinimized(true);
+    setExpanded(false);
     setBusy(true); setErr(null);
 
     // Optimistic: add temp bubble immediately
@@ -3002,6 +3007,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
         _label: `Msg -> ${session.id?.slice(0,6)}`
       });
       actMapRef.current.delete(tempKey);
+      setComposerMinimized(true);
+      setExpanded(false);
       if (stayOnTab !== true) setTab("activity");
       setTimeout(() => {
         loadActivities(lastTsRef.current);
@@ -3748,7 +3755,12 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
 
       {/* ── Composer ── */}
       {canSend&&(
-        <div style={{
+        <div ref={composerRef} onBlur={e => {
+          if (composerRef.current && !composerRef.current.contains(e.relatedTarget)) {
+            setComposerMinimized(true);
+            setExpanded(false);
+          }
+        }} style={{
           padding:"10px 12px", borderTop:`1px solid ${T.border}`, background:T.surface,
           flexShrink:0, transition:"transform .3s cubic-bezier(0.4, 0, 0.2, 1), opacity .2s ease, visibility .3s",
           transform: (isDesktop || composerVisible) ? "translateY(0)" : "translateY(100%)",
@@ -3910,6 +3922,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
 const NS_KEY = "jac_ns_draft";
 const REPO_STATS_KEY = "jac_repo_stats";
 const LAST_SOURCE_KEY = "jac_last_source";
+const LAST_BRANCHES_KEY = "jac_last_branches";
 const ACT_MAP_KEY = "jac_act_map";
 const ACT_STATS_KEY = "jac_act_stats";
 const SESSION_CACHE_KEY = "jac_session_cache";
@@ -3951,6 +3964,17 @@ function loadLastSource() {
 }
 function saveLastSource(name) {
   try { localStorage.setItem(LAST_SOURCE_KEY, name || ""); } catch {}
+}
+function loadLastBranches() {
+  try { return JSON.parse(localStorage.getItem(LAST_BRANCHES_KEY)) || {}; } catch { return {}; }
+}
+function saveLastBranch(source, branch) {
+  if (!source || !branch) return;
+  try {
+    const branches = loadLastBranches();
+    branches[source] = branch;
+    localStorage.setItem(LAST_BRANCHES_KEY, JSON.stringify(branches));
+  } catch {}
 }
 function saveDraft(d) {
   try { localStorage.setItem(NS_KEY, JSON.stringify(d)); } catch {}
@@ -4016,7 +4040,10 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
     const def  = repo.defaultBranch?.displayName || bs[0] || "main";
     setBranches(bs);
     setDefault(def);
-    if (!draft?.branch || draft?.source !== source) setBranch(def);
+    if (!draft?.branch || draft?.source !== source) {
+      const lastBranch = loadLastBranches()[source];
+      setBranch(lastBranch || def);
+    }
   }, [srcObj, source]);
 
   const filteredBranches = useMemo(() => {
@@ -4097,6 +4124,7 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
       if (source) {
         incRepoStat(source);
         saveLastSource(source);
+        saveLastBranch(source, branch || defaultBranch || "main");
       }
       onCreate(d);
     } catch (err) { setErr(err.message); setSub(false); }
