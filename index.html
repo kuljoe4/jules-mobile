@@ -843,6 +843,56 @@ const getBranchInfo = (s, activities = []) => {
   return { base, working: working || base, repo: repoUrl ? repo : null, repoUrl, isNew: working && working !== base };
 };
 
+const getWorkingSet = (s, activities = []) => {
+  const files = new Set();
+  if (!s) return [];
+
+  // 1. Scan activities for patches
+  for (const a of activities) {
+    if (a.artifacts) {
+      for (const art of a.artifacts) {
+        const patch = art.changeSet?.gitPatch?.unidiffPatch;
+        if (patch) {
+          const lines = patch.split("\n");
+          for (const line of lines) {
+            if (line.startsWith("+++ ")) {
+              const file = line.slice(4).replace(/^b\//, "");
+              if (file && file !== "/dev/null") files.add(file);
+            }
+          }
+        }
+      }
+    }
+
+    // 2. Scan planGenerated for file mentions
+    if (a.planGenerated?.plan?.steps) {
+      for (const step of a.planGenerated.plan.steps) {
+        const text = `${step.title} ${step.description || ""}`;
+        const matches = text.match(/`([^`\s]+\.[a-z0-9]+)`/gi);
+        if (matches) {
+          matches.forEach(m => {
+            const f = m.replace(/`/g, "").trim();
+            if (f.includes("/") || f.includes(".")) files.add(f);
+          });
+        }
+      }
+    }
+  }
+
+  // 3. Fallback: Scan prompt for file mentions if it's a new session
+  if (files.size === 0 && s.prompt) {
+    const matches = s.prompt.match(/`([^`\s]+\.[a-z0-9]+)`/gi);
+    if (matches) {
+      matches.forEach(m => {
+        const f = m.replace(/`/g, "").trim();
+        if (f.includes("/") || f.includes(".")) files.add(f);
+      });
+    }
+  }
+
+  return Array.from(files);
+};
+
 const getAheadCount = (activities = []) => {
   let count = 0;
   // Use a Set to avoid double counting if activities repeat or describe the same push
@@ -1892,7 +1942,7 @@ const MediaModal = ({ media, onClose }) => {
 const COLLAPSE_THRESHOLD = 35;
 const COLLAPSE_SHOW      = 25;
 
-const ActivityFeed = memo(({ activities, showAll, onShowAll, onMediaClick, onEditMessage }) => {
+const ActivityFeed = memo(({ activities, showAll, onShowAll, onMediaClick, onEditMessage, driftSessions = [] }) => {
   const collapse  = !showAll && activities.length > COLLAPSE_THRESHOLD;
   const visible   = collapse ? activities.slice(activities.length - COLLAPSE_SHOW) : activities;
   const hidden    = activities.length - visible.length;
@@ -1920,6 +1970,14 @@ const ActivityFeed = memo(({ activities, showAll, onShowAll, onMediaClick, onEdi
     return list;
   }, [visible]);
 
+  const combined = useMemo(() => {
+    const list = [...deduped.map(a => ({ type: "activity", data: a, ts: new Date(a.createTime).getTime() }))];
+    driftSessions.forEach(s => {
+      list.push({ type: "drift", data: s, ts: new Date(s.updateTime || s.createTime).getTime() });
+    });
+    return list.sort((a, b) => a.ts - b.ts);
+  }, [deduped, driftSessions]);
+
   return (
     <>
       {collapse && (
@@ -1933,7 +1991,28 @@ const ActivityFeed = memo(({ activities, showAll, onShowAll, onMediaClick, onEdi
           ↑ SHOW {hidden} EARLIER {hidden===1?"EVENT":"EVENTS"}
         </button>
       )}
-      {deduped.map(act => {
+      {combined.map((item, idx) => {
+        if (item.type === "drift") {
+          return (
+            <div key={`drift-${item.data.id}-${idx}`} style={{
+              margin: "12px 0 20px", padding: "10px 14px", background: "rgba(252, 211, 77, 0.03)",
+              border: `1px dashed ${T.amber}30`, borderRadius: 8, display: "flex", gap: 10, alignItems: "center"
+            }}>
+              <div style={{ width: 20, height: 20, borderRadius: "50%", background: T.amberDim, display: "flex", alignItems: "center", justifyContent: "center", border: `1px solid ${T.amber}40` }}>
+                <Ic n="wifi" s={11} c={T.amber}/>
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 800, color: T.amber, letterSpacing: "0.05em" }}>
+                  BASE DRIFT · {item.data.title || item.data.prompt}
+                </div>
+                <div style={{ fontFamily: "'IBM Plex Sans',sans-serif", fontSize: 11, color: T.dim }}>
+                  Merged {fmtAgo(item.ts)}
+                </div>
+              </div>
+            </div>
+          );
+        }
+        const act = item.data;
         const type = getActType(act);
         const key  = getActKey(act);
         if (type === "userMessaged" || type === "agentMessaged") {
@@ -1948,7 +2027,7 @@ const ActivityFeed = memo(({ activities, showAll, onShowAll, onMediaClick, onEdi
 // ─── Interactive Plan View ────────────────────────────────────────────────────
 // Lets the user review steps, annotate individual ones, compose a revision
 // request via sendMessage, or approve the plan directly.
-const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFeedback, busy }) => {
+const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFeedback, busy, allSessions = [], activitiesMap = {} }) => {
   const [stepNotes, setStepNotes]     = useState({}); // stepId → note string
   const [activeNote, setActiveNote]   = useState(null); // stepId currently expanded
   const [globalNote, setGlobalNote]   = useState("");
@@ -2009,6 +2088,16 @@ const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFeedback,
 
   return (
     <div style={{paddingBottom:16}}>
+      <ConflictRadar
+        currentSource={session.sourceContext?.source}
+        currentBranch={session.sourceContext?.githubRepoContext?.startingBranch}
+        currentPrompt={session.prompt}
+        allSessions={allSessions}
+        activitiesMap={activitiesMap}
+        currentSessionId={session.id}
+        startTime={new Date(session.createTime).getTime()}
+      />
+
       {/* Plan header */}
       <div style={{
         marginBottom:14,padding:"10px 14px",borderRadius:7,
@@ -2447,7 +2536,7 @@ const SetupScreen = ({ onSave }) => {
 };
 
 // ─── Session Card ─────────────────────────────────────────────────────────────
-const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], stats, lastReadTs }) => {
+const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], stats, lastReadTs, allSessions = [] }) => {
   const cardRef = useRef(null);
 
   useEffect(() => {
@@ -2458,6 +2547,7 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], stat
 
   const isActuallyDone = useMemo(() => {
     if (ACTIVE_STATES.has(s.state)) return false;
+    if (s.state === "COMPLETED") return true;
     let lastComp = -1, lastUser = -1;
     for (let i = activities.length - 1; i >= 0; i--) {
       const type = getActType(activities[i]);
@@ -2468,6 +2558,21 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], stat
     return lastComp !== -1 && lastComp > lastUser;
   }, [activities, s.state]);
   const currentState = isActuallyDone ? "COMPLETED" : s.state;
+
+  const driftDetected = useMemo(() => {
+    if (currentState === "COMPLETED") return false;
+    const repo = s.sourceContext?.source;
+    if (!repo) return false;
+    const currentStart = new Date(s.createTime).getTime();
+
+    return allSessions.some(other => {
+      if (other.id === s.id || other.state !== "COMPLETED") return false;
+      if (other.sourceContext?.source !== repo) return false;
+      const completionTime = new Date(other.updateTime || other.createTime).getTime();
+      return completionTime > currentStart;
+    });
+  }, [s, allSessions, currentState]);
+
   const isWorking = ACTIVE_STATES.has(currentState);
   const isFinished = currentState === "COMPLETED" || currentState === "FAILED";
   const updateTs = s.updateTime || s.createTime;
@@ -2569,6 +2674,12 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], stat
             <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900}}>{checks.label}</span>
           </div>
         )}
+        {driftDetected && (
+          <div style={{display:"flex", alignItems:"center", gap:3, color:T.amber, opacity:0.9}}>
+            <Ic n="wifi" s={9} c={T.amber}/>
+            <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900}}>STALE</span>
+          </div>
+        )}
         {isUnread && <div style={{width:4,height:4,borderRadius:"50%",background:T.indigo,animation:"dot 1s infinite"}}/>}
       </div>
 
@@ -2594,7 +2705,7 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], stat
 });
 
 // ─── Session Detail ───────────────────────────────────────────────────────────
-const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete, onSessionUpdate, onStatsUpdate, isDesktop, pollInterval, setPollInterval, isArchived, onArchive, onUnarchive, cacheLimit, activityLimit }) => {
+const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete, onSessionUpdate, onStatsUpdate, isDesktop, pollInterval, setPollInterval, isArchived, onArchive, onUnarchive, cacheLimit, activityLimit, allSessions = [], activitiesMap = {} }) => {
   const [session,setSession]     = useState(initSession);
   const [activities,setActivities] = useState(() => {
     try {
@@ -2625,6 +2736,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   const [justUpdated, setJustUpdated] = useState(false);
   const [err,setErr]             = useState(null);
   const [activeMedia,setActiveMedia] = useState(null);
+  const [showDriftWarning, setShowDriftWarning] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [headerExpanded, setHeaderExpanded] = useState(true);
   const [composerVisible, setComposerVisible] = useState(true);
@@ -2677,6 +2789,38 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
 
     lastScrollY.current = y;
   }, [scrolled]);
+
+  const completedSessionsMap = useMemo(() => {
+    const map = new Map();
+    allSessions.forEach(s => {
+      if (s.state === "COMPLETED") {
+        const repo = s.sourceContext?.source;
+        if (repo) {
+          if (!map.has(repo)) map.set(repo, []);
+          map.get(repo).push(s);
+        }
+      }
+    });
+    return map;
+  }, [allSessions]);
+
+  const driftDetected = useMemo(() => {
+    if (!session) return false;
+    const repo = session.sourceContext?.source;
+    if (!repo) return false;
+    const currentStart = new Date(session.createTime).getTime();
+    const repoCompletions = completedSessionsMap.get(repo) || [];
+
+    return repoCompletions.some(s => {
+      if (s.id === session.id) return false;
+      const completionTime = new Date(s.updateTime || s.createTime).getTime();
+      return completionTime > currentStart;
+    });
+  }, [session, completedSessionsMap]);
+
+  useEffect(() => {
+    if (driftDetected && !isArchived) setShowDriftWarning(true);
+  }, [driftDetected, isArchived]);
 
   const txtRef       = useRef(null);
   const feedEndRef   = useRef(null);
@@ -3194,6 +3338,16 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
           </div>
 
           <div style={{display:"flex",gap:6,alignItems:"center",flexShrink:0}}>
+            {driftDetected && (
+              <span title="STALE BASE: Repository was updated since this session started" style={{
+                display:"flex", alignItems:"center", gap:4, padding:"3px 8px", borderRadius:4,
+                background:`${T.amber}15`, border:`1px solid ${T.amber}40`, color:T.amber,
+                fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:800, letterSpacing:"0.05em"
+              }}>
+                <Ic n="wifi" s={11} c={T.amber}/>
+                {!scrolled && "STALE"}
+              </span>
+            )}
             <Pill status={currentState} small hideLabel={!headerExpanded && scrolled}/>
 
             <div style={{position:"relative"}}>
@@ -3228,6 +3382,28 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                       <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:800, color:T.dim}}>ACTIONS</div>
                       {busy && <div style={{animation:"spin 1s linear infinite"}}><Ic n="refresh" s={10} c={T.brand}/></div>}
                     </div>
+                    <button
+                      onClick={() => {
+                        setMsg("The repository has been updated. Please pull the latest changes from the base branch and rebase your current work to avoid conflicts.");
+                        setComposerMinimized(false);
+                        setComposerVisible(true);
+                        setShowMenu(false);
+                        setTimeout(() => txtRef.current?.focus(), 100);
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = T.border}
+                      onMouseLeave={e => e.currentTarget.style.background = "none"}
+                      onMouseDown={e => e.currentTarget.style.transform = "scale(0.96)"}
+                      onMouseUp={e => e.currentTarget.style.transform = "scale(1)"}
+                      style={{
+                        width:"100%", padding:"12px 14px", background:"none", border:"none",
+                        color:T.amber, textAlign:"left", fontFamily:"'JetBrains Mono',monospace",
+                        fontSize:11, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:10,
+                        borderBottom:`1px solid ${T.border}33`,
+                        transition: "all .1s cubic-bezier(0.4, 0, 0.2, 1)"
+                      }}
+                    >
+                      <Ic n="wifi" s={14} c={T.amber}/> SYNC / REBASE
+                    </button>
                     <button
                       onClick={() => { handleRefresh(); setShowMenu(false); }}
                       disabled={busy}
@@ -3528,6 +3704,51 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                 <Ic n="copy" s={10} c={T.brand}/> COPY ALL
               </button>
             </div>
+            {showDriftWarning && (
+              <div style={{
+                marginBottom: 16, padding: "12px 16px", background: "rgba(252, 211, 77, 0.05)",
+                border: `1px solid ${T.amber}40`, borderRadius: 10, display: "flex", gap: 12,
+                alignItems: "flex-start", animation: "slideUp .3s ease"
+              }}>
+                <div style={{
+                  width: 28, height: 28, borderRadius: 6, background: T.amberDim,
+                  display: "flex", alignItems: "center", justify: "center", flexShrink: 0,
+                  marginTop: 2, border: `1px solid ${T.amber}40`
+                }}>
+                  <Ic n="wifi" s={16} c={T.amber}/>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, fontWeight: 900, color: T.amber, marginBottom: 2 }}>STALE BASE DETECTED</div>
+                  <div style={{ fontFamily: "'IBM Plex Sans',sans-serif", fontSize: 13, color: T.textDim, lineHeight: 1.4 }}>
+                    Another session on this repository was merged since you started. Jules may be working on an outdated codebase.
+                  </div>
+                  <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
+                    <button
+                      onClick={() => {
+                        setMsg("The repository has been updated. Please pull the latest changes from the base branch and rebase your current work to avoid conflicts.");
+                        setComposerMinimized(false);
+                        setComposerVisible(true);
+                        setTimeout(() => txtRef.current?.focus(), 100);
+                      }}
+                      style={{
+                        background: T.amber, border: "none", borderRadius: 4, padding: "4px 10px",
+                        fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 900,
+                        cursor: "pointer", color: "#000"
+                      }}
+                    >SYNC / REBASE</button>
+                    <button
+                      onClick={() => setShowDriftWarning(false)}
+                      style={{
+                        background: "transparent", border: `1px solid ${T.border}`, borderRadius: 4,
+                        padding: "4px 10px", fontFamily: "'JetBrains Mono',monospace", fontSize: 10,
+                        fontWeight: 700, cursor: "pointer", color: T.muted
+                      }}
+                    >DISMISS</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {activities.length===0
               ?<div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>
                 {ACTIVE_STATES.has(currentState)?"Waiting for activity…":"No activities yet"}
@@ -3538,6 +3759,11 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                     if (chatFilter === "REVIEWS") return a.progressUpdated && a.progressUpdated.title?.toLowerCase().includes("review");
                     if (chatFilter === "SYSTEM") return !a.userMessaged && !a.agentMessaged && !(a.progressUpdated && a.progressUpdated.title?.toLowerCase().includes("review"));
                     return true;
+                  })}
+                  driftSessions={allSessions.filter(s => {
+                    if (!session || s.id === session.id || s.state !== "COMPLETED") return false;
+                    if (s.sourceContext?.source !== session.sourceContext?.source) return false;
+                    return new Date(s.updateTime || s.createTime).getTime() > new Date(session.createTime).getTime();
                   })}
                   showAll={showAll}
                   onShowAll={()=>setShowAll(true)}
@@ -3704,6 +3930,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
             onApprove={handleApprove}
             onSendFeedback={handleSendFeedback}
             busy={busy}
+            allSessions={allSessions}
+            activitiesMap={activitiesMap}
           />
         )}
         {tab==="diff"&&<DiffViewer activities={activities}/>}
@@ -3983,7 +4211,7 @@ function clearDraft() {
   try { localStorage.removeItem(NS_KEY); } catch {}
 }
 
-const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, todayCount }) => {
+const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, todayCount, allSessions = [], activitiesMap = {} }) => {
   const draft = useMemo(() => loadDraft(), []);
   const [sources,setSources]       = useState([]);
   const [loadingSrc,setLoadSrc]    = useState(true);
@@ -4295,7 +4523,14 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
               )}
 
               <div style={{background:T.surfaceHi, borderRadius:10, padding:16, border:`1px solid ${T.border}`}}>
-                <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.purple, fontWeight:800, letterSpacing:"0.1em", marginBottom:8}}>PROMPT SUMMARY</div>
+                <ConflictRadar
+                  currentSource={source}
+                  currentBranch={branch || defaultBranch}
+                  currentPrompt={prompt}
+                  allSessions={allSessions}
+                  activitiesMap={activitiesMap}
+                />
+                <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.purple, fontWeight:800, letterSpacing:"0.1em", marginBottom:8, marginTop: 12}}>PROMPT SUMMARY</div>
                 <div style={{fontFamily:"'IBM Plex Sans',sans-serif", fontSize:14, color:T.textDim, lineHeight:1.5, display:"-webkit-box", WebkitLineClamp:3, WebkitBoxOrient:"vertical", overflow:"hidden", marginBottom: selectedPersonas.size > 0 ? 12 : 0}}>
                   {prompt}
                 </div>
@@ -4622,6 +4857,121 @@ const NetworkMonitor = ({ onBack, isDesktop }) => {
             </div>
           </div>
         </div>
+      </div>
+    </div>
+  );
+};
+
+const ConflictRadar = ({ currentSource, currentBranch, currentPrompt, allSessions, activitiesMap, currentSessionId, startTime, limit = 20 }) => {
+  const collisions = useMemo(() => {
+    if (!currentSource) return [];
+
+    const currentFiles = new Set(getWorkingSet({ prompt: currentPrompt, id: currentSessionId }, activitiesMap[currentSessionId] || []));
+    const results = [];
+    const relevantSessions = allSessions
+      .filter(s => s.id !== currentSessionId)
+      .filter(s => s.sourceContext?.source === currentSource)
+      .slice(0, limit);
+
+    for (const s of relevantSessions) {
+      const isCompleted = s.state === "COMPLETED";
+      if (isCompleted) {
+        if (!startTime) continue;
+        const compTime = new Date(s.updateTime || s.createTime).getTime();
+        if (compTime <= startTime) continue;
+      }
+
+      const acts = activitiesMap[s.id] || [];
+      const sFiles = getWorkingSet(s, acts);
+      const overlap = sFiles.filter(f => currentFiles.has(f));
+      const sameBranch = currentBranch && s.sourceContext?.githubRepoContext?.startingBranch === currentBranch;
+
+      if (overlap.length > 0 || sameBranch) {
+        results.push({
+          session: s,
+          overlap,
+          sameBranch,
+          risk: overlap.length > 0 ? "HIGH" : "MEDIUM",
+          isDrift: isCompleted
+        });
+      }
+    }
+    return results;
+  }, [currentSource, currentBranch, currentPrompt, allSessions, activitiesMap, currentSessionId, startTime, limit]);
+
+  if (collisions.length === 0) return null;
+
+  return (
+    <div style={{
+      marginTop: 12, padding: 16, background: "rgba(251, 113, 133, 0.05)",
+      border: `1px solid ${T.red}30`, borderRadius: 12,
+      animation: "fadeIn .3s ease"
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+        <Ic n="wifi" s={16} c={T.red}/>
+        <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, fontWeight: 900, color: T.red, letterSpacing: "0.05em" }}>
+          CONFLICT RADAR
+        </span>
+        <div style={{ flex: 1, height: 1, background: `${T.red}20` }}/>
+        <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: T.red, fontWeight: 700 }}>
+          {collisions.length} ACTIVE RISKS
+        </span>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {collisions.map((c, i) => (
+          <div key={i} style={{
+            background: T.surface, padding: 10, borderRadius: 8,
+            border: `1px solid ${c.risk === "HIGH" ? T.red + "40" : T.amber + "40"}`,
+            position: "relative", overflow: "hidden"
+          }}>
+            {c.risk === "HIGH" && <div style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: 3, background: T.red }}/>}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6, paddingLeft: c.risk === "HIGH" ? 6 : 0 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: "'IBM Plex Sans',sans-serif", fontSize: 13, fontWeight: 600, color: T.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {c.session.title || c.session.prompt}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
+                  <Pill status={c.session.state} small hideLabel />
+                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: T.dim }}>{fmtAgo(new Date(c.session.updateTime || c.session.createTime).getTime())}</span>
+                </div>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+                <div style={{
+                  background: c.isDrift ? `${T.amber}15` : (c.risk === "HIGH" ? `${T.red}15` : `${T.amber}15`),
+                  border: `1px solid ${c.isDrift ? T.amber : (c.risk === "HIGH" ? T.red : T.amber)}30`,
+                  borderRadius: 4, padding: "2px 6px", fontFamily: "'JetBrains Mono',monospace",
+                  fontSize: 8, color: c.isDrift ? T.amber : (c.risk === "HIGH" ? T.red : T.amber), fontWeight: 800
+                }}>
+                  {c.isDrift ? "DRIFT" : c.risk + " RISK"}
+                </div>
+                {c.sameBranch && (
+                  <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 8, color: T.amber, fontWeight: 700, opacity: 0.8 }}>
+                    SAME BASE
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {c.overlap.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 6, paddingLeft: c.risk === "HIGH" ? 6 : 0 }}>
+                {c.overlap.map(f => (
+                  <span key={f} style={{
+                    fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: T.red,
+                    background: `${T.red}10`, padding: "2px 6px", borderRadius: 4,
+                    border: `1px solid ${T.red}20`
+                  }}>
+                    {f.split("/").pop()}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <div style={{ marginTop: 12, fontFamily: "'IBM Plex Sans',sans-serif", fontSize: 11, color: T.textDim, lineHeight: 1.5 }}>
+        Jules is isolated. These sessions are touching the same files or branch. Starting now may lead to merge conflicts later.
       </div>
     </div>
   );
@@ -5460,7 +5810,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
       <div onScroll={handleScroll} style={{flex:1,overflowY:"auto",padding:"10px 12px",WebkitOverflowScrolling:"touch",minHeight:200}}>
         {refreshing&&sessions.length===0&&<div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>Loading sessions…</div>}
         {!refreshing&&filtered.length===0&&<div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>{filter==="ALL"?"No sessions yet":"No sessions with this status"}</div>}
-        {filtered.map((s,i)=><SessionCard key={s.id||s.name} index={i+1} s={s} onPress={()=>onSelect(s)} isSelected={s.id===selectedId} activities={activitiesMap[s.id] || []} stats={activityStatsMap[s.id]} lastReadTs={readMap[s.id]}/>)}
+        {filtered.map((s,i)=><SessionCard key={s.id||s.name} index={i+1} s={s} onPress={()=>onSelect(s)} isSelected={s.id===selectedId} activities={activitiesMap[s.id] || []} stats={activityStatsMap[s.id]} lastReadTs={readMap[s.id]} allSessions={sessions}/>)}
       </div>
     </div>
   );
@@ -5929,6 +6279,8 @@ function JulesClient() {
           {desktopView==="detail"&&selected&&(
             <SessionDetail key={selected.id} session={selected} apiKey={apiKey}
               personas={personas}
+              allSessions={allSessions}
+              activitiesMap={activitiesMap}
               onBack={()=>setDesktop("empty")} onDelete={handleDelete}
               onSessionUpdate={handleSessionUpdate}
               onStatsUpdate={handleStatsUpdate}
@@ -5939,7 +6291,7 @@ function JulesClient() {
               onArchive={handleArchive} onUnarchive={handleUnarchive}/>
           )}
           {desktopView==="new"&&(
-            <NewSession apiKey={apiKey} personas={personas} onBack={()=>setDesktop("empty")} onCreate={handleCreate} isDesktop plan={plan} todayCount={todayCount}/>
+            <NewSession apiKey={apiKey} personas={personas} onBack={()=>setDesktop("empty")} onCreate={handleCreate} isDesktop plan={plan} todayCount={todayCount} allSessions={allSessions} activitiesMap={activitiesMap}/>
           )}
 
           {desktopView==="network"&&( <NetworkMonitor onBack={()=>setDesktop("empty")} isDesktop/> )} {desktopView==="settings"&&(
@@ -5985,6 +6337,8 @@ function JulesClient() {
         {mobileScreen==="detail"&&selected&&(
           <SessionDetail key={selected.id} session={selected} apiKey={apiKey}
             personas={personas}
+            allSessions={allSessions}
+            activitiesMap={activitiesMap}
             onBack={()=>{ setMobile("list"); fetchSessions(true); }}
             onDelete={handleDelete} onSessionUpdate={handleSessionUpdate}
             onStatsUpdate={handleStatsUpdate}
@@ -5995,7 +6349,7 @@ function JulesClient() {
             onArchive={handleArchive} onUnarchive={handleUnarchive}/>
         )}
         {mobileScreen==="new"&&(
-          <NewSession apiKey={apiKey} personas={personas} onBack={()=>setMobile("list")} onCreate={s=>{ setSessions(prev=>[s,...prev]); setMobile("list"); }} isDesktop={false} plan={plan} todayCount={todayCount}/>
+          <NewSession apiKey={apiKey} personas={personas} onBack={()=>setMobile("list")} onCreate={s=>{ setSessions(prev=>[s,...prev]); setMobile("list"); }} isDesktop={false} plan={plan} todayCount={todayCount} allSessions={allSessions} activitiesMap={activitiesMap}/>
         )}
 
         {mobileScreen==="network"&&( <NetworkMonitor onBack={()=>setMobile("list")} isDesktop={false}/> )} {mobileScreen==="settings"&&(
