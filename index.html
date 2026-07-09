@@ -4262,8 +4262,38 @@ function clearDraft() {
   try { localStorage.removeItem(NS_KEY); } catch {}
 }
 
-const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, todayCount, allSessions = [], activitiesMap = {} }) => {
-  const draft = useMemo(() => loadDraft(), []);
+const DRAFTS_BOX_KEY = "jac_drafts_box";
+function loadDraftsBox() {
+  try { return JSON.parse(localStorage.getItem(DRAFTS_BOX_KEY) || "[]"); } catch { return []; }
+}
+function saveDraftToBox(draft) {
+  try {
+    const drafts = loadDraftsBox();
+    const newDraft = {
+      ...draft,
+      id: draft.id || "dr_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7),
+      createdAt: draft.createdAt || Date.now(),
+      updatedAt: Date.now()
+    };
+    const idx = drafts.findIndex(d => d.id === newDraft.id);
+    if (idx >= 0) drafts[idx] = newDraft;
+    else drafts.unshift(newDraft);
+    localStorage.setItem(DRAFTS_BOX_KEY, JSON.stringify(drafts));
+    return newDraft;
+  } catch (e) { return null; }
+}
+function deleteDraftFromBox(id) {
+  try {
+    const drafts = loadDraftsBox().filter(d => d.id !== id);
+    localStorage.setItem(DRAFTS_BOX_KEY, JSON.stringify(drafts));
+  } catch {}
+}
+function clearDraftsBox() {
+  try { localStorage.removeItem(DRAFTS_BOX_KEY); } catch {}
+}
+
+const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, todayCount, allSessions = [], activitiesMap = {}, initialDraft = null, onDraftSaved = null }) => {
+  const draft = useMemo(() => initialDraft || loadDraft(), [initialDraft]);
   const [sources,setSources]       = useState([]);
   const [loadingSrc,setLoadSrc]    = useState(true);
   const [source,setSource]         = useState(draft?.source ?? "");
@@ -4374,6 +4404,24 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
     setAutoMode(true); setReqApp(false); setSelectedPersonas(new Set());
     setSavedFlash(true);
     setTimeout(() => setSavedFlash(false), 1500);
+    if (onDraftSaved) onDraftSaved();
+  };
+
+  const handleSaveToBox = () => {
+    if (!prompt.trim()) return;
+    const d = {
+      id: initialDraft?.id,
+      source,
+      branch: branch || defaultBranch || "main",
+      prompt,
+      autoMode,
+      reqApproval,
+      selectedPersonas: Array.from(selectedPersonas),
+      title: prompt.trim().split("\n")[0].slice(0, 50) + (prompt.trim().length > 50 ? "..." : "")
+    };
+    saveDraftToBox(d);
+    handleClearDraft();
+    if (onDraftSaved) onDraftSaved();
   };
 
   const handleCreate = async () => {
@@ -4755,9 +4803,116 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
             </div>
           )}
 
-          <Btn onClick={() => setShowConfirm(true)} disabled={!prompt.trim()||submitting||loadingSrc||(plan&&todayCount.total>=plan.daily)} style={{width:"100%"}}>
-            {submitting?"SENDING…":"ASSIGN TO JULES →"}
-          </Btn>
+          <div style={{display:"flex", gap:10}}>
+            <Btn onClick={handleSaveToBox} disabled={!prompt.trim()||submitting} outline style={{flex:1}}>
+              <Ic n="archive" s={14} c={T.brand}/>
+              SAVE DRAFT
+            </Btn>
+            <Btn onClick={() => setShowConfirm(true)} disabled={!prompt.trim()||submitting||loadingSrc||(plan&&todayCount.total>=plan.daily)} style={{flex:2}}>
+              {submitting?"SENDING…":"ASSIGN TO JULES →"}
+            </Btn>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Drafts Box ───────────────────────────────────────────────────────────────
+const DraftsBox = ({ onBack, isDesktop, onResume, onCreate, allSessions, activitiesMap }) => {
+  const [drafts, setDrafts] = useState(loadDraftsBox());
+
+  const handleDelete = (id) => {
+    if (!confirm("Delete this draft?")) return;
+    deleteDraftFromBox(id);
+    setDrafts(loadDraftsBox());
+  };
+
+  const handleClearAll = () => {
+    if (!confirm("Clear all drafts?")) return;
+    clearDraftsBox();
+    setDrafts([]);
+  };
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",height:"100%",minHeight:0}}>
+      <div style={{padding:"12px 16px",borderBottom:`1px solid ${T.border}33`,background:T.surface,display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
+        {!isDesktop&&<button onClick={onBack} style={{background:"none",border:"none",cursor:"pointer",display:"flex"}}><Ic n="back" s={18} c={T.text}/></button>}
+        <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.text,letterSpacing:"0.05em",fontWeight:700,flex:1}}>DRAFTS BOX</div>
+        {drafts.length > 0 && (
+          <button onClick={handleClearAll} style={{background:"none", border:"none", cursor:"pointer", color:T.red, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700}}>CLEAR ALL</button>
+        )}
+        {isDesktop && (
+          <button onClick={onBack} title="Close" style={{background:"none",border:"none",cursor:"pointer",display:"flex",padding:4,opacity:0.8}}>
+            <Ic n="x" s={18} c={T.text}/>
+          </button>
+        )}
+      </div>
+
+      <div style={{flex:1,overflowY:"auto",padding:"20px 24px",WebkitOverflowScrolling:"touch",minHeight:0}}>
+        <div style={{maxWidth:560,margin:"0 auto"}}>
+          {drafts.length === 0 ? (
+            <div style={{textAlign:"center",padding:"100px 24px",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>
+              <div style={{width:48, height:48, borderRadius:12, background:T.surfaceHi, display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 16px", border:`1px solid ${T.border}`}}>
+                <Ic n="archive" s={20} c={T.dim}/>
+              </div>
+              NO SAVED DRAFTS
+            </div>
+          ) : (
+            <div style={{display:"flex", flexDirection:"column", gap:16}}>
+              {drafts.map(d => (
+                <div key={d.id} style={{
+                  background:T.surface, border:`1px solid ${T.border}`, borderRadius:12, padding:20,
+                  transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)", position:"relative",
+                  animation:"slideUp .3s ease"
+                }}>
+                  <div style={{display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:12}}>
+                    <div style={{flex:1, minWidth:0}}>
+                      <div style={{fontFamily:"'IBM Plex Sans',sans-serif", fontSize:15, fontWeight:600, color:T.text, marginBottom:4, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>
+                        {d.title || d.prompt}
+                      </div>
+                      <div style={{display:"flex", alignItems:"center", gap:8}}>
+                        <div style={{display:"flex", alignItems:"center", gap:4, opacity:0.7}}>
+                          <Ic n="code" s={11} c={T.muted}/>
+                          <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.muted, fontWeight:700}}>{d.source ? d.source.replace("sources/github/","") : "REPOLESS"}</span>
+                        </div>
+                        <div style={{display:"flex", alignItems:"center", gap:4, opacity:0.7}}>
+                          <Ic n="branch" s={11} c={T.muted}/>
+                          <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.muted, fontWeight:700}}>{d.branch}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <button onClick={() => handleDelete(d.id)} style={{background:"none", border:"none", cursor:"pointer", padding:4, opacity:0.6}} title="Delete Draft">
+                      <Ic n="trash" s={14} c={T.red}/>
+                    </button>
+                  </div>
+
+                  <div style={{fontFamily:"'IBM Plex Sans',sans-serif", fontSize:13, color:T.textDim, lineHeight:1.5, marginBottom:16, display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden"}}>
+                    {d.prompt}
+                  </div>
+
+                  <ConflictRadar
+                    currentSource={d.source}
+                    currentBranch={d.branch}
+                    currentPrompt={d.prompt}
+                    allSessions={allSessions}
+                    activitiesMap={activitiesMap}
+                  />
+
+                  <div style={{display:"flex", gap:10, marginTop:16}}>
+                    <Btn onClick={() => onResume(d)} outline sm style={{flex:1}}>
+                      <Ic n="expand" s={12} c={T.brand}/>
+                      RESUME
+                    </Btn>
+                    <Btn onClick={() => onCreate(d)} sm style={{flex:1}}>
+                      <Ic n="plus" s={12} c="#000"/>
+                      CREATE
+                    </Btn>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -4950,7 +5105,21 @@ const ConflictRadar = ({ currentSource, currentBranch, currentPrompt, allSession
     return results;
   }, [currentSource, currentBranch, currentPrompt, allSessions, activitiesMap, currentSessionId, startTime, limit]);
 
-  if (collisions.length === 0) return null;
+  if (collisions.length === 0) {
+    if (!currentSource || !currentPrompt.trim()) return null;
+    return (
+      <div style={{
+        marginTop: 12, padding: "8px 14px", background: "rgba(52, 211, 153, 0.05)",
+        border: `1px solid rgba(52, 211, 153, 0.2)`, borderRadius: 10,
+        display: "flex", alignItems: "center", gap: 8, animation: "fadeIn .3s ease"
+      }}>
+        <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#34d399", boxShadow: "0 0 8px #34d399" }}/>
+        <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 800, color: "#34d399", letterSpacing: "0.05em" }}>
+          NO CONFLICTS DETECTED · READY TO START
+        </span>
+      </div>
+    );
+  }
 
   return (
     <div style={{
@@ -5022,7 +5191,13 @@ const ConflictRadar = ({ currentSource, currentBranch, currentPrompt, allSession
       </div>
 
       <div style={{ marginTop: 12, fontFamily: "'IBM Plex Sans',sans-serif", fontSize: 11, color: T.textDim, lineHeight: 1.5 }}>
-        Jules is isolated. These sessions are touching the same files or branch. Starting now may lead to merge conflicts later.
+        <div style={{ color: T.red, fontWeight: 700, marginBottom: 4, fontSize: 10 }}>⚠️ POTENTIAL MERGE CONFLICTS</div>
+        Jules is isolated. These sessions touch the same files or branch. To clear:
+        <ul style={{ paddingLeft: 18, marginTop: 4, display: "flex", flexDirection: "column", gap: 2 }}>
+          <li>Select a different starting branch for this session</li>
+          <li>Wait for conflicting sessions to reach <strong>DONE</strong> state</li>
+          <li>Refine prompt to avoid overlapping files</li>
+        </ul>
       </div>
     </div>
   );
@@ -5687,7 +5862,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
 const FILTERS = ["ALL","QUEUED","PLANNING","AWAITING_PLAN_APPROVAL","IN_PROGRESS","COMPLETED","FAILED"];
 const FILTER_LABELS = { AWAITING_PLAN_APPROVAL:"APPROVE", ALL:"ALL" };
 
-const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed, selectedId, isDesktop, onNew,  onSettings, pollInterval, sessionLimit, countdown, plan, todayCount, searchQuery, setSearchQuery, archivedIds, showArchived, setShowArchived, activitiesMap = {}, activityStatsMap = {}, error, clearError, isBoosted, readMap }) => {
+const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed, selectedId, isDesktop, onNew, onDrafts, onSettings, pollInterval, sessionLimit, countdown, plan, todayCount, searchQuery, setSearchQuery, archivedIds, showArchived, setShowArchived, activitiesMap = {}, activityStatsMap = {}, error, clearError, isBoosted, readMap }) => {
   const [filter,setFilter] = useState("ALL");
   const [scrolled, handleScroll] = useScrollThreshold();
   const [searchOpen, setSearchOpen] = useState(false);
@@ -5714,6 +5889,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
           <div style={{marginLeft:"auto",display:"flex",gap:6,alignItems:"center",flexShrink:0}}>
             <button onClick={() => setSearchOpen(!searchOpen)} title="Search sessions" style={{width:30,height:30,borderRadius:5,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="search" s={15} c={searchOpen||searchQuery?T.blue:T.muted}/></button>
             {isDesktop&&<button onClick={onNew} title="New Session" style={{width:30,height:30,borderRadius:5,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="plus" s={15} c={T.brand}/></button>}
+            <button onClick={onDrafts} title="Drafts Box" style={{width:30,height:30,borderRadius:5,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="layers" s={15} c={T.muted}/></button>
             <button onClick={onSettings} title="Settings" style={{width:30,height:30,borderRadius:5,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="settings" s={15} c={T.muted}/></button>
             <div style={{display:"flex", alignItems:"center", gap:4}}>
               {countdown > 0 && !refreshing && (
@@ -5893,6 +6069,7 @@ function JulesClient() {
     });
   }, [sessions, supplementalSessions]);
   const [desktopView,setDesktop]   = useState("empty");
+  const [selectedDraft, setSelectedDraft] = useState(null);
 
   const setMobile = useCallback(s => {
     setMobileRaw(s);
@@ -6302,6 +6479,7 @@ function JulesClient() {
             onSelect={handleSelect} onRefresh={()=>fetchSessions(false, true)}
             refreshing={refreshing} justRefreshed={justRefreshed} selectedId={selected?.id}
             isDesktop onNew={()=>setDesktop("new")}
+            onDrafts={()=>setDesktop("drafts")}
             onSettings={()=>setDesktop("settings")}
             pollInterval={effectivePollInterval}
             sessionLimit={sessionLimit}
@@ -6342,7 +6520,31 @@ function JulesClient() {
               onArchive={handleArchive} onUnarchive={handleUnarchive}/>
           )}
           {desktopView==="new"&&(
-            <NewSession apiKey={apiKey} personas={personas} onBack={()=>setDesktop("empty")} onCreate={handleCreate} isDesktop plan={plan} todayCount={todayCount} allSessions={allSessions} activitiesMap={activitiesMap}/>
+            <NewSession
+              apiKey={apiKey} personas={personas}
+              onBack={()=>setDesktop("empty")}
+              onCreate={handleCreate}
+              isDesktop plan={plan} todayCount={todayCount}
+              allSessions={allSessions} activitiesMap={activitiesMap}
+              initialDraft={selectedDraft}
+              onDraftSaved={() => { setSelectedDraft(null); if (desktopView === "new") setDesktop("drafts"); }}
+            />
+          )}
+
+          {desktopView==="drafts"&&(
+            <DraftsBox
+              onBack={()=>setDesktop("empty")}
+              isDesktop
+              allSessions={allSessions}
+              activitiesMap={activitiesMap}
+              onResume={(d) => { setSelectedDraft(d); setDesktop("new"); }}
+              onCreate={async (d) => {
+                setSelectedDraft(d);
+                setDesktop("new");
+                // The actual creation happens inside NewSession but we can also trigger a direct create here if we want.
+                // Resuming into NewSession is safer to allow final tweaks.
+              }}
+            />
           )}
 
           {desktopView==="network"&&( <NetworkMonitor onBack={()=>setDesktop("empty")} isDesktop/> )} {desktopView==="settings"&&(
@@ -6371,6 +6573,7 @@ function JulesClient() {
         {mobileScreen==="list"&&(
           <SessionList sessions={allSessions} onSelect={handleSelect} onRefresh={()=>fetchSessions(false, true)}
             refreshing={refreshing} justRefreshed={justRefreshed} selectedId={selected?.id} isDesktop={false}
+            onDrafts={()=>setMobile("drafts")}
             onSettings={()=>setMobile("settings")}
             pollInterval={effectivePollInterval}
             sessionLimit={sessionLimit}
@@ -6400,7 +6603,29 @@ function JulesClient() {
             onArchive={handleArchive} onUnarchive={handleUnarchive}/>
         )}
         {mobileScreen==="new"&&(
-          <NewSession apiKey={apiKey} personas={personas} onBack={()=>setMobile("list")} onCreate={s=>{ setSessions(prev=>[s,...prev]); setMobile("list"); }} isDesktop={false} plan={plan} todayCount={todayCount} allSessions={allSessions} activitiesMap={activitiesMap}/>
+          <NewSession
+            apiKey={apiKey} personas={personas}
+            onBack={()=>setMobile("list")}
+            onCreate={s=>{ setSessions(prev=>[s,...prev]); setMobile("list"); }}
+            isDesktop={false} plan={plan} todayCount={todayCount}
+            allSessions={allSessions} activitiesMap={activitiesMap}
+            initialDraft={selectedDraft}
+            onDraftSaved={() => { setSelectedDraft(null); if (mobileScreen === "new") setMobile("drafts"); }}
+          />
+        )}
+
+        {mobileScreen==="drafts"&&(
+          <DraftsBox
+            onBack={()=>setMobile("list")}
+            isDesktop={false}
+            allSessions={allSessions}
+            activitiesMap={activitiesMap}
+            onResume={(d) => { setSelectedDraft(d); setMobile("new"); }}
+            onCreate={async (d) => {
+              setSelectedDraft(d);
+              setMobile("new");
+            }}
+          />
         )}
 
         {mobileScreen==="network"&&( <NetworkMonitor onBack={()=>setMobile("list")} isDesktop={false}/> )} {mobileScreen==="settings"&&(
@@ -6430,7 +6655,8 @@ function JulesClient() {
             setShowArchived(true);
             setMobile(wasDetail ? "detail" : "list");
           }},
-          {id:"new",     n:"plus",  label:"NEW", onClick:() => setMobile("new")},
+          {id:"new",     n:"plus",  label:"NEW", onClick:() => { setSelectedDraft(null); setMobile("new"); }},
+          {id:"drafts",  n:"layers", label:"DRAFTS", onClick:() => setMobile("drafts")},
           {id:"settings",n:"settings", label:"SETTINGS", onClick:() => setMobile("settings")},
         ].map(({id,n,label,onClick})=>{
           const isAct = (id === "list" && !showArchived && (mobileScreen === "list" || mobileScreen === "detail")) ||
