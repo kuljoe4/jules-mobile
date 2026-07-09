@@ -702,13 +702,34 @@ async function apiCall(apiKey, path, opts={}) {
   const outBytes = (opts.method || "GET").length + url.length + JSON.stringify(headers).length + (body?.length || 0);
 
   const res = await fetch(url, { ...opts, headers, body });
-  const text = await res.text();
 
-  // Received bytes (headers + body)
+  let text = "";
   let headerSize = 0;
   res.headers.forEach((v, k) => headerSize += k.length + v.length + 4);
-  const inBytes = headerSize + new TextEncoder().encode(text).length;
 
+  if (opts.onProgress && res.body) {
+    const reader = res.body.getReader();
+    const contentLength = +res.headers.get("Content-Length") || 0;
+    let receivedLength = 0;
+    const chunks = [];
+
+    while (true) {
+      const {done, value} = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      receivedLength += value.length;
+      opts.onProgress({ loaded: receivedLength, total: contentLength });
+    }
+
+    const all = new Uint8Array(receivedLength);
+    let pos = 0;
+    for (let c of chunks) { all.set(c, pos); pos += c.length; }
+    text = new TextDecoder().decode(all);
+  } else {
+    text = await res.text();
+  }
+
+  const inBytes = headerSize + new TextEncoder().encode(text).length;
   NET.record(opts._label || path, inBytes / 1024, outBytes / 1024, res.status);
 
   if (!res.ok) {
@@ -2737,7 +2758,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   const [isStale, setIsStale] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncPhase, setSyncProgress] = useState("IDLE"); // IDLE, CACHE, FETCH, SYNC, DONE
-  const [syncStats, setSyncPhaseStats] = useState({ count: 0, pages: 0, bytes: 0, newItems: 0, newBytes: 0 });
+  const [syncStats, setSyncPhaseStats] = useState({ count: 0, pages: 0, bytes: 0, newItems: 0, newBytes: 0, loaded: 0, total: 0 });
   const [showAll,setShowAll]     = useState(false);
   const [tab,setTab]             = useState("activity");
   const [chatFilter, setChatFilter] = useState("ALL");
@@ -2848,10 +2869,12 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   const loadActivities = useCallback(async (sinceTs=null) => {
     setIsSyncing(true); setIsStale(true);
     setSyncProgress(sinceTs ? (busy ? "SYNC" : "FETCH") : "CACHE");
-    setSyncPhaseStats({ count: 0, pages: 0, bytes: 0, newItems: 0, newBytes: 0 });
+    setSyncPhaseStats({ count: 0, pages: 0, bytes: 0, newItems: 0, newBytes: 0, loaded: 0, total: 0 });
     let currentPages = 0;
     let currentCount = 0;
     let currentBytes = 0;
+    let currentLoaded = 0;
+    let currentTotal = 0;
     let newItems = 0;
     let newBytes = 0;
 
@@ -2862,11 +2885,17 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
 
       do {
         currentPages++;
+        if (!sinceTs) setSyncProgress("FETCH");
         const pageSize = Math.min(activityLimit, 100);
         const qs = `pageSize=${pageSize}${pageToken ? `&pageToken=${pageToken}` : ""}`;
 
         const d = await apiCall(apiKey, `/sessions/${session.id}/activities?${qs}`, {
-          _label:`Acts ${sinceTs?"Δ":"full"} ${session.id?.slice(0,6)}`
+          _label:`Acts ${sinceTs?"Δ":"full"} ${session.id?.slice(0,6)}`,
+          onProgress: ({ loaded, total }) => {
+            currentLoaded = loaded;
+            currentTotal = total;
+            setSyncPhaseStats(prev => ({ ...prev, loaded: currentLoaded, total: currentTotal }));
+          }
         });
 
         const incoming = d.activities || [];
@@ -2889,7 +2918,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
             if (!latestTs || act.createTime > latestTs) latestTs = act.createTime;
           }
         }
-        setSyncPhaseStats({ count: currentCount, pages: currentPages, bytes: currentBytes, newItems, newBytes });
+        setSyncPhaseStats({ count: currentCount, pages: currentPages, bytes: currentBytes, newItems, newBytes, loaded: currentLoaded, total: currentTotal });
 
         pageToken = d.nextPageToken;
 
@@ -3527,9 +3556,21 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                        syncPhase === "DONE" ? "SYNC COMPLETE" : "SYNCING..."}
                    </span>
                    {syncPhase !== "DONE" && (
-                     <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:7, fontWeight:600, color: syncPhase === "DONE" ? T.brand : T.amber, opacity: 0.8}}>
-                        {syncStats.count} ITEMS · {fmtBytes(syncStats.bytes/1024)}
-                     </span>
+                     <div style={{display:"flex", gap:4, alignItems:"baseline"}}>
+                       <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:7, fontWeight:600, color: syncPhase === "DONE" ? T.brand : T.amber, opacity: 0.8}}>
+                          {syncStats.count} ITEMS · {fmtBytes(syncStats.bytes/1024)}
+                       </span>
+                       {syncStats.total > 0 && syncPhase === "FETCH" && (
+                         <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:7, fontWeight:800, color: T.brandLight, letterSpacing: "0.02em"}}>
+                           · {Math.round((syncStats.loaded / syncStats.total) * 100)}%
+                         </span>
+                       )}
+                       {syncStats.loaded > 0 && syncPhase === "FETCH" && (
+                         <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:7, fontWeight:600, color: T.amber, opacity: 0.7}}>
+                           ({fmtBytes(syncStats.loaded/1024)})
+                         </span>
+                       )}
+                     </div>
                    )}
                    {syncPhase === "DONE" && syncStats.newItems > 0 && (
                      <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:7, fontWeight:800, color: T.brandLight, opacity: 0.9}}>
@@ -3600,7 +3641,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
             pct={pct}
             status={currentState}
             syncing={isSyncing || busy || syncPhase === "DONE"}
-            secondaryPct={isSyncing ? Math.min(100, (syncStats.count / activityLimit) * 100) : 0}
+            secondaryPct={isSyncing ? (syncStats.total > 0 ? (syncStats.loaded / syncStats.total) * 100 : Math.min(100, (syncStats.count / activityLimit) * 100)) : 0}
           />
         </div>
       </div>
