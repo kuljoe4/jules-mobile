@@ -1120,15 +1120,23 @@ const Pill = ({status,small=false,hideLabel=false}) => {
   );
 };
 
-const Bar = ({pct,status,syncing}) => {
+const Bar = ({pct,status,syncing,secondaryPct=0}) => {
   const c = (STATUS_META[status]||STATUS_META.QUEUED).color;
   const isComplete = status === "COMPLETED";
   return (
     <div style={{height:3,background:T.line,borderRadius:2,overflow:"hidden",position:"relative"}}>
+      {/* Secondary Progress (e.g. Sync/Download) */}
+      {secondaryPct > 0 && (
+        <div style={{
+          position:"absolute", inset:0, width:`${secondaryPct}%`,
+          background:`${T.brand}40`, transition:"width .3s ease", zIndex:1
+        }}/>
+      )}
+
       <div style={{
         height:"100%",width:`${pct}%`,borderRadius:2,background:c,
         boxShadow:`0 0 8px ${c}60`,transition:"width .5s cubic-bezier(0.4, 0, 0.2, 1)",transform:"translateZ(0)",
-        position:"relative",
+        position:"relative", zIndex: 2,
         overflow:"hidden"
       }}>
         {syncing && !isComplete && (
@@ -1143,7 +1151,7 @@ const Bar = ({pct,status,syncing}) => {
       {syncing && pct === 0 && (
         <div style={{
           position:"absolute",top:0,height:"100%",width:"30%",
-          background:T.amber,borderRadius:2,
+          background:T.amber,borderRadius:2, zIndex: 3,
           animation:"barIndeterminate 1.5s infinite ease-in-out"
         }}/>
       )}
@@ -1846,6 +1854,7 @@ const MediaModal = ({ media, onClose }) => {
   };
 
   const isVideo = (media.mimeType || "").includes("video") || (media.mimeType || "").includes("webm");
+  const dataSize = media.data ? new TextEncoder().encode(media.data).length * 0.75 : 0; // Approx base64 to bytes
 
   return (
     <div
@@ -1872,7 +1881,7 @@ const MediaModal = ({ media, onClose }) => {
             MEDIA ARTIFACT
           </div>
           <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.textDim }}>
-            {media.mimeType} · {fmtTime(new Date(media.ts).getTime())}
+            {media.mimeType} · {fmtBytes(dataSize/1024)} · {fmtTime(new Date(media.ts).getTime())}
           </div>
         </div>
         <button
@@ -1942,7 +1951,7 @@ const MediaModal = ({ media, onClose }) => {
 const COLLAPSE_THRESHOLD = 35;
 const COLLAPSE_SHOW      = 25;
 
-const ActivityFeed = memo(({ activities, showAll, onShowAll, onMediaClick, onEditMessage, driftSessions = [] }) => {
+const ActivityFeed = memo(({ activities, showAll, onShowAll, onMediaClick, onEditMessage, driftSessions = [], justUpdated = false }) => {
   const collapse  = !showAll && activities.length > COLLAPSE_THRESHOLD;
   const visible   = collapse ? activities.slice(activities.length - COLLAPSE_SHOW) : activities;
   const hidden    = activities.length - visible.length;
@@ -2018,7 +2027,13 @@ const ActivityFeed = memo(({ activities, showAll, onShowAll, onMediaClick, onEdi
         if (type === "userMessaged" || type === "agentMessaged") {
           return <ChatBubble key={key} act={act} type={type} onMediaClick={onMediaClick} onEdit={onEditMessage}/>;
         }
-        return <TimelineEvent key={key} act={act} onMediaClick={onMediaClick}/>;
+        return (
+          <div key={key} style={{
+            animation: justUpdated && idx >= combined.length - 5 ? "shimmerPulse 0.8s ease-out" : "none"
+          }}>
+            <TimelineEvent act={act} onMediaClick={onMediaClick}/>
+          </div>
+        );
       })}
     </>
   );
@@ -2722,7 +2737,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   const [isStale, setIsStale] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncPhase, setSyncProgress] = useState("IDLE"); // IDLE, CACHE, FETCH, SYNC, DONE
-  const [syncStats, setSyncPhaseStats] = useState({ count: 0, pages: 0 });
+  const [syncStats, setSyncPhaseStats] = useState({ count: 0, pages: 0, bytes: 0, newItems: 0, newBytes: 0 });
   const [showAll,setShowAll]     = useState(false);
   const [tab,setTab]             = useState("activity");
   const [chatFilter, setChatFilter] = useState("ALL");
@@ -2833,9 +2848,13 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   const loadActivities = useCallback(async (sinceTs=null) => {
     setIsSyncing(true); setIsStale(true);
     setSyncProgress(sinceTs ? (busy ? "SYNC" : "FETCH") : "CACHE");
-    setSyncPhaseStats({ count: 0, pages: 0 });
+    setSyncPhaseStats({ count: 0, pages: 0, bytes: 0, newItems: 0, newBytes: 0 });
     let currentPages = 0;
     let currentCount = 0;
+    let currentBytes = 0;
+    let newItems = 0;
+    let newBytes = 0;
+
     try {
       let pageToken = null;
       let changed = false;
@@ -2851,18 +2870,27 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
         });
 
         const incoming = d.activities || [];
+        const batchRaw = JSON.stringify(incoming);
+        const batchBytes = new TextEncoder().encode(batchRaw).length;
+
         currentCount += incoming.length;
-        setSyncPhaseStats({ count: currentCount, pages: currentPages });
+        currentBytes += batchBytes;
+
         for (const act of incoming) {
           const k = getActKey(act);
           const existing = actMapRef.current.get(k);
           // Upsert: update if content changed or is new
           if (!existing || JSON.stringify(existing) !== JSON.stringify(act)) {
+            const actSize = new TextEncoder().encode(JSON.stringify(act)).length;
+            newItems++;
+            newBytes += actSize;
             actMapRef.current.set(k, act);
             changed = true;
             if (!latestTs || act.createTime > latestTs) latestTs = act.createTime;
           }
         }
+        setSyncPhaseStats({ count: currentCount, pages: currentPages, bytes: currentBytes, newItems, newBytes });
+
         pageToken = d.nextPageToken;
 
         // Respect activityLimit
@@ -2891,6 +2919,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
           sorted.forEach(a => actMapRef.current.set(getActKey(a), a));
         }
         setActivities(sorted);
+        setJustUpdated(true);
+        setTimeout(() => setJustUpdated(false), 3000);
         setIsStale(false);
 
         // Persist stats
@@ -3475,24 +3505,38 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
           contain: "size layout",
         }}>
           <div style={{display:"flex", alignItems:"center", gap:8, overflowX:"auto", scrollbarWidth:"none", WebkitOverflowScrolling:"touch", width:"100%"}}>
-            {isSyncing && (
+            {(isSyncing || syncPhase === "DONE") && (
               <div style={{
                 display:"flex", alignItems:"center", gap:6,
-                background: `${T.amber}15`,
-                border: `1px solid ${T.amber}40`,
+                background: syncPhase === "DONE" ? `${T.brand}15` : `${T.amber}15`,
+                border: `1px solid ${syncPhase === "DONE" ? T.brand : T.amber}40`,
                 borderRadius:4, padding:"2px 8px", flexShrink:0,
-                transition: "all .3s cubic-bezier(0.4, 0, 0.2, 1)"
+                transition: "all .3s cubic-bezier(0.4, 0, 0.2, 1)",
+                boxShadow: syncPhase === "DONE" ? `0 0 10px ${T.brand}30` : "none"
               }}>
                  <div style={{
                    width:6, height:6, borderRadius:"50%",
-                   background: T.amber,
-                   animation: (syncPhase === "CACHE" ? "pulse 1s infinite" : "spin 1s linear infinite")
+                   background: syncPhase === "DONE" ? T.brand : T.amber,
+                   animation: syncPhase === "DONE" ? "none" : (syncPhase === "CACHE" ? "dot 1s infinite" : "spin 1s linear infinite")
                  }}/>
-                 <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:9, fontWeight:800, color: T.amber}}>
-                    {syncPhase === "CACHE" ? "RECOVERING CACHE..." :
-                     syncPhase === "FETCH" ? `FETCHING (${syncStats.count} ITEMS)...` :
-                     syncPhase === "SYNC" ? "RECONCILING..." : "SYNCING..."}
-                 </span>
+                 <div style={{display:"flex", flexDirection:"column", gap:0}}>
+                   <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:9, fontWeight:800, color: syncPhase === "DONE" ? T.brand : T.amber, lineHeight: 1.1}}>
+                      {syncPhase === "CACHE" ? "RECOVERING CACHE..." :
+                       syncPhase === "FETCH" ? `FETCHING P${syncStats.pages}...` :
+                       syncPhase === "SYNC" ? "MERGING..." :
+                       syncPhase === "DONE" ? "SYNC COMPLETE" : "SYNCING..."}
+                   </span>
+                   {syncPhase !== "DONE" && (
+                     <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:7, fontWeight:600, color: syncPhase === "DONE" ? T.brand : T.amber, opacity: 0.8}}>
+                        {syncStats.count} ITEMS · {fmtBytes(syncStats.bytes/1024)}
+                     </span>
+                   )}
+                   {syncPhase === "DONE" && syncStats.newItems > 0 && (
+                     <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:7, fontWeight:800, color: T.brandLight, opacity: 0.9}}>
+                        +{syncStats.newItems} NEW · {fmtBytes(syncStats.newBytes/1024)}
+                     </span>
+                   )}
+                 </div>
               </div>
             )}
 
@@ -3552,7 +3596,12 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
           position: "absolute", bottom: 0, left: 0, right: 0,
           height: 3, overflow: "hidden", transition: "all .2s cubic-bezier(0.4, 0, 0.2, 1)",
         }}>
-          <Bar pct={pct} status={currentState} syncing={isSyncing || busy || syncPhase === "DONE"}/>
+          <Bar
+            pct={pct}
+            status={currentState}
+            syncing={isSyncing || busy || syncPhase === "DONE"}
+            secondaryPct={isSyncing ? Math.min(100, (syncStats.count / activityLimit) * 100) : 0}
+          />
         </div>
       </div>
 
@@ -3766,6 +3815,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                     return new Date(s.updateTime || s.createTime).getTime() > new Date(session.createTime).getTime();
                   })}
                   showAll={showAll}
+                  justUpdated={justUpdated}
                   onShowAll={()=>setShowAll(true)}
                   onMediaClick={setActiveMedia}
                   onEditMessage={(text) => {
@@ -3966,8 +4016,9 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                     <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.text, fontWeight:700, marginBottom:2 }}>
                       {m.mimeType.split("/")[1]?.toUpperCase() || "IMAGE"}
                     </div>
-                    <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.textDim }}>
-                      {fmtTime(new Date(m.ts).getTime())}
+                    <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.textDim, display:"flex", justifyContent:"space-between" }}>
+                      <span>{fmtTime(new Date(m.ts).getTime())}</span>
+                      <span>{fmtBytes((m.data?.length || 0) * 0.75 / 1024)}</span>
                     </div>
                   </div>
                 </button>
