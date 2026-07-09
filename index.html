@@ -1120,11 +1120,19 @@ const Pill = ({status,small=false,hideLabel=false}) => {
   );
 };
 
-const Bar = ({pct,status,syncing,secondaryPct=0}) => {
-  const c = (STATUS_META[status]||STATUS_META.QUEUED).color;
+const Bar = ({pct,status,syncing,secondaryPct=0,label=""}) => {
+  const m = STATUS_META[status] || STATUS_META.QUEUED;
+  const c = m.color;
   const isComplete = status === "COMPLETED";
   return (
-    <div style={{height:3,background:T.line,borderRadius:2,overflow:"hidden",position:"relative"}}>
+    <div
+      role="progressbar"
+      aria-valuenow={secondaryPct || pct}
+      aria-valuemin="0"
+      aria-valuemax="100"
+      aria-label={label || `${m.label} progress: ${pct}%`}
+      style={{height:3,background:T.line,borderRadius:2,overflow:"hidden",position:"relative"}}
+    >
       {/* Secondary Progress (e.g. Sync/Download) */}
       {secondaryPct > 0 && (
         <div style={{
@@ -1881,7 +1889,7 @@ const MediaModal = ({ media, onClose }) => {
             MEDIA ARTIFACT
           </div>
           <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.textDim }}>
-            {media.mimeType} · {fmtBytes(dataSize/1024)} · {fmtTime(new Date(media.ts).getTime())}
+            {media.mimeType} · {fmtBytes(dataSize)} · {fmtTime(new Date(media.ts).getTime())}
           </div>
         </div>
         <button
@@ -2024,13 +2032,16 @@ const ActivityFeed = memo(({ activities, showAll, onShowAll, onMediaClick, onEdi
         const act = item.data;
         const type = getActType(act);
         const key  = getActKey(act);
+        const isNew = justUpdated && idx >= (combined.length - 5);
         if (type === "userMessaged" || type === "agentMessaged") {
-          return <ChatBubble key={key} act={act} type={type} onMediaClick={onMediaClick} onEdit={onEditMessage}/>;
+          return (
+            <div key={key} style={{ animation: isNew ? "shimmerPulse 0.8s ease-out" : "none" }}>
+              <ChatBubble act={act} type={type} onMediaClick={onMediaClick} onEdit={onEditMessage}/>
+            </div>
+          );
         }
         return (
-          <div key={key} style={{
-            animation: justUpdated && idx >= combined.length - 5 ? "shimmerPulse 0.8s ease-out" : "none"
-          }}>
+          <div key={key} style={{ animation: isNew ? "shimmerPulse 0.8s ease-out" : "none" }}>
             <TimelineEvent act={act} onMediaClick={onMediaClick}/>
           </div>
         );
@@ -2709,7 +2720,7 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], stat
         }}>
           <span style={highActivityStyle}>{activityStats.count} ITEMS</span>
           <span>·</span>
-          <span style={highActivityStyle}>{fmtBytes(activityStats.size/1024)}</span>
+          <span style={highActivityStyle}>{fmtBytes(activityStats.size)}</span>
         </div>
         <div style={{marginLeft:"auto"}}>
           {s.id?.slice(0,8)}
@@ -2737,7 +2748,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   const [isStale, setIsStale] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncPhase, setSyncProgress] = useState("IDLE"); // IDLE, CACHE, FETCH, SYNC, DONE
-  const [syncStats, setSyncPhaseStats] = useState({ count: 0, pages: 0, bytes: 0, newItems: 0, newBytes: 0 });
+  const [syncStats, setSyncPhaseStats] = useState({ count: 0, pages: 0, bytes: 0, newItems: 0, newBytes: 0, estTotalBytes: 0 });
   const [showAll,setShowAll]     = useState(false);
   const [tab,setTab]             = useState("activity");
   const [chatFilter, setChatFilter] = useState("ALL");
@@ -2848,10 +2859,23 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   const loadActivities = useCallback(async (sinceTs=null) => {
     setIsSyncing(true); setIsStale(true);
     setSyncProgress(sinceTs ? (busy ? "SYNC" : "FETCH") : "CACHE");
-    setSyncPhaseStats({ count: 0, pages: 0, bytes: 0, newItems: 0, newBytes: 0 });
+
+    const lastStats = (() => {
+      try { return JSON.parse(localStorage.getItem(ACT_STATS_KEY) || "{}")[session.id]; }
+      catch { return null; }
+    })();
+
+    // Initial cache-based sizing
+    const cachedBytes = activities.reduce((acc, a) => acc + (JSON.stringify(a).length * 1.5), 0);
+
+    setSyncPhaseStats({
+      count: activities.length, pages: 0, bytes: cachedBytes, newItems: 0, newBytes: 0,
+      estTotalBytes: lastStats ? lastStats.size : cachedBytes
+    });
+
     let currentPages = 0;
-    let currentCount = 0;
-    let currentBytes = 0;
+    let totalCount = activities.length;
+    let totalBytesSoFar = cachedBytes;
     let newItems = 0;
     let newBytes = 0;
 
@@ -2870,18 +2894,18 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
         });
 
         const incoming = d.activities || [];
-        const batchRaw = JSON.stringify(incoming);
-        const batchBytes = new TextEncoder().encode(batchRaw).length;
+        // Approximate bytes to avoid expensive TextEncoder on every batch
+        const batchBytes = incoming.reduce((acc, act) => acc + (JSON.stringify(act).length * 1.5), 0);
 
-        currentCount += incoming.length;
-        currentBytes += batchBytes;
+        totalCount += incoming.length;
+        totalBytesSoFar += batchBytes;
 
         for (const act of incoming) {
           const k = getActKey(act);
           const existing = actMapRef.current.get(k);
           // Upsert: update if content changed or is new
           if (!existing || JSON.stringify(existing) !== JSON.stringify(act)) {
-            const actSize = new TextEncoder().encode(JSON.stringify(act)).length;
+            const actSize = JSON.stringify(act).length * 1.5;
             newItems++;
             newBytes += actSize;
             actMapRef.current.set(k, act);
@@ -2889,7 +2913,14 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
             if (!latestTs || act.createTime > latestTs) latestTs = act.createTime;
           }
         }
-        setSyncPhaseStats({ count: currentCount, pages: currentPages, bytes: currentBytes, newItems, newBytes });
+        const estTotalBytes = lastStats
+          ? Math.max(totalBytesSoFar, lastStats.size)
+          : (totalBytesSoFar / (currentPages || 1)) * (pageToken ? currentPages + 1 : currentPages);
+
+        setSyncPhaseStats({
+          count: totalCount, pages: currentPages, bytes: totalBytesSoFar,
+          newItems, newBytes, estTotalBytes
+        });
 
         pageToken = d.nextPageToken;
 
@@ -3528,12 +3559,13 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                    </span>
                    {syncPhase !== "DONE" && (
                      <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:7, fontWeight:600, color: syncPhase === "DONE" ? T.brand : T.amber, opacity: 0.8}}>
-                        {syncStats.count} ITEMS · {fmtBytes(syncStats.bytes/1024)}
+                        {syncStats.count} ITEMS · {fmtBytes(syncStats.bytes)}
+                        {syncStats.estTotalBytes > 0 && ` / ~${fmtBytes(syncStats.estTotalBytes)}`}
                      </span>
                    )}
                    {syncPhase === "DONE" && syncStats.newItems > 0 && (
                      <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:7, fontWeight:800, color: T.brandLight, opacity: 0.9}}>
-                        +{syncStats.newItems} NEW · {fmtBytes(syncStats.newBytes/1024)}
+                        +{syncStats.newItems} NEW · {fmtBytes(syncStats.newBytes)}
                      </span>
                    )}
                  </div>
@@ -3600,7 +3632,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
             pct={pct}
             status={currentState}
             syncing={isSyncing || busy || syncPhase === "DONE"}
-            secondaryPct={isSyncing ? Math.min(100, (syncStats.count / activityLimit) * 100) : 0}
+            secondaryPct={isSyncing ? (syncStats.estTotalBytes > 0 ? Math.min(100, (syncStats.bytes / syncStats.estTotalBytes) * 100) : Math.min(100, (syncStats.count / activityLimit) * 100)) : 0}
+            label={isSyncing ? `Downloading activities: ${syncStats.count} items, ${fmtBytes(syncStats.bytes)}` : ""}
           />
         </div>
       </div>
@@ -4018,7 +4051,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                     </div>
                     <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.textDim, display:"flex", justifyContent:"space-between" }}>
                       <span>{fmtTime(new Date(m.ts).getTime())}</span>
-                      <span>{fmtBytes((m.data?.length || 0) * 0.75 / 1024)}</span>
+                      <span>{fmtBytes((m.data?.length || 0) * 0.75)}</span>
                     </div>
                   </div>
                 </button>
@@ -4155,7 +4188,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
             }}>
               <span>{activityStats.count} ITEMS</span>
               <span style={{width:1, height:8, background:T.border}}/>
-              <span>{fmtBytes(activityStats.size/1024)}</span>
+              <span>{fmtBytes(activityStats.size)}</span>
             </div>
           </div>
         </div>
