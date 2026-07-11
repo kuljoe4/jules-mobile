@@ -2032,7 +2032,10 @@ const ActivityFeed = memo(({ activities, showAll, onShowAll, onMediaClick, onEdi
                 <Ic n="wifi" s={11} c={T.amber}/>
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 800, color: T.amber, letterSpacing: "0.05em" }}>
+                <div style={{
+                  fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 800, color: T.amber, letterSpacing: "0.05em",
+                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"
+                }} title={item.data.title || item.data.prompt}>
                   BASE DRIFT · {item.data.title || item.data.prompt}
                 </div>
                 <div style={{ fontFamily: "'IBM Plex Sans',sans-serif", fontSize: 11, color: T.dim }}>
@@ -2887,6 +2890,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
         currentPages++;
         if (!sinceTs) setSyncProgress("FETCH");
         const pageSize = Math.min(activityLimit, 100);
+        // The /activities API does not support createTime query parameter
         const qs = `pageSize=${pageSize}${pageToken ? `&pageToken=${pageToken}` : ""}`;
 
         const d = await apiCall(apiKey, `/sessions/${session.id}/activities?${qs}`, {
@@ -4503,210 +4507,13 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%",minHeight:0,position:"relative"}}>
       {showConfirm && (
-        <div style={{
-          position:"fixed", inset:0, zIndex:2000,
-          background:"rgba(4,5,7,0.85)", backdropFilter:"blur(12px)",
-          display:"flex", alignItems:"center", justifyContent:"center",
-          padding:20, animation:"fadeIn .2s ease"
-        }}>
-          <div style={{
-            width:"100%", maxWidth:420, background:T.surface, border:`1px solid ${T.borderHi}`,
-            borderRadius:16, padding:28, boxShadow:"0 20px 50px rgba(0,0,0,0.6)",
-            animation:"zoomIn .3s cubic-bezier(0.2, 0, 0.2, 1)",
-            position:"relative", overflow:"hidden"
-          }}>
-            <div style={{
-              position:"absolute", top:0, left:0, right:0, height:3,
-              background:`linear-gradient(90deg, ${T.brand}, ${T.purple})`
-            }}/>
-
-            <div style={{textAlign:"center", marginBottom:24}}>
-              <div style={{
-                width:48, height:48, borderRadius:12, background:T.brandDim,
-                display:"flex", alignItems:"center", justifyContent:"center",
-                margin:"0 auto 16px", border:`1px solid ${T.brand}30`
-              }}>
-                <Ic n="tasks" s={22} c={T.brand}/>
-              </div>
-              <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:16, fontWeight:900, color:T.text, letterSpacing:"0.05em"}}>CONFIRM SESSION</div>
-              <div style={{fontFamily:"'IBM Plex Sans',sans-serif", fontSize:14, color:T.muted, marginTop:4}}>Ready to assign this task to Jules?</div>
-            </div>
-
-            <div style={{display:"flex", flexDirection:"column", gap:16, marginBottom:28}}>
-              <div style={{
-                background:T.surfaceHi, borderRadius:10, padding:12,
-                border: `1px solid ${T.border}`,
-                transition: "all .2s cubic-bezier(0.4, 0, 0.2, 1)"
-              }}>
-                <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.brand, fontWeight:800, letterSpacing:"0.1em", marginBottom:6}}>TARGET REPOSITORY</div>
-                <div style={{position:"relative"}}>
-                  <input
-                    value={sourceSearch}
-                    onChange={e=>{setSourceSearch(e.target.value); setShowSources(true); setSourceInteracted(true);}}
-                    onFocus={()=>{setShowSources(true); setSourceInteracted(true);}}
-                    placeholder="Search repositories..."
-                    style={{
-                      ...inputSt,
-                      paddingRight:36, fontSize:13, padding: "8px 10px",
-                      background: "transparent",
-                      border: (!sourceInteracted && !showSources && !showBranches) ? `1px solid ${T.brand}` : `1px solid ${T.border}`,
-                      boxShadow: (!sourceInteracted && !showSources && !showBranches) ? `0 0 15px ${T.brand}40` : "none",
-                      animation: (!sourceInteracted && !showSources && !showBranches) ? "pulseRepo 1s infinite ease-in-out" : "none",
-                    }}
-                  />
-                  <div style={{position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", display:"flex", alignItems:"center", pointerEvents:"none"}}>
-                    <Ic n="code" s={14} c={showSources?T.brand:T.muted}/>
-                  </div>
-
-                  {showSources && (
-                    <>
-                      <Backdrop onClick={()=>{
-                        setShowSources(false);
-                        if (srcObj) setSourceSearch(getSourceDisplay(srcObj));
-                        else if (source === "") setSourceSearch("No repo (repoless)");
-                      }} zIndex={2100}/>
-                      <div style={{
-                        position:"absolute", bottom:"100%", left:0, right:0, zIndex:2101,
-                        marginBottom:4, background:T.surfaceHi, border:`1px solid ${T.borderHi}`,
-                        borderRadius:6, maxHeight:180, overflowY:"auto",
-                        boxShadow:"0 -10px 25px rgba(0,0,0,0.5)",
-                      }}>
-                        {filteredSources.map((s, idx) => {
-                          const isRepoless = s === null;
-                          const sName = isRepoless ? "" : s.name;
-                          const isSelected = sName === source;
-                          return (
-                            <button
-                              key={isRepoless ? "_repoless" : s.name}
-                              onClick={()=>{
-                                setSource(sName);
-                                setSourceSearch(getSourceDisplay(s));
-                                setShowSources(false);
-                                setSourceInteracted(true);
-                              }}
-                              style={{
-                                width:"100%", padding:"10px 12px", background:"none", border:"none",
-                                textAlign:"left", cursor:"pointer", display:"flex", alignItems:"center", gap:8,
-                                borderBottom:idx < filteredSources.length - 1 ? `1px solid ${T.border}` : "none",
-                                transition:"background .1s cubic-bezier(0.4, 0, 0.2, 1)",
-                              }}
-                              onMouseEnter={e=>e.currentTarget.style.background=T.dim}
-                              onMouseLeave={e=>e.currentTarget.style.background="none"}
-                            >
-                              <Ic n="code" s={12} c={isSelected?T.brand:T.muted}/>
-                              <span style={{
-                                flex:1, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:14,
-                                color:isSelected?T.brand:T.text, fontWeight:isSelected?600:400,
-                                overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
-                              }}>{getSourceDisplay(s)}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {source && (
-                <div style={{background:T.surfaceHi, borderRadius:10, padding:12, border:`1px solid ${T.border}`}}>
-                  <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.blue, fontWeight:800, letterSpacing:"0.1em", marginBottom:6}}>STARTING BRANCH</div>
-                  <div style={{position:"relative"}}>
-                    <input
-                      value={branch}
-                      onChange={e=>{setBranch(e.target.value); setShowBranches(true);}}
-                      onFocus={()=>setShowBranches(true)}
-                      placeholder={defaultBranch || "main"}
-                      style={{...inputSt, paddingRight:36, fontSize:13, padding: "8px 10px"}}
-                    />
-                    <div style={{position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", display:"flex", alignItems:"center", pointerEvents:"none"}}>
-                      <Ic n="branch" s={14} c={showBranches?T.brand:T.muted}/>
-                    </div>
-
-                    {showBranches && (
-                      <>
-                        <Backdrop onClick={()=>{
-                          setShowBranches(false);
-                          setBranch(branch);
-                        }} zIndex={2100}/>
-                        <div style={{
-                          position:"absolute", bottom:"100%", left:0, right:0, zIndex:2101,
-                          marginBottom:4, background:T.surfaceHi, border:`1px solid ${T.borderHi}`,
-                          borderRadius:6, maxHeight:150, overflowY:"auto",
-                          boxShadow:"0 -10px 25px rgba(0,0,0,0.5)",
-                        }}>
-                          {filteredBranches.map(b => (
-                            <button
-                              key={b}
-                              onClick={()=>{setBranch(b); setShowBranches(false);}}
-                              style={{
-                                width:"100%", padding:"10px 12px", background:"none", border:"none",
-                                textAlign:"left", cursor:"pointer", display:"flex", alignItems:"center", gap:8,
-                                borderBottom:`1px solid ${T.border}33`, transition:"background .1s cubic-bezier(0.4, 0, 0.2, 1)",
-                              }}
-                              onMouseEnter={e=>e.currentTarget.style.background=T.dim}
-                              onMouseLeave={e=>e.currentTarget.style.background="none"}
-                            >
-                              <Ic n="branch" s={12} c={b===branch?T.brand:T.muted}/>
-                              <span style={{
-                                flex:1, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:14,
-                                color:b===branch?T.brand:T.text, fontWeight:b===branch?600:400,
-                                overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
-                              }}>{b}</span>
-                            </button>
-                          ))}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              <div style={{background:T.surfaceHi, borderRadius:10, padding:16, border:`1px solid ${T.border}`}}>
-                <ConflictRadar
-                  currentSource={source}
-                  currentBranch={branch || defaultBranch}
-                  currentPrompt={prompt}
-                  allSessions={allSessions}
-                  activitiesMap={activitiesMap}
-                />
-                <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.purple, fontWeight:800, letterSpacing:"0.1em", marginBottom:8, marginTop: 12}}>PROMPT SUMMARY</div>
-                <div style={{fontFamily:"'IBM Plex Sans',sans-serif", fontSize:14, color:T.textDim, lineHeight:1.5, display:"-webkit-box", WebkitLineClamp:3, WebkitBoxOrient:"vertical", overflow:"hidden", marginBottom: selectedPersonas.size > 0 ? 12 : 0}}>
-                  {prompt}
-                </div>
-                {selectedPersonas.size > 0 && (
-                  <div style={{display:"flex", gap:4, flexWrap:"wrap", paddingTop:8, borderTop:`1px solid ${T.border}`}}>
-                    {Array.from(selectedPersonas).map(id => {
-                      const p = personas.find(x => x.id === id);
-                      return p ? (
-                        <span key={id} style={{fontSize:9, fontWeight:800, color:p.color, background:`${p.color}15`, padding:"2px 6px", borderRadius:4, border:`1px solid ${p.color}30`}}>
-                          {p.label}
-                        </span>
-                      ) : null;
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {(autoMode || reqApproval) && (
-                <div style={{display:"flex", gap:10}}>
-                  {autoMode && (
-                    <div style={{flex:1, display:"flex", alignItems:"center", gap:6, padding:"8px 12px", background:T.brandDim, border:`1px solid ${T.brand}30`, borderRadius:8}}>
-                      <Ic n="check" s={12} c={T.brand}/>
-                      <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.brand, fontWeight:800}}>AUTO PR</span>
-                    </div>
-                  )}
-                  {reqApproval && (
-                    <div style={{flex:1, display:"flex", alignItems:"center", gap:6, padding:"8px 12px", background:T.purpleDim, border:`1px solid ${T.purple}30`, borderRadius:8}}>
-                      <Ic n="plan" s={12} c={T.purple}/>
-                      <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.purple, fontWeight:800}}>PLAN REVIEW</span>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div style={{display:"flex", gap:12}}>
+        <Modal
+          onClose={() => setShowConfirm(false)}
+          icon="tasks"
+          title="CONFIRM SESSION"
+          subtitle="Ready to assign this task to Jules?"
+          actions={
+            <>
               <button
                 onClick={() => setShowConfirm(false)}
                 style={{
@@ -4732,9 +4539,182 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
               >
                 {submitting ? "STARTING..." : "START SESSION →"}
               </button>
+            </>
+          }
+        >
+          <div style={{display:"flex", flexDirection:"column", gap:16, marginBottom:28}}>
+            <div style={{
+              background:T.surfaceHi, borderRadius:10, padding:12,
+              border: `1px solid ${T.border}`,
+              transition: "all .2s cubic-bezier(0.4, 0, 0.2, 1)"
+            }}>
+              <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.brand, fontWeight:800, letterSpacing:"0.1em", marginBottom:6}}>TARGET REPOSITORY</div>
+              <div style={{position:"relative"}}>
+                <input
+                  value={sourceSearch}
+                  onChange={e=>{setSourceSearch(e.target.value); setShowSources(true); setSourceInteracted(true);}}
+                  onFocus={()=>{setShowSources(true); setSourceInteracted(true);}}
+                  placeholder="Search repositories..."
+                  style={{
+                    ...inputSt,
+                    paddingRight:36, fontSize:13, padding: "8px 10px",
+                    background: "transparent",
+                    border: (!sourceInteracted && !showSources && !showBranches) ? `1px solid ${T.brand}` : `1px solid ${T.border}`,
+                    boxShadow: (!sourceInteracted && !showSources && !showBranches) ? `0 0 15px ${T.brand}40` : "none",
+                    animation: (!sourceInteracted && !showSources && !showBranches) ? "pulseRepo 1s infinite ease-in-out" : "none",
+                  }}
+                />
+                <div style={{position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", display:"flex", alignItems:"center", pointerEvents:"none"}}>
+                  <Ic n="code" s={14} c={showSources?T.brand:T.muted}/>
+                </div>
+
+                {showSources && (
+                  <>
+                    <Backdrop onClick={()=>{
+                      setShowSources(false);
+                      if (srcObj) setSourceSearch(getSourceDisplay(srcObj));
+                      else if (source === "") setSourceSearch("No repo (repoless)");
+                    }} zIndex={2100}/>
+                    <div style={{
+                      position:"absolute", bottom:"100%", left:0, right:0, zIndex:2101,
+                      marginBottom:4, background:T.surfaceHi, border:`1px solid ${T.borderHi}`,
+                      borderRadius:6, maxHeight:180, overflowY:"auto",
+                      boxShadow:"0 -10px 25px rgba(0,0,0,0.5)",
+                    }}>
+                      {filteredSources.map((s, idx) => {
+                        const sName = s === null ? "" : s.name;
+                        const isSelected = sName === source;
+                        return (
+                          <button
+                            key={s === null ? "_repoless" : s.name}
+                            onClick={()=>{
+                              setSource(sName);
+                              setSourceSearch(getSourceDisplay(s));
+                              setShowSources(false);
+                              setSourceInteracted(true);
+                            }}
+                            style={{
+                              width:"100%", padding:"10px 12px", background:"none", border:"none",
+                              textAlign:"left", cursor:"pointer", display:"flex", alignItems:"center", gap:8,
+                              borderBottom:idx < filteredSources.length - 1 ? `1px solid ${T.border}` : "none",
+                              transition:"background .1s cubic-bezier(0.4, 0, 0.2, 1)",
+                            }}
+                            onMouseEnter={e=>e.currentTarget.style.background=T.dim}
+                            onMouseLeave={e=>e.currentTarget.style.background="none"}
+                          >
+                            <Ic n="code" s={12} c={isSelected?T.brand:T.muted}/>
+                            <span style={{
+                              flex:1, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:14,
+                              color:isSelected?T.brand:T.text, fontWeight:isSelected?600:400,
+                              overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
+                            }}>{getSourceDisplay(s)}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
+
+            {source && (
+              <div style={{background:T.surfaceHi, borderRadius:10, padding:12, border:`1px solid ${T.border}`}}>
+                <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.blue, fontWeight:800, letterSpacing:"0.1em", marginBottom:6}}>STARTING BRANCH</div>
+                <div style={{position:"relative"}}>
+                  <input
+                    value={branch}
+                    onChange={e=>{setBranch(e.target.value); setShowBranches(true);}}
+                    onFocus={()=>setShowBranches(true)}
+                    placeholder={defaultBranch || "main"}
+                    style={{...inputSt, paddingRight:36, fontSize:13, padding: "8px 10px"}}
+                  />
+                  <div style={{position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", display:"flex", alignItems:"center", pointerEvents:"none"}}>
+                    <Ic n="branch" s={14} c={showBranches?T.brand:T.muted}/>
+                  </div>
+
+                  {showBranches && (
+                    <>
+                      <Backdrop onClick={()=>{
+                        setShowBranches(false);
+                        setBranch(branch);
+                      }} zIndex={2100}/>
+                      <div style={{
+                        position:"absolute", bottom:"100%", left:0, right:0, zIndex:2101,
+                        marginBottom:4, background:T.surfaceHi, border:`1px solid ${T.borderHi}`,
+                        borderRadius:6, maxHeight:150, overflowY:"auto",
+                        boxShadow:"0 -10px 25px rgba(0,0,0,0.5)",
+                      }}>
+                        {filteredBranches.map(b => (
+                          <button
+                            key={b}
+                            onClick={()=>{setBranch(b); setShowBranches(false);}}
+                            style={{
+                              width:"100%", padding:"10px 12px", background:"none", border:"none",
+                              textAlign:"left", cursor:"pointer", display:"flex", alignItems:"center", gap:8,
+                              borderBottom:`1px solid ${T.border}33`, transition:"background .1s cubic-bezier(0.4, 0, 0.2, 1)",
+                            }}
+                            onMouseEnter={e=>e.currentTarget.style.background=T.dim}
+                            onMouseLeave={e=>e.currentTarget.style.background="none"}
+                          >
+                            <Ic n="branch" s={12} c={b===branch?T.brand:T.muted}/>
+                            <span style={{
+                              flex:1, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:14,
+                              color:b===branch?T.brand:T.text, fontWeight:b===branch?600:400,
+                              overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
+                            }}>{b}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div style={{background:T.surfaceHi, borderRadius:10, padding:16, border:`1px solid ${T.border}`}}>
+              <ConflictRadar
+                currentSource={source}
+                currentBranch={branch || defaultBranch}
+                currentPrompt={prompt}
+                allSessions={allSessions}
+                activitiesMap={activitiesMap}
+              />
+              <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.purple, fontWeight:800, letterSpacing:"0.1em", marginBottom:8, marginTop: 12}}>PROMPT SUMMARY</div>
+              <div style={{fontFamily:"'IBM Plex Sans',sans-serif", fontSize:14, color:T.textDim, lineHeight:1.5, display:"-webkit-box", WebkitLineClamp:3, WebkitBoxOrient:"vertical", overflow:"hidden", marginBottom: selectedPersonas.size > 0 ? 12 : 0}}>
+                {prompt}
+              </div>
+              {selectedPersonas.size > 0 && (
+                <div style={{display:"flex", gap:4, flexWrap:"wrap", paddingTop:8, borderTop:`1px solid ${T.border}`}}>
+                  {Array.from(selectedPersonas).map(id => {
+                    const p = personas.find(x => x.id === id);
+                    return p ? (
+                      <span key={id} style={{fontSize:9, fontWeight:800, color:p.color, background:`${p.color}15`, padding:"2px 6px", borderRadius:4, border:`1px solid ${p.color}30`}}>
+                        {p.label}
+                      </span>
+                    ) : null;
+                  })}
+                </div>
+              )}
+            </div>
+
+            {(autoMode || reqApproval) && (
+              <div style={{display:"flex", gap:10}}>
+                {autoMode && (
+                  <div style={{flex:1, display:"flex", alignItems:"center", gap:6, padding:"8px 12px", background:T.brandDim, border:`1px solid ${T.brand}30`, borderRadius:8}}>
+                    <Ic n="check" s={12} c={T.brand}/>
+                    <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.brand, fontWeight:800}}>AUTO PR</span>
+                  </div>
+                )}
+                {reqApproval && (
+                  <div style={{flex:1, display:"flex", alignItems:"center", gap:6, padding:"8px 12px", background:T.purpleDim, border:`1px solid ${T.purple}30`, borderRadius:8}}>
+                    <Ic n="plan" s={12} c={T.purple}/>
+                    <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.purple, fontWeight:800}}>PLAN REVIEW</span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-        </div>
+        </Modal>
       )}
       <div style={{padding:"12px 16px",borderBottom:`1px solid ${T.border}33`,background:T.surface,display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
         {!isDesktop&&<button onClick={onBack} style={{background:"none",border:"none",cursor:"pointer",display:"flex"}}><Ic n="back" s={18} c={T.text}/></button>}
@@ -5243,6 +5223,46 @@ const ConflictRadar = ({ currentSource, currentBranch, currentPrompt, allSession
     </div>
   );
 };
+
+const Modal = ({ children, actions, onClose, title, subtitle, icon: IconN, maxWidth = 420 }) => (
+  <div style={{
+    position:"fixed", inset:0, zIndex:2000,
+    background:"rgba(4,5,7,0.85)", backdropFilter:"blur(12px)",
+    display:"flex", alignItems:"center", justifyContent:"center",
+    padding:20, animation:"fadeIn .2s ease"
+  }} onClick={onClose}>
+    <div style={{
+      width:"100%", maxWidth, maxHeight:"90vh", background:T.surface, border:`1px solid ${T.borderHi}`,
+      borderRadius:16, boxShadow:"0 20px 50px rgba(0,0,0,0.6)",
+      animation:"zoomIn .3s cubic-bezier(0.2, 0, 0.2, 1)",
+      position:"relative", display:"flex", flexDirection:"column"
+    }} onClick={e => e.stopPropagation()}>
+      <div style={{
+        position:"absolute", top:0, left:0, right:0, height:3,
+        background:`linear-gradient(90deg, ${T.brand}, ${T.purple})`
+      }}/>
+      <div style={{ padding: "28px 28px 12px", overflowY: "auto", flex: 1, WebkitOverflowScrolling: "touch" }}>
+        {(IconN || title) && (
+          <div style={{textAlign:"center", marginBottom:24}}>
+            {IconN && (
+              <div style={{
+                width:48, height:48, borderRadius:12, background:T.brandDim,
+                display:"flex", alignItems:"center", justifyContent:"center",
+                margin:"0 auto 16px", border:`1px solid ${T.brand}30`
+              }}>
+                <Ic n={IconN} s={22} c={T.brand}/>
+              </div>
+            )}
+            {title && <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:16, fontWeight:900, color:T.text, letterSpacing:"0.05em"}}>{title}</div>}
+            {subtitle && <div style={{fontFamily:"'IBM Plex Sans',sans-serif", fontSize:14, color:T.muted, marginTop:4}}>{subtitle}</div>}
+          </div>
+        )}
+        {children}
+      </div>
+      {actions && <div style={{display:"flex", gap:12, padding: "0 28px 28px"}}>{actions}</div>}
+    </div>
+  </div>
+);
 
 const QuotaTimeline = ({ todayCount, plan }) => {
   const [now, setNow] = useState(Date.now());
