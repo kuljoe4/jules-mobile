@@ -743,28 +743,41 @@ async function apiCall(apiKey, path, opts={}) {
 // ─── Utils ────────────────────────────────────────────────────────────────────
 const fmtBytes = b => b<1?`${(b*1024).toFixed(0)}B`:b<1024?`${b.toFixed(1)}KB`:`${(b/1024).toFixed(2)}MB`;
 const fmtChars = n => n<1000?`${n}c`: `${(n/1000).toFixed(1)}kc`;
+const PR_CACHE = new Map();
+const GH_PR_RE = /https:\/\/github\.com\/[^\/]+\/[^\/]+\/pull\/(\d+)/;
+
 const getPR = (s) => {
   if (!s) return null;
+  const sid = s.id || s.name || "temp";
+  if (PR_CACHE.has(sid)) return PR_CACHE.get(sid);
+
   const findInOutputs = (outputs) => {
     if (!outputs || !Array.isArray(outputs)) return null;
-    const prObj = outputs.find(o => o.githubPullRequest)?.githubPullRequest;
-    if (prObj) return prObj;
-    // Some versions put the URL directly in a string or as a nested field
-    for (const o of outputs) {
-      if (o.pullRequestUrl || o.prUrl) return { url: o.pullRequestUrl || o.prUrl, number: (o.pullRequestUrl || o.prUrl).split("/").pop() };
+    for (let i = 0; i < outputs.length; i++) {
+      const o = outputs[i];
+      if (o.githubPullRequest) return o.githubPullRequest;
+      const u = o.pullRequestUrl || o.prUrl;
+      if (u) return { url: u, number: u.split("/").pop() };
     }
     return null;
   };
 
-  // 1. Standard locations
   let pr = findInOutputs(s.outputs) || s.githubPullRequest || s.pullRequest || s.sourceContext?.githubRepoContext?.pullRequest || s.github_pull_request;
-  if (pr && typeof pr === 'object' && pr.url) return { ...pr, number: pr.number || pr.url.split("/").pop() };
+  if (pr && typeof pr === 'object' && pr.url) {
+    const res = { ...pr, number: pr.number || pr.url.split("/").pop() };
+    if (sid !== "temp") PR_CACHE.set(sid, res);
+    return res;
+  }
 
-  // 2. Scan all string fields for GitHub PR links (last resort)
   const str = JSON.stringify(s);
-  const m = str.match(/https:\/\/github\.com\/[^\/]+\/[^\/]+\/pull\/(\d+)/);
-  if (m) return { url: m[0], number: m[1] };
+  const m = str.match(GH_PR_RE);
+  if (m) {
+    const res = { url: m[0], number: m[1] };
+    if (sid !== "temp") PR_CACHE.set(sid, res);
+    return res;
+  }
 
+  if (sid !== "temp") PR_CACHE.set(sid, null);
   return null;
 };
 
@@ -789,11 +802,16 @@ const getPRInfo = (s, activities = []) => {
   return { ...pr, state };
 };
 
+const CHECK_URL_RE = /https:\/\/github\.com\/[^\/]+\/[^\/]+\/(?:actions\/runs|deployments|actions)\/\d*/;
+
 const getCheckStatus = (activities = []) => {
-  let status = null; // { state: 'pending'|'success'|'failure', label: string, url?: string }
-  for (const a of activities) {
-    const desc = (a.progressUpdated?.description || "").toLowerCase();
-    const title = (a.progressUpdated?.title || "").toLowerCase();
+  let status = null;
+  for (let i = 0; i < activities.length; i++) {
+    const a = activities[i];
+    const pu = a.progressUpdated;
+    if (!pu) continue;
+    const desc = (pu.description || "").toLowerCase();
+    const title = (pu.title || "").toLowerCase();
 
     const isSignal = desc.includes("check") || desc.includes("workflow") || desc.includes("deploy") || desc.includes("action") ||
                      title.includes("check") || title.includes("workflow") || title.includes("deploy");
@@ -807,75 +825,96 @@ const getCheckStatus = (activities = []) => {
         status = { state: "pending", label: desc.includes("deploy") ? "DEPLOYING" : "CHECKS RUNNING" };
       }
 
-      const urlMatch = (a.progressUpdated?.description || "").match(/https:\/\/github\.com\/[^\/]+\/[^\/]+\/(?:actions\/runs|deployments|actions)\/\d*/);
+      const urlMatch = (pu.description || "").match(CHECK_URL_RE);
       if (urlMatch && status) status.url = urlMatch[0];
     }
   }
   return status;
 };
 
+const BRANCH_INFO_CACHE = new Map();
+const PUSH_RE = /push(?:ing|ed).* to (?:the |a )?([^\s\.\(\)\`]+)/i;
+const BRANCH_RE = /branch (?:named )?([^\s\.\(\)\`]+)/i;
+const CREATE_BRANCH_RE = /created.* branch ([^\s\.\(\)\`]+)/i;
+const TREE_LINK_RE = /https:\/\/github\.com\/[^\/]+\/[^\/]+\/tree\/([a-zA-Z0-9\-_]+)/;
+const BRANCH_LINK_RE = /https:\/\/github\.com\/[^\/]+\/[^\/]+\/branches\/([a-zA-Z0-9\-_]+)/;
+const COMPARE_LINK_RE = /https:\/\/github\.com\/[^\/]+\/[^\/]+\/compare\/[^\.]+\.\.\.([a-zA-Z0-9\-_]+)/;
+const PR_REPO_RE = /https:\/\/github\.com\/([^\/]+\/[^\/]+)\/pull/;
+
 const getBranchInfo = (s, activities = []) => {
   if (!s) return null;
+  const sid = s.id || s.name || "temp";
+  const actLen = activities.length;
+  const cacheKey = sid + ":" + actLen;
+  if (sid !== "temp" && BRANCH_INFO_CACHE.has(cacheKey)) return BRANCH_INFO_CACHE.get(cacheKey);
+
   const context = s.sourceContext?.githubRepoContext;
   const base = context?.startingBranch || "main";
 
   let working = null;
-  // Scan activities for "pushed to <branch>" or similar
-  for (const a of activities) {
+  for (let i = 0; i < activities.length; i++) {
+    const a = activities[i];
     const desc = a.progressUpdated?.description || "";
-    // Match common Jules patterns for branch names, skipping filler words
-    const m = desc.match(/push(?:ing|ed).* to (?:the |a )?([^\s\.\(\)\`]+)/i) ||
-              desc.match(/branch (?:named )?([^\s\.\(\)\`]+)/i) ||
-              desc.match(/created.* branch ([^\s\.\(\)\`]+)/i);
+    const m = desc.match(PUSH_RE) || desc.match(BRANCH_RE) || desc.match(CREATE_BRANCH_RE);
     if (m) {
       const bname = m[1].replace(/['"`\.]/g, "");
       if (bname !== "main" && bname !== "master") working = bname;
     }
   }
 
-  // Fallback: search for tree links which often contain the branch
   if (!working) {
     const str = JSON.stringify(s) + JSON.stringify(activities);
-    // Be more specific with tree links to avoid matching repo names or other segments
-    const m = str.match(/https:\/\/github\.com\/[^\/]+\/[^\/]+\/tree\/([a-zA-Z0-9\-_]+)/);
+    const m = str.match(TREE_LINK_RE);
     if (m) working = m[1];
-
-    // Also look for branch links in descriptions or compare links
     if (!working) {
-      const bm = str.match(/https:\/\/github\.com\/[^\/]+\/[^\/]+\/branches\/([a-zA-Z0-9\-_]+)/) ||
-                 str.match(/https:\/\/github\.com\/[^\/]+\/[^\/]+\/compare\/[^\.]+\.\.\.([a-zA-Z0-9\-_]+)/);
+      const bm = str.match(BRANCH_LINK_RE) || str.match(COMPARE_LINK_RE);
       if (bm) working = bm[1];
     }
   }
 
   let repo = s.sourceContext?.source?.replace("sources/github/","");
-
-  // Fallback: extract from PR if found
   if (!repo || repo.startsWith("sources/")) {
     const pr = getPR(s);
     if (pr && pr.url) {
-      const m = pr.url.match(/https:\/\/github\.com\/([^\/]+\/[^\/]+)\/pull/);
+      const m = pr.url.match(PR_REPO_RE);
       if (m) repo = m[1];
     }
   }
 
   const repoUrl = repo && !repo.startsWith("sources/") ? `https://github.com/${repo}` : null;
-
-  return { base, working: working || base, repo: repoUrl ? repo : null, repoUrl, isNew: working && working !== base };
+  const res = { base, working: working || base, repo: repoUrl ? repo : null, repoUrl, isNew: working && working !== base };
+  if (sid !== "temp") {
+    if (BRANCH_INFO_CACHE.size > 500) BRANCH_INFO_CACHE.clear();
+    BRANCH_INFO_CACHE.set(cacheKey, res);
+  }
+  return res;
 };
 
+const WORKING_SET_CACHE = new Map();
+const FILE_MENTION_RE = /`([^`\s]+\.[a-z0-9]+)`/gi;
+
 const getWorkingSet = (s, activities = []) => {
-  const files = new Set();
   if (!s) return [];
+  const sid = s.id || s.name || "temp";
+  const actLen = activities.length;
+  const promptLen = s.prompt?.length || 0;
+  const cacheKey = `${sid}:${actLen}:${promptLen}`;
+
+  if (WORKING_SET_CACHE.has(cacheKey)) return WORKING_SET_CACHE.get(cacheKey);
+
+  const files = new Set();
 
   // 1. Scan activities for patches
-  for (const a of activities) {
+  for (let i = 0; i < activities.length; i++) {
+    const a = activities[i];
     if (a.artifacts) {
-      for (const art of a.artifacts) {
+      for (let j = 0; j < a.artifacts.length; j++) {
+        const art = a.artifacts[j];
         const patch = art.changeSet?.gitPatch?.unidiffPatch;
         if (patch) {
           const lines = patch.split("\n");
-          for (const line of lines) {
+          for (let k = 0; k < lines.length; k++) {
+            const line = lines[k];
             if (line.startsWith("+++ ")) {
               const file = line.slice(4).replace(/^b\//, "");
               if (file && file !== "/dev/null") files.add(file);
@@ -887,14 +926,15 @@ const getWorkingSet = (s, activities = []) => {
 
     // 2. Scan planGenerated for file mentions
     if (a.planGenerated?.plan?.steps) {
-      for (const step of a.planGenerated.plan.steps) {
-        const text = `${step.title} ${step.description || ""}`;
-        const matches = text.match(/`([^`\s]+\.[a-z0-9]+)`/gi);
-        if (matches) {
-          matches.forEach(m => {
-            const f = m.replace(/`/g, "").trim();
-            if (f.includes("/") || f.includes(".")) files.add(f);
-          });
+      const steps = a.planGenerated.plan.steps;
+      for (let j = 0; j < steps.length; j++) {
+        const st = steps[j];
+        const text = st.title + " " + (st.description || "");
+        let match;
+        FILE_MENTION_RE.lastIndex = 0;
+        while ((match = FILE_MENTION_RE.exec(text)) !== null) {
+          const f = match[1];
+          if (f.includes("/") || f.includes(".")) files.add(f);
         }
       }
     }
@@ -902,44 +942,47 @@ const getWorkingSet = (s, activities = []) => {
 
   // 3. Fallback: Scan prompt for file mentions if it's a new session
   if (files.size === 0 && s.prompt) {
-    const matches = s.prompt.match(/`([^`\s]+\.[a-z0-9]+)`/gi);
-    if (matches) {
-      matches.forEach(m => {
-        const f = m.replace(/`/g, "").trim();
-        if (f.includes("/") || f.includes(".")) files.add(f);
-      });
+    let match;
+    FILE_MENTION_RE.lastIndex = 0;
+    while ((match = FILE_MENTION_RE.exec(s.prompt)) !== null) {
+      const f = match[1];
+      if (f.includes("/") || f.includes(".")) files.add(f);
     }
   }
 
-  return Array.from(files);
+  const result = Array.from(files);
+  if (WORKING_SET_CACHE.size > 500) WORKING_SET_CACHE.clear();
+  WORKING_SET_CACHE.set(cacheKey, result);
+  return result;
 };
+
+const HASH_RE = /\b[a-f0-9]{7,40}\b/g;
+const COMMIT_COUNT_RE = /(?:pushed|committed|applied)\s+(\d+)\s+(?:commit|change|fix|update)/i;
 
 const getAheadCount = (activities = []) => {
   let count = 0;
-  // Use a Set to avoid double counting if activities repeat or describe the same push
   const pushHashes = new Set();
 
-  for (const a of activities) {
-    const desc = (a.progressUpdated?.description || "").toLowerCase();
-
-    // Extract commit hashes if present to be more precise (7+ chars for short hash, 40 for full)
-    const hashes = (a.progressUpdated?.description || "").match(/\b[a-f0-9]{7,40}\b/g);
+  for (let i = 0; i < activities.length; i++) {
+    const a = activities[i];
+    const pu = a.progressUpdated;
+    if (!pu) continue;
+    const rawDesc = pu.description || "";
+    const desc = rawDesc.toLowerCase();
+    const hashes = rawDesc.match(HASH_RE);
     if (hashes) {
-      hashes.forEach(h => {
-        // Try to filter out things that look like hashes but aren't (e.g. IDs)
-        if (!h.includes("-") && h.length >= 7) pushHashes.add(h);
-      });
+      for (let j = 0; j < hashes.length; j++) {
+        const h = hashes[j];
+        if (h.length >= 7 && !h.includes("-")) pushHashes.add(h);
+      }
     }
 
-    // Match patterns like "pushed 3 commits", "committed 2 changes", etc.
-    const m = desc.match(/(?:pushed|committed|applied)\s+(\d+)\s+(?:commit|change|fix|update)/i);
+    const m = desc.match(COMMIT_COUNT_RE);
     if (m) {
       if (!hashes) count += parseInt(m[1], 10);
     } else if (desc.includes("pushed a commit") || desc.includes("pushed 1 commit") || desc.includes("pushed the changes") || desc.includes("committed changes")) {
       if (!hashes) count += 1;
-    }
-    // Jules often says "Applied changes and pushed"
-    else if (desc.includes("pushed") && (desc.includes("change") || desc.includes("fix") || desc.includes("update"))) {
+    } else if (desc.includes("pushed") && (desc.includes("change") || desc.includes("fix") || desc.includes("update"))) {
       if (!hashes) count += 1;
     }
   }
