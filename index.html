@@ -1173,6 +1173,7 @@ const PATHS = {
   unarchive:"M21 8v13H3V8M1 3h22v5H1V3m7 11l4-4 4 4m-4-4v10",
   more: "M12 5h.01M12 12h.01M12 19h.01",
   settings:"M12 15a3 3 0 100-6 3 3 0 000 6zM19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H4a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V4a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H20a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z",
+  reply: "M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6",
 };
 const Ic = ({n,s=16,c=T.muted}) => (
   <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
@@ -1631,7 +1632,7 @@ const MediaArtifacts = memo(({ artifacts, ts, onMediaClick }) => {
 });
 
 // ─── Chat Bubble ──────────────────────────────────────────────────────────────
-const ChatBubble = memo(({ act, type, onMediaClick, onEdit }) => {
+const ChatBubble = memo(({ act, type, onMediaClick, onEdit, onReply }) => {
   const isUser = type === "userMessaged";
   const text   = isUser ? act.userMessaged?.userMessage : act.agentMessaged?.agentMessage;
   const time   = fmtTime(new Date(act.createTime).getTime());
@@ -1703,6 +1704,22 @@ const ChatBubble = memo(({ act, type, onMediaClick, onEdit }) => {
                 <Ic n="copy" s={10} c={copied?T.brand:T.muted}/>
                 {copied?"COPIED":"COPY"}
               </button>
+              {onReply && (
+                <>
+                  <span>·</span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onReply(act, "JULES"); }}
+                    style={{
+                      background:"none", border:"none", padding:"0 2px", cursor:"pointer",
+                      color:T.brandLight, fontWeight:800, fontSize:9, letterSpacing:"0.05em",
+                      display:"flex", alignItems:"center", gap:3, transition: "color .2s cubic-bezier(0.4, 0, 0.2, 1)"
+                    }}
+                  >
+                    <Ic n="reply" s={10} c={T.brandLight}/>
+                    REPLY
+                  </button>
+                </>
+              )}
             </>
           )}
           {isUser && !isTemp && onEdit && (
@@ -1724,7 +1741,7 @@ const ChatBubble = memo(({ act, type, onMediaClick, onEdit }) => {
 });
 
 // ─── Timeline Event (non-message activities) ──────────────────────────────────
-const TimelineEvent = memo(({ act, onMediaClick }) => {
+const TimelineEvent = memo(({ act, onMediaClick, onReply }) => {
   const type = getActType(act);
   const isMajor = ["sessionCompleted", "sessionFailed", "planGenerated", "planApproved"].includes(type);
   const desc = act.progressUpdated?.description || "";
@@ -1900,6 +1917,7 @@ const TimelineEvent = memo(({ act, onMediaClick }) => {
       padding:isMajor?"14px":"4px 12px", borderRadius:8,
       background:isMajor?T.surfaceHi:"transparent",
       border:isMajor?`1px solid ${T.border}`:"none",
+      position:"relative",
     }}>
       <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:0,flexShrink:0,width:24}}>
         <div style={{width:24,height:24,borderRadius:6,background:`${ic.c}18`,border:`1px solid ${ic.c}40`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,boxShadow:"none"}}>
@@ -1919,6 +1937,25 @@ const TimelineEvent = memo(({ act, onMediaClick }) => {
         </div>
         {detail}
         <MediaArtifacts artifacts={act.artifacts} ts={act.createTime} onMediaClick={onMediaClick}/>
+
+        {onReply && (
+          <div style={{marginTop:6, display:"flex", justifyContent:"flex-end"}}>
+            <button
+              onClick={(e) => { e.stopPropagation(); onReply(act, title.toUpperCase()); }}
+              style={{
+                background:"none", border:"none", padding:"2px 6px", cursor:"pointer",
+                color:T.brandLight, fontWeight:800, fontSize:9, letterSpacing:"0.05em",
+                display:"inline-flex", alignItems:"center", gap:4, transition: "color .2s cubic-bezier(0.4, 0, 0.2, 1)",
+                opacity: 0.8
+              }}
+              onMouseEnter={e => e.currentTarget.style.opacity = "1"}
+              onMouseLeave={e => e.currentTarget.style.opacity = "0.8"}
+            >
+              <Ic n="reply" s={10} c={T.brandLight}/>
+              REPLY TO EVENT
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -2036,7 +2073,7 @@ const MediaModal = ({ media, onClose }) => {
 const COLLAPSE_THRESHOLD = 35;
 const COLLAPSE_SHOW      = 25;
 
-const ActivityFeed = memo(({ activities, showAll, onShowAll, onMediaClick, onEditMessage, driftSessions = [], justUpdated = false }) => {
+const ActivityFeed = memo(({ activities, showAll, onShowAll, onMediaClick, onEditMessage, onReply, driftSessions = [], justUpdated = false }) => {
   const collapse  = !showAll && activities.length > COLLAPSE_THRESHOLD;
   const visible   = collapse ? activities.slice(activities.length - COLLAPSE_SHOW) : activities;
   const hidden    = activities.length - visible.length;
@@ -2113,13 +2150,13 @@ const ActivityFeed = memo(({ activities, showAll, onShowAll, onMediaClick, onEdi
         const type = getActType(act);
         const key  = getActKey(act);
         if (type === "userMessaged" || type === "agentMessaged") {
-          return <ChatBubble key={key} act={act} type={type} onMediaClick={onMediaClick} onEdit={onEditMessage}/>;
+          return <ChatBubble key={key} act={act} type={type} onMediaClick={onMediaClick} onEdit={onEditMessage} onReply={onReply}/>;
         }
         return (
           <div key={key} style={{
             animation: justUpdated && idx >= combined.length - 5 ? "shimmerPulse 0.8s ease-out" : "none"
           }}>
-            <TimelineEvent act={act} onMediaClick={onMediaClick}/>
+            <TimelineEvent act={act} onMediaClick={onMediaClick} onReply={onReply}/>
           </div>
         );
       })}
@@ -2848,6 +2885,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   const [justUpdated, setJustUpdated] = useState(false);
   const [err,setErr]             = useState(null);
   const [activeMedia,setActiveMedia] = useState(null);
+  const [replyingTo, setReplyingTo] = useState(null); // { act, sender }
   const [showDriftWarning, setShowDriftWarning] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [headerExpanded, setHeaderExpanded] = useState(true);
@@ -3160,6 +3198,28 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     if (!msg.trim() || busy) return;
     userSentRef.current = true;
     let text = msg.trim();
+    if (replyingTo) {
+      let quoteText = "";
+      const replyAct = replyingTo.act;
+      if (replyAct.agentMessaged) {
+        quoteText = replyAct.agentMessaged.agentMessage;
+      } else if (replyAct.progressUpdated) {
+        quoteText = replyAct.progressUpdated.description || replyAct.progressUpdated.title || "";
+      } else if (replyAct.planGenerated) {
+        quoteText = "Plan Generated";
+      } else {
+        quoteText = replyAct.description || "System Event";
+      }
+
+      // Limit quoteText length
+      if (quoteText.length > 200) {
+        quoteText = quoteText.substring(0, 197) + "...";
+      }
+
+      const headerLine = `> **Replying to ${replyingTo.sender || "JULES"}**: *"${quoteText.replace(/\n/g, " ")}"*`;
+      text = `${headerLine}\n\n${text}`;
+    }
+
     if (selectedPersonas.size > 0) {
       const personaPrompts = Array.from(selectedPersonas)
         .map(id => personas.find(p => p.id === id)?.prompt)
@@ -3172,6 +3232,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     setMsg("");
     setComposerMinimized(true);
     setExpanded(false);
+    setReplyingTo(null);
     setBusy(true); setErr(null);
 
     // Optimistic: add temp bubble immediately
@@ -3829,7 +3890,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
         </div>
 
       {/* ── Content ── */}
-      <div ref={contentRef} onScroll={handleScroll} style={{flex:1,overflowY:"auto",padding:"14px 16px",paddingBottom:isDesktop?80:(composerMinimized?130:220),WebkitOverflowScrolling:"touch",minHeight:200,position:"relative"}}>
+      <div ref={contentRef} onScroll={handleScroll} style={{flex:1,overflowY:"auto",padding:"14px 16px",paddingBottom:isDesktop?(replyingTo?140:80):(composerMinimized?(replyingTo?180:130):(replyingTo?270:220)),WebkitOverflowScrolling:"touch",minHeight:200,position:"relative"}}>
         {tab==="activity"&&(
           <>
             <div style={{display:"flex", alignItems:"center", gap:6, marginBottom:16, flexWrap:"wrap"}}>
@@ -3948,6 +4009,17 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                       if (txtRef.current) {
                         txtRef.current.focus();
                         txtRef.current.setSelectionRange(text.length, text.length);
+                        txtRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+                      }
+                    });
+                  }}
+                  onReply={(act, sender) => {
+                    setReplyingTo({ act, sender });
+                    setComposerMinimized(false);
+                    setComposerVisible(true);
+                    requestAnimationFrame(() => {
+                      if (txtRef.current) {
+                        txtRef.current.focus();
                         txtRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
                       }
                     });
@@ -4159,8 +4231,11 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
       {canSend&&(
         <div ref={composerRef} onBlur={e => {
           if (composerRef.current && !composerRef.current.contains(e.relatedTarget)) {
-            setComposerMinimized(true);
-            setExpanded(false);
+            // Keep expanded if replying so they don't lose context
+            if (!replyingTo) {
+              setComposerMinimized(true);
+              setExpanded(false);
+            }
           }
         }} style={{
           padding:"10px 12px", borderTop:`1px solid ${T.border}`, background:T.surface,
@@ -4172,6 +4247,42 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
           bottom: 0, left: 0, right: 0, zIndex: 10,
           boxShadow: isDesktop ? "none" : "0 -12px 32px rgba(0,0,0,0.5)",
         }}>
+          {!composerMinimized && replyingTo && (
+            <div style={{
+              display: "flex", alignItems: "center", gap: 10, padding: "8px 12px",
+              background: "rgba(6, 182, 212, 0.08)", border: `1px solid ${T.brand}30`,
+              borderRadius: 8, marginBottom: 10, animation: "fadeIn .2s ease-out",
+            }}>
+              <Ic n="reply" s={14} c={T.brand}/>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 800, color: T.brand, letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                  REPLYING TO {replyingTo.sender}
+                </div>
+                <div style={{ fontFamily: "'IBM Plex Sans',sans-serif", fontSize: 12, color: T.textDim, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>
+                  {(() => {
+                    const replyAct = replyingTo.act;
+                    if (replyAct.agentMessaged) return replyAct.agentMessaged.agentMessage;
+                    if (replyAct.progressUpdated) return replyAct.progressUpdated.description || replyAct.progressUpdated.title || "";
+                    if (replyAct.planGenerated) return "Plan Generated";
+                    return replyAct.description || "System Event";
+                  })()}
+                </div>
+              </div>
+              <button
+                onClick={() => setReplyingTo(null)}
+                style={{
+                  background: "none", border: "none", cursor: "pointer", padding: 4,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  opacity: 0.6, transition: "opacity .15s ease"
+                }}
+                onMouseEnter={e => e.currentTarget.style.opacity = "1"}
+                onMouseLeave={e => e.currentTarget.style.opacity = "0.6"}
+              >
+                <Ic n="x" s={14} c={T.red}/>
+              </button>
+            </div>
+          )}
+
           {!composerMinimized && <MultiPersonaPicker personas={personas} selectedIds={selectedPersonas} onToggle={togglePersona} style={{marginBottom:10}} />}
 
           <div style={{position:"relative", display:"flex", flexDirection:"column"}}>
@@ -4257,8 +4368,15 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                   boxShadow:`0 4px 12px rgba(0,0,0,0.3)`
                 }}
               >
-                <span style={{fontFamily:"'IBM Plex Sans',sans-serif", fontSize:14, color:T.muted}}>
-                  {msg.trim() ? "Continue follow-up..." : "Send a message..."}
+                <span style={{fontFamily:"'IBM Plex Sans',sans-serif", fontSize:14, color:T.muted, display:"flex", alignItems:"center", gap:8}}>
+                  {replyingTo ? (
+                    <>
+                      <Ic n="reply" s={14} c={T.brand}/>
+                      Replying to {replyingTo.sender}...
+                    </>
+                  ) : (
+                    msg.trim() ? "Continue follow-up..." : "Send a message..."
+                  )}
                 </span>
                 <div style={{display:"flex", alignItems:"center", gap:10}}>
                   {msg.trim() && <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.brand, fontWeight:800}}>{fmtChars(msg.length)}</span>}
@@ -4287,7 +4405,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
       {/* ── Refined Floating Scroll Actions ── */}
       <div style={{
         position:"absolute", right:20,
-        bottom: (isDesktop || composerVisible) ? (isDesktop ? 110 : (composerMinimized ? 110 : 240)) : 30,
+        bottom: (isDesktop || composerVisible) ? (isDesktop ? (replyingTo ? 170 : 110) : (composerMinimized ? (replyingTo ? 160 : 110) : (replyingTo ? 290 : 240))) : 30,
         zIndex:100, pointerEvents:"none",
         transition:"bottom .3s cubic-bezier(0.4, 0, 0.2, 1)",
       }}>
