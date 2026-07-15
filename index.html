@@ -1408,7 +1408,9 @@ const ExpandableContent = memo(({ text, limit = 300, showCopy = false }) => {
   const ref = useRef(null);
 
   useEffect(() => {
-    if (ref.current && ref.current.scrollHeight > limit) setShowToggle(true);
+    const isOverScroll = ref.current && ref.current.scrollHeight > limit;
+    const isOverLength = text && text.length > limit;
+    if (isOverScroll || isOverLength) setShowToggle(true);
   }, [text, limit]);
 
   const handleCopy = () => {
@@ -1443,6 +1445,11 @@ const ExpandableContent = memo(({ text, limit = 300, showCopy = false }) => {
               onClick={(e) => {
                 e.stopPropagation();
                 setExpanded(true);
+                requestAnimationFrame(() => {
+                  if (ref.current) {
+                    ref.current.scrollIntoView({ behavior: "smooth", block: "center" });
+                  }
+                });
               }}
               onMouseDown={e => e.currentTarget.style.transform = "translateY(6px) scale(0.96)"}
               onMouseUp={e => e.currentTarget.style.transform = "translateY(4px) scale(1)"}
@@ -1463,7 +1470,15 @@ const ExpandableContent = memo(({ text, limit = 300, showCopy = false }) => {
       <div style={{ display:"flex", alignItems:"center", gap:16, marginTop:8 }}>
         {expanded && showToggle && (
           <button
-            onClick={() => setExpanded(false)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setExpanded(false);
+              requestAnimationFrame(() => {
+                if (ref.current) {
+                  ref.current.scrollIntoView({ behavior: "smooth", block: "center" });
+                }
+              });
+            }}
             style={{
               background: "none", border: "none", color: T.dim, cursor: "pointer",
               fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 700,
@@ -1648,90 +1663,104 @@ const ChatBubble = memo(({ act, type, onMediaClick, onEdit, onReply }) => {
   };
 
   return (
-    <div style={{
-      display:"flex",flexDirection:isUser?"row-reverse":"row",
-      alignItems:"flex-end",gap:10,marginBottom:20,
-      padding:isUser?"0 0 0 48px":"0 48px 0 0",
-    }}>
-      {/* Avatar */}
+    <div style={{ marginBottom: 24, width: "100%", animation: "fadeIn .25s ease-out" }}>
+      {/* Header Accent Row */}
       <div style={{
-        width:32,height:32,borderRadius:8,flexShrink:0,
-        background:isUser?T.blueDim:T.brand,
-        border:`1px solid ${isUser?T.blue+"40":T.brandLight+"40"}`,
-        display:"flex",alignItems:"center",justifyContent:"center",
-        fontFamily:"'JetBrains Mono',monospace",fontSize:13,fontWeight:900,
-        color:isUser?T.blue:"#000",
-        boxShadow:"none",
-      }}>{isUser?"U":"J"}</div>
-
-      {/* Bubble */}
-      <div style={{
-        maxWidth:"82%",
-        background:isUser?T.userBubble:T.agentBubble,
-        border:`1px solid ${isUser?T.blue+"40":T.brandDark+"35"}`,
-        borderRadius:isUser?"14px 14px 4px 14px":"14px 14px 14px 4px",
-        padding:"14px 18px",
-        opacity:isTemp?0.6:1,
-        transition:"opacity .2s cubic-bezier(0.4, 0, 0.2, 1)",
-        boxShadow:"none",
+        fontFamily: "'JetBrains Mono',monospace", fontSize: 11,
+        color: isUser ? T.blue : T.brand, fontWeight: 800,
+        letterSpacing: "0.1em", marginBottom: 12,
+        display: "flex", alignItems: "center", gap: 8
       }}>
         <div style={{
-          fontSize:15,color:T.text,lineHeight:1.55,
-          fontFamily:"'IBM Plex Sans',sans-serif",
-        }}><ExpandableContent text={text} limit={400}/></div>
-        <MediaArtifacts artifacts={act.artifacts} ts={act.createTime} onMediaClick={onMediaClick}/>
+          width: 20, height: 20, borderRadius: 5,
+          background: isUser ? T.blueDim : T.brandDim,
+          border: `1px solid ${isUser ? T.blue + "40" : T.brand + "40"}`,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontFamily: "'JetBrains Mono',monospace", fontSize: 9, fontWeight: 900,
+          color: isUser ? T.blue : T.brandLight, flexShrink: 0
+        }}>{isUser ? "U" : "J"}</div>
+        <span>{isUser ? "USER MESSAGE" : "JULES RESPONSE"}</span>
+        <div style={{ height: 1, flex: 1, background: isUser ? `${T.blue}20` : `${T.brand}20` }}/>
+        <span style={{ color: T.textDim, fontSize: 10, fontWeight: 500 }}>{isTemp ? "sending..." : time}</span>
+      </div>
+
+      {/* Structured Expandable Card */}
+      <div style={{
+        background: T.surfaceHi, border: `1px solid ${T.border}`,
+        borderLeft: `3px solid ${isUser ? T.blue : T.brand}`,
+        borderRadius: 10, padding: "20px", position: "relative",
+        boxShadow: "none", transition: "all .2s cubic-bezier(0.4, 0, 0.2, 1)",
+        width: "100%", opacity: isTemp ? 0.6 : 1
+      }}>
         <div style={{
-          marginTop:5,fontFamily:"'JetBrains Mono',monospace",fontSize:10,
-          color:isUser?T.blue+"70":T.brand+"60",textAlign:isUser?"right":"left",
-          display:"flex",gap:6,justifyContent:isUser?"flex-end":"flex-start",alignItems:"center",
+          fontSize: 16, color: T.text, lineHeight: 1.6,
+          fontFamily: "'IBM Plex Sans',sans-serif",
         }}>
-          <span style={{fontWeight:700,letterSpacing:"0.06em"}}>{isUser?"YOU":"JULES"}</span>
+          <ExpandableContent text={text} limit={400} />
+        </div>
+
+        <MediaArtifacts artifacts={act.artifacts} ts={act.createTime} onMediaClick={onMediaClick}/>
+
+        {/* Footer Actions Strip */}
+        <div style={{
+          marginTop: 14, paddingTop: 12, borderTop: `1px solid ${T.border}33`,
+          fontFamily: "'JetBrains Mono',monospace", fontSize: 10,
+          color: isUser ? T.blue + "70" : T.brand + "60",
+          display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap"
+        }}>
+          <span style={{ fontWeight: 800, letterSpacing: "0.05em", color: isUser ? T.blue : T.brandLight }}>
+            {isUser ? "YOU" : "JULES"}
+          </span>
           <span>·</span>
-          <span style={{opacity:0.8}}>{fmtChars(text?.length||0)}</span>
-          <span>·</span>
-          <span>{isTemp?"sending…":time}</span>
-          {!isUser && !isTemp && (
+          <span style={{ opacity: 0.8 }}>{fmtChars(text?.length || 0)}</span>
+
+          {!isTemp && (
             <>
               <span>·</span>
               <button
                 onClick={(e) => { e.stopPropagation(); handleCopy(); }}
                 style={{
-                  background:"none", border:"none", padding:"0 2px", cursor:"pointer",
-                  color:copied?T.brand:T.muted, fontWeight:800, fontSize:9, letterSpacing:"0.05em",
-                  display:"flex", alignItems:"center", gap:3, transition: "color .2s cubic-bezier(0.4, 0, 0.2, 1)"
+                  background: "none", border: "none", padding: "0 2px", cursor: "pointer",
+                  color: copied ? T.brand : T.muted, fontWeight: 800, fontSize: 10, letterSpacing: "0.05em",
+                  display: "flex", alignItems: "center", gap: 4, transition: "color .2s cubic-bezier(0.4, 0, 0.2, 1)"
                 }}
               >
-                <Ic n="copy" s={10} c={copied?T.brand:T.muted}/>
-                {copied?"COPIED":"COPY"}
+                <Ic n="copy" s={11} c={copied ? T.brand : T.muted}/>
+                {copied ? "COPIED" : "COPY"}
               </button>
-              {onReply && (
-                <>
-                  <span>·</span>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); onReply(act, "JULES"); }}
-                    style={{
-                      background:"none", border:"none", padding:"0 2px", cursor:"pointer",
-                      color:T.brandLight, fontWeight:800, fontSize:9, letterSpacing:"0.05em",
-                      display:"flex", alignItems:"center", gap:3, transition: "color .2s cubic-bezier(0.4, 0, 0.2, 1)"
-                    }}
-                  >
-                    <Ic n="reply" s={10} c={T.brandLight}/>
-                    REPLY
-                  </button>
-                </>
-              )}
             </>
           )}
+
+          {onReply && !isUser && !isTemp && (
+            <>
+              <span>·</span>
+              <button
+                onClick={(e) => { e.stopPropagation(); onReply(act, "JULES"); }}
+                style={{
+                  background: "none", border: "none", padding: "0 2px", cursor: "pointer",
+                  color: T.brandLight, fontWeight: 800, fontSize: 10, letterSpacing: "0.05em",
+                  display: "flex", alignItems: "center", gap: 4, transition: "color .2s cubic-bezier(0.4, 0, 0.2, 1)"
+                }}
+              >
+                <Ic n="reply" s={11} c={T.brandLight}/>
+                REPLY
+              </button>
+            </>
+          )}
+
           {isUser && !isTemp && onEdit && (
             <>
               <span>·</span>
               <button
                 onClick={(e) => { e.stopPropagation(); onEdit(text); }}
                 style={{
-                  background:"none", border:"none", padding:"0 2px", cursor:"pointer",
-                  color:T.brand, fontWeight:800, fontSize:9, letterSpacing:"0.05em"
+                  background: "none", border: "none", padding: "0 2px", cursor: "pointer",
+                  color: T.brand, fontWeight: 800, fontSize: 10, letterSpacing: "0.05em",
+                  display: "flex", alignItems: "center", gap: 4
                 }}
-              >EDIT</button>
+              >
+                EDIT
+              </button>
             </>
           )}
         </div>
@@ -2886,6 +2915,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   const [err,setErr]             = useState(null);
   const [activeMedia,setActiveMedia] = useState(null);
   const [replyingTo, setReplyingTo] = useState(null); // { act, sender }
+  const [headerPromptExpanded, setHeaderPromptExpanded] = useState(false);
+  const headerPromptRef = useRef(null);
   const [showDriftWarning, setShowDriftWarning] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [headerExpanded, setHeaderExpanded] = useState(true);
@@ -3977,6 +4008,59 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                         fontWeight: 700, cursor: "pointer", color: T.muted
                       }}
                     >DISMISS</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Collapsible Session Prompt Card (Dropdown style) */}
+            {session.prompt && (
+              <div style={{
+                background: T.surfaceHi, border: `1px solid ${T.border}`,
+                borderRadius: 10, padding: "12px 16px", marginBottom: 16,
+                boxShadow: "none", position: "relative",
+                transition: "all .2s cubic-bezier(0.4, 0, 0.2, 1)"
+              }}>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const next = !headerPromptExpanded;
+                    setHeaderPromptExpanded(next);
+                    if (next) {
+                      requestAnimationFrame(() => {
+                        if (headerPromptRef.current) {
+                          headerPromptRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+                        }
+                      });
+                    }
+                  }}
+                  style={{
+                    width: "100%", background: "none", border: "none", cursor: "pointer",
+                    display: "flex", alignItems: "center", justifyContent: "space-between", padding: 0,
+                    textAlign: "left", outline: "none"
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <Ic n="plan" s={14} c={T.brand}/>
+                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: T.brand, fontWeight: 800, letterSpacing: "0.1em" }}>
+                      ORIGINAL SESSION PROMPT
+                    </span>
+                  </div>
+                  <Ic n={headerPromptExpanded ? "chevron_up" : "chevron_down"} s={16} c={T.brand}/>
+                </button>
+
+                <div
+                  ref={headerPromptRef}
+                  style={{
+                    maxHeight: headerPromptExpanded ? 1000 : 0,
+                    opacity: headerPromptExpanded ? 1 : 0,
+                    overflow: "hidden",
+                    transition: "all .3s cubic-bezier(0.4, 0, 0.2, 1)",
+                    marginTop: headerPromptExpanded ? 12 : 0,
+                  }}
+                >
+                  <div style={{ fontSize: 14, color: T.textDim, lineHeight: 1.5, fontFamily: "'IBM Plex Sans',sans-serif", whiteSpace: "pre-wrap", overflowWrap: "break-word" }}>
+                    <ExpandableContent text={session.prompt} limit={200} showCopy />
                   </div>
                 </div>
               </div>
