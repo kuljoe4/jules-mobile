@@ -4535,6 +4535,7 @@ function clearDraftsBox() {
 
 const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, todayCount, allSessions = [], activitiesMap = {}, initialDraft = null, onDraftSaved = null }) => {
   const draft = useMemo(() => initialDraft || loadDraft(), [initialDraft]);
+  const hasSavedOrSubmitted = useRef(false);
   const [sources,setSources]       = useState([]);
   const [loadingSrc,setLoadSrc]    = useState(true);
   const [source,setSource]         = useState(draft?.source ?? "");
@@ -4621,6 +4622,33 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
     return () => clearTimeout(draftRef.current);
   }, [source, branch, prompt, autoMode, reqApproval]);
 
+  const stateRef = useRef({ source, branch, prompt, autoMode, reqApproval, selectedPersonas, defaultBranch, initialDraft });
+  useEffect(() => {
+    stateRef.current = { source, branch, prompt, autoMode, reqApproval, selectedPersonas, defaultBranch, initialDraft };
+  }, [source, branch, prompt, autoMode, reqApproval, selectedPersonas, defaultBranch, initialDraft]);
+
+  useEffect(() => {
+    return () => {
+      if (!hasSavedOrSubmitted.current) {
+        const current = stateRef.current;
+        if (current.prompt.trim()) {
+          const d = {
+            id: current.initialDraft?.id,
+            source: current.source,
+            branch: current.branch || current.defaultBranch || "main",
+            prompt: current.prompt,
+            autoMode: current.autoMode,
+            reqApproval: current.reqApproval,
+            selectedPersonas: Array.from(current.selectedPersonas),
+            title: current.prompt.trim().split("\n")[0].slice(0, 50) + (current.prompt.trim().length > 50 ? "..." : "")
+          };
+          saveDraftToBox(d);
+          clearDraft();
+        }
+      }
+    };
+  }, []);
+
   useEffect(() => {
     (async () => {
       try {
@@ -4640,6 +4668,7 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
   }, []);
 
   const handleClearDraft = () => {
+    hasSavedOrSubmitted.current = true;
     clearDraft();
     setSource(""); setBranch(""); setPrompt("");
     setAutoMode(true); setReqApp(false); setSelectedPersonas(new Set());
@@ -4650,6 +4679,7 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
 
   const handleSaveToBox = () => {
     if (!prompt.trim()) return;
+    hasSavedOrSubmitted.current = true;
     const d = {
       id: initialDraft?.id,
       source,
@@ -4688,6 +4718,7 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
     };
     try {
       const d = await apiCall(apiKey, "/sessions", { method:"POST", body, _label:"Create session" });
+      hasSavedOrSubmitted.current = true;
       clearDraft();
       if (source) {
         incRepoStat(source);
