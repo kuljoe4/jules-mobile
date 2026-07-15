@@ -601,6 +601,7 @@ const STATUS_META = {
   PAUSED:                { label:"PAUSED",   color:T.dim,       bg:"rgba(148,163,184,0.1)", pulse:false, icon:"pause" },
   COMPLETED:             { label:"DONE",     color:T.brandLight,     bg:T.brandDim,              pulse:false, icon:"check" },
   FAILED:                { label:"FAILED",   color:T.redLight,      bg:T.redDim,                pulse:false, icon:"x" },
+  HAS_DRAFT:             { label:"HAS DRAFT", color:T.amberLight, bg:T.amberDim,             pulse:false, icon:"layers" },
 };
 
 // ─── Network tracker ──────────────────────────────────────────────────────────
@@ -2638,7 +2639,7 @@ const SetupScreen = ({ onSave }) => {
 };
 
 // ─── Session Card ─────────────────────────────────────────────────────────────
-const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], stats, lastReadTs, allSessions = [] }) => {
+const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], stats, lastReadTs, allSessions = [], hasFollowupDraft }) => {
   const cardRef = useRef(null);
 
   useEffect(() => {
@@ -2782,6 +2783,15 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], stat
             <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900}}>STALE</span>
           </div>
         )}
+        {hasFollowupDraft && (
+          <div style={{
+            display:"flex", alignItems:"center", gap:3, color:T.amberLight, opacity:0.95,
+            background:`${T.amber}15`, padding:"1px 6px", borderRadius:4, border:`1px solid ${T.amber}30`
+          }}>
+            <Ic n="layers" s={9} c={T.amberLight}/>
+            <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900}}>DRAFT MSG</span>
+          </div>
+        )}
         {isUnread && <div style={{width:4,height:4,borderRadius:"50%",background:T.indigo,animation:"dot 1s infinite"}}/>}
       </div>
 
@@ -2807,7 +2817,7 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], stat
 });
 
 // ─── Session Detail ───────────────────────────────────────────────────────────
-const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete, onSessionUpdate, onStatsUpdate, isDesktop, pollInterval, setPollInterval, isArchived, onArchive, onUnarchive, cacheLimit, activityLimit, allSessions = [], activitiesMap = {} }) => {
+const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete, onSessionUpdate, onStatsUpdate, isDesktop, pollInterval, setPollInterval, isArchived, onArchive, onUnarchive, cacheLimit, activityLimit, allSessions = [], activitiesMap = {}, onDraftChange }) => {
   const [session,setSession]     = useState(initSession);
   const [activities,setActivities] = useState(() => {
     try {
@@ -3131,12 +3141,17 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     clearTimeout(draftRef.current);
     draftRef.current = setTimeout(() => {
       try {
-        if (msg.trim()) localStorage.setItem(`jac_draft_${session.id}`, msg);
-        else localStorage.removeItem(`jac_draft_${session.id}`);
+        if (msg.trim()) {
+          localStorage.setItem(`jac_draft_${session.id}`, msg);
+          if (onDraftChange) onDraftChange(session.id, true);
+        } else {
+          localStorage.removeItem(`jac_draft_${session.id}`);
+          if (onDraftChange) onDraftChange(session.id, false);
+        }
       } catch {}
     }, 400);
     return () => clearTimeout(draftRef.current);
-  }, [msg, session.id]);
+  }, [msg, session.id, onDraftChange]);
 
   const userSentRef = useRef(false);
 
@@ -3177,7 +3192,10 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
         _label: `Msg -> ${session.id?.slice(0,6)}`
       });
       // Success: clear local draft
-      try { localStorage.removeItem(`jac_draft_${session.id}`); } catch (e) {}
+      try {
+        localStorage.removeItem(`jac_draft_${session.id}`);
+        if (onDraftChange) onDraftChange(session.id, false);
+      } catch (e) {}
       // Switch back to chat to show Jules' response
       setTab("activity");
       // Remove temp, fetch real activities with smart polling
@@ -3189,6 +3207,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     } catch (err) {
       setErr(err.message);
       setMsg(text); // restore draft on error
+      if (onDraftChange) onDraftChange(session.id, true);
       actMapRef.current.delete(tempKey);
       setActivities(prev => prev.filter(a => a.id !== tempKey));
     } finally {
@@ -4899,7 +4918,8 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
 };
 
 // ─── Drafts Box ───────────────────────────────────────────────────────────────
-const DraftsBox = ({ onBack, isDesktop, onResume, onCreate, allSessions, activitiesMap }) => {
+const DraftsBox = ({ onBack, isDesktop, onResume, onCreate, allSessions, activitiesMap, draftsMap = {}, onDraftChange, onSelectSession }) => {
+  const [activeTab, setActiveTab] = useState("templates"); // "templates" or "followups"
   const [drafts, setDrafts] = useState(loadDraftsBox());
 
   const handleDelete = (id) => {
@@ -4914,12 +4934,24 @@ const DraftsBox = ({ onBack, isDesktop, onResume, onCreate, allSessions, activit
     setDrafts([]);
   };
 
+  const followupSessions = useMemo(() => {
+    return allSessions.filter(s => draftsMap[s.id]);
+  }, [allSessions, draftsMap]);
+
+  const handleDeleteFollowup = (id) => {
+    if (!confirm("Delete this follow-up message draft?")) return;
+    try {
+      localStorage.removeItem("jac_draft_" + id);
+      if (onDraftChange) onDraftChange(id, false);
+    } catch (e) {}
+  };
+
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%",minHeight:0}}>
       <div style={{padding:"12px 16px",borderBottom:`1px solid ${T.border}33`,background:T.surface,display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
         {!isDesktop&&<button onClick={onBack} style={{background:"none",border:"none",cursor:"pointer",display:"flex"}}><Ic n="back" s={18} c={T.text}/></button>}
         <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.text,letterSpacing:"0.05em",fontWeight:700,flex:1}}>DRAFTS BOX</div>
-        {drafts.length > 0 && (
+        {activeTab === "templates" && drafts.length > 0 && (
           <button onClick={handleClearAll} style={{background:"none", border:"none", cursor:"pointer", color:T.red, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700}}>CLEAR ALL</button>
         )}
         {isDesktop && (
@@ -4931,67 +4963,158 @@ const DraftsBox = ({ onBack, isDesktop, onResume, onCreate, allSessions, activit
 
       <div style={{flex:1,overflowY:"auto",padding:"20px 24px",WebkitOverflowScrolling:"touch",minHeight:0}}>
         <div style={{maxWidth:560,margin:"0 auto"}}>
-          {drafts.length === 0 ? (
-            <div style={{textAlign:"center",padding:"100px 24px",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>
-              <div style={{width:48, height:48, borderRadius:12, background:T.surfaceHi, display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 16px", border:`1px solid ${T.border}`}}>
-                <Ic n="archive" s={20} c={T.dim}/>
+          {/* Segment Tab Controls */}
+          <div style={{display:"flex", gap:6, marginBottom:20, padding: "2px 2px", borderBottom: `1px solid ${T.border}`}}>
+            <button onClick={() => setActiveTab("templates")} style={{
+              flex: 1, padding: "8px 12px", background: "none", border: "none", cursor: "pointer",
+              borderBottom: `2px solid ${activeTab==="templates"?T.brand:"transparent"}`,
+              color: activeTab==="templates"?T.text:T.muted, fontFamily: "'JetBrains Mono',monospace",
+              fontSize: 11, fontWeight: activeTab==="templates"?800:600, letterSpacing: "0.05em",
+              transition: "all .2s cubic-bezier(0.4, 0, 0.2, 1)",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 6
+            }}>
+              <Ic n="archive" s={12} c={activeTab==="templates"?T.brand:T.muted}/>
+              SESSION SETUPS ({drafts.length})
+            </button>
+            <button onClick={() => setActiveTab("followups")} style={{
+              flex: 1, padding: "8px 12px", background: "none", border: "none", cursor: "pointer",
+              borderBottom: `2px solid ${activeTab==="followups"?T.brand:"transparent"}`,
+              color: activeTab==="followups"?T.text:T.muted, fontFamily: "'JetBrains Mono',monospace",
+              fontSize: 11, fontWeight: activeTab==="followups"?800:600, letterSpacing: "0.05em",
+              transition: "all .2s cubic-bezier(0.4, 0, 0.2, 1)",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 6
+            }}>
+              <Ic n="layers" s={12} c={activeTab==="followups"?T.brand:T.muted}/>
+              FOLLOW-UP CHATS ({followupSessions.length})
+            </button>
+          </div>
+
+          {activeTab === "templates" ? (
+            drafts.length === 0 ? (
+              <div style={{textAlign:"center",padding:"100px 24px",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>
+                <div style={{width:48, height:48, borderRadius:12, background:T.surfaceHi, display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 16px", border:`1px solid ${T.border}`}}>
+                  <Ic n="archive" s={20} c={T.dim}/>
+                </div>
+                NO SAVED SESSIONS
               </div>
-              NO SAVED DRAFTS
-            </div>
-          ) : (
-            <div style={{display:"flex", flexDirection:"column", gap:16}}>
-              {drafts.map(d => (
-                <div key={d.id} style={{
-                  background:T.surface, border:`1px solid ${T.border}`, borderRadius:12, padding:20,
-                  transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)", position:"relative",
-                  animation:"slideUp .3s ease"
-                }}>
-                  <div style={{display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:12}}>
-                    <div style={{flex:1, minWidth:0}}>
-                      <div style={{fontFamily:"'IBM Plex Sans',sans-serif", fontSize:15, fontWeight:600, color:T.text, marginBottom:4, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>
-                        {d.title || d.prompt}
+            ) : (
+              <div style={{display:"flex", flexDirection:"column", gap:16}}>
+                {drafts.map(d => (
+                  <div key={d.id} style={{
+                    background:T.surface, border:`1px solid ${T.border}`, borderRadius:12, padding:20,
+                    transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)", position:"relative",
+                    animation:"slideUp .3s ease"
+                  }}>
+                    <div style={{display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:12}}>
+                      <div style={{flex:1, minWidth:0}}>
+                        <div style={{fontFamily:"'IBM Plex Sans',sans-serif", fontSize:15, fontWeight:600, color:T.text, marginBottom:4, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>
+                          {d.title || d.prompt}
+                        </div>
+                        <div style={{display:"flex", alignItems:"center", gap:8}}>
+                          <div style={{display:"flex", alignItems:"center", gap:4, opacity:0.7}}>
+                            <Ic n="code" s={11} c={T.muted}/>
+                            <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.muted, fontWeight:700}}>{d.source ? d.source.replace("sources/github/","") : "REPOLESS"}</span>
+                          </div>
+                          <div style={{display:"flex", alignItems:"center", gap:4, opacity:0.7}}>
+                            <Ic n="branch" s={11} c={T.muted}/>
+                            <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.muted, fontWeight:700}}>{d.branch}</span>
+                          </div>
+                        </div>
                       </div>
-                      <div style={{display:"flex", alignItems:"center", gap:8}}>
-                        <div style={{display:"flex", alignItems:"center", gap:4, opacity:0.7}}>
-                          <Ic n="code" s={11} c={T.muted}/>
-                          <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.muted, fontWeight:700}}>{d.source ? d.source.replace("sources/github/","") : "REPOLESS"}</span>
+                      <button onClick={() => handleDelete(d.id)} style={{background:"none", border:"none", cursor:"pointer", padding:4, opacity:0.6}} title="Delete Draft">
+                        <Ic n="trash" s={14} c={T.red}/>
+                      </button>
+                    </div>
+
+                    <div style={{fontFamily:"'IBM Plex Sans',sans-serif", fontSize:13, color:T.textDim, lineHeight:1.5, marginBottom:16, display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden"}}>
+                      {d.prompt}
+                    </div>
+
+                    <ConflictRadar
+                      currentSource={d.source}
+                      currentBranch={d.branch}
+                      currentPrompt={d.prompt}
+                      allSessions={allSessions}
+                      activitiesMap={activitiesMap}
+                    />
+
+                    <div style={{display:"flex", gap:10, marginTop:16}}>
+                      <Btn onClick={() => onResume(d)} outline sm style={{flex:1}}>
+                        <Ic n="expand" s={12} c={T.brand}/>
+                        RESUME
+                      </Btn>
+                      <Btn onClick={() => onCreate(d)} sm style={{flex:1}}>
+                        <Ic n="plus" s={12} c="#000"/>
+                        CREATE
+                      </Btn>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )
+          ) : (
+            followupSessions.length === 0 ? (
+              <div style={{textAlign:"center",padding:"100px 24px",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>
+                <div style={{width:48, height:48, borderRadius:12, background:T.surfaceHi, display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 16px", border:`1px solid ${T.border}`}}>
+                  <Ic n="layers" s={20} c={T.dim}/>
+                </div>
+                NO UNSENT FOLLOW-UP CHATS
+              </div>
+            ) : (
+              <div style={{display:"flex", flexDirection:"column", gap:16}}>
+                {followupSessions.map(s => {
+                  const draftText = localStorage.getItem("jac_draft_" + s.id) || "";
+                  const repo = s.sourceContext?.githubRepoContext ? s.sourceContext.source?.replace("sources/github/","") : null;
+                  const branch = s.sourceContext?.githubRepoContext?.startingBranch || "repoless";
+                  return (
+                    <div key={s.id} style={{
+                      background:T.surface, border:`1px solid ${T.border}`, borderRadius:12, padding:20,
+                      transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)", position:"relative",
+                      animation:"slideUp .3s ease"
+                    }}>
+                      <div style={{display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:12}}>
+                        <div style={{flex:1, minWidth:0}}>
+                          <div style={{fontFamily:"'IBM Plex Sans',sans-serif", fontSize:15, fontWeight:600, color:T.text, marginBottom:4, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>
+                            {s.title || s.prompt}
+                          </div>
+                          <div style={{display:"flex", alignItems:"center", gap:8}}>
+                            {repo && (
+                              <div style={{display:"flex", alignItems:"center", gap:4, opacity:0.7}}>
+                                <Ic n="code" s={11} c={T.muted}/>
+                                <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.muted, fontWeight:700}}>{repo}</span>
+                              </div>
+                            )}
+                            <div style={{display:"flex", alignItems:"center", gap:4, opacity:0.7}}>
+                              <Ic n="branch" s={11} c={T.muted}/>
+                              <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.muted, fontWeight:700}}>{branch}</span>
+                            </div>
+                          </div>
                         </div>
-                        <div style={{display:"flex", alignItems:"center", gap:4, opacity:0.7}}>
-                          <Ic n="branch" s={11} c={T.muted}/>
-                          <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.muted, fontWeight:700}}>{d.branch}</span>
-                        </div>
+                        <button onClick={() => handleDeleteFollowup(s.id)} style={{background:"none", border:"none", cursor:"pointer", padding:4, opacity:0.6}} title="Delete Draft">
+                          <Ic n="trash" s={14} c={T.red}/>
+                        </button>
+                      </div>
+
+                      <div style={{
+                        fontFamily:"'JetBrains Mono',monospace", fontSize:13, color:T.brandLight,
+                        background:"#040507", border:`1px solid ${T.border}`, borderRadius:6,
+                        padding:12, marginBottom:16, minHeight:40, maxHeight:120, overflowY:"auto",
+                        whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-all"
+                      }}>
+                        {draftText}
+                      </div>
+
+                      <div style={{display:"flex", gap:10}}>
+                        <Btn onClick={() => onSelectSession(s)} sm style={{flex:1}}>
+                          <Ic n="expand" s={12} c="#000"/>
+                          RESUME CHAT
+                        </Btn>
                       </div>
                     </div>
-                    <button onClick={() => handleDelete(d.id)} style={{background:"none", border:"none", cursor:"pointer", padding:4, opacity:0.6}} title="Delete Draft">
-                      <Ic n="trash" s={14} c={T.red}/>
-                    </button>
-                  </div>
-
-                  <div style={{fontFamily:"'IBM Plex Sans',sans-serif", fontSize:13, color:T.textDim, lineHeight:1.5, marginBottom:16, display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden"}}>
-                    {d.prompt}
-                  </div>
-
-                  <ConflictRadar
-                    currentSource={d.source}
-                    currentBranch={d.branch}
-                    currentPrompt={d.prompt}
-                    allSessions={allSessions}
-                    activitiesMap={activitiesMap}
-                  />
-
-                  <div style={{display:"flex", gap:10, marginTop:16}}>
-                    <Btn onClick={() => onResume(d)} outline sm style={{flex:1}}>
-                      <Ic n="expand" s={12} c={T.brand}/>
-                      RESUME
-                    </Btn>
-                    <Btn onClick={() => onCreate(d)} sm style={{flex:1}}>
-                      <Ic n="plus" s={12} c="#000"/>
-                      CREATE
-                    </Btn>
-                  </div>
-                </div>
-              ))}
-            </div>
+                  );
+                })}
+              </div>
+            )
           )}
         </div>
       </div>
@@ -5979,10 +6102,10 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
 
 
 // ─── Session List ─────────────────────────────────────────────────────────────
-const FILTERS = ["ALL","QUEUED","PLANNING","AWAITING_PLAN_APPROVAL","IN_PROGRESS","COMPLETED","FAILED"];
-const FILTER_LABELS = { AWAITING_PLAN_APPROVAL:"APPROVE", ALL:"ALL" };
+const FILTERS = ["ALL","QUEUED","PLANNING","AWAITING_PLAN_APPROVAL","IN_PROGRESS","COMPLETED","FAILED","HAS_DRAFT"];
+const FILTER_LABELS = { AWAITING_PLAN_APPROVAL:"APPROVE", ALL:"ALL", HAS_DRAFT:"HAS DRAFT" };
 
-const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed, selectedId, isDesktop, onNew, onDrafts, onSettings, pollInterval, sessionLimit, countdown, plan, todayCount, searchQuery, setSearchQuery, archivedIds, showArchived, setShowArchived, activitiesMap = {}, activityStatsMap = {}, error, clearError, isBoosted, readMap }) => {
+const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed, selectedId, isDesktop, onNew, onDrafts, onSettings, pollInterval, sessionLimit, countdown, plan, todayCount, searchQuery, setSearchQuery, archivedIds, showArchived, setShowArchived, activitiesMap = {}, activityStatsMap = {}, error, clearError, isBoosted, readMap, draftsMap = {} }) => {
   const [filter,setFilter] = useState("ALL");
   const [scrolled, handleScroll] = useScrollThreshold();
   const [searchOpen, setSearchOpen] = useState(false);
@@ -5994,7 +6117,11 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
     }
     return list;
   }, [sessions, archivedIds, showArchived, searchQuery]);
-  const filtered = useMemo(() => filter==="ALL" ? baseFiltered : baseFiltered.filter(s=>s.state===filter), [filter, baseFiltered]);
+  const filtered = useMemo(() => {
+    if (filter === "ALL") return baseFiltered;
+    if (filter === "HAS_DRAFT") return baseFiltered.filter(s => draftsMap[s.id]);
+    return baseFiltered.filter(s => s.state === filter);
+  }, [filter, baseFiltered, draftsMap]);
   const active = useMemo(() => sessions.filter(s=>ACTIVE_STATES.has(s.state)).length, [sessions]);
 
   return (
@@ -6142,7 +6269,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
                 </div>
               </div>
               {FILTERS.map(f => {
-                const cnt = f==="ALL" ? sessions.length : sessions.filter(s=>s.state===f).length;
+                const cnt = f==="ALL" ? sessions.length : (f === "HAS_DRAFT" ? sessions.filter(s => draftsMap[s.id]).length : sessions.filter(s=>s.state===f).length);
                 if (cnt===0 && f!=="ALL") return null;
                 const isAct = f===filter;
                 const ac = STATUS_META[f]?.color || T.brand;
@@ -6157,7 +6284,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
       <div onScroll={handleScroll} style={{flex:1,overflowY:"auto",padding:"10px 12px",WebkitOverflowScrolling:"touch",minHeight:200}}>
         {refreshing&&sessions.length===0&&<div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>Loading sessions…</div>}
         {!refreshing&&filtered.length===0&&<div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>{filter==="ALL"?"No sessions yet":"No sessions with this status"}</div>}
-        {filtered.map((s,i)=><SessionCard key={s.id||s.name} index={i+1} s={s} onPress={()=>onSelect(s)} isSelected={s.id===selectedId} activities={activitiesMap[s.id] || []} stats={activityStatsMap[s.id]} lastReadTs={readMap[s.id]} allSessions={sessions}/>)}
+        {filtered.map((s,i)=><SessionCard key={s.id||s.name} index={i+1} s={s} onPress={()=>onSelect(s)} isSelected={s.id===selectedId} activities={activitiesMap[s.id] || []} stats={activityStatsMap[s.id]} lastReadTs={readMap[s.id]} allSessions={sessions} hasFollowupDraft={!!draftsMap[s.id]}/>)}
       </div>
     </div>
   );
@@ -6190,6 +6317,32 @@ function JulesClient() {
   }, [sessions, supplementalSessions]);
   const [desktopView,setDesktop]   = useState("empty");
   const [selectedDraft, setSelectedDraft] = useState(null);
+
+  const [draftsMap, setDraftsMap] = useState(() => {
+    const map = {};
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith("jac_draft_") && !key.startsWith("jac_drafts_box")) {
+          const val = localStorage.getItem(key);
+          if (val && val.trim()) {
+            const id = key.slice("jac_draft_".length);
+            map[id] = true;
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Error scanning follow-up drafts", e);
+    }
+    return map;
+  });
+
+  const handleDraftChange = useCallback((id, hasDraft) => {
+    setDraftsMap(prev => {
+      if (prev[id] === hasDraft) return prev;
+      return { ...prev, [id]: hasDraft };
+    });
+  }, []);
 
   const setMobile = useCallback(s => {
     setMobileRaw(s);
@@ -6554,6 +6707,12 @@ function JulesClient() {
     lastStates.current.delete(id);
     setSessions(prev => prev.filter(s=>s.id!==id));
     try { localStorage.removeItem(`jac_draft_${id}`); } catch {}
+    setDraftsMap(prev => {
+      if (!prev[id]) return prev;
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
     setSelected(null);
     setDesktop("empty");
     setMobile("list");
@@ -6613,6 +6772,7 @@ function JulesClient() {
             error={globalErr} clearError={() => setGlobalErr(null)}
             isBoosted={isBoosted}
             readMap={readMap}
+            draftsMap={draftsMap}
           />
         </div>
         {/* Main panel */}
@@ -6637,7 +6797,8 @@ function JulesClient() {
               pollInterval={actPollInterval} setPollInterval={setActPollInterval}
               cacheLimit={cacheLimit} activityLimit={activityLimit}
               isArchived={archivedIds.has(selected.id)}
-              onArchive={handleArchive} onUnarchive={handleUnarchive}/>
+              onArchive={handleArchive} onUnarchive={handleUnarchive}
+              onDraftChange={handleDraftChange}/>
           )}
           {desktopView==="new"&&(
             <NewSession
@@ -6657,6 +6818,9 @@ function JulesClient() {
               isDesktop
               allSessions={allSessions}
               activitiesMap={activitiesMap}
+              draftsMap={draftsMap}
+              onDraftChange={handleDraftChange}
+              onSelectSession={handleSelect}
               onResume={(d) => { setSelectedDraft(d); setDesktop("new"); }}
               onCreate={async (d) => {
                 setSelectedDraft(d);
@@ -6706,7 +6870,8 @@ function JulesClient() {
             error={globalErr} clearError={() => setGlobalErr(null)}
 
             isBoosted={isBoosted}
-            readMap={readMap} />
+            readMap={readMap}
+            draftsMap={draftsMap} />
         )}
         {mobileScreen==="detail"&&selected&&(
           <SessionDetail key={selected.id} session={selected} apiKey={apiKey}
@@ -6720,7 +6885,8 @@ function JulesClient() {
             pollInterval={actPollInterval} setPollInterval={setActPollInterval}
             cacheLimit={cacheLimit} activityLimit={activityLimit}
             isArchived={archivedIds.has(selected.id)}
-            onArchive={handleArchive} onUnarchive={handleUnarchive}/>
+            onArchive={handleArchive} onUnarchive={handleUnarchive}
+            onDraftChange={handleDraftChange}/>
         )}
         {mobileScreen==="new"&&(
           <NewSession
@@ -6740,6 +6906,9 @@ function JulesClient() {
             isDesktop={false}
             allSessions={allSessions}
             activitiesMap={activitiesMap}
+            draftsMap={draftsMap}
+            onDraftChange={handleDraftChange}
+            onSelectSession={handleSelect}
             onResume={(d) => { setSelectedDraft(d); setMobile("new"); }}
             onCreate={async (d) => {
               setSelectedDraft(d);
