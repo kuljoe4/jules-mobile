@@ -515,14 +515,22 @@ const DEFAULT_PERSONAS = [
 ];
 
 const PERSONA_PROMPTS_KEY = "jac_persona_prompts";
+const CUSTOM_PERSONAS_KEY = "jac_custom_personas";
+
+const PRESET_COLORS = [
+  "#ff66cc", "#ffbc00", "#00eaff", "#ff4444", "#5fb2ff",
+  "#bf99ff", "#ffffff", "#4da6ff", "#ff8844", "#a5b4fc"
+];
 
 function loadPersonas() {
   try {
     const saved = JSON.parse(localStorage.getItem(PERSONA_PROMPTS_KEY) || "{}");
-    return DEFAULT_PERSONAS.map(p => ({
+    const custom = JSON.parse(localStorage.getItem(CUSTOM_PERSONAS_KEY) || "[]");
+    const mergedDefaults = DEFAULT_PERSONAS.map(p => ({
       ...p,
       prompt: saved[p.id] || p.prompt
     }));
+    return [...mergedDefaults, ...custom.map(c => ({ ...c, isCustom: true }))];
   } catch { return DEFAULT_PERSONAS; }
 }
 
@@ -534,9 +542,31 @@ function savePersonaPrompt(id, prompt) {
   } catch {}
 }
 
+function saveCustomPersona(persona) {
+  try {
+    const custom = JSON.parse(localStorage.getItem(CUSTOM_PERSONAS_KEY) || "[]");
+    const index = custom.findIndex(p => p.id === persona.id);
+    if (index >= 0) {
+      custom[index] = { ...custom[index], ...persona };
+    } else {
+      custom.push(persona);
+    }
+    localStorage.setItem(CUSTOM_PERSONAS_KEY, JSON.stringify(custom));
+  } catch {}
+}
+
+function deleteCustomPersona(id) {
+  try {
+    const custom = JSON.parse(localStorage.getItem(CUSTOM_PERSONAS_KEY) || "[]");
+    const filtered = custom.filter(p => p.id !== id);
+    localStorage.setItem(CUSTOM_PERSONAS_KEY, JSON.stringify(filtered));
+  } catch {}
+}
+
 function resetPersonas() {
   try {
     localStorage.removeItem(PERSONA_PROMPTS_KEY);
+    localStorage.removeItem(CUSTOM_PERSONAS_KEY);
     return DEFAULT_PERSONAS;
   } catch { return DEFAULT_PERSONAS; }
 }
@@ -1401,7 +1431,7 @@ const useAutoPoll = (interval, fn) => {
   return countdown;
 };
 
-const ExpandableContent = memo(({ text, limit = 300, showCopy = false }) => {
+const ExpandableContent = memo(({ text, limit = 300, showCopy = false, forceExpanded = false }) => {
   const [expanded, setExpanded] = useState(false);
   const [showToggle, setShowToggle] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -1412,6 +1442,12 @@ const ExpandableContent = memo(({ text, limit = 300, showCopy = false }) => {
     const isOverLength = text && text.length > limit;
     if (isOverScroll || isOverLength) setShowToggle(true);
   }, [text, limit]);
+
+  useEffect(() => {
+    if (forceExpanded) {
+      setExpanded(true);
+    }
+  }, [forceExpanded]);
 
   const handleCopy = () => {
     if (copied) return;
@@ -1647,7 +1683,7 @@ const MediaArtifacts = memo(({ artifacts, ts, onMediaClick }) => {
 });
 
 // ─── Chat Bubble ──────────────────────────────────────────────────────────────
-const ChatBubble = memo(({ act, type, onMediaClick, onEdit, onReply }) => {
+const ChatBubble = memo(({ act, type, onMediaClick, onEdit, onReply, forceExpanded = false }) => {
   const isUser = type === "userMessaged";
   const text   = isUser ? act.userMessaged?.userMessage : act.agentMessaged?.agentMessage;
   const time   = fmtTime(new Date(act.createTime).getTime());
@@ -1662,8 +1698,10 @@ const ChatBubble = memo(({ act, type, onMediaClick, onEdit, onReply }) => {
     });
   };
 
+  const key = getActKey(act);
+
   return (
-    <div style={{ marginBottom: 24, width: "100%", animation: "fadeIn .25s ease-out" }}>
+    <div id={`chat-activity-${key}`} style={{ marginBottom: 24, width: "100%", animation: "fadeIn .25s ease-out" }}>
       {/* Header Accent Row */}
       <div style={{
         fontFamily: "'JetBrains Mono',monospace", fontSize: 11,
@@ -1696,7 +1734,7 @@ const ChatBubble = memo(({ act, type, onMediaClick, onEdit, onReply }) => {
           fontSize: 16, color: T.text, lineHeight: 1.6,
           fontFamily: "'IBM Plex Sans',sans-serif",
         }}>
-          <ExpandableContent text={text} limit={400} />
+          <ExpandableContent text={text} limit={400} forceExpanded={forceExpanded} />
         </div>
 
         <MediaArtifacts artifacts={act.artifacts} ts={act.createTime} onMediaClick={onMediaClick}/>
@@ -2102,7 +2140,7 @@ const MediaModal = ({ media, onClose }) => {
 const COLLAPSE_THRESHOLD = 35;
 const COLLAPSE_SHOW      = 25;
 
-const ActivityFeed = memo(({ activities, showAll, onShowAll, onMediaClick, onEditMessage, onReply, driftSessions = [], justUpdated = false }) => {
+const ActivityFeed = memo(({ activities, showAll, onShowAll, onMediaClick, onEditMessage, onReply, driftSessions = [], justUpdated = false, scrolledActivityId = null }) => {
   const collapse  = !showAll && activities.length > COLLAPSE_THRESHOLD;
   const visible   = collapse ? activities.slice(activities.length - COLLAPSE_SHOW) : activities;
   const hidden    = activities.length - visible.length;
@@ -2179,10 +2217,10 @@ const ActivityFeed = memo(({ activities, showAll, onShowAll, onMediaClick, onEdi
         const type = getActType(act);
         const key  = getActKey(act);
         if (type === "userMessaged" || type === "agentMessaged") {
-          return <ChatBubble key={key} act={act} type={type} onMediaClick={onMediaClick} onEdit={onEditMessage} onReply={onReply}/>;
+          return <ChatBubble key={key} act={act} type={type} onMediaClick={onMediaClick} onEdit={onEditMessage} onReply={onReply} forceExpanded={scrolledActivityId === key}/>;
         }
         return (
-          <div key={key} style={{
+          <div key={key} id={`chat-activity-${key}`} style={{
             animation: justUpdated && idx >= combined.length - 5 ? "shimmerPulse 0.8s ease-out" : "none"
           }}>
             <TimelineEvent act={act} onMediaClick={onMediaClick} onReply={onReply}/>
@@ -2903,6 +2941,38 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   const [syncStats, setSyncPhaseStats] = useState({ count: 0, pages: 0, bytes: 0, newItems: 0, newBytes: 0, loaded: 0, total: 0 });
   const [showAll,setShowAll]     = useState(false);
   const [tab,setTab]             = useState("activity");
+  const [scrolledActivityId, setScrolledActivityId] = useState(null);
+
+  const scrollToActivityInChat = (targetId, isOriginal) => {
+    setTab("activity");
+    setShowAll(true);
+    if (isOriginal) {
+      setHeaderPromptExpanded(true);
+      setScrolledActivityId("original");
+    } else {
+      setScrolledActivityId(targetId);
+    }
+
+    setTimeout(() => {
+      const element = document.getElementById(isOriginal ? "chat-original-prompt" : `chat-activity-${targetId}`);
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth", block: "center" });
+
+        element.style.transition = "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)";
+        const originalBoxShadow = element.style.boxShadow || "none";
+        const originalBorder = element.style.border || `1px solid ${T.border}`;
+
+        element.style.boxShadow = `0 0 24px ${T.brand}cc, inset 0 0 12px ${T.brand}50`;
+        element.style.border = `1px solid ${T.brand}`;
+
+        setTimeout(() => {
+          element.style.boxShadow = originalBoxShadow;
+          element.style.border = originalBorder;
+        }, 2500);
+      }
+    }, 150);
+  };
+
   const [chatFilter, setChatFilter] = useState("ALL");
   const [msg,setMsg]             = useState(() => {
     try { return localStorage.getItem(`jac_draft_${initSession.id}`) || ""; }
@@ -4015,7 +4085,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
 
             {/* Collapsible Session Prompt Card (Dropdown style) */}
             {session.prompt && (
-              <div style={{
+              <div id="chat-original-prompt" style={{
                 background: T.surfaceHi, border: `1px solid ${T.border}`,
                 borderRadius: 10, padding: "12px 16px", marginBottom: 16,
                 boxShadow: "none", position: "relative",
@@ -4060,7 +4130,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                   }}
                 >
                   <div style={{ fontSize: 14, color: T.textDim, lineHeight: 1.5, fontFamily: "'IBM Plex Sans',sans-serif", whiteSpace: "pre-wrap", overflowWrap: "break-word" }}>
-                    <ExpandableContent text={session.prompt} limit={200} showCopy />
+                    <ExpandableContent text={session.prompt} limit={200} showCopy forceExpanded={scrolledActivityId === "original"} />
                   </div>
                 </div>
               </div>
@@ -4084,6 +4154,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                   })}
                   showAll={showAll}
                   justUpdated={justUpdated}
+                  scrolledActivityId={scrolledActivityId}
                   onShowAll={()=>setShowAll(true)}
                   onMediaClick={setActiveMedia}
                   onEditMessage={(text) => {
@@ -4206,15 +4277,21 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                 ORIGINAL PROMPT
                 <div style={{height:1, flex:1, background:T.brandDim}}/>
               </div>
-              <div style={{
-                background:T.surfaceHi, border:`1px solid ${T.border}`,
-                borderRadius:10, padding:"20px", boxShadow:"none", position:"relative"
-              }}>
+              <div
+                onClick={() => scrollToActivityInChat(null, true)}
+                style={{
+                  background:T.surfaceHi, border:`1px solid ${T.border}`,
+                  borderRadius:10, padding:"20px", boxShadow:"none", position:"relative",
+                  cursor: "pointer", transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)"
+                }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = T.brand; e.currentTarget.style.transform = "translateY(-1px)"; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.transform = "none"; }}
+              >
                 <div style={{ fontSize:16, color:T.text, lineHeight:1.6, fontFamily:"'IBM Plex Sans',sans-serif" }}>
                   <ExpandableContent text={session.prompt} showCopy />
                 </div>
                 <div style={{ position:"absolute", top:12, right:12, display:"flex", gap:6 }}>
-                  <button onClick={() => onEditMessage(session.prompt)} style={{
+                  <button onClick={(e) => { e.stopPropagation(); onEditMessage(session.prompt); }} style={{
                     background:T.dim, border:"none", borderRadius:4, padding:"4px 8px",
                     color:T.brand, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700, cursor:"pointer"
                   }}>EDIT</button>
@@ -4222,33 +4299,42 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
               </div>
             </div>
 
-            {activities.filter(a => a.userMessaged).map((a, i) => (
-              <div key={a.id || i}>
-                <div style={{
-                  fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.brand,
-                  fontWeight:800, letterSpacing:"0.1em", marginBottom:12,
-                  display:"flex", alignItems:"center", gap:8
-                }}>
-                  FOLLOW-UP #{i+1}
-                  <div style={{height:1, flex:1, background:T.brandDim}}/>
-                  <span style={{color:T.textDim, fontSize:10}}>{fmtTime(new Date(a.createTime).getTime())}</span>
-                </div>
-                <div style={{
-                  background:T.surfaceHi, border:`1px solid ${T.border}`,
-                  borderRadius:10, padding:"20px", boxShadow:"none", position:"relative"
-                }}>
-                  <div style={{ fontSize:16, color:T.text, lineHeight:1.6, fontFamily:"'IBM Plex Sans',sans-serif" }}>
-                    <ExpandableContent text={a.userMessaged.userMessage} showCopy />
+            {activities.filter(a => a.userMessaged).map((a, i) => {
+              const actKey = getActKey(a);
+              return (
+                <div key={actKey || i}>
+                  <div style={{
+                    fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.brand,
+                    fontWeight:800, letterSpacing:"0.1em", marginBottom:12,
+                    display:"flex", alignItems:"center", gap:8
+                  }}>
+                    FOLLOW-UP #{i+1}
+                    <div style={{height:1, flex:1, background:T.brandDim}}/>
+                    <span style={{color:T.textDim, fontSize:10}}>{fmtTime(new Date(a.createTime).getTime())}</span>
                   </div>
-                  <div style={{ position:"absolute", top:12, right:12, display:"flex", gap:6 }}>
-                    <button onClick={() => onEditMessage(a.userMessaged.userMessage)} style={{
-                      background:T.dim, border:"none", borderRadius:4, padding:"4px 8px",
-                      color:T.brand, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700, cursor:"pointer"
-                    }}>EDIT</button>
+                  <div
+                    onClick={() => scrollToActivityInChat(actKey, false)}
+                    style={{
+                      background:T.surfaceHi, border:`1px solid ${T.border}`,
+                      borderRadius:10, padding:"20px", boxShadow:"none", position:"relative",
+                      cursor: "pointer", transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)"
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = T.brand; e.currentTarget.style.transform = "translateY(-1px)"; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.transform = "none"; }}
+                  >
+                    <div style={{ fontSize:16, color:T.text, lineHeight:1.6, fontFamily:"'IBM Plex Sans',sans-serif" }}>
+                      <ExpandableContent text={a.userMessaged.userMessage} showCopy />
+                    </div>
+                    <div style={{ position:"absolute", top:12, right:12, display:"flex", gap:6 }}>
+                      <button onClick={(e) => { e.stopPropagation(); onEditMessage(a.userMessaged.userMessage); }} style={{
+                        background:T.dim, border:"none", borderRadius:4, padding:"4px 8px",
+                        color:T.brand, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700, cursor:"pointer"
+                      }}>EDIT</button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
         {tab==="plan"&&(
@@ -5872,6 +5958,12 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
   const [hasSaved, setHasSaved] = useState(false);
   const saveTimer = useRef(null);
 
+  const [isAdding, setIsAdding] = useState(false);
+  const [editingPersona, setEditingPersona] = useState(null);
+  const [newName, setNewName] = useState("");
+  const [newPrompt, setNewPrompt] = useState("");
+  const [newColor, setNewColor] = useState("#ffffff");
+
   const triggerSaveFeedback = () => {
     setHasSaved(true);
     clearTimeout(saveTimer.current);
@@ -6224,21 +6316,29 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
             <div style={{animation:"fadeIn .2s ease", display:"flex", flexDirection:"column", gap:16}}>
               <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:4}}>
                 <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.textDim, fontWeight:700, letterSpacing:"0.05em"}}>CUSTOM ROLE PROMPTS</div>
-                <button onClick={() => { if(confirm("Reset all personas to defaults?")) { setPersonas(resetPersonas()); } }} style={{background:"none", border:"none", cursor:"pointer", color:T.red, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700}}>RESET ALL</button>
+                <div style={{display:"flex", alignItems:"center", gap:12}}>
+                  <button onClick={() => {
+                    setNewName("");
+                    setNewPrompt("");
+                    setNewColor("#ff66cc");
+                    setIsAdding(true);
+                  }} style={{background:"none", border:"none", cursor:"pointer", color:T.brand, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700}}>+ ADD CUSTOM</button>
+                  <button onClick={() => { if(confirm("Reset all personas to defaults?")) { setPersonas(resetPersonas()); } }} style={{background:"none", border:"none", cursor:"pointer", color:T.red, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700}}>RESET ALL</button>
+                </div>
               </div>
               {personas.map(p => (
                 <div key={p.id} style={{background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:10, padding:14}}>
                   <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:10}}>
                     <div style={{width:8, height:8, borderRadius:"50%", background:p.color}}/>
                     <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:12, fontWeight:800, color:T.textHi}}>{p.label}</span>
+                    {p.isCustom && <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:T.brand, background:`${T.brand}15`, padding:"1px 4px", borderRadius:4, fontWeight:700}}>CUSTOM</span>}
                     <span style={{flex:1}}/>
                     <button onClick={() => {
-                      const next = prompt(`Edit prompt for ${p.label}:`, p.prompt);
-                      if (next !== null) {
-                        savePersonaPrompt(p.id, next);
-                        setPersonas(loadPersonas());
-                      }
-                    }} style={{background:T.dim, border:"none", borderRadius:4, padding:"3px 8px", cursor:"pointer", color:T.brand, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700}}>EDIT PROMPT</button>
+                      setNewName(p.label);
+                      setNewPrompt(p.prompt);
+                      setNewColor(p.color || "#ffffff");
+                      setEditingPersona(p);
+                    }} style={{background:T.brandDim, border:"none", borderRadius:4, padding:"3px 8px", cursor:"pointer", color:T.brand, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700}}>EDIT ROLE</button>
                   </div>
                   <div style={{fontSize:13, color:T.textDim, lineHeight:1.5, fontFamily:"'IBM Plex Sans',sans-serif"}}>{p.prompt}</div>
                 </div>
@@ -6329,6 +6429,98 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
           )}
         </div>
       </div>
+
+      {isAdding && (
+        <Modal
+          title="ADD CUSTOM PERSONA"
+          onClose={() => setIsAdding(false)}
+          actions={
+            <div style={{display:"flex", gap:10, width:"100%"}}>
+              <button onClick={() => setIsAdding(false)} style={{flex:1, padding:10, borderRadius:8, background:T.surface, border:`1px solid ${T.border}`, color:T.text, fontSize:11, fontWeight:700, fontFamily:"'JetBrains Mono',monospace", cursor:"pointer"}}>CANCEL</button>
+              <button onClick={() => {
+                if (!newName.trim() || !newPrompt.trim()) return alert("Label and Prompt are required!");
+                const id = "custom_" + Date.now();
+                saveCustomPersona({ id, label: newName.trim(), prompt: newPrompt.trim(), color: newColor });
+                setPersonas(loadPersonas());
+                setIsAdding(false);
+              }} style={{flex:1, padding:10, borderRadius:8, background:T.brand, border:"none", color:T.brandText, fontSize:11, fontWeight:700, fontFamily:"'JetBrains Mono',monospace", cursor:"pointer"}}>SAVE PERSONA</button>
+            </div>
+          }
+        >
+          <div style={{display:"flex", flexDirection:"column", gap:14}}>
+            <div>
+              <div style={{fontSize:10, color:T.textDim, fontFamily:"'JetBrains Mono',monospace", fontWeight:700, marginBottom:6}}>PERSONA LABEL</div>
+              <input type="text" value={newName} onChange={e => setNewName(e.target.value)} placeholder="e.g. UX Expert" style={{width:"100%", background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:8, padding:10, color:T.text, fontSize:13, fontFamily:"'JetBrains Mono',monospace", boxSizing:"border-box"}} />
+            </div>
+            <div>
+              <div style={{fontSize:10, color:T.textDim, fontFamily:"'JetBrains Mono',monospace", fontWeight:700, marginBottom:6}}>THEME COLOR</div>
+              <div style={{display:"flex", flexWrap:"wrap", gap:8}}>
+                {PRESET_COLORS.map(c => (
+                  <button key={c} onClick={() => setNewColor(c)} style={{width:24, height:24, borderRadius:"50%", background:c, border:newColor === c ? `2px solid ${T.text}` : "2px solid transparent", cursor:"pointer", transition:"all .15s cubic-bezier(0.4, 0, 0.2, 1)", padding:0, flexShrink:0}} />
+                ))}
+              </div>
+            </div>
+            <div>
+              <div style={{fontSize:10, color:T.textDim, fontFamily:"'JetBrains Mono',monospace", fontWeight:700, marginBottom:6}}>SYSTEM PROMPT</div>
+              <textarea value={newPrompt} onChange={e => setNewPrompt(e.target.value)} placeholder="Define the role behavior..." style={{width:"100%", height:120, background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:8, padding:10, color:T.text, fontSize:13, fontFamily:"'IBM Plex Sans',sans-serif", resize:"none", boxSizing:"border-box"}} />
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {editingPersona && (
+        <Modal
+          title={`EDIT PERSONA: ${editingPersona.label.toUpperCase()}`}
+          onClose={() => setEditingPersona(null)}
+          actions={
+            <div style={{display:"flex", gap:10, width:"100%", flexDirection:"column"}}>
+              <div style={{display:"flex", gap:10, width:"100%"}}>
+                <button onClick={() => setEditingPersona(null)} style={{flex:1, padding:10, borderRadius:8, background:T.surface, border:`1px solid ${T.border}`, color:T.text, fontSize:11, fontWeight:700, fontFamily:"'JetBrains Mono',monospace", cursor:"pointer"}}>CANCEL</button>
+                <button onClick={() => {
+                  if (!newName.trim() || !newPrompt.trim()) return alert("Label and Prompt are required!");
+                  if (editingPersona.isCustom) {
+                    saveCustomPersona({ id: editingPersona.id, label: newName.trim(), prompt: newPrompt.trim(), color: newColor });
+                  } else {
+                    savePersonaPrompt(editingPersona.id, newPrompt.trim());
+                  }
+                  setPersonas(loadPersonas());
+                  setEditingPersona(null);
+                }} style={{flex:1, padding:10, borderRadius:8, background:T.brand, border:"none", color:T.brandText, fontSize:11, fontWeight:700, fontFamily:"'JetBrains Mono',monospace", cursor:"pointer"}}>SAVE CHANGES</button>
+              </div>
+              {editingPersona.isCustom && (
+                <button onClick={() => {
+                  if (confirm("Delete this custom persona?")) {
+                    deleteCustomPersona(editingPersona.id);
+                    setPersonas(loadPersonas());
+                    setEditingPersona(null);
+                  }
+                }} style={{width:"100%", padding:10, borderRadius:8, background:`${T.red}15`, border:`1px solid ${T.red}30`, color:T.red, fontSize:11, fontWeight:700, fontFamily:"'JetBrains Mono',monospace", cursor:"pointer"}}>DELETE PERSONA</button>
+              )}
+            </div>
+          }
+        >
+          <div style={{display:"flex", flexDirection:"column", gap:14}}>
+            <div>
+              <div style={{fontSize:10, color:T.textDim, fontFamily:"'JetBrains Mono',monospace", fontWeight:700, marginBottom:6}}>PERSONA LABEL</div>
+              <input type="text" value={newName} onChange={e => setNewName(e.target.value)} disabled={!editingPersona.isCustom} placeholder="e.g. UX Expert" style={{width:"100%", background:editingPersona.isCustom ? T.surfaceHi : `${T.surface}88`, border:`1px solid ${T.border}`, borderRadius:8, padding:10, color:editingPersona.isCustom ? T.text : T.textDim, fontSize:13, fontFamily:"'JetBrains Mono',monospace", boxSizing:"border-box", cursor: editingPersona.isCustom ? "text" : "not-allowed"}} />
+            </div>
+            {editingPersona.isCustom && (
+              <div>
+                <div style={{fontSize:10, color:T.textDim, fontFamily:"'JetBrains Mono',monospace", fontWeight:700, marginBottom:6}}>THEME COLOR</div>
+                <div style={{display:"flex", flexWrap:"wrap", gap:8}}>
+                  {PRESET_COLORS.map(c => (
+                    <button key={c} onClick={() => setNewColor(c)} style={{width:24, height:24, borderRadius:"50%", background:c, border:newColor === c ? `2px solid ${T.text}` : "2px solid transparent", cursor:"pointer", transition:"all .15s cubic-bezier(0.4, 0, 0.2, 1)", padding:0, flexShrink:0}} />
+                  ))}
+                </div>
+              </div>
+            )}
+            <div>
+              <div style={{fontSize:10, color:T.textDim, fontFamily:"'JetBrains Mono',monospace", fontWeight:700, marginBottom:6}}>SYSTEM PROMPT</div>
+              <textarea value={newPrompt} onChange={e => setNewPrompt(e.target.value)} placeholder="Define the role behavior..." style={{width:"100%", height:120, background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:8, padding:10, color:T.text, fontSize:13, fontFamily:"'IBM Plex Sans',sans-serif", resize:"none", boxSizing:"border-box"}} />
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 };
