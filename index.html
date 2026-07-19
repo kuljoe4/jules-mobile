@@ -2469,8 +2469,10 @@ const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFeedback,
 });
 
 // ─── Diff Viewer ──────────────────────────────────────────────────────────────
-const DiffViewer = ({ activities = [] }) => {
+const DiffViewer = ({ activities = [], isDesktop = false }) => {
   const [collapsed, setCollapsed] = useState(null); // null = auto-collapse all on first load
+  const [copiedPaths, setCopiedPaths] = useState({}); // gi -> boolean
+  const [copiedDiffs, setCopiedDiffs] = useState({}); // gi -> boolean
 
   const latestPatch = useMemo(() => {
     // Find only the most recent patch artifact
@@ -2502,11 +2504,13 @@ const DiffViewer = ({ activities = [] }) => {
       if (line.startsWith("--- ") || line.startsWith("diff --git")) return;
       if (line.startsWith("+++ ")) {
         const file = line.slice(4).replace(/^b\//, "");
-        currentGroup = { file, hunks: [], adds: 0, rems: 0, ts };
+        currentGroup = { file, hunks: [], adds: 0, rems: 0, ts, rawLines: [`--- a/${file}`, `+++ b/${file}`] };
         allGroups.push(currentGroup);
         return;
       }
       if (!currentGroup) return;
+
+      currentGroup.rawLines.push(line);
 
       if (line.startsWith("@@")) {
         currentGroup.hunks.push({ header: line, lines: [] });
@@ -2526,6 +2530,27 @@ const DiffViewer = ({ activities = [] }) => {
 
   const totalAdds = useMemo(() => groups.reduce((acc, g) => acc + g.adds, 0), [groups]);
   const totalRems = useMemo(() => groups.reduce((acc, g) => acc + g.rems, 0), [groups]);
+
+  const handleCopyPath = (e, file, gi) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(file).then(() => {
+      setCopiedPaths(prev => ({ ...prev, [gi]: true }));
+      setTimeout(() => {
+        setCopiedPaths(prev => ({ ...prev, [gi]: false }));
+      }, 2000);
+    });
+  };
+
+  const handleCopyDiff = (e, rawLines, gi) => {
+    e.stopPropagation();
+    const diffText = rawLines.join("\n");
+    navigator.clipboard.writeText(diffText).then(() => {
+      setCopiedDiffs(prev => ({ ...prev, [gi]: true }));
+      setTimeout(() => {
+        setCopiedDiffs(prev => ({ ...prev, [gi]: false }));
+      }, 2000);
+    });
+  };
 
   if (groups.length === 0) return (
     <div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>
@@ -2600,6 +2625,48 @@ const DiffViewer = ({ activities = [] }) => {
                 {dir && <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.dim, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", opacity: 0.8, letterSpacing:"0.02em"}}>{dir}/</div>}
                 <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:12, fontWeight:700, color:isCollapsed ? T.textDim : T.textHi, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", marginTop: dir ? -1 : 0}}>{base}</div>
               </div>
+
+              {/* Copy Buttons */}
+              <div style={{display:"flex", alignItems:"center", gap:4, flexShrink:0, marginRight: 8}}>
+                <button
+                  onClick={(e) => handleCopyPath(e, g.file, gi)}
+                  title="Copy file path"
+                  aria-label={`Copy file path for ${g.file}`}
+                  style={{
+                    background: "none", border: "none", padding: "4px 8px", cursor: "pointer",
+                    borderRadius: 4, display: "flex", alignItems: "center", gap: 4,
+                    color: copiedPaths[gi] ? T.brand : T.muted,
+                    fontSize: 9, fontFamily: "'JetBrains Mono',monospace", fontWeight: 800,
+                    transition: "all .15s cubic-bezier(0.4, 0, 0.2, 1)",
+                    outline: "none",
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.color = T.brand; e.currentTarget.style.background = `${T.brand}10`; }}
+                  onMouseLeave={e => { e.currentTarget.style.color = copiedPaths[gi] ? T.brand : T.muted; e.currentTarget.style.background = "none"; }}
+                >
+                  <Ic n="copy" s={11} c={copiedPaths[gi] ? T.brand : T.muted}/>
+                  {copiedPaths[gi] ? "PATH COPIED" : (isDesktop ? "COPY PATH" : "PATH")}
+                </button>
+
+                <button
+                  onClick={(e) => handleCopyDiff(e, g.rawLines, gi)}
+                  title="Copy git diff/patch"
+                  aria-label={`Copy git diff for ${g.file}`}
+                  style={{
+                    background: "none", border: "none", padding: "4px 8px", cursor: "pointer",
+                    borderRadius: 4, display: "flex", alignItems: "center", gap: 4,
+                    color: copiedDiffs[gi] ? T.brand : T.muted,
+                    fontSize: 9, fontFamily: "'JetBrains Mono',monospace", fontWeight: 800,
+                    transition: "all .15s cubic-bezier(0.4, 0, 0.2, 1)",
+                    outline: "none",
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.color = T.brand; e.currentTarget.style.background = `${T.brand}10`; }}
+                  onMouseLeave={e => { e.currentTarget.style.color = copiedDiffs[gi] ? T.brand : T.muted; e.currentTarget.style.background = "none"; }}
+                >
+                  <Ic n="copy" s={11} c={copiedDiffs[gi] ? T.brand : T.muted}/>
+                  {copiedDiffs[gi] ? "DIFF COPIED" : (isDesktop ? "COPY DIFF" : "DIFF")}
+                </button>
+              </div>
+
               <div style={{display:"flex", alignItems:"center", gap:6, fontFamily:"'JetBrains Mono',monospace", fontSize:9, fontWeight:800}}>
                 <div style={{padding:"2px 6px", borderRadius:4, background:`${T.brand}10`, color:T.brandLight, border:`1px solid ${T.brand}20`}}>+{g.adds}</div>
                 <div style={{padding:"2px 6px", borderRadius:4, background:`${T.red}10`, color:T.redLight, border:`1px solid ${T.red}20` }}>-{g.rems}</div>
@@ -4349,7 +4416,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
             activitiesMap={activitiesMap}
           />
         )}
-        {tab==="diff"&&<DiffViewer activities={activities}/>}
+        {tab==="diff"&&<DiffViewer activities={activities} isDesktop={isDesktop}/>}
         {tab==="media"&&(
           mediaArtifacts.length===0
           ?<div style={{textAlign:"center",padding:"40px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>No media artifacts</div>
