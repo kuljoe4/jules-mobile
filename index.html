@@ -2473,6 +2473,7 @@ const DiffViewer = ({ activities = [], isDesktop = false }) => {
   const [collapsed, setCollapsed] = useState(null); // null = auto-collapse all on first load
   const [copiedPaths, setCopiedPaths] = useState({}); // gi -> boolean
   const [copiedDiffs, setCopiedDiffs] = useState({}); // gi -> boolean
+  const [copiedPlains, setCopiedPlains] = useState({}); // gi -> boolean
 
   const latestPatch = useMemo(() => {
     // Find only the most recent patch artifact
@@ -2537,6 +2538,25 @@ const DiffViewer = ({ activities = [], isDesktop = false }) => {
       setCopiedPaths(prev => ({ ...prev, [gi]: true }));
       setTimeout(() => {
         setCopiedPaths(prev => ({ ...prev, [gi]: false }));
+      }, 2000);
+    });
+  };
+
+  const handleCopyPlain = (e, hunks, gi) => {
+    e.stopPropagation();
+    const plainLines = [];
+    hunks.forEach(h => {
+      h.lines.forEach(line => {
+        if (line.startsWith("+")) {
+          plainLines.push(line.slice(1));
+        }
+      });
+    });
+    const plainText = plainLines.join("\n");
+    navigator.clipboard.writeText(plainText).then(() => {
+      setCopiedPlains(prev => ({ ...prev, [gi]: true }));
+      setTimeout(() => {
+        setCopiedPlains(prev => ({ ...prev, [gi]: false }));
       }, 2000);
     });
   };
@@ -2664,6 +2684,25 @@ const DiffViewer = ({ activities = [], isDesktop = false }) => {
                 >
                   <Ic n="copy" s={11} c={copiedDiffs[gi] ? T.brand : T.muted}/>
                   {copiedDiffs[gi] ? "DIFF COPIED" : (isDesktop ? "COPY DIFF" : "DIFF")}
+                </button>
+
+                <button
+                  onClick={(e) => handleCopyPlain(e, g.hunks, gi)}
+                  title="Copy plain text code (added lines)"
+                  aria-label={`Copy plain code for ${g.file}`}
+                  style={{
+                    background: "none", border: "none", padding: "4px 8px", cursor: "pointer",
+                    borderRadius: 4, display: "flex", alignItems: "center", gap: 4,
+                    color: copiedPlains[gi] ? T.brand : T.muted,
+                    fontSize: 9, fontFamily: "'JetBrains Mono',monospace", fontWeight: 800,
+                    transition: "all .15s cubic-bezier(0.4, 0, 0.2, 1)",
+                    outline: "none",
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.color = T.brand; e.currentTarget.style.background = `${T.brand}10`; }}
+                  onMouseLeave={e => { e.currentTarget.style.color = copiedPlains[gi] ? T.brand : T.muted; e.currentTarget.style.background = "none"; }}
+                >
+                  <Ic n="copy" s={11} c={copiedPlains[gi] ? T.brand : T.muted}/>
+                  {copiedPlains[gi] ? "PLAIN COPIED" : (isDesktop ? "COPY PLAIN" : "PLAIN")}
                 </button>
               </div>
 
