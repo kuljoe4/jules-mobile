@@ -169,14 +169,16 @@ async def run():
         await page.wait_for_timeout(1000)
         await page.screenshot(path="verification/screenshots/diff_tab_expanded.png")
 
-        # Verify COPY PATH and COPY DIFF buttons exist
+        # Verify COPY PATH, COPY DIFF, and COPY PLAIN buttons exist
         path_btn = page.locator('button:has-text("COPY PATH")')
         diff_btn = page.locator('button:has-text("COPY DIFF")')
+        plain_btn = page.locator('button:has-text("COPY PLAIN")')
 
         # Verify they are visible
         assert await path_btn.is_visible(), "COPY PATH button is not visible"
         assert await diff_btn.is_visible(), "COPY DIFF button is not visible"
-        print("COPY PATH and COPY DIFF buttons are visible!")
+        assert await plain_btn.is_visible(), "COPY PLAIN button is not visible"
+        print("COPY PATH, COPY DIFF, and COPY PLAIN buttons are visible!")
 
         # Click COPY PATH
         await path_btn.click()
@@ -189,6 +191,12 @@ async def run():
         await page.wait_for_timeout(1000)
         await page.screenshot(path="verification/screenshots/diff_content_copied.png")
         print("Captured diff_content_copied.png")
+
+        # Click COPY PLAIN
+        await plain_btn.click()
+        await page.wait_for_timeout(1000)
+        await page.screenshot(path="verification/screenshots/diff_plain_copied.png")
+        print("Captured diff_plain_copied.png")
 
         await browser.close()
 
