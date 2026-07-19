@@ -605,6 +605,51 @@ const MultiPersonaPicker = ({ personas, selectedIds, onToggle, style: s = {} }) 
   );
 };
 
+const ExpandablePersonaPrompt = ({ prompt, limit = 120 }) => {
+  const [expanded, setExpanded] = React.useState(false);
+  const isLong = prompt.length > limit;
+
+  if (!isLong) {
+    return (
+      <div style={{fontSize:13, color:T.textDim, lineHeight:1.5, fontFamily:"'IBM Plex Sans',sans-serif", whiteSpace: "pre-wrap", wordBreak: "break-word"}}>
+        {prompt}
+      </div>
+    );
+  }
+
+  const displayedText = expanded ? prompt : prompt.slice(0, limit);
+
+  return (
+    <div style={{fontSize:13, color:T.textDim, lineHeight:1.5, fontFamily:"'IBM Plex Sans',sans-serif"}}>
+      <span style={{whiteSpace: "pre-wrap", wordBreak: "break-word"}}>{displayedText}</span>
+      {!expanded && <span style={{color: T.dim}}>...</span>}
+      <button
+        onClick={() => setExpanded(!expanded)}
+        style={{
+          background: "none",
+          border: "none",
+          color: T.brand,
+          cursor: "pointer",
+          fontFamily: "'JetBrains Mono',monospace",
+          fontSize: 10,
+          fontWeight: 800,
+          padding: "0 0 0 6px",
+          letterSpacing: "0.05em",
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 2,
+          transition: "color .15s ease",
+          outline: "none"
+        }}
+        onMouseEnter={e => e.currentTarget.style.color = T.brandLight}
+        onMouseLeave={e => e.currentTarget.style.color = T.brand}
+      >
+        {expanded ? "SEE LESS" : "SEE MORE"}
+      </button>
+    </div>
+  );
+};
+
 const T = {
   bg:"#050608", surface:"#0b0e14", surfaceHi:"#11161d",
   border:"#1a222e", borderHi:"#242d3d",
@@ -6446,7 +6491,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
                       setEditingPersona(p);
                     }} style={{background:T.brandDim, border:"none", borderRadius:4, padding:"3px 8px", cursor:"pointer", color:T.brand, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700}}>EDIT ROLE</button>
                   </div>
-                  <div style={{fontSize:13, color:T.textDim, lineHeight:1.5, fontFamily:"'IBM Plex Sans',sans-serif"}}>{p.prompt}</div>
+                  <ExpandablePersonaPrompt prompt={p.prompt} />
                 </div>
               ))}
             </div>
