@@ -2673,87 +2673,115 @@ const DiffViewer = ({ activities = [], isDesktop = false }) => {
               onClick={() => toggleFile(gi)}
               onKeyDown={e => (e.key === "Enter" || e.key === " ") && toggleFile(gi)}
               style={{
-                padding:"8px 12px", background: isCollapsed ? "transparent" : T.surfaceHi,
+                padding:"10px 12px", background: isCollapsed ? "transparent" : T.surfaceHi,
                 borderBottom:isCollapsed? "none" : `1px solid ${T.border}`,
-                display:"flex", alignItems:"center", gap:10, cursor:"pointer", userSelect:"none", outline:"none",
+                display:"flex", flexDirection:"column", gap:8, cursor:"pointer", userSelect:"none", outline:"none",
                 transition: "background .2s cubic-bezier(0.4, 0, 0.2, 1)"
               }}
             >
+              {/* Row 1: Chevron + Fully wrapped path/filename */}
+              <div style={{display:"flex", alignItems:"flex-start", gap:10}}>
+                <div style={{
+                  display:"flex", alignItems:"center", justifyContent:"center",
+                  width:20, height:20, borderRadius:4, background: isCollapsed ? "transparent" : `${T.brand}15`,
+                  transition: "all .2s cubic-bezier(0.4, 0, 0.2, 1)",
+                  flexShrink:0,
+                  alignSelf:"flex-start"
+                }}>
+                  <Ic n={isCollapsed ? "chevron_right" : "chevron_down"} s={14} c={isCollapsed ? T.dim : T.brand}/>
+                </div>
+
+                <div style={{flex:1, minWidth:0, display:"flex", flexDirection:"column", gap:1}}>
+                  {dir && (
+                    <div style={{
+                      fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.dim,
+                      opacity: 0.8, letterSpacing:"0.02em",
+                      whiteSpace:"normal", wordBreak:"break-all"
+                    }}>
+                      {dir}/
+                    </div>
+                  )}
+                  <div style={{
+                    fontFamily:"'JetBrains Mono',monospace", fontSize:12, fontWeight:700,
+                    color:isCollapsed ? T.textDim : T.textHi,
+                    whiteSpace:"normal", wordBreak:"break-all",
+                    marginTop: dir ? 1 : 0
+                  }}>
+                    {base}
+                  </div>
+                </div>
+              </div>
+
+              {/* Row 2: Action copy buttons + changes badges */}
               <div style={{
-                display:"flex", alignItems:"center", justifyContent:"center",
-                width:20, height:20, borderRadius:4, background: isCollapsed ? "transparent" : `${T.brand}15`,
-                transition: "all .2s cubic-bezier(0.4, 0, 0.2, 1)"
+                display:"flex", alignItems:"center", justifyContent:"space-between",
+                gap:8, paddingLeft:30, flexWrap:"wrap"
               }}>
-                <Ic n={isCollapsed ? "chevron_right" : "chevron_down"} s={14} c={isCollapsed ? T.dim : T.brand}/>
-              </div>
-              <div style={{flex:1, minWidth:0, display:"flex", flexDirection:"column", gap:0}}>
-                {dir && <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.dim, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", opacity: 0.8, letterSpacing:"0.02em"}}>{dir}/</div>}
-                <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:12, fontWeight:700, color:isCollapsed ? T.textDim : T.textHi, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", marginTop: dir ? -1 : 0}}>{base}</div>
-              </div>
+                {/* Copy Buttons */}
+                <div style={{display:"flex", alignItems:"center", gap:4, flexWrap:"wrap"}}>
+                  <button
+                    onClick={(e) => handleCopyPath(e, g.file, gi)}
+                    title="Copy file path"
+                    aria-label={`Copy file path for ${g.file}`}
+                    style={{
+                      background: "none", border: "none", padding: "4px 8px", cursor: "pointer",
+                      borderRadius: 4, display: "flex", alignItems: "center", gap: 4,
+                      color: copiedPaths[gi] ? T.brand : T.muted,
+                      fontSize: 9, fontFamily: "'JetBrains Mono',monospace", fontWeight: 800,
+                      transition: "all .15s cubic-bezier(0.4, 0, 0.2, 1)",
+                      outline: "none",
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.color = T.brand; e.currentTarget.style.background = `${T.brand}10`; }}
+                    onMouseLeave={e => { e.currentTarget.style.color = copiedPaths[gi] ? T.brand : T.muted; e.currentTarget.style.background = "none"; }}
+                  >
+                    <Ic n="copy" s={11} c={copiedPaths[gi] ? T.brand : T.muted}/>
+                    {copiedPaths[gi] ? "PATH COPIED" : (isDesktop ? "COPY PATH" : "PATH")}
+                  </button>
 
-              {/* Copy Buttons */}
-              <div style={{display:"flex", alignItems:"center", gap:4, flexShrink:0, marginRight: 8}}>
-                <button
-                  onClick={(e) => handleCopyPath(e, g.file, gi)}
-                  title="Copy file path"
-                  aria-label={`Copy file path for ${g.file}`}
-                  style={{
-                    background: "none", border: "none", padding: "4px 8px", cursor: "pointer",
-                    borderRadius: 4, display: "flex", alignItems: "center", gap: 4,
-                    color: copiedPaths[gi] ? T.brand : T.muted,
-                    fontSize: 9, fontFamily: "'JetBrains Mono',monospace", fontWeight: 800,
-                    transition: "all .15s cubic-bezier(0.4, 0, 0.2, 1)",
-                    outline: "none",
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.color = T.brand; e.currentTarget.style.background = `${T.brand}10`; }}
-                  onMouseLeave={e => { e.currentTarget.style.color = copiedPaths[gi] ? T.brand : T.muted; e.currentTarget.style.background = "none"; }}
-                >
-                  <Ic n="copy" s={11} c={copiedPaths[gi] ? T.brand : T.muted}/>
-                  {copiedPaths[gi] ? "PATH COPIED" : (isDesktop ? "COPY PATH" : "PATH")}
-                </button>
+                  <button
+                    onClick={(e) => handleCopyDiff(e, g.rawLines, gi)}
+                    title="Copy git diff/patch"
+                    aria-label={`Copy git diff for ${g.file}`}
+                    style={{
+                      background: "none", border: "none", padding: "4px 8px", cursor: "pointer",
+                      borderRadius: 4, display: "flex", alignItems: "center", gap: 4,
+                      color: copiedDiffs[gi] ? T.brand : T.muted,
+                      fontSize: 9, fontFamily: "'JetBrains Mono',monospace", fontWeight: 800,
+                      transition: "all .15s cubic-bezier(0.4, 0, 0.2, 1)",
+                      outline: "none",
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.color = T.brand; e.currentTarget.style.background = `${T.brand}10`; }}
+                    onMouseLeave={e => { e.currentTarget.style.color = copiedDiffs[gi] ? T.brand : T.muted; e.currentTarget.style.background = "none"; }}
+                  >
+                    <Ic n="copy" s={11} c={copiedDiffs[gi] ? T.brand : T.muted}/>
+                    {copiedDiffs[gi] ? "DIFF COPIED" : (isDesktop ? "COPY DIFF" : "DIFF")}
+                  </button>
 
-                <button
-                  onClick={(e) => handleCopyDiff(e, g.rawLines, gi)}
-                  title="Copy git diff/patch"
-                  aria-label={`Copy git diff for ${g.file}`}
-                  style={{
-                    background: "none", border: "none", padding: "4px 8px", cursor: "pointer",
-                    borderRadius: 4, display: "flex", alignItems: "center", gap: 4,
-                    color: copiedDiffs[gi] ? T.brand : T.muted,
-                    fontSize: 9, fontFamily: "'JetBrains Mono',monospace", fontWeight: 800,
-                    transition: "all .15s cubic-bezier(0.4, 0, 0.2, 1)",
-                    outline: "none",
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.color = T.brand; e.currentTarget.style.background = `${T.brand}10`; }}
-                  onMouseLeave={e => { e.currentTarget.style.color = copiedDiffs[gi] ? T.brand : T.muted; e.currentTarget.style.background = "none"; }}
-                >
-                  <Ic n="copy" s={11} c={copiedDiffs[gi] ? T.brand : T.muted}/>
-                  {copiedDiffs[gi] ? "DIFF COPIED" : (isDesktop ? "COPY DIFF" : "DIFF")}
-                </button>
+                  <button
+                    onClick={(e) => handleCopyPlain(e, g.hunks, gi)}
+                    title="Copy plain text code (added lines)"
+                    aria-label={`Copy plain code for ${g.file}`}
+                    style={{
+                      background: "none", border: "none", padding: "4px 8px", cursor: "pointer",
+                      borderRadius: 4, display: "flex", alignItems: "center", gap: 4,
+                      color: copiedPlains[gi] ? T.brand : T.muted,
+                      fontSize: 9, fontFamily: "'JetBrains Mono',monospace", fontWeight: 800,
+                      transition: "all .15s cubic-bezier(0.4, 0, 0.2, 1)",
+                      outline: "none",
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.color = T.brand; e.currentTarget.style.background = `${T.brand}10`; }}
+                    onMouseLeave={e => { e.currentTarget.style.color = copiedPlains[gi] ? T.brand : T.muted; e.currentTarget.style.background = "none"; }}
+                  >
+                    <Ic n="copy" s={11} c={copiedPlains[gi] ? T.brand : T.muted}/>
+                    {copiedPlains[gi] ? "PLAIN COPIED" : (isDesktop ? "COPY PLAIN" : "PLAIN")}
+                  </button>
+                </div>
 
-                <button
-                  onClick={(e) => handleCopyPlain(e, g.hunks, gi)}
-                  title="Copy plain text code (added lines)"
-                  aria-label={`Copy plain code for ${g.file}`}
-                  style={{
-                    background: "none", border: "none", padding: "4px 8px", cursor: "pointer",
-                    borderRadius: 4, display: "flex", alignItems: "center", gap: 4,
-                    color: copiedPlains[gi] ? T.brand : T.muted,
-                    fontSize: 9, fontFamily: "'JetBrains Mono',monospace", fontWeight: 800,
-                    transition: "all .15s cubic-bezier(0.4, 0, 0.2, 1)",
-                    outline: "none",
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.color = T.brand; e.currentTarget.style.background = `${T.brand}10`; }}
-                  onMouseLeave={e => { e.currentTarget.style.color = copiedPlains[gi] ? T.brand : T.muted; e.currentTarget.style.background = "none"; }}
-                >
-                  <Ic n="copy" s={11} c={copiedPlains[gi] ? T.brand : T.muted}/>
-                  {copiedPlains[gi] ? "PLAIN COPIED" : (isDesktop ? "COPY PLAIN" : "PLAIN")}
-                </button>
-              </div>
-
-              <div style={{display:"flex", alignItems:"center", gap:6, fontFamily:"'JetBrains Mono',monospace", fontSize:9, fontWeight:800}}>
-                <div style={{padding:"2px 6px", borderRadius:4, background:`${T.brand}10`, color:T.brandLight, border:`1px solid ${T.brand}20`}}>+{g.adds}</div>
-                <div style={{padding:"2px 6px", borderRadius:4, background:`${T.red}10`, color:T.redLight, border:`1px solid ${T.red}20` }}>-{g.rems}</div>
+                {/* Badges */}
+                <div style={{display:"flex", alignItems:"center", gap:6, fontFamily:"'JetBrains Mono',monospace", fontSize:9, fontWeight:800}}>
+                  <div style={{padding:"2px 6px", borderRadius:4, background:`${T.brand}10`, color:T.brandLight, border:`1px solid ${T.brand}20`}}>+{g.adds}</div>
+                  <div style={{padding:"2px 6px", borderRadius:4, background:`${T.red}10`, color:T.redLight, border:`1px solid ${T.red}20` }}>-{g.rems}</div>
+                </div>
               </div>
             </div>
 
