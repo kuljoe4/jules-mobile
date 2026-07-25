@@ -3118,7 +3118,7 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], stat
 }, areEqual);
 
 // ─── Session Detail ───────────────────────────────────────────────────────────
-const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete, onSessionUpdate, onStatsUpdate, isDesktop, pollInterval, setPollInterval, isArchived, onArchive, onUnarchive, cacheLimit, activityLimit, allSessions = [], activitiesMap = {}, onDraftChange }) => {
+const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete, onSessionUpdate, onStatsUpdate, isDesktop, pollInterval, setPollInterval, isArchived, onArchive, onUnarchive, onIgnore, cacheLimit, activityLimit, allSessions = [], activitiesMap = {}, onDraftChange }) => {
   const [session,setSession]     = useState(initSession);
   const [activities,setActivities] = useState(() => {
     try {
@@ -3185,6 +3185,26 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   const [headerPromptExpanded, setHeaderPromptExpanded] = useState(false);
   const headerPromptRef = useRef(null);
   const [showDriftWarning, setShowDriftWarning] = useState(false);
+  const [driftExpanded, setDriftExpanded] = useState(false);
+
+  const driftSessions = useMemo(() => {
+    if (!session) return [];
+    return allSessions.filter(s => {
+      if (s.id === session.id || s.state !== "COMPLETED") return false;
+      if (s.sourceContext?.source !== session.sourceContext?.source) return false;
+      return new Date(s.updateTime || s.createTime).getTime() > new Date(session.createTime).getTime();
+    });
+  }, [allSessions, session]);
+
+  const filteredActivities = useMemo(() => {
+    return activities.filter(a => {
+      if (chatFilter === "MESSAGES") return a.userMessaged || a.agentMessaged;
+      if (chatFilter === "REVIEWS") return a.progressUpdated && a.progressUpdated.title?.toLowerCase().includes("review");
+      if (chatFilter === "SYSTEM") return !a.userMessaged && !a.agentMessaged && !(a.progressUpdated && a.progressUpdated.title?.toLowerCase().includes("review"));
+      return true;
+    });
+  }, [activities, chatFilter]);
+
   const [scrolled, setScrolled] = useState(false);
   const [headerExpanded, setHeaderExpanded] = useState(true);
   const [composerVisible, setComposerVisible] = useState(true);
@@ -3899,6 +3919,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
             <div style={{position:"relative"}}>
               <button
                 onClick={() => setShowMenu(!showMenu)}
+                title="More actions"
+                aria-label="More actions"
                 onMouseEnter={e => { e.currentTarget.style.background = T.border; e.currentTarget.style.borderColor = T.brand; }}
                 onMouseLeave={e => { e.currentTarget.style.background = T.surfaceHi; e.currentTarget.style.borderColor = T.borderHi; }}
                 onMouseDown={e => { e.currentTarget.style.transform = "scale(0.92)"; }}
@@ -3983,6 +4005,24 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                     >
                       <Ic n={isArchived ? "unarchive" : "archive"} s={14} c={T.purple}/> {isArchived ? "UNARCHIVE" : "ARCHIVE"}
                     </button>
+                    {onIgnore && (
+                      <button
+                        onClick={() => { onIgnore(session.id); setShowMenu(false); }}
+                        onMouseEnter={e => e.currentTarget.style.background = T.border}
+                        onMouseLeave={e => e.currentTarget.style.background = "none"}
+                        onMouseDown={e => e.currentTarget.style.transform = "scale(0.96)"}
+                        onMouseUp={e => e.currentTarget.style.transform = "scale(1)"}
+                        style={{
+                          width:"100%", padding:"12px 14px", background:"none", border:"none",
+                          color:T.amber, textAlign:"left", fontFamily:"'JetBrains Mono',monospace",
+                          fontSize:11, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:10,
+                          borderBottom:`1px solid ${T.border}33`,
+                          transition: "all .1s cubic-bezier(0.4, 0, 0.2, 1)"
+                        }}
+                      >
+                        <Ic n="pause" s={14} c={T.amber}/> IGNORE
+                      </button>
+                    )}
                     <button
                       onClick={() => { if(confirm("Delete session?")) { handleDelete(); setShowMenu(false); } }}
                       disabled={busy}
@@ -4236,24 +4276,43 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
               </button>
             </div>
             {showDriftWarning && (
-              <div style={{
-                marginBottom: 16, padding: "12px 16px", background: "rgba(252, 211, 77, 0.05)",
-                border: `1px solid ${T.amber}40`, borderRadius: 10, display: "flex", gap: 12,
-                alignItems: "flex-start", animation: "slideUp .3s ease"
+              <div id="stale-base-warning" style={{
+                marginBottom: 16, background: "rgba(252, 211, 77, 0.04)",
+                border: `1px solid ${T.amber}30`, borderRadius: 10,
+                overflow: "hidden", animation: "slideUp .3s ease"
               }}>
-                <div style={{
-                  width: 28, height: 28, borderRadius: 6, background: T.amberDim,
-                  display: "flex", alignItems: "center", justify: "center", flexShrink: 0,
-                  marginTop: 2, border: `1px solid ${T.amber}40`
+                <button
+                  onClick={() => setDriftExpanded(p => !p)}
+                  style={{
+                    width: "100%", background: "none", border: "none", cursor: "pointer",
+                    display: "flex", alignItems: "center", gap: 10, padding: "10px 14px",
+                    textAlign: "left", outline: "none", color: "inherit"
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = "rgba(252, 211, 77, 0.02)"}
+                  onMouseLeave={e => e.currentTarget.style.background = "none"}
+                >
+                  <Ic n="wifi" s={14} c={T.amber}/>
+                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 900, color: T.amber, flex: 1, letterSpacing: "0.05em" }}>
+                    ⚠️ STALE BASE DETECTED
+                  </span>
+                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: T.amber, fontWeight: 700, opacity: 0.8, marginRight: 4 }}>
+                    {driftExpanded ? "COLLAPSE" : "REVIEW RISK"}
+                  </span>
+                  <Ic n={driftExpanded ? "chevron_up" : "chevron_down"} s={14} c={T.amber}/>
+                </button>
+
+                <div id="stale-base-detail" style={{
+                  display: driftExpanded ? "block" : "none",
+                  maxHeight: driftExpanded ? "500px" : "0px",
+                  opacity: driftExpanded ? 1 : 0,
+                  overflow: "hidden",
+                  transition: "all .3s cubic-bezier(0.4, 0, 0.2, 1)",
+                  padding: driftExpanded ? "0 14px 14px" : "0 14px"
                 }}>
-                  <Ic n="wifi" s={16} c={T.amber}/>
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, fontWeight: 900, color: T.amber, marginBottom: 2 }}>STALE BASE DETECTED</div>
-                  <div style={{ fontFamily: "'IBM Plex Sans',sans-serif", fontSize: 13, color: T.textDim, lineHeight: 1.4 }}>
+                  <div style={{ fontFamily: "'IBM Plex Sans',sans-serif", fontSize: 13, color: T.textDim, lineHeight: 1.4, marginBottom: 12 }}>
                     Another session on this repository was merged since you started. Jules may be working on an outdated codebase.
                   </div>
-                  <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
+                  <div style={{ display: "flex", gap: 10 }}>
                     <button
                       onClick={() => {
                         setMsg("The repository has been updated. Please pull the latest changes from the base branch and rebase your current work to avoid conflicts.");
@@ -4262,7 +4321,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                         setTimeout(() => txtRef.current?.focus(), 100);
                       }}
                       style={{
-                        background: T.amber, border: "none", borderRadius: 4, padding: "4px 10px",
+                        background: T.amber, border: "none", borderRadius: 4, padding: "6px 12px",
                         fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 900,
                         cursor: "pointer", color: "#000"
                       }}
@@ -4271,7 +4330,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                       onClick={() => setShowDriftWarning(false)}
                       style={{
                         background: "transparent", border: `1px solid ${T.border}`, borderRadius: 4,
-                        padding: "4px 10px", fontFamily: "'JetBrains Mono',monospace", fontSize: 10,
+                        padding: "6px 12px", fontFamily: "'JetBrains Mono',monospace", fontSize: 10,
                         fontWeight: 700, cursor: "pointer", color: T.muted
                       }}
                     >DISMISS</button>
@@ -4338,17 +4397,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                 {ACTIVE_STATES.has(currentState)?"Waiting for activity…":"No activities yet"}
               </div>
               :<ActivityFeed
-                  activities={activities.filter(a => {
-                    if (chatFilter === "MESSAGES") return a.userMessaged || a.agentMessaged;
-                    if (chatFilter === "REVIEWS") return a.progressUpdated && a.progressUpdated.title?.toLowerCase().includes("review");
-                    if (chatFilter === "SYSTEM") return !a.userMessaged && !a.agentMessaged && !(a.progressUpdated && a.progressUpdated.title?.toLowerCase().includes("review"));
-                    return true;
-                  })}
-                  driftSessions={allSessions.filter(s => {
-                    if (!session || s.id === session.id || s.state !== "COMPLETED") return false;
-                    if (s.sourceContext?.source !== session.sourceContext?.source) return false;
-                    return new Date(s.updateTime || s.createTime).getTime() > new Date(session.createTime).getTime();
-                  })}
+                  activities={filteredActivities}
+                  driftSessions={driftSessions}
                   showAll={showAll}
                   justUpdated={justUpdated}
                   scrolledActivityId={scrolledActivityId}
@@ -5839,10 +5889,20 @@ const NetworkMonitor = ({ onBack, isDesktop }) => {
 };
 
 const ConflictRadar = ({ currentSource, currentBranch, currentPrompt, allSessions, activitiesMap, currentSessionId, startTime, limit = 20 }) => {
+  const [expanded, setExpanded] = useState(false);
+  const [debouncedPrompt, setDebouncedPrompt] = useState(currentPrompt);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedPrompt(currentPrompt);
+    }, 400);
+    return () => clearTimeout(handler);
+  }, [currentPrompt]);
+
   const collisions = useMemo(() => {
     if (!currentSource) return [];
 
-    const currentFiles = new Set(getWorkingSet({ prompt: currentPrompt, id: currentSessionId }, activitiesMap[currentSessionId] || []));
+    const currentFiles = new Set(getWorkingSet({ prompt: debouncedPrompt, id: currentSessionId }, activitiesMap[currentSessionId] || []));
     const results = [];
     const relevantSessions = allSessions
       .filter(s => s.id !== currentSessionId)
@@ -5873,7 +5933,7 @@ const ConflictRadar = ({ currentSource, currentBranch, currentPrompt, allSession
       }
     }
     return results;
-  }, [currentSource, currentBranch, currentPrompt, allSessions, activitiesMap, currentSessionId, startTime, limit]);
+  }, [currentSource, currentBranch, debouncedPrompt, allSessions, activitiesMap, currentSessionId, startTime, limit]);
 
   if (collisions.length === 0) {
     if (!currentSource || !currentPrompt.trim()) return null;
@@ -5893,81 +5953,101 @@ const ConflictRadar = ({ currentSource, currentBranch, currentPrompt, allSession
 
   return (
     <div style={{
-      marginTop: 12, padding: 16, background: "rgba(251, 113, 133, 0.05)",
+      marginTop: 12, background: "rgba(251, 113, 133, 0.05)",
       border: `1px solid ${T.red}30`, borderRadius: 12,
-      animation: "fadeIn .3s ease"
+      overflow: "hidden", animation: "fadeIn .3s ease"
     }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+      <button
+        onClick={() => setExpanded(p => !p)}
+        style={{
+          width: "100%", background: "none", border: "none", cursor: "pointer",
+          display: "flex", alignItems: "center", gap: 8, padding: 16,
+          textAlign: "left", outline: "none", color: "inherit",
+          transition: "background .2s cubic-bezier(0.4, 0, 0.2, 1)"
+        }}
+        onMouseEnter={e => e.currentTarget.style.background = "rgba(251, 113, 133, 0.04)"}
+        onMouseLeave={e => e.currentTarget.style.background = "none"}
+      >
         <Ic n="wifi" s={16} c={T.red}/>
         <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, fontWeight: 900, color: T.red, letterSpacing: "0.05em" }}>
           CONFLICT RADAR
         </span>
         <div style={{ flex: 1, height: 1, background: `${T.red}20` }}/>
-        <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: T.red, fontWeight: 700 }}>
-          {collisions.length} ACTIVE RISKS
+        <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: T.red, fontWeight: 800, marginRight: 4 }}>
+          {collisions.length} ACTIVE RISK{collisions.length !== 1 ? "S" : ""}
         </span>
-      </div>
+        <Ic n={expanded ? "chevron_up" : "chevron_down"} s={14} c={T.red}/>
+      </button>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {collisions.map((c, i) => (
-          <div key={i} style={{
-            background: T.surface, padding: 10, borderRadius: 8,
-            border: `1px solid ${c.risk === "HIGH" ? T.red + "40" : T.amber + "40"}`,
-            position: "relative", overflow: "hidden"
-          }}>
-            {c.risk === "HIGH" && <div style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: 3, background: T.red }}/>}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6, paddingLeft: c.risk === "HIGH" ? 6 : 0 }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontFamily: "'IBM Plex Sans',sans-serif", fontSize: 13, fontWeight: 600, color: T.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {c.session.title || c.session.prompt}
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
-                  <Pill status={c.session.state} small hideLabel />
-                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: T.dim }}>{fmtAgo(new Date(c.session.updateTime || c.session.createTime).getTime())}</span>
-                </div>
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
-                <div style={{
-                  background: c.isDrift ? `${T.amber}15` : (c.risk === "HIGH" ? `${T.red}15` : `${T.amber}15`),
-                  border: `1px solid ${c.isDrift ? T.amber : (c.risk === "HIGH" ? T.red : T.amber)}30`,
-                  borderRadius: 4, padding: "2px 6px", fontFamily: "'JetBrains Mono',monospace",
-                  fontSize: 8, color: c.isDrift ? T.amber : (c.risk === "HIGH" ? T.red : T.amber), fontWeight: 800
-                }}>
-                  {c.isDrift ? "DRIFT" : c.risk + " RISK"}
-                </div>
-                {c.sameBranch && (
-                  <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 8, color: T.amber, fontWeight: 700, opacity: 0.8 }}>
-                    SAME BASE
+      <div id="conflict-radar-detail" style={{
+        display: expanded ? "block" : "none",
+        maxHeight: expanded ? "2000px" : "0px",
+        opacity: expanded ? 1 : 0,
+        overflow: "hidden",
+        transition: "all .3s cubic-bezier(0.4, 0, 0.2, 1)",
+        padding: expanded ? "0 16px 16px" : "0 16px"
+      }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {collisions.map((c, i) => (
+            <div key={i} style={{
+              background: T.surface, padding: 10, borderRadius: 8,
+              border: `1px solid ${c.risk === "HIGH" ? T.red + "40" : T.amber + "40"}`,
+              position: "relative", overflow: "hidden"
+            }}>
+              {c.risk === "HIGH" && <div style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: 3, background: T.red }}/>}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6, paddingLeft: c.risk === "HIGH" ? 6 : 0 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontFamily: "'IBM Plex Sans',sans-serif", fontSize: 13, fontWeight: 600, color: T.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {c.session.title || c.session.prompt}
                   </div>
-                )}
-              </div>
-            </div>
-
-            {c.overlap.length > 0 && (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 6, paddingLeft: c.risk === "HIGH" ? 6 : 0 }}>
-                {c.overlap.map(f => (
-                  <span key={f} style={{
-                    fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: T.red,
-                    background: `${T.red}10`, padding: "2px 6px", borderRadius: 4,
-                    border: `1px solid ${T.red}20`
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
+                    <Pill status={c.session.state} small hideLabel />
+                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: T.dim }}>{fmtAgo(new Date(c.session.updateTime || c.session.createTime).getTime())}</span>
+                  </div>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+                  <div style={{
+                    background: c.isDrift ? `${T.amber}15` : (c.risk === "HIGH" ? `${T.red}15` : `${T.amber}15`),
+                    border: `1px solid ${c.isDrift ? T.amber : (c.risk === "HIGH" ? T.red : T.amber)}30`,
+                    borderRadius: 4, padding: "2px 6px", fontFamily: "'JetBrains Mono',monospace",
+                    fontSize: 8, color: c.isDrift ? T.amber : (c.risk === "HIGH" ? T.red : T.amber), fontWeight: 800
                   }}>
-                    {f.split("/").pop()}
-                  </span>
-                ))}
+                    {c.isDrift ? "DRIFT" : c.risk + " RISK"}
+                  </div>
+                  {c.sameBranch && (
+                    <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 8, color: T.amber, fontWeight: 700, opacity: 0.8 }}>
+                      SAME BASE
+                    </div>
+                  )}
+                </div>
               </div>
-            )}
-          </div>
-        ))}
-      </div>
 
-      <div style={{ marginTop: 12, fontFamily: "'IBM Plex Sans',sans-serif", fontSize: 11, color: T.textDim, lineHeight: 1.5 }}>
-        <div style={{ color: T.red, fontWeight: 700, marginBottom: 4, fontSize: 10 }}>⚠️ POTENTIAL MERGE CONFLICTS</div>
-        Jules is isolated. These sessions touch the same files or branch. To clear:
-        <ul style={{ paddingLeft: 18, marginTop: 4, display: "flex", flexDirection: "column", gap: 2 }}>
-          <li>Select a different starting branch for this session</li>
-          <li>Wait for conflicting sessions to reach <strong>DONE</strong> state</li>
-          <li>Refine prompt to avoid overlapping files</li>
-        </ul>
+              {c.overlap.length > 0 && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 6, paddingLeft: c.risk === "HIGH" ? 6 : 0 }}>
+                  {c.overlap.map(f => (
+                    <span key={f} style={{
+                      fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: T.red,
+                      background: `${T.red}10`, padding: "2px 6px", borderRadius: 4,
+                      border: `1px solid ${T.red}20`
+                    }}>
+                      {f.split("/").pop()}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div style={{ marginTop: 12, fontFamily: "'IBM Plex Sans',sans-serif", fontSize: 11, color: T.textDim, lineHeight: 1.5 }}>
+          <div style={{ color: T.red, fontWeight: 700, marginBottom: 4, fontSize: 10 }}>⚠️ POTENTIAL MERGE CONFLICTS</div>
+          Jules is isolated. These sessions touch the same files or branch. To clear:
+          <ul style={{ paddingLeft: 18, marginTop: 4, display: "flex", flexDirection: "column", gap: 2 }}>
+            <li>Select a different starting branch for this session</li>
+            <li>Wait for conflicting sessions to reach <strong>DONE</strong> state</li>
+            <li>Refine prompt to avoid overlapping files</li>
+          </ul>
+        </div>
       </div>
     </div>
   );
@@ -6778,18 +6858,18 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
 const FILTERS = ["ALL","QUEUED","PLANNING","AWAITING_PLAN_APPROVAL","IN_PROGRESS","COMPLETED","FAILED","HAS_DRAFT"];
 const FILTER_LABELS = { AWAITING_PLAN_APPROVAL:"APPROVE", ALL:"ALL", HAS_DRAFT:"HAS DRAFT" };
 
-const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed, selectedId, isDesktop, onNew, onDrafts, onSettings, pollInterval, sessionLimit, countdown, plan, todayCount, searchQuery, setSearchQuery, archivedIds, showArchived, setShowArchived, activitiesMap = {}, activityStatsMap = {}, error, clearError, isBoosted, readMap, draftsMap = {} }) => {
+const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed, selectedId, isDesktop, onNew, onDrafts, onSettings, pollInterval, sessionLimit, countdown, plan, todayCount, searchQuery, setSearchQuery, archivedIds, showArchived, setShowArchived, activitiesMap = {}, activityStatsMap = {}, error, clearError, isBoosted, readMap, draftsMap = {}, ignoredIds = new Set() }) => {
   const [filter,setFilter] = useState("ALL");
   const [scrolled, handleScroll] = useScrollThreshold();
   const [searchOpen, setSearchOpen] = useState(false);
   const baseFiltered = useMemo(() => {
-    let list = sessions.filter(s => archivedIds.has(s.id) === showArchived);
+    let list = sessions.filter(s => archivedIds.has(s.id) === showArchived && !ignoredIds.has(s.id));
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       list = list.filter(s => (s.title||"").toLowerCase().includes(q) || (s.prompt||"").toLowerCase().includes(q) || (s.id||"").toLowerCase().includes(q));
     }
     return list;
-  }, [sessions, archivedIds, showArchived, searchQuery]);
+  }, [sessions, archivedIds, showArchived, searchQuery, ignoredIds]);
   const filtered = useMemo(() => {
     if (filter === "ALL") return baseFiltered;
     if (filter === "HAS_DRAFT") return baseFiltered.filter(s => draftsMap[s.id]);
@@ -7124,6 +7204,10 @@ function JulesClient() {
     try { return new Set(JSON.parse(localStorage.getItem("jac_archived") || "[]")); }
     catch { return new Set(); }
   });
+  const [ignoredIds, setIgnoredIds] = useState(() => {
+    try { return new Set(JSON.parse(localStorage.getItem("jac_ignored") || "[]")); }
+    catch { return new Set(); }
+  });
   const [showArchived, setShowArchived] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [globalErr, setGlobalErr] = useState(null);
@@ -7176,6 +7260,11 @@ function JulesClient() {
   }, [archivedIds]);
 
   useEffect(() => {
+    try { localStorage.setItem("jac_ignored", JSON.stringify(Array.from(ignoredIds))); }
+    catch {}
+  }, [ignoredIds]);
+
+  useEffect(() => {
     try { localStorage.setItem("jac_read_map", JSON.stringify(readMap)); }
     catch {}
   }, [readMap]);
@@ -7199,6 +7288,18 @@ function JulesClient() {
       next.delete(id);
       return next;
     });
+  }, []);
+
+  const handleIgnore = useCallback(id => {
+    if (!confirm("Are you sure you want to ignore this session? This will remove it from your active list and stop updates.")) return;
+    setIgnoredIds(prev => {
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+    setSelected(null);
+    setDesktop("empty");
+    setMobile("list");
   }, []);
 
   const setPollInterval = useCallback(ms => {
@@ -7462,6 +7563,7 @@ function JulesClient() {
             isBoosted={isBoosted}
             readMap={readMap}
             draftsMap={draftsMap}
+            ignoredIds={ignoredIds}
           />
         </div>
         {/* Main panel */}
@@ -7487,6 +7589,7 @@ function JulesClient() {
               cacheLimit={cacheLimit} activityLimit={activityLimit}
               isArchived={archivedIds.has(selected.id)}
               onArchive={handleArchive} onUnarchive={handleUnarchive}
+              onIgnore={handleIgnore}
               onDraftChange={handleDraftChange}/>
           )}
           {desktopView==="new"&&(
@@ -7560,7 +7663,8 @@ function JulesClient() {
 
             isBoosted={isBoosted}
             readMap={readMap}
-            draftsMap={draftsMap} />
+            draftsMap={draftsMap}
+            ignoredIds={ignoredIds} />
         )}
         {mobileScreen==="detail"&&selected&&(
           <SessionDetail key={selected.id} session={selected} apiKey={apiKey}
@@ -7575,6 +7679,7 @@ function JulesClient() {
             cacheLimit={cacheLimit} activityLimit={activityLimit}
             isArchived={archivedIds.has(selected.id)}
             onArchive={handleArchive} onUnarchive={handleUnarchive}
+            onIgnore={handleIgnore}
             onDraftChange={handleDraftChange}/>
         )}
         {mobileScreen==="new"&&(
