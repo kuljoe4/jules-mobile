@@ -1935,7 +1935,7 @@ const TimelineEvent = memo(({ act, onMediaClick, onReply }) => {
 
             if (prMatch) return (
               <div style={{marginTop:12}}>
-                <a href={prMatch[0]} target="_blank" rel="noopener" style={{
+                <a href={prMatch[0]} target="_blank" rel="noopener noreferrer" style={{
                   display:"inline-flex", alignItems:"center", gap:6, padding:"6px 12px",
                   background:T.brandDim, border:`1px solid ${T.brand}40`, borderRadius:6,
                   color:T.brand, textDecoration:"none", fontFamily:"'JetBrains Mono',monospace",
@@ -1949,7 +1949,7 @@ const TimelineEvent = memo(({ act, onMediaClick, onReply }) => {
 
             if (commitMatch) return (
               <div style={{marginTop:12}}>
-                <a href={commitMatch[0]} target="_blank" rel="noopener" style={{
+                <a href={commitMatch[0]} target="_blank" rel="noopener noreferrer" style={{
                   display:"inline-flex", alignItems:"center", gap:6, padding:"6px 12px",
                   background:T.blueDim, border:`1px solid ${T.blue}40`, borderRadius:6,
                   color:T.blue, textDecoration:"none", fontFamily:"'JetBrains Mono',monospace",
@@ -1963,7 +1963,7 @@ const TimelineEvent = memo(({ act, onMediaClick, onReply }) => {
 
             if (branchMatch) return (
               <div style={{marginTop:12}}>
-                <a href={branchMatch[0]} target="_blank" rel="noopener" style={{
+                <a href={branchMatch[0]} target="_blank" rel="noopener noreferrer" style={{
                   display:"inline-flex", alignItems:"center", gap:6, padding:"6px 12px",
                   background:T.blueDim, border:`1px solid ${T.blue}40`, borderRadius:6,
                   color:T.blue, textDecoration:"none", fontFamily:"'JetBrains Mono',monospace",
@@ -1988,7 +1988,7 @@ const TimelineEvent = memo(({ act, onMediaClick, onReply }) => {
       detail = (
         <div style={{marginTop:8, display:"flex", gap:10, flexWrap:"wrap"}}>
           {pr && (
-            <a href={pr.url} target="_blank" rel="noopener" style={{
+            <a href={pr.url} target="_blank" rel="noopener noreferrer" style={{
               display:"inline-flex", alignItems:"center", gap:6, padding:"8px 14px",
               background:T.brandDim, border:`1px solid ${T.brand}60`, borderRadius:8,
               color:T.brandLight, textDecoration:"none", fontFamily:"'JetBrains Mono',monospace",
@@ -2872,7 +2872,7 @@ const SetupScreen = ({ onSave }) => {
           <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:16,fontWeight:700,color:T.text,marginBottom:6}}>JULES AGENT CLIENT</div>
           <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:15,color:T.textDim,lineHeight:1.6}}>
             Enter your Jules API key from<br/>
-            <a href="https://jules.google.com" target="_blank" rel="noopener" style={{color:T.brandLight,fontFamily:"'JetBrains Mono',monospace",fontSize:13,textDecoration:"none",borderBottom:`1px solid ${T.brandDark}40`}}>jules.google.com → Settings → API</a>
+            <a href="https://jules.google.com" target="_blank" rel="noopener noreferrer" style={{color:T.brandLight,fontFamily:"'JetBrains Mono',monospace",fontSize:13,textDecoration:"none",borderBottom:`1px solid ${T.brandDark}40`}}>jules.google.com → Settings → API</a>
           </div>
         </div>
         <input
@@ -3824,14 +3824,14 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                    {scrolled && !headerExpanded && (
                      <>
                        {session.sourceContext?.source && (
-                         <a href={b?.repoUrl ? `${b.repoUrl}/branches` : "#"} target="_blank" rel="noopener" style={{display:"flex", alignItems:"center", gap:3, color:T.blue, textDecoration:"none", flexShrink:0, borderBottom:`1px solid ${T.blue}40`}}>
+                         <a href={b?.repoUrl ? `${b.repoUrl}/branches` : "#"} target="_blank" rel="noopener noreferrer" style={{display:"flex", alignItems:"center", gap:3, color:T.blue, textDecoration:"none", flexShrink:0, borderBottom:`1px solid ${T.blue}40`}}>
                            <Ic n="branch" s={9} c={T.blue}/>
                            <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:8, fontWeight:900}}>{b?.working || "main"}</span>
                          </a>
                        )}
                        {isStale && !isFinished && <div style={{width:5, height:5, borderRadius:"50%", background:T.brand, animation:"pulse 2s infinite"}}/>}
                        {pr && (
-                          <a href={pr.url} target="_blank" rel="noopener" style={{
+                          <a href={pr.url} target="_blank" rel="noopener noreferrer" style={{
                             background:pr.state==="merged"?T.purpleDim:pr.state==="closed"?T.dim:T.brandDim,
                             border:`1px solid ${pr.state==="merged"?T.purple:pr.state==="closed"?T.muted:T.brand}40`,
                             borderRadius:3, padding:"1px 4px", display:"flex", alignItems:"center", gap:3,
@@ -4005,7 +4005,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
           <div style={{display:"flex", alignItems:"center", gap:8, overflowX:"auto", scrollbarWidth:"none", WebkitOverflowScrolling:"touch", width:"100%"}}>
 
             {pr && (
-              <a href={pr.url} target="_blank" rel="noopener" style={{
+              <a href={pr.url} target="_blank" rel="noopener noreferrer" style={{
                 background:pr.state==="merged"?T.purpleDim:pr.state==="closed"?T.dim:T.brandDim,
                 border:`1px solid ${pr.state==="merged"?T.purple:pr.state==="closed"?T.muted:T.brand}40`,
                 borderRadius:4, padding:"3px 8px", display:"flex", alignItems:"center", gap:4,
@@ -4032,7 +4032,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
             )}
 
             {session.sourceContext?.source && (
-              <a href={b?.repoUrl ? `${b.repoUrl}/branches` : "#"} target="_blank" rel="noopener" style={{
+              <a href={b?.repoUrl ? `${b.repoUrl}/branches` : "#"} target="_blank" rel="noopener noreferrer" style={{
                 background:T.blueDim, border:`1px solid ${T.blue}30`, borderRadius:4, padding:"3px 8px",
                 display:"flex", alignItems:"center", gap:4, color:T.blue, textDecoration:"none",
                 fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:900, flexShrink:0,
@@ -4045,7 +4045,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
             )}
 
             {session.url && (
-              <a href={session.url} target="_blank" rel="noopener" style={{
+              <a href={session.url} target="_blank" rel="noopener noreferrer" style={{
                 background:T.surfaceHi, border:`1px solid ${T.borderHi}`, borderRadius:4, padding:"3px 8px",
                 display:"flex", alignItems:"center", gap:4, color:T.muted, textDecoration:"none",
                 fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:900, flexShrink:0
@@ -4105,14 +4105,14 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
             </div>
             {b.repoUrl && (
               <div style={{display:"flex", gap:8}}>
-                <a href={`${b.repoUrl}/branches`} target="_blank" rel="noopener" style={{
+                <a href={`${b.repoUrl}/branches`} target="_blank" rel="noopener noreferrer" style={{
                   background:"transparent", color:T.blue, border:`1px solid ${T.blue}40`, borderRadius:6,
                   padding:"6px 10px", fontFamily:"'JetBrains Mono',monospace",
                   fontSize:10, fontWeight:700, textDecoration:"none", flexShrink:0
                 }}>
                   BRANCHES
                 </a>
-                <a href={`${b.repoUrl}/compare/${b.base}...${b.working}`} target="_blank" rel="noopener" style={{
+                <a href={`${b.repoUrl}/compare/${b.base}...${b.working}`} target="_blank" rel="noopener noreferrer" style={{
                   background:T.blue, color:"#000", border:"none", borderRadius:6,
                   padding:"6px 12px", fontFamily:"'JetBrains Mono',monospace",
                   fontSize:11, fontWeight:800, textDecoration:"none", flexShrink:0
@@ -4144,7 +4144,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
               lineHeight:1.55, whiteSpace:"pre-wrap",
             }}>{summary.summary}</div>
             {pr && (
-              <a href={pr.url} target="_blank" rel="noopener" style={{
+              <a href={pr.url} target="_blank" rel="noopener noreferrer" style={{
                 display:"inline-flex", alignItems:"center", gap:6, marginTop:12,
                 color:T.brand, textDecoration:"none", fontFamily:"'JetBrains Mono',monospace",
                 fontSize:12, fontWeight:700, borderBottom:`1px solid ${T.brand}40`
