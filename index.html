@@ -324,6 +324,7 @@ async function sendNotification(title, body, tag) {
 const BASE          = "https://jules.googleapis.com/v1alpha";
 const ACTIVE_STATES = new Set(["QUEUED","PLANNING","AWAITING_PLAN_APPROVAL","AWAITING_USER_FEEDBACK","IN_PROGRESS"]);
 const MSG_TYPES     = new Set(["userMessaged","agentMessaged"]);
+const EMPTY_ARR     = [];
 
 // Configurable poll intervals (ms). 0 = manual-only.
 const POLL_OPTIONS = [
@@ -2922,7 +2923,25 @@ const SetupScreen = ({ onSave }) => {
 };
 
 // ─── Session Card ─────────────────────────────────────────────────────────────
-const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], stats, lastReadTs, allSessions = [], hasFollowupDraft }) => {
+const areEqual = (prevProps, nextProps) => {
+  return (
+    prevProps.isSelected === nextProps.isSelected &&
+    prevProps.index === nextProps.index &&
+    prevProps.lastReadTs === nextProps.lastReadTs &&
+    prevProps.hasFollowupDraft === nextProps.hasFollowupDraft &&
+    prevProps.latestCompletedTime === nextProps.latestCompletedTime &&
+    prevProps.s.id === nextProps.s.id &&
+    prevProps.s.state === nextProps.s.state &&
+    prevProps.s.title === nextProps.s.title &&
+    prevProps.s.prompt === nextProps.s.prompt &&
+    prevProps.s.updateTime === nextProps.s.updateTime &&
+    prevProps.s.createTime === nextProps.s.createTime &&
+    prevProps.activities === nextProps.activities &&
+    prevProps.stats === nextProps.stats
+  );
+};
+
+const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], stats, lastReadTs, latestCompletedTime, hasFollowupDraft }) => {
   const cardRef = useRef(null);
 
   useEffect(() => {
@@ -2947,17 +2966,10 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], stat
 
   const driftDetected = useMemo(() => {
     if (currentState === "COMPLETED") return false;
-    const repo = s.sourceContext?.source;
-    if (!repo) return false;
+    if (!latestCompletedTime) return false;
     const currentStart = new Date(s.createTime).getTime();
-
-    return allSessions.some(other => {
-      if (other.id === s.id || other.state !== "COMPLETED") return false;
-      if (other.sourceContext?.source !== repo) return false;
-      const completionTime = new Date(other.updateTime || other.createTime).getTime();
-      return completionTime > currentStart;
-    });
-  }, [s, allSessions, currentState]);
+    return latestCompletedTime > currentStart;
+  }, [s.createTime, latestCompletedTime, currentState]);
 
   const isWorking = ACTIVE_STATES.has(currentState);
   const isFinished = currentState === "COMPLETED" || currentState === "FAILED";
@@ -3097,7 +3109,7 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], stat
       </div>
     </button>
   );
-});
+}, areEqual);
 
 // ─── Session Detail ───────────────────────────────────────────────────────────
 const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete, onSessionUpdate, onStatsUpdate, isDesktop, pollInterval, setPollInterval, isArchived, onArchive, onUnarchive, cacheLimit, activityLimit, allSessions = [], activitiesMap = {}, onDraftChange }) => {
@@ -6728,6 +6740,22 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
   }, [filter, baseFiltered, draftsMap]);
   const active = useMemo(() => sessions.filter(s=>ACTIVE_STATES.has(s.state)).length, [sessions]);
 
+  const latestCompletedTimeByRepo = useMemo(() => {
+    const map = {};
+    sessions.forEach(other => {
+      if (other.state === "COMPLETED") {
+        const repo = other.sourceContext?.source;
+        if (repo) {
+          const completionTime = new Date(other.updateTime || other.createTime).getTime();
+          if (!map[repo] || completionTime > map[repo]) {
+            map[repo] = completionTime;
+          }
+        }
+      }
+    });
+    return map;
+  }, [sessions]);
+
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%",minHeight:0}}>
       <div style={{padding:scrolled?"8px 16px 8px":"12px 16px 0",background:T.surface,borderBottom:`1px solid ${T.border}33`,flexShrink:0,transition:"padding .2s cubic-bezier(0.4, 0, 0.2, 1), background .2s cubic-bezier(0.4, 0, 0.2, 1)",zIndex: 5, contain: "layout"}}>
@@ -6888,7 +6916,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
       <div onScroll={handleScroll} style={{flex:1,overflowY:"auto",padding:"10px 12px",WebkitOverflowScrolling:"touch",minHeight:200}}>
         {refreshing&&sessions.length===0&&<div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>Loading sessions…</div>}
         {!refreshing&&filtered.length===0&&<div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>{filter==="ALL"?"No sessions yet":"No sessions with this status"}</div>}
-        {filtered.map((s,i)=><SessionCard key={s.id||s.name} index={i+1} s={s} onPress={()=>onSelect(s)} isSelected={s.id===selectedId} activities={activitiesMap[s.id] || []} stats={activityStatsMap[s.id]} lastReadTs={readMap[s.id]} allSessions={sessions} hasFollowupDraft={!!draftsMap[s.id]}/>)}
+        {filtered.map((s,i)=><SessionCard key={s.id||s.name} index={i+1} s={s} onPress={()=>onSelect(s)} isSelected={s.id===selectedId} activities={activitiesMap[s.id] || EMPTY_ARR} stats={activityStatsMap[s.id]} lastReadTs={readMap[s.id]} latestCompletedTime={latestCompletedTimeByRepo[s.sourceContext?.source]} hasFollowupDraft={!!draftsMap[s.id]}/>)}
       </div>
     </div>
   );
