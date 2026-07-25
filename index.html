@@ -1322,8 +1322,8 @@ const Bar = ({pct,status,syncing,secondaryPct=0}) => {
   );
 };
 
-const Btn = ({children,onClick,color=T.brand,disabled=false,outline=false,sm=false,style:s={}}) => (
-  <button onClick={onClick} disabled={disabled} style={{
+const Btn = ({children,onClick,color=T.brand,disabled=false,outline=false,sm=false,style:s={},...props}) => (
+  <button onClick={onClick} disabled={disabled} {...props} style={{
     background:outline?"transparent":(disabled?T.dim:color),
     border:`1px solid ${disabled?T.border:color+(outline?"77":"00")}`,
     borderRadius:6,cursor:disabled?"default":"pointer",
@@ -2887,10 +2887,15 @@ const SetupScreen = ({ onSave }) => {
         />
         {err&&<div style={{padding:"8px 12px",borderRadius:5,marginBottom:10,background:T.redDim,border:`1px solid ${T.red}40`,fontFamily:"'JetBrains Mono',monospace",fontSize:12,color:T.red}}>{err}</div>}
         <div style={{display:"flex", gap:10, marginBottom:16}}>
-          <Btn onClick={doConnect} disabled={!key.trim()||testing} style={{flex:1}}>
-            <Ic n="key" s={12} c="#000"/>
-            {testing?"CONNECTING…":"CONNECT"}
-          </Btn>
+          {(() => {
+            const connectTitle = !key.trim() ? "Please enter your API key first" : (testing ? "Connecting to server..." : "Connect using API key");
+            return (
+              <Btn onClick={doConnect} disabled={!key.trim()||testing} title={connectTitle} aria-label={connectTitle} style={{flex:1}}>
+                <Ic n="key" s={12} c="#000"/>
+                {testing?"CONNECTING…":"CONNECT"}
+              </Btn>
+            );
+          })()}
         </div>
 
         <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:8}}>
@@ -4691,34 +4696,46 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                     <Ic n={expanded ? "chevron_down" : "expand"} s={16} c={T.brand}/>
                   </button>
                   <div style={{width:1, height:16, background:T.border}}/>
-                  <button
-                    onClick={handleSend}
-                    disabled={!msg.trim()||busy}
-                    style={{
-                      background: "transparent", border: "none", cursor: msg.trim()&&!busy?"pointer":"default",
-                      display: "flex", alignItems: "center", justifyContent: "center", padding: 4,
-                      opacity: msg.trim()&&!busy ? 1 : 0.4, transition: "all .2s cubic-bezier(0.4, 0, 0.2, 1)"
-                    }}
-                  >
-                    <Ic n="send" s={20} c={msg.trim()&&!busy?T.brand:T.muted}/>
-                  </button>
+                  {(() => {
+                    const sendTitle = !msg.trim() ? "Please enter a message first" : (busy ? "Jules is currently busy..." : "Send message to Jules");
+                    return (
+                      <button
+                        onClick={handleSend}
+                        disabled={!msg.trim()||busy}
+                        title={sendTitle}
+                        aria-label={sendTitle}
+                        style={{
+                          background: "transparent", border: "none", cursor: msg.trim()&&!busy?"pointer":"default",
+                          display: "flex", alignItems: "center", justifyContent: "center", padding: 4,
+                          opacity: msg.trim()&&!busy ? 1 : 0.4, transition: "all .2s cubic-bezier(0.4, 0, 0.2, 1)"
+                        }}
+                      >
+                        <Ic n="send" s={20} c={msg.trim()&&!busy?T.brand:T.muted}/>
+                      </button>
+                    );
+                  })()}
                 </div>
 
-                {expanded && (
-                  <button
-                    onClick={handleSend}
-                    disabled={!msg.trim()||busy}
-                    style={{
-                      position: "fixed", bottom: 16, left: 24, right: 24, zIndex: 1001, height: 48,
-                      borderRadius: 10, border: "none", background: T.brand, color: "#000",
-                      fontFamily: "'JetBrains Mono',monospace", fontSize: 13, fontWeight: 900,
-                      letterSpacing: "0.05em", cursor: "pointer", display: "flex", alignItems: "center",
-                      justifyContent: "center", gap: 10, boxShadow: `0 8px 24px ${T.brand}40`
-                    }}
-                  >
-                    <Ic n="send" s={18} c="#000"/> SEND MESSAGE
-                  </button>
-                )}
+                {expanded && (() => {
+                  const sendTitle = !msg.trim() ? "Please enter a message first" : (busy ? "Jules is currently busy..." : "Send message to Jules");
+                  return (
+                    <button
+                      onClick={handleSend}
+                      disabled={!msg.trim()||busy}
+                      title={sendTitle}
+                      aria-label={sendTitle}
+                      style={{
+                        position: "fixed", bottom: 16, left: 24, right: 24, zIndex: 1001, height: 48,
+                        borderRadius: 10, border: "none", background: T.brand, color: "#000",
+                        fontFamily: "'JetBrains Mono',monospace", fontSize: 13, fontWeight: 900,
+                        letterSpacing: "0.05em", cursor: "pointer", display: "flex", alignItems: "center",
+                        justifyContent: "center", gap: 10, boxShadow: `0 8px 24px ${T.brand}40`
+                      }}
+                    >
+                      <Ic n="send" s={18} c="#000"/> SEND MESSAGE
+                    </button>
+                  );
+                })()}
               </>
             ) : (
               <button
@@ -5306,7 +5323,7 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
         </Modal>
       )}
       <div style={{padding:"12px 16px",borderBottom:`1px solid ${T.border}33`,background:T.surface,display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
-        {!isDesktop&&<button onClick={onBack} style={{background:"none",border:"none",cursor:"pointer",display:"flex"}}><Ic n="back" s={18} c={T.text}/></button>}
+        {!isDesktop&&<button onClick={onBack} title="Go back" aria-label="Go back" style={{background:"none",border:"none",cursor:"pointer",display:"flex"}}><Ic n="back" s={18} c={T.text}/></button>}
         <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.text,letterSpacing:"0.05em",fontWeight:700,flex:1}}>NEW SESSION</div>
         {/* Draft indicator */}
         {draft&&(prompt||branch!=="main")&&!savedFlash&&(
@@ -5413,15 +5430,42 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
             </div>
           )}
 
-          <div style={{display:"flex", gap:10}}>
-            <Btn onClick={handleSaveToBox} disabled={!prompt.trim()||submitting} outline style={{flex:1}}>
-              <Ic n="archive" s={14} c={T.brand}/>
-              SAVE DRAFT
-            </Btn>
-            <Btn onClick={() => setShowConfirm(true)} disabled={!prompt.trim()||submitting||loadingSrc||(plan&&todayCount.total>=plan.daily)} style={{flex:2}}>
-              {submitting?"SENDING…":"ASSIGN TO JULES →"}
-            </Btn>
-          </div>
+          {(() => {
+            const isOverQuota = plan && todayCount.total >= plan.daily;
+            let startBtnTitle = undefined;
+            if (!prompt.trim()) {
+              startBtnTitle = "Please enter a task prompt first";
+            } else if (submitting) {
+              startBtnTitle = "Assigning task to Jules...";
+            } else if (loadingSrc) {
+              startBtnTitle = "Loading repositories...";
+            } else if (isOverQuota) {
+              startBtnTitle = `Daily quota limit reached (${todayCount.total} of ${plan.daily} started). Reset in ${todayCount.resetIn || "24h"}.`;
+            } else {
+              startBtnTitle = "Assign task to Jules";
+            }
+
+            let draftBtnTitle = undefined;
+            if (!prompt.trim()) {
+              draftBtnTitle = "Please enter a task prompt first";
+            } else if (submitting) {
+              draftBtnTitle = "Submitting task...";
+            } else {
+              draftBtnTitle = "Save current session draft";
+            }
+
+            return (
+              <div style={{display:"flex", gap:10}}>
+                <Btn onClick={handleSaveToBox} disabled={!prompt.trim()||submitting} outline title={draftBtnTitle} aria-label={draftBtnTitle} style={{flex:1}}>
+                  <Ic n="archive" s={14} c={T.brand}/>
+                  SAVE DRAFT
+                </Btn>
+                <Btn onClick={() => setShowConfirm(true)} disabled={!prompt.trim()||submitting||loadingSrc||isOverQuota} title={startBtnTitle} aria-label={startBtnTitle} style={{flex:2}}>
+                  {submitting?"SENDING…":"ASSIGN TO JULES →"}
+                </Btn>
+              </div>
+            );
+          })()}
         </div>
       </div>
     </div>
@@ -5460,13 +5504,13 @@ const DraftsBox = ({ onBack, isDesktop, onResume, onCreate, allSessions, activit
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%",minHeight:0}}>
       <div style={{padding:"12px 16px",borderBottom:`1px solid ${T.border}33`,background:T.surface,display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
-        {!isDesktop&&<button onClick={onBack} style={{background:"none",border:"none",cursor:"pointer",display:"flex"}}><Ic n="back" s={18} c={T.text}/></button>}
+        {!isDesktop&&<button onClick={onBack} title="Go back" aria-label="Go back" style={{background:"none",border:"none",cursor:"pointer",display:"flex"}}><Ic n="back" s={18} c={T.text}/></button>}
         <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.text,letterSpacing:"0.05em",fontWeight:700,flex:1}}>DRAFTS BOX</div>
         {activeTab === "templates" && drafts.length > 0 && (
           <button onClick={handleClearAll} style={{background:"none", border:"none", cursor:"pointer", color:T.red, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700}}>CLEAR ALL</button>
         )}
         {isDesktop && (
-          <button onClick={onBack} title="Close" style={{background:"none",border:"none",cursor:"pointer",display:"flex",padding:4,opacity:0.8}}>
+          <button onClick={onBack} title="Close" aria-label="Close" style={{background:"none",border:"none",cursor:"pointer",display:"flex",padding:4,opacity:0.8}}>
             <Ic n="x" s={18} c={T.text}/>
           </button>
         )}
@@ -6194,10 +6238,10 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
     <div style={{display:"flex",flexDirection:"column",height:"100%",minHeight:0}}>
       <div style={{padding:"12px 16px 0",borderBottom:`1px solid ${T.border}33`,background:T.surface,flexShrink:0}}>
         <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
-          {!isDesktop&&<button onClick={onBack} style={{background:"none",border:"none",cursor:"pointer",display:"flex"}}><Ic n="back" s={18} c={T.text}/></button>}
+          {!isDesktop&&<button onClick={onBack} title="Go back" aria-label="Go back" style={{background:"none",border:"none",cursor:"pointer",display:"flex"}}><Ic n="back" s={18} c={T.text}/></button>}
           <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.text,letterSpacing:"0.05em",fontWeight:700,flex:1}}>APP SETTINGS</div>
           {isDesktop && (
-            <button onClick={onBack} title="Close Settings" style={{background:"none",border:"none",cursor:"pointer",display:"flex",padding:4,opacity:0.8}}>
+            <button onClick={onBack} title="Close Settings" aria-label="Close Settings" style={{background:"none",border:"none",cursor:"pointer",display:"flex",padding:4,opacity:0.8}}>
               <Ic n="x" s={18} c={T.text}/>
             </button>
           )}
@@ -6779,10 +6823,10 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
             {!scrolled && <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:active>0?T.amber:T.muted}}>{active>0?`⚡ ${active} ACTIVE`:"AGENT CLIENT"}</div>}
           </div>
           <div style={{marginLeft:"auto",display:"flex",gap:6,alignItems:"center",flexShrink:0}}>
-            <button onClick={() => setSearchOpen(!searchOpen)} title="Search sessions" style={{width:30,height:30,borderRadius:5,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="search" s={15} c={searchOpen||searchQuery?T.blue:T.muted}/></button>
-            {isDesktop&&<button onClick={onNew} title="New Session" style={{width:30,height:30,borderRadius:5,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="plus" s={15} c={T.brand}/></button>}
-            <button onClick={onDrafts} title="Drafts Box" style={{width:30,height:30,borderRadius:5,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="layers" s={15} c={T.muted}/></button>
-            <button onClick={onSettings} title="Settings" style={{width:30,height:30,borderRadius:5,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="settings" s={15} c={T.muted}/></button>
+            <button onClick={() => setSearchOpen(!searchOpen)} title="Search sessions" aria-label="Search sessions" style={{width:30,height:30,borderRadius:5,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="search" s={15} c={searchOpen||searchQuery?T.blue:T.muted}/></button>
+            {isDesktop&&<button onClick={onNew} title="New Session" aria-label="New Session" style={{width:30,height:30,borderRadius:5,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="plus" s={15} c={T.brand}/></button>}
+            <button onClick={onDrafts} title="Drafts Box" aria-label="Drafts Box" style={{width:30,height:30,borderRadius:5,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="layers" s={15} c={T.muted}/></button>
+            <button onClick={onSettings} title="Settings" aria-label="Settings" style={{width:30,height:30,borderRadius:5,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="settings" s={15} c={T.muted}/></button>
             <div style={{display:"flex", alignItems:"center", gap:4}}>
               {countdown > 0 && !refreshing && (
                 <div style={{
@@ -6834,7 +6878,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
           }}>
             <Ic n="x" s={14} c={T.red}/>
             <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.red, flex:1}}>{error}</span>
-            <button onClick={clearError} style={{background:"none", border:"none", cursor:"pointer", padding:2}}><Ic n="x" s={12} c={T.red}/></button>
+            <button onClick={clearError} title="Clear error" aria-label="Clear error" style={{background:"none", border:"none", cursor:"pointer", padding:2}}><Ic n="x" s={12} c={T.red}/></button>
           </div>
         )}
         {(searchOpen || searchQuery) && (
@@ -6842,7 +6886,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
             <div style={{position:"relative", display:"flex", alignItems:"center"}}>
               <div style={{position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", pointerEvents:"none"}}><Ic n="search" s={14} c={T.blue}/></div>
               <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search by title, prompt or ID..." style={{...inputSt, paddingLeft:34, paddingRight:34, borderColor:T.blue+"40", background:T.surfaceHi}} autoFocus />
-              {searchQuery && <button onClick={() => setSearchQuery("")} style={{position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", padding:4}}><Ic n="x" s={14} c={T.muted}/></button>}
+              {searchQuery && <button onClick={() => setSearchQuery("")} title="Clear search query" aria-label="Clear search query" style={{position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", padding:4}}><Ic n="x" s={14} c={T.muted}/></button>}
             </div>
           </div>
         )}
