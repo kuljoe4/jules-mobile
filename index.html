@@ -1266,6 +1266,8 @@ const PATHS = {
   settings:"M12 15a3 3 0 100-6 3 3 0 000 6zM19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H4a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V4a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H20a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z",
   reply: "M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6",
   clock: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z",
+  eye: "M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8zM12 15a3 3 0 100-6 3 3 0 000 6z",
+  eye_closed: "M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19M1 1l22 22",
 };
 const Ic = ({n,s=16,c=T.muted}) => (
   <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
@@ -2865,6 +2867,7 @@ const SetupScreen = ({ onSave }) => {
   const [key,setKey]       = useState("");
   const [testing,setTesting] = useState(false);
   const [err,setErr]       = useState(null);
+  const [showKey,setShowKey] = useState(false);
 
   const doConnect = async () => {
     if (!key.trim()) return;
@@ -2892,15 +2895,33 @@ const SetupScreen = ({ onSave }) => {
             <a href="https://jules.google.com" target="_blank" rel="noopener noreferrer" style={{color:T.brandLight,fontFamily:"'JetBrains Mono',monospace",fontSize:13,textDecoration:"none",borderBottom:`1px solid ${T.brandDark}40`}}>jules.google.com → Settings → API</a>
           </div>
         </div>
-        <input
-          type="password" value={key}
-          onChange={e=>setKey(e.target.value)}
-          maxLength={200}
-          placeholder="AIza..."
-          style={{...inputSt,fontSize:16,fontFamily:"'JetBrains Mono',monospace",marginBottom:10}}
-          onKeyDown={e=>e.key==="Enter"&&doConnect()}
-          autoFocus
-        />
+        <div style={{position:"relative", marginBottom:10}}>
+          <input
+            id="jules_api_key"
+            type={showKey ? "text" : "password"} value={key}
+            onChange={e=>setKey(e.target.value)}
+            placeholder="AIza..."
+            aria-label="Jules API Key"
+            maxLength={200}
+            style={{...inputSt,fontSize:16,fontFamily:"'JetBrains Mono',monospace",paddingRight:42}}
+            onKeyDown={e=>e.key==="Enter"&&doConnect()}
+            autoFocus
+          />
+          {key && (
+            <button
+              type="button"
+              onClick={() => setShowKey(!showKey)}
+              title={showKey ? "Hide API Key" : "Show API Key"}
+              aria-label={showKey ? "Hide API Key" : "Show API Key"}
+              style={{
+                position:"absolute", right:10, top:"50%", transform:"translateY(-50%)",
+                background:"none", border:"none", cursor:"pointer", padding:4, display:"flex", alignItems:"center"
+              }}
+            >
+              <Ic n={showKey ? "eye_closed" : "eye"} s={16} c={T.muted}/>
+            </button>
+          )}
+        </div>
         {err&&<div style={{padding:"8px 12px",borderRadius:5,marginBottom:10,background:T.redDim,border:`1px solid ${T.red}40`,fontFamily:"'JetBrains Mono',monospace",fontSize:12,color:T.red}}>{err}</div>}
         <div style={{display:"flex", gap:10, marginBottom:16}}>
           {(() => {
