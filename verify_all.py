@@ -11,23 +11,37 @@ async def run():
         page = await context.new_page()
         file_path = "file://" + os.path.abspath("dist/index.html")
         await page.goto(file_path)
+
+        # Inject fake API key and some session data to trigger quota
+        await page.evaluate("""() => {
+            localStorage.setItem('jac_key', 'AIza_fake_key');
+            const now = new Date().toISOString();
+            const reg = {
+                'sess1': now,
+                'sess2': new Date(Date.now() - 1000 * 60 * 30).toISOString(),
+                'sess3': new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
+                'sess4': new Date(Date.now() - 1000 * 60 * 60 * 2.1).toISOString()
+            };
+            localStorage.setItem('jac_session_registry', JSON.stringify(reg));
+        }""")
+
+        await page.reload()
         await page.wait_for_selector("#splash", state="hidden")
 
-        # Click Settings button by title
-        await page.click('button[title="Settings"]')
-        await page.wait_for_selector("text=QUOTA USAGE")
+        # Click Settings button in bottom nav
+        await page.click("text=SETTINGS")
+        await page.wait_for_selector("text=DAILY USAGE")
         await page.screenshot(path="verification/screenshots/final_quota_timeline.png")
         print("Captured final_quota_timeline.png")
 
         # 2. Verify New Session Repo Highlight
-        await page.click('button[title="Close Settings"]') # Close settings if desktop, or just go back
-        # Since it's mobile, we need to click the back button in settings
-        back_btn = page.locator('button:has(svg)').first # The back arrow
-        await back_btn.click()
+        # Click SESSIONS in bottom nav to go back to list
+        await page.click("nav >> text=SESSIONS")
 
-        await page.click('button[title="New Session"]')
+        # On mobile, we click the bottom nav tab NEW
+        await page.click("nav >> text=NEW")
         await page.fill('textarea', 'Test task')
-        await page.click('text=START SESSION')
+        await page.click('text=ASSIGN TO JULES →')
         await page.wait_for_selector('text=CONFIRM SESSION')
 
         # Take screenshot of the pulsed input
