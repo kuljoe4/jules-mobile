@@ -34,7 +34,7 @@ async def run():
         await page.click("text=SETTINGS")
 
         # Wait for Quota Section
-        await page.wait_for_selector("text=QUOTA USAGE")
+        await page.wait_for_selector("text=DAILY USAGE")
 
         # Give it a second to render markers
         await page.wait_for_timeout(1000)
