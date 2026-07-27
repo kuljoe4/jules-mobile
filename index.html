@@ -1442,6 +1442,7 @@ const SearchPicker = ({ value, search, onSearch, onSelect, onHide, options, plac
         onChange={e=>onSearch(e.target.value)}
         onFocus={()=>onSearch(search, true)}
         placeholder={placeholder}
+        maxLength={200}
         style={{...inputSt, paddingRight:36}}
       />
       <div style={{position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", display:"flex", alignItems:"center", pointerEvents:"none"}}>
@@ -2512,6 +2513,7 @@ const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFeedback,
                     onChange={e=>setStepNotes(prev=>({...prev,[st.id]:e.target.value}))}
                     placeholder={`What should change about this step? (e.g. "Use TypeScript instead of JS", "Skip this — not needed")`}
                     rows={2}
+                    maxLength={5000}
                     style={{
                       width:"100%",background:T.surfaceHi,border:`1px solid ${T.amber}40`,
                       borderRadius:5,padding:"8px 10px",color:T.text,
@@ -2545,6 +2547,7 @@ const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFeedback,
             onChange={e=>setGlobalNote(e.target.value)}
             placeholder="Any overall comments before approving? (e.g. 'Make sure to run tests', 'Keep changes minimal')"
             rows={2}
+            maxLength={5000}
             style={{
               width:"100%",background:T.surfaceHi,border:`1px solid ${T.border}`,
               borderRadius:5,padding:"8px 10px",color:T.text,
@@ -4807,6 +4810,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                   onKeyDown={e=>e.key==="Enter"&&!e.shiftKey&&(e.preventDefault(),handleSend())}
                   placeholder="Message Jules or give new instructions…"
                   rows={expanded?15:3}
+                  maxLength={20000}
                   style={{
                     width:"100%", background:T.surfaceHi,
                     border:`1px solid ${msg?T.brand+"66":T.border}`,
@@ -5306,6 +5310,7 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
                   onChange={e=>{setSourceSearch(e.target.value); setShowSources(true); setSourceInteracted(true);}}
                   onFocus={()=>{setShowSources(true); setSourceInteracted(true);}}
                   placeholder="Search repositories..."
+                  maxLength={500}
                   style={{
                     ...inputSt,
                     paddingRight:36, fontSize:13, padding: "8px 10px",
@@ -5377,6 +5382,7 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
                     onChange={e=>{setBranch(e.target.value); setShowBranches(true);}}
                     onFocus={()=>setShowBranches(true)}
                     placeholder={defaultBranch || "main"}
+                    maxLength={250}
                     style={{...inputSt, paddingRight:36, fontSize:13, padding: "8px 10px"}}
                   />
                   <div style={{position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", display:"flex", alignItems:"center", pointerEvents:"none"}}>
@@ -5496,7 +5502,7 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
               </div>
               <textarea value={prompt} onChange={e=>setPrompt(e.target.value)}
                 placeholder="Describe the coding task for Jules to execute…"
-                rows={6} style={{
+                rows={6} maxLength={20000} style={{
                   ...inputSt, resize:"vertical", lineHeight:1.5,
                   paddingBottom: 40,
                   ...(expanded ? {
@@ -7060,7 +7066,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
           <div style={{height:scrolled?0:42, overflow:"hidden", opacity:scrolled?0:1, transition:"all .25s cubic-bezier(0.4, 0, 0.2, 1)", marginBottom:scrolled?0:8, padding:scrolled?0:"4px 2px", pointerEvents:scrolled?"none":"auto"}}>
             <div style={{position:"relative", display:"flex", alignItems:"center"}}>
               <div style={{position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", pointerEvents:"none"}}><Ic n="search" s={14} c={T.blue}/></div>
-              <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search by title, prompt or ID..." style={{...inputSt, paddingLeft:34, paddingRight:34, borderColor:T.blue+"40", background:T.surfaceHi}} autoFocus />
+              <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search by title, prompt or ID..." maxLength={200} style={{...inputSt, paddingLeft:34, paddingRight:34, borderColor:T.blue+"40", background:T.surfaceHi}} autoFocus />
               {searchQuery && <button onClick={() => setSearchQuery("")} title="Clear search query" aria-label="Clear search query" style={{position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", padding:4}}><Ic n="x" s={14} c={T.muted}/></button>}
             </div>
           </div>
