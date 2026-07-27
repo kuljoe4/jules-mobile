@@ -326,6 +326,62 @@ const ACTIVE_STATES = new Set(["QUEUED","PLANNING","AWAITING_PLAN_APPROVAL","AWA
 const MSG_TYPES     = new Set(["userMessaged","agentMessaged"]);
 const EMPTY_ARR     = [];
 
+// ─── Performance Helpers ─────────────────────────────────────────────────────
+// Calculates the approximate byte size of any object recursively/iteratively
+// without slow serialization (JSON.stringify) or heavy binary array conversions.
+const getApproxBytes = (val) => {
+  if (val === null || val === undefined) return 0;
+  const type = typeof val;
+  if (type === "string") return val.length;
+  if (type === "number") return 8;
+  if (type === "boolean") return 4;
+  if (type === "object") {
+    let size = 0;
+    if (Array.isArray(val)) {
+      for (let i = 0; i < val.length; i++) {
+        size += getApproxBytes(val[i]);
+      }
+    } else {
+      for (const k in val) {
+        if (Object.prototype.hasOwnProperty.call(val, k)) {
+          size += k.length + getApproxBytes(val[k]);
+        }
+      }
+    }
+    return size;
+  }
+  return 0;
+};
+
+// Fast deep equality check that avoids costly stringification (JSON.stringify)
+// and handles early exit on primitive or property mismatch.
+const fastDeepEqual = (a, b) => {
+  if (a === b) return true;
+  if (typeof a !== "object" || a === null || typeof b !== "object" || b === null) {
+    return false;
+  }
+  const isArrA = Array.isArray(a);
+  const isArrB = Array.isArray(b);
+  if (isArrA !== isArrB) return false;
+  if (isArrA) {
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+      if (!fastDeepEqual(a[i], b[i])) return false;
+    }
+    return true;
+  }
+  const keysA = Object.keys(a);
+  const keysB = Object.keys(b);
+  if (keysA.length !== keysB.length) return false;
+  for (let i = 0; i < keysA.length; i++) {
+    const key = keysA[i];
+    if (!Object.prototype.hasOwnProperty.call(b, key) || !fastDeepEqual(a[key], b[key])) {
+      return false;
+    }
+  }
+  return true;
+};
+
 // Configurable poll intervals (ms). 0 = manual-only.
 const POLL_OPTIONS = [
   { label:"OFF",  ms:0      },
@@ -2166,7 +2222,7 @@ const MediaModal = ({ media, onClose }) => {
   };
 
   const isVideo = (media.mimeType || "").includes("video") || (media.mimeType || "").includes("webm");
-  const dataSize = media.data ? new TextEncoder().encode(media.data).length * 0.75 : 0; // Approx base64 to bytes
+  const dataSize = media.data ? media.data.length * 0.75 : 0; // Approx base64 to bytes
 
   return (
     <div
@@ -3090,10 +3146,10 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], stat
 
   const activityStats = useMemo(() => {
     if (stats) return stats;
-    const count = activities.length;
-    const rawData = JSON.stringify(activities);
-    const size = new TextEncoder().encode(rawData).length;
-    return { count, size };
+    return {
+      count: activities.length,
+      size: getApproxBytes(activities)
+    };
   }, [activities, stats]);
 
   const [flash, setFlash] = useState(false);
@@ -3430,8 +3486,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
         });
 
         const incoming = d.activities || [];
-        const batchRaw = JSON.stringify(incoming);
-        const batchBytes = new TextEncoder().encode(batchRaw).length;
+        const batchBytes = getApproxBytes(incoming);
 
         currentCount += incoming.length;
         currentBytes += batchBytes;
@@ -3440,8 +3495,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
           const k = getActKey(act);
           const existing = actMapRef.current.get(k);
           // Upsert: update if content changed or is new
-          if (!existing || JSON.stringify(existing) !== JSON.stringify(act)) {
-            const actSize = new TextEncoder().encode(JSON.stringify(act)).length;
+          if (!existing || !fastDeepEqual(existing, act)) {
+            const actSize = getApproxBytes(act);
             newItems++;
             newBytes += actSize;
             actMapRef.current.set(k, act);
@@ -3485,8 +3540,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
 
         // Persist stats
         try {
-          const rawData = JSON.stringify(sorted);
-          const size = new TextEncoder().encode(rawData).length;
+          const size = getApproxBytes(sorted);
           const stats = { count: sorted.length, size };
           const allStats = JSON.parse(localStorage.getItem(ACT_STATS_KEY) || "{}");
           allStats[session.id] = stats;
@@ -3542,8 +3596,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     // If we have cached activities, report their stats immediately
     if (activities.length > 0) {
       try {
-        const rawData = JSON.stringify(activities);
-        const size = new TextEncoder().encode(rawData).length;
+        const size = getApproxBytes(activities);
         onStatsUpdate?.(session.id, { count: activities.length, size });
       } catch {}
     }
@@ -3811,10 +3864,10 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   , [activities]);
 
   const activityStats = useMemo(() => {
-    const count = activities.length;
-    const rawData = JSON.stringify(activities);
-    const size = new TextEncoder().encode(rawData).length;
-    return { count, size };
+    return {
+      count: activities.length,
+      size: getApproxBytes(activities)
+    };
   }, [activities]);
 
   const b = useMemo(() => getBranchInfo(session, activities), [session, activities]);
