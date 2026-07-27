@@ -7954,6 +7954,11 @@ function Shell({ children, desktop=false }) {
         }
         ::selection{background:${T.brandDim};color:${T.brand};}
         textarea::placeholder,input::placeholder{color:${T.muted};}
+        button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible, a:focus-visible, [role="button"]:focus-visible, [tabindex="0"]:focus-visible {
+          outline: 2px solid ${T.brand} !important;
+          outline-offset: 2px !important;
+          box-shadow: 0 0 0 4px ${T.brandDim} !important;
+        }
         @media screen and (min-width: 768px) and (max-width: 1366px) and (orientation: portrait) {
           body { display: flex; align-items: center; justify-content: center; text-align: center; }
           body > #root { display: none; }
