@@ -327,6 +327,11 @@ const MSG_TYPES     = new Set(["userMessaged","agentMessaged"]);
 const EMPTY_ARR     = [];
 
 // ─── Performance Helpers ─────────────────────────────────────────────────────
+// Global WeakMap to cache byte size calculations for reference-stable, non-array objects.
+// This prevents redundant recursive traversal overhead, making repeat size checks O(1).
+// We do not cache arrays to avoid potential stale values if an array reference is mutated.
+const approxBytesCache = new WeakMap();
+
 // Calculates the approximate byte size of any object recursively/iteratively
 // without slow serialization (JSON.stringify) or heavy binary array conversions.
 const getApproxBytes = (val) => {
@@ -336,8 +341,12 @@ const getApproxBytes = (val) => {
   if (type === "number") return 8;
   if (type === "boolean") return 4;
   if (type === "object") {
+    const isArr = Array.isArray(val);
+    if (!isArr && val !== null && approxBytesCache.has(val)) {
+      return approxBytesCache.get(val);
+    }
     let size = 0;
-    if (Array.isArray(val)) {
+    if (isArr) {
       for (let i = 0; i < val.length; i++) {
         size += getApproxBytes(val[i]);
       }
@@ -346,6 +355,9 @@ const getApproxBytes = (val) => {
         if (Object.prototype.hasOwnProperty.call(val, k)) {
           size += k.length + getApproxBytes(val[k]);
         }
+      }
+      if (val !== null) {
+        approxBytesCache.set(val, size);
       }
     }
     return size;
