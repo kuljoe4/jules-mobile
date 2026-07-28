@@ -1490,9 +1490,13 @@ const Btn = ({children,onClick,color=T.brand,disabled=false,outline=false,sm=fal
   }}>{children}</button>
 );
 
-const Field = ({label,children,style:s={}}) => (
+const Field = ({label,htmlFor,children,style:s={}}) => (
   <div style={{marginBottom:24,...s}}>
-    <div style={{marginBottom:10,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.textDim,fontWeight:700,letterSpacing:"0.12em"}}>{label}</div>
+    {htmlFor ? (
+      <label htmlFor={htmlFor} style={{display:"block",marginBottom:10,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.textDim,fontWeight:700,letterSpacing:"0.12em",cursor:"pointer"}}>{label}</label>
+    ) : (
+      <div style={{marginBottom:10,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.textDim,fontWeight:700,letterSpacing:"0.12em"}}>{label}</div>
+    )}
     {children}
   </div>
 );
@@ -3041,34 +3045,45 @@ const SetupScreen = ({ onSave }) => {
             <a href="https://jules.google.com" target="_blank" rel="noopener noreferrer" style={{color:T.brandLight,fontFamily:"'JetBrains Mono',monospace",fontSize:13,textDecoration:"none",borderBottom:`1px solid ${T.brandDark}40`}}>jules.google.com → Settings → API</a>
           </div>
         </div>
-        <div style={{position:"relative", marginBottom:10}}>
-          <input
-            id="jules_api_key"
-            type={showKey ? "text" : "password"} value={key}
-            onChange={e=>setKey(e.target.value)}
-            placeholder="AIza..."
-            aria-label="Jules API Key"
-            maxLength={200}
-            style={{...inputSt,fontSize:16,fontFamily:"'JetBrains Mono',monospace",paddingRight:42}}
-            onKeyDown={e=>e.key==="Enter"&&doConnect()}
-            autoFocus
-          />
-          {key && (
-            <button
-              type="button"
-              onClick={() => setShowKey(!showKey)}
-              title={showKey ? "Hide API Key" : "Show API Key"}
-              aria-label={showKey ? "Hide API Key" : "Show API Key"}
+        <div style={{marginBottom:10}}>
+          <label htmlFor="jules_api_key" style={{display:"block",marginBottom:8,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.textDim,fontWeight:700,letterSpacing:"0.12em",cursor:"pointer"}}>API KEY *</label>
+          <div style={{position:"relative"}}>
+            <input
+              id="jules_api_key"
+              type={showKey ? "text" : "password"} value={key}
+              onChange={e=>setKey(e.target.value)}
+              placeholder="AIza..."
+              aria-label="Jules API Key"
+              maxLength={200}
+              aria-invalid={err ? "true" : "false"}
+              aria-describedby={err ? "setup-error" : undefined}
               style={{
-                position:"absolute", right:10, top:"50%", transform:"translateY(-50%)",
-                background:"none", border:"none", cursor:"pointer", padding:4, display:"flex", alignItems:"center"
+                ...inputSt,
+                fontSize:16,
+                fontFamily:"'JetBrains Mono',monospace",
+                paddingRight:42,
+                borderColor: err ? T.red : T.border
               }}
-            >
-              <Ic n={showKey ? "eye_closed" : "eye"} s={16} c={T.muted}/>
-            </button>
-          )}
+              onKeyDown={e=>e.key==="Enter"&&doConnect()}
+              autoFocus
+            />
+            {key && (
+              <button
+                type="button"
+                onClick={() => setShowKey(!showKey)}
+                title={showKey ? "Hide API Key" : "Show API Key"}
+                aria-label={showKey ? "Hide API Key" : "Show API Key"}
+                style={{
+                  position:"absolute", right:10, top:"50%", transform:"translateY(-50%)",
+                  background:"none", border:"none", cursor:"pointer", padding:4, display:"flex", alignItems:"center"
+                }}
+              >
+                <Ic n={showKey ? "eye_closed" : "eye"} s={16} c={T.muted}/>
+              </button>
+            )}
+          </div>
         </div>
-        {err&&<div style={{padding:"8px 12px",borderRadius:5,marginBottom:10,background:T.redDim,border:`1px solid ${T.red}40`,fontFamily:"'JetBrains Mono',monospace",fontSize:12,color:T.red}}>{err}</div>}
+        {err&&<div id="setup-error" role="alert" style={{padding:"8px 12px",borderRadius:5,marginBottom:10,background:T.redDim,border:`1px solid ${T.red}40`,fontFamily:"'JetBrains Mono',monospace",fontSize:12,color:T.red}}>{err}</div>}
         <div style={{display:"flex", gap:10, marginBottom:16}}>
           {(() => {
             const connectTitle = !key.trim() ? "Please enter your API key first" : (testing ? "Connecting to server..." : "Connect using API key");
@@ -5575,18 +5590,24 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
       </div>
       <div style={{flex:1,overflowY:"auto",padding:"14px 20px",WebkitOverflowScrolling:"touch",minHeight:0}}>
         <div style={{maxWidth:560,margin:"0 auto"}}>
-          {err&&<div style={{padding:"8px 12px",borderRadius:5,marginBottom:12,background:T.redDim,border:`1px solid ${T.red}40`,fontFamily:"'JetBrains Mono',monospace",fontSize:12,color:T.red}}>{err}</div>}
+          {err&&<div id="new-session-error" role="alert" style={{padding:"8px 12px",borderRadius:5,marginBottom:12,background:T.redDim,border:`1px solid ${T.red}40`,fontFamily:"'JetBrains Mono',monospace",fontSize:12,color:T.red}}>{err}</div>}
 
-          <Field label="TASK PROMPT *" style={{marginBottom:12}}>
+          <Field label="TASK PROMPT *" htmlFor="new-session-prompt-textarea" style={{marginBottom:12}}>
             <div style={{ position: "relative" }}>
               <div style={{ position: "absolute", top: -18, right: 0, fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: T.textDim, opacity: 0.8 }}>
                 {fmtChars(prompt.length)}
               </div>
-              <textarea value={prompt} onChange={e=>setPrompt(e.target.value)}
+              <textarea
+                id="new-session-prompt-textarea"
+                value={prompt}
+                onChange={e=>setPrompt(e.target.value)}
                 placeholder="Describe the coding task for Jules to execute…"
+                aria-invalid={err ? "true" : "false"}
+                aria-describedby={err ? "new-session-error" : undefined}
                 rows={6} maxLength={20000} style={{
                   ...inputSt, resize:"vertical", lineHeight:1.5,
                   paddingBottom: 40,
+                  borderColor: err ? T.red : T.border,
                   ...(expanded ? {
                     position:"fixed", top:0, left:0, right:0, bottom:0, zIndex:1000,
                     margin:0, borderRadius:0, height:"100vh", padding:"60px 24px 80px"
@@ -6654,8 +6675,9 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
 
                 {planId==="custom" && (
                   <div style={{display:"flex", alignItems:"center", gap:10, marginBottom:16, background:T.surface, padding:12, borderRadius:8, border:`1px solid ${T.border}`}}>
-                    <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.textDim, fontWeight:700}}>DAILY LIMIT:</span>
+                    <label htmlFor="custom-daily-limit" style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.textDim, fontWeight:700, cursor:"pointer"}}>DAILY LIMIT:</label>
                     <input
+                      id="custom-daily-limit"
                       type="number"
                       value={customDaily}
                       onChange={e=>{setCustomDaily(Math.max(1, parseInt(e.target.value)||1)); triggerSaveFeedback();}}
@@ -6960,8 +6982,8 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
         >
           <div style={{display:"flex", flexDirection:"column", gap:14}}>
             <div>
-              <div style={{fontSize:10, color:T.textDim, fontFamily:"'JetBrains Mono',monospace", fontWeight:700, marginBottom:6}}>PERSONA LABEL</div>
-              <input type="text" value={newName} onChange={e => setNewName(e.target.value)} maxLength={100} placeholder="e.g. UX Expert" style={{width:"100%", background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:8, padding:10, color:T.text, fontSize:13, fontFamily:"'JetBrains Mono',monospace", boxSizing:"border-box"}} />
+              <label htmlFor="new-persona-label" style={{display:"block", fontSize:10, color:T.textDim, fontFamily:"'JetBrains Mono',monospace", fontWeight:700, marginBottom:6, cursor:"pointer"}}>PERSONA LABEL</label>
+              <input id="new-persona-label" type="text" value={newName} onChange={e => setNewName(e.target.value)} maxLength={100} placeholder="e.g. UX Expert" style={{width:"100%", background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:8, padding:10, color:T.text, fontSize:13, fontFamily:"'JetBrains Mono',monospace", boxSizing:"border-box"}} />
             </div>
             <div>
               <div style={{fontSize:10, color:T.textDim, fontFamily:"'JetBrains Mono',monospace", fontWeight:700, marginBottom:6}}>THEME COLOR</div>
@@ -6972,8 +6994,8 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
               </div>
             </div>
             <div>
-              <div style={{fontSize:10, color:T.textDim, fontFamily:"'JetBrains Mono',monospace", fontWeight:700, marginBottom:6}}>SYSTEM PROMPT</div>
-              <textarea value={newPrompt} onChange={e => setNewPrompt(e.target.value)} maxLength={5000} placeholder="Define the role behavior..." style={{width:"100%", height:120, background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:8, padding:10, color:T.text, fontSize:13, fontFamily:"'IBM Plex Sans',sans-serif", resize:"none", boxSizing:"border-box"}} />
+              <label htmlFor="new-persona-prompt" style={{display:"block", fontSize:10, color:T.textDim, fontFamily:"'JetBrains Mono',monospace", fontWeight:700, marginBottom:6, cursor:"pointer"}}>SYSTEM PROMPT</label>
+              <textarea id="new-persona-prompt" value={newPrompt} onChange={e => setNewPrompt(e.target.value)} maxLength={5000} placeholder="Define the role behavior..." style={{width:"100%", height:120, background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:8, padding:10, color:T.text, fontSize:13, fontFamily:"'IBM Plex Sans',sans-serif", resize:"none", boxSizing:"border-box"}} />
             </div>
           </div>
         </Modal>
@@ -7012,8 +7034,8 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
         >
           <div style={{display:"flex", flexDirection:"column", gap:14}}>
             <div>
-              <div style={{fontSize:10, color:T.textDim, fontFamily:"'JetBrains Mono',monospace", fontWeight:700, marginBottom:6}}>PERSONA LABEL</div>
-              <input type="text" value={newName} onChange={e => setNewName(e.target.value)} maxLength={100} disabled={!editingPersona.isCustom} placeholder="e.g. UX Expert" style={{width:"100%", background:editingPersona.isCustom ? T.surfaceHi : `${T.surface}88`, border:`1px solid ${T.border}`, borderRadius:8, padding:10, color:editingPersona.isCustom ? T.text : T.textDim, fontSize:13, fontFamily:"'JetBrains Mono',monospace", boxSizing:"border-box", cursor: editingPersona.isCustom ? "text" : "not-allowed"}} />
+              <label htmlFor="edit-persona-label" style={{display:"block", fontSize:10, color:T.textDim, fontFamily:"'JetBrains Mono',monospace", fontWeight:700, marginBottom:6, cursor: editingPersona.isCustom ? "pointer" : "not-allowed"}}>PERSONA LABEL</label>
+              <input id="edit-persona-label" type="text" value={newName} onChange={e => setNewName(e.target.value)} maxLength={100} disabled={!editingPersona.isCustom} placeholder="e.g. UX Expert" style={{width:"100%", background:editingPersona.isCustom ? T.surfaceHi : `${T.surface}88`, border:`1px solid ${T.border}`, borderRadius:8, padding:10, color:editingPersona.isCustom ? T.text : T.textDim, fontSize:13, fontFamily:"'JetBrains Mono',monospace", boxSizing:"border-box", cursor: editingPersona.isCustom ? "text" : "not-allowed"}} />
             </div>
             {editingPersona.isCustom && (
               <div>
@@ -7026,8 +7048,8 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
               </div>
             )}
             <div>
-              <div style={{fontSize:10, color:T.textDim, fontFamily:"'JetBrains Mono',monospace", fontWeight:700, marginBottom:6}}>SYSTEM PROMPT</div>
-              <textarea value={newPrompt} onChange={e => setNewPrompt(e.target.value)} maxLength={5000} placeholder="Define the role behavior..." style={{width:"100%", height:120, background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:8, padding:10, color:T.text, fontSize:13, fontFamily:"'IBM Plex Sans',sans-serif", resize:"none", boxSizing:"border-box"}} />
+              <label htmlFor="edit-persona-prompt" style={{display:"block", fontSize:10, color:T.textDim, fontFamily:"'JetBrains Mono',monospace", fontWeight:700, marginBottom:6, cursor:"pointer"}}>SYSTEM PROMPT</label>
+              <textarea id="edit-persona-prompt" value={newPrompt} onChange={e => setNewPrompt(e.target.value)} maxLength={5000} placeholder="Define the role behavior..." style={{width:"100%", height:120, background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:8, padding:10, color:T.text, fontSize:13, fontFamily:"'IBM Plex Sans',sans-serif", resize:"none", boxSizing:"border-box"}} />
             </div>
           </div>
         </Modal>
