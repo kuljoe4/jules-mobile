@@ -1037,30 +1037,46 @@ const getPRInfo = (s, activities = []) => {
 };
 
 const CHECK_URL_RE = /https:\/\/github\.com\/[^\/]+\/[^\/]+\/(?:actions\/runs|deployments|actions)\/\d*/;
+// Cache parsed check status per reference-stable activity object to avoid redundant string/regex matching on re-renders
+const CHECK_ACTIVITY_CACHE = new WeakMap();
 
 const getCheckStatus = (activities = []) => {
+  if (!activities) return null;
+
   let status = null;
   for (let i = 0; i < activities.length; i++) {
     const a = activities[i];
-    const pu = a.progressUpdated;
-    if (!pu) continue;
-    const desc = (pu.description || "").toLowerCase();
-    const title = (pu.title || "").toLowerCase();
+    if (!a) continue;
 
-    const isSignal = desc.includes("check") || desc.includes("workflow") || desc.includes("deploy") || desc.includes("action") ||
-                     title.includes("check") || title.includes("workflow") || title.includes("deploy");
+    if (!CHECK_ACTIVITY_CACHE.has(a)) {
+      let actStatus = null;
+      const pu = a.progressUpdated;
+      if (pu) {
+        const desc = (pu.description || "").toLowerCase();
+        const title = (pu.title || "").toLowerCase();
 
-    if (isSignal) {
-      if (desc.includes("passed") || desc.includes("success") || desc.includes("completed") || desc.includes("verified")) {
-        status = { state: "success", label: desc.includes("deploy") ? "DEPLOYED" : "CHECKS PASSED" };
-      } else if (desc.includes("failed") || desc.includes("failure") || desc.includes("error")) {
-        status = { state: "failure", label: desc.includes("deploy") ? "DEPLOY FAILED" : "CHECKS FAILED" };
-      } else if (desc.includes("running") || desc.includes("pending") || desc.includes("started") || desc.includes("progress")) {
-        status = { state: "pending", label: desc.includes("deploy") ? "DEPLOYING" : "CHECKS RUNNING" };
+        const isSignal = desc.includes("check") || desc.includes("workflow") || desc.includes("deploy") || desc.includes("action") ||
+                         title.includes("check") || title.includes("workflow") || title.includes("deploy");
+
+        if (isSignal) {
+          if (desc.includes("passed") || desc.includes("success") || desc.includes("completed") || desc.includes("verified")) {
+            actStatus = { state: "success", label: desc.includes("deploy") ? "DEPLOYED" : "CHECKS PASSED" };
+          } else if (desc.includes("failed") || desc.includes("failure") || desc.includes("error")) {
+            actStatus = { state: "failure", label: desc.includes("deploy") ? "DEPLOY FAILED" : "CHECKS FAILED" };
+          } else if (desc.includes("running") || desc.includes("pending") || desc.includes("started") || desc.includes("progress")) {
+            actStatus = { state: "pending", label: desc.includes("deploy") ? "DEPLOYING" : "CHECKS RUNNING" };
+          }
+
+          const urlMatch = (pu.description || "").match(CHECK_URL_RE);
+          if (urlMatch && actStatus) actStatus.url = urlMatch[0];
+        }
       }
+      CHECK_ACTIVITY_CACHE.set(a, actStatus);
+    }
 
-      const urlMatch = (pu.description || "").match(CHECK_URL_RE);
-      if (urlMatch && status) status.url = urlMatch[0];
+    const actStatus = CHECK_ACTIVITY_CACHE.get(a);
+    if (actStatus) {
+      status = actStatus;
     }
   }
   return status;
@@ -1258,34 +1274,57 @@ const getWorkingSet = (s, activities = []) => {
 
 const HASH_RE = /\b[a-f0-9]{7,40}\b/g;
 const COMMIT_COUNT_RE = /(?:pushed|committed|applied)\s+(\d+)\s+(?:commit|change|fix|update)/i;
+// Cache computed ahead/commit stats per reference-stable activity object to avoid redundant string/regex matching on re-renders
+const AHEAD_ACTIVITY_CACHE = new WeakMap();
 
 const getAheadCount = (activities = []) => {
+  if (!activities) return 0;
+
   let count = 0;
   const pushHashes = new Set();
 
   for (let i = 0; i < activities.length; i++) {
     const a = activities[i];
-    const pu = a.progressUpdated;
-    if (!pu) continue;
-    const rawDesc = pu.description || "";
-    const desc = rawDesc.toLowerCase();
-    const hashes = rawDesc.match(HASH_RE);
-    if (hashes) {
-      for (let j = 0; j < hashes.length; j++) {
-        const h = hashes[j];
-        if (h.length >= 7 && !h.includes("-")) pushHashes.add(h);
+    if (!a) continue;
+
+    if (!AHEAD_ACTIVITY_CACHE.has(a)) {
+      let actCount = 0;
+      const actHashes = [];
+      const pu = a.progressUpdated;
+      if (pu) {
+        const rawDesc = pu.description || "";
+        const desc = rawDesc.toLowerCase();
+        const hashes = rawDesc.match(HASH_RE);
+        if (hashes) {
+          for (let j = 0; j < hashes.length; j++) {
+            const h = hashes[j];
+            if (h.length >= 7 && !h.includes("-")) {
+              actHashes.push(h);
+            }
+          }
+        }
+
+        const m = desc.match(COMMIT_COUNT_RE);
+        if (m) {
+          if (!hashes) actCount = parseInt(m[1], 10);
+        } else if (desc.includes("pushed a commit") || desc.includes("pushed 1 commit") || desc.includes("pushed the changes") || desc.includes("committed changes")) {
+          if (!hashes) actCount = 1;
+        } else if (desc.includes("pushed") && (desc.includes("change") || desc.includes("fix") || desc.includes("update"))) {
+          if (!hashes) actCount = 1;
+        }
       }
+      AHEAD_ACTIVITY_CACHE.set(a, { count: actCount, hashes: actHashes });
     }
 
-    const m = desc.match(COMMIT_COUNT_RE);
-    if (m) {
-      if (!hashes) count += parseInt(m[1], 10);
-    } else if (desc.includes("pushed a commit") || desc.includes("pushed 1 commit") || desc.includes("pushed the changes") || desc.includes("committed changes")) {
-      if (!hashes) count += 1;
-    } else if (desc.includes("pushed") && (desc.includes("change") || desc.includes("fix") || desc.includes("update"))) {
-      if (!hashes) count += 1;
+    const cached = AHEAD_ACTIVITY_CACHE.get(a);
+    if (cached) {
+      count += cached.count;
+      for (let j = 0; j < cached.hashes.length; j++) {
+        pushHashes.add(cached.hashes[j]);
+      }
     }
   }
+
   return Math.max(count, pushHashes.size);
 };
 
