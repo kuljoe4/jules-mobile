@@ -891,334 +891,329 @@ async function apiCall(apiKey, path, opts={}) {
 // ─── Utils ────────────────────────────────────────────────────────────────────
 const fmtBytes = b => b<1?`${(b*1024).toFixed(0)}B`:b<1024?`${b.toFixed(1)}KB`:`${(b/1024).toFixed(2)}MB`;
 const fmtChars = n => n<1000?`${n}c`: `${(n/1000).toFixed(1)}kc`;
-/**
- * SessionMetadataService
- *
- * Extracted module that groups the single responsibility of parsing and
- * extracting Git, Pull Request, and pipeline/checks metadata from Session and Activity objects.
- * This refactors these loosely declared global functions and regexes into a single cohesive,
- * pure-delegating module to prevent global scope clutter and adhere to Single Responsibility Principle.
- */
-const SessionMetadataService = {
-  PR_CACHE: new Map(),
-  PR_INFO_CACHE: new Map(),
-  BRANCH_INFO_CACHE: new Map(),
-  WORKING_SET_CACHE: new Map(),
+const PR_CACHE = new Map();
+const PR_INFO_CACHE = new Map();
+const GH_PR_RE = /https:\/\/github\.com\/[^\/]+\/[^\/]+\/pull\/(\d+)/;
 
-  GH_PR_RE: /https:\/\/github\.com\/[^\/]+\/[^\/]+\/pull\/(\d+)/,
-  CHECK_URL_RE: /https:\/\/github\.com\/[^\/]+\/[^\/]+\/(?:actions\/runs|deployments|actions)\/\d*/,
-  PUSH_RE: /push(?:ing|ed).* to (?:the |a )?([^\s\.\(\)\`]+)/i,
-  BRANCH_RE: /branch (?:named )?([^\s\.\(\)\`]+)/i,
-  CREATE_BRANCH_RE: /created.* branch ([^\s\.\(\)\`]+)/i,
-  TREE_LINK_RE: /https:\/\/github\.com\/[^\/]+\/[^\/]+\/tree\/([a-zA-Z0-9\-_]+)/,
-  BRANCH_LINK_RE: /https:\/\/github\.com\/[^\/]+\/[^\/]+\/branches\/([a-zA-Z0-9\-_]+)/,
-  COMPARE_LINK_RE: /https:\/\/github\.com\/[^\/]+\/[^\/]+\/compare\/[^\.]+\.\.\.([a-zA-Z0-9\-_]+)/,
-  PR_REPO_RE: /https:\/\/github\.com\/([^\/]+\/[^\/]+)\/pull/,
-  FILE_MENTION_RE: /`([^`\s]+\.[a-z0-9]+)`/gi,
-  HASH_RE: /\b[a-f0-9]{7,40}\b/g,
-  COMMIT_COUNT_RE: /(?:pushed|committed|applied)\s+(\d+)\s+(?:commit|change|fix|update)/i,
+const getPR = (s) => {
+  if (!s) return null;
+  const sid = s.id || s.name || "temp";
+  if (PR_CACHE.has(sid)) return PR_CACHE.get(sid);
 
-  getPR(s) {
-    if (!s) return null;
-    const sid = s.id || s.name || "temp";
-    if (this.PR_CACHE.has(sid)) return this.PR_CACHE.get(sid);
-
-    const findInOutputs = (outputs) => {
-      if (!outputs || !Array.isArray(outputs)) return null;
-      for (let i = 0; i < outputs.length; i++) {
-        const o = outputs[i];
-        if (o.githubPullRequest) return o.githubPullRequest;
-        const u = o.pullRequestUrl || o.prUrl;
-        if (u) return { url: u, number: u.split("/").pop() };
-      }
-      return null;
-    };
-
-    let pr = findInOutputs(s.outputs) || s.githubPullRequest || s.pullRequest || s.sourceContext?.githubRepoContext?.pullRequest || s.github_pull_request;
-    if (pr && typeof pr === 'object' && pr.url) {
-      const res = { ...pr, number: pr.number || pr.url.split("/").pop() };
-      if (sid !== "temp") this.PR_CACHE.set(sid, res);
-      return res;
+  const findInOutputs = (outputs) => {
+    if (!outputs || !Array.isArray(outputs)) return null;
+    for (let i = 0; i < outputs.length; i++) {
+      const o = outputs[i];
+      if (o.githubPullRequest) return o.githubPullRequest;
+      const u = o.pullRequestUrl || o.prUrl;
+      if (u) return { url: u, number: u.split("/").pop() };
     }
-
-    let m = null;
-    for (const key in s) {
-      if (typeof s[key] === 'string') {
-        m = s[key].match(this.GH_PR_RE);
-        if (m) break;
-      }
-    }
-
-    if (m) {
-      const res = { url: m[0], number: m[1] };
-      if (sid !== "temp") this.PR_CACHE.set(sid, res);
-      return res;
-    }
-
-    if (sid !== "temp") this.PR_CACHE.set(sid, null);
     return null;
-  },
+  };
 
-  getPRInfo(s, activities = []) {
-    if (!s) return null;
-    const sid = s.id || s.name || "temp";
-    const actLen = activities.length;
-    const cacheKey = `${sid}:${actLen}`;
-    if (sid !== "temp" && this.PR_INFO_CACHE.has(cacheKey)) return this.PR_INFO_CACHE.get(cacheKey);
+  let pr = findInOutputs(s.outputs) || s.githubPullRequest || s.pullRequest || s.sourceContext?.githubRepoContext?.pullRequest || s.github_pull_request;
+  if (pr && typeof pr === 'object' && pr.url) {
+    const res = { ...pr, number: pr.number || pr.url.split("/").pop() };
+    if (sid !== "temp") PR_CACHE.set(sid, res);
+    return res;
+  }
 
-    let pr = this.getPR(s);
-
-    if (!pr && activities && activities.length > 0) {
-      for (let i = activities.length - 1; i >= 0; i--) {
-        const a = activities[i];
-        const actPR = a.sessionCompleted?.outputs?.find(o => o.githubPullRequest)?.githubPullRequest ||
-                      a.progressUpdated?.outputs?.find(o => o.githubPullRequest)?.githubPullRequest;
-        if (actPR && actPR.url) {
-          pr = { ...actPR, number: actPR.number || actPR.url.split("/").pop() };
-          break;
-        }
-
-        const desc = a.progressUpdated?.description || a.userMessaged?.userMessage || a.agentMessaged?.agentMessage || a.description || "";
-        const title = a.progressUpdated?.title || a.title || "";
-        const reason = a.sessionFailed?.reason || "";
-        const match = desc.match(this.GH_PR_RE) || title.match(this.GH_PR_RE) || reason.match(this.GH_PR_RE);
-        if (match) {
-          pr = { url: match[0], number: match[1] };
-          break;
-        }
-      }
+  // Avoid expensive serialization of full session object (can contain huge arrays/metadata)
+  let m = null;
+  for (const key in s) {
+    if (typeof s[key] === 'string') {
+      m = s[key].match(GH_PR_RE);
+      if (m) break;
     }
+  }
 
-    if (!pr) {
-      if (sid !== "temp") {
-        if (this.PR_INFO_CACHE.size > 500) this.PR_INFO_CACHE.clear();
-        this.PR_INFO_CACHE.set(cacheKey, null);
-      }
-      return null;
-    }
+  if (m) {
+    const res = { url: m[0], number: m[1] };
+    if (sid !== "temp") PR_CACHE.set(sid, res);
+    return res;
+  }
 
-    let state = "open";
-    for (let i = 0; i < activities.length; i++) {
+  if (sid !== "temp") PR_CACHE.set(sid, null);
+  return null;
+};
+
+const getPRInfo = (s, activities = []) => {
+  if (!s) return null;
+  const sid = s.id || s.name || "temp";
+  const actLen = activities.length;
+  const cacheKey = `${sid}:${actLen}`;
+  if (sid !== "temp" && PR_INFO_CACHE.has(cacheKey)) return PR_INFO_CACHE.get(cacheKey);
+
+  let pr = getPR(s);
+
+  // If not found in session object, scan activities (crucial for recent sessions)
+  if (!pr && activities && activities.length > 0) {
+    for (let i = activities.length - 1; i >= 0; i--) {
       const a = activities[i];
-      const desc = (a.progressUpdated?.description || "").toLowerCase();
-      const title = (a.progressUpdated?.title || "").toLowerCase();
-      if (desc.includes("merged pull request") || title.includes("merged pull request") || a.sessionCompleted) {
-        state = "merged";
+      const actPR = a.sessionCompleted?.outputs?.find(o => o.githubPullRequest)?.githubPullRequest ||
+                    a.progressUpdated?.outputs?.find(o => o.githubPullRequest)?.githubPullRequest;
+      if (actPR && actPR.url) {
+        pr = { ...actPR, number: actPR.number || actPR.url.split("/").pop() };
         break;
       }
-      if (desc.includes("closed pull request") || title.includes("closed pull request")) {
-        state = "closed";
+
+      // EXTREMELY CRITICAL: Avoid JSON.stringify(a) inside loops because activity objects frequently
+      // contain giant base64 image/video screen recordings in `a.artifacts`. Stringifying them
+      // causes massive memory churn and freezes the JS thread! We check only text fields instead.
+      const desc = a.progressUpdated?.description || a.userMessaged?.userMessage || a.agentMessaged?.agentMessage || a.description || "";
+      const title = a.progressUpdated?.title || a.title || "";
+      const reason = a.sessionFailed?.reason || "";
+      const match = desc.match(GH_PR_RE) || title.match(GH_PR_RE) || reason.match(GH_PR_RE);
+      if (match) {
+        pr = { url: match[0], number: match[1] };
+        break;
       }
     }
+  }
 
-    const result = { ...pr, state };
+  if (!pr) {
     if (sid !== "temp") {
-      if (this.PR_INFO_CACHE.size > 500) this.PR_INFO_CACHE.clear();
-      this.PR_INFO_CACHE.set(cacheKey, result);
+      if (PR_INFO_CACHE.size > 500) PR_INFO_CACHE.clear();
+      PR_INFO_CACHE.set(cacheKey, null);
     }
-    return result;
-  },
+    return null;
+  }
 
-  getCheckStatus(activities = []) {
-    let status = null;
-    for (let i = 0; i < activities.length; i++) {
-      const a = activities[i];
-      const pu = a.progressUpdated;
-      if (!pu) continue;
-      const desc = (pu.description || "").toLowerCase();
-      const title = (pu.title || "").toLowerCase();
+  let state = "open";
+  // Deep scan activities for merge or close events
+  for (let i = 0; i < activities.length; i++) {
+    const a = activities[i];
+    const desc = (a.progressUpdated?.description || "").toLowerCase();
+    const title = (a.progressUpdated?.title || "").toLowerCase();
+    if (desc.includes("merged pull request") || title.includes("merged pull request") || a.sessionCompleted) {
+      state = "merged";
+      break;
+    }
+    if (desc.includes("closed pull request") || title.includes("closed pull request")) {
+      state = "closed";
+    }
+  }
 
-      const isSignal = desc.includes("check") || desc.includes("workflow") || desc.includes("deploy") || desc.includes("action") ||
-                       title.includes("check") || title.includes("workflow") || title.includes("deploy");
+  const result = { ...pr, state };
+  if (sid !== "temp") {
+    if (PR_INFO_CACHE.size > 500) PR_INFO_CACHE.clear();
+    PR_INFO_CACHE.set(cacheKey, result);
+  }
+  return result;
+};
 
-      if (isSignal) {
-        if (desc.includes("passed") || desc.includes("success") || desc.includes("completed") || desc.includes("verified")) {
-          status = { state: "success", label: desc.includes("deploy") ? "DEPLOYED" : "CHECKS PASSED" };
-        } else if (desc.includes("failed") || desc.includes("failure") || desc.includes("error")) {
-          status = { state: "failure", label: desc.includes("deploy") ? "DEPLOY FAILED" : "CHECKS FAILED" };
-        } else if (desc.includes("running") || desc.includes("pending") || desc.includes("started") || desc.includes("progress")) {
-          status = { state: "pending", label: desc.includes("deploy") ? "DEPLOYING" : "CHECKS RUNNING" };
-        }
+const CHECK_URL_RE = /https:\/\/github\.com\/[^\/]+\/[^\/]+\/(?:actions\/runs|deployments|actions)\/\d*/;
 
-        const urlMatch = (pu.description || "").match(this.CHECK_URL_RE);
-        if (urlMatch && status) status.url = urlMatch[0];
+const getCheckStatus = (activities = []) => {
+  let status = null;
+  for (let i = 0; i < activities.length; i++) {
+    const a = activities[i];
+    const pu = a.progressUpdated;
+    if (!pu) continue;
+    const desc = (pu.description || "").toLowerCase();
+    const title = (pu.title || "").toLowerCase();
+
+    const isSignal = desc.includes("check") || desc.includes("workflow") || desc.includes("deploy") || desc.includes("action") ||
+                     title.includes("check") || title.includes("workflow") || title.includes("deploy");
+
+    if (isSignal) {
+      if (desc.includes("passed") || desc.includes("success") || desc.includes("completed") || desc.includes("verified")) {
+        status = { state: "success", label: desc.includes("deploy") ? "DEPLOYED" : "CHECKS PASSED" };
+      } else if (desc.includes("failed") || desc.includes("failure") || desc.includes("error")) {
+        status = { state: "failure", label: desc.includes("deploy") ? "DEPLOY FAILED" : "CHECKS FAILED" };
+      } else if (desc.includes("running") || desc.includes("pending") || desc.includes("started") || desc.includes("progress")) {
+        status = { state: "pending", label: desc.includes("deploy") ? "DEPLOYING" : "CHECKS RUNNING" };
       }
+
+      const urlMatch = (pu.description || "").match(CHECK_URL_RE);
+      if (urlMatch && status) status.url = urlMatch[0];
     }
-    return status;
-  },
+  }
+  return status;
+};
 
-  getBranchInfo(s, activities = []) {
-    if (!s) return null;
-    const sid = s.id || s.name || "temp";
-    const actLen = activities.length;
-    const cacheKey = sid + ":" + actLen;
-    if (sid !== "temp" && this.BRANCH_INFO_CACHE.has(cacheKey)) return this.BRANCH_INFO_CACHE.get(cacheKey);
+const BRANCH_INFO_CACHE = new Map();
+const PUSH_RE = /push(?:ing|ed).* to (?:the |a )?([^\s\.\(\)\`]+)/i;
+const BRANCH_RE = /branch (?:named )?([^\s\.\(\)\`]+)/i;
+const CREATE_BRANCH_RE = /created.* branch ([^\s\.\(\)\`]+)/i;
+const TREE_LINK_RE = /https:\/\/github\.com\/[^\/]+\/[^\/]+\/tree\/([a-zA-Z0-9\-_]+)/;
+const BRANCH_LINK_RE = /https:\/\/github\.com\/[^\/]+\/[^\/]+\/branches\/([a-zA-Z0-9\-_]+)/;
+const COMPARE_LINK_RE = /https:\/\/github\.com\/[^\/]+\/[^\/]+\/compare\/[^\.]+\.\.\.([a-zA-Z0-9\-_]+)/;
+const PR_REPO_RE = /https:\/\/github\.com\/([^\/]+\/[^\/]+)\/pull/;
 
-    const context = s.sourceContext?.githubRepoContext;
-    const base = context?.startingBranch || "main";
+const getBranchInfo = (s, activities = []) => {
+  if (!s) return null;
+  const sid = s.id || s.name || "temp";
+  const actLen = activities.length;
+  const cacheKey = sid + ":" + actLen;
+  if (sid !== "temp" && BRANCH_INFO_CACHE.has(cacheKey)) return BRANCH_INFO_CACHE.get(cacheKey);
 
-    let working = null;
-    for (let i = 0; i < activities.length; i++) {
-      const a = activities[i];
-      const desc = a.progressUpdated?.description || "";
-      const m = desc.match(this.PUSH_RE) || desc.match(this.BRANCH_RE) || desc.match(this.CREATE_BRANCH_RE);
-      if (m) {
-        const bname = m[1].replace(/['"`\.]/g, "");
-        if (bname !== "main" && bname !== "master") working = bname;
+  const context = s.sourceContext?.githubRepoContext;
+  const base = context?.startingBranch || "main";
+
+  let working = null;
+  for (let i = 0; i < activities.length; i++) {
+    const a = activities[i];
+    const desc = a.progressUpdated?.description || "";
+    const m = desc.match(PUSH_RE) || desc.match(BRANCH_RE) || desc.match(CREATE_BRANCH_RE);
+    if (m) {
+      const bname = m[1].replace(/['"`\.]/g, "");
+      if (bname !== "main" && bname !== "master") working = bname;
+    }
+  }
+
+  if (!working) {
+    // Avoid expensive full-object/array stringifications. Trailing links can only exist in text properties.
+    let linkMatch = null;
+    const sTexts = [s.title || "", s.prompt || ""];
+    for (const t of sTexts) {
+      linkMatch = t.match(TREE_LINK_RE);
+      if (linkMatch) { working = linkMatch[1]; break; }
+    }
+
+    if (!working) {
+      for (let i = 0; i < activities.length; i++) {
+        const a = activities[i];
+        const desc = a.progressUpdated?.description || a.userMessaged?.userMessage || a.agentMessaged?.agentMessage || a.description || "";
+        const title = a.progressUpdated?.title || a.title || "";
+        linkMatch = desc.match(TREE_LINK_RE) || title.match(TREE_LINK_RE);
+        if (linkMatch) { working = linkMatch[1]; break; }
       }
     }
 
     if (!working) {
-      let linkMatch = null;
-      const sTexts = [s.title || "", s.prompt || ""];
       for (const t of sTexts) {
-        linkMatch = t.match(this.TREE_LINK_RE);
+        linkMatch = t.match(BRANCH_LINK_RE) || t.match(COMPARE_LINK_RE);
         if (linkMatch) { working = linkMatch[1]; break; }
       }
-
       if (!working) {
         for (let i = 0; i < activities.length; i++) {
           const a = activities[i];
           const desc = a.progressUpdated?.description || a.userMessaged?.userMessage || a.agentMessaged?.agentMessage || a.description || "";
           const title = a.progressUpdated?.title || a.title || "";
-          linkMatch = desc.match(this.TREE_LINK_RE) || title.match(this.TREE_LINK_RE);
+          linkMatch = desc.match(BRANCH_LINK_RE) || desc.match(COMPARE_LINK_RE) || title.match(BRANCH_LINK_RE) || title.match(COMPARE_LINK_RE);
           if (linkMatch) { working = linkMatch[1]; break; }
         }
       }
-
-      if (!working) {
-        for (const t of sTexts) {
-          linkMatch = t.match(this.BRANCH_LINK_RE) || t.match(this.COMPARE_LINK_RE);
-          if (linkMatch) { working = linkMatch[1]; break; }
-        }
-        if (!working) {
-          for (let i = 0; i < activities.length; i++) {
-            const a = activities[i];
-            const desc = a.progressUpdated?.description || a.userMessaged?.userMessage || a.agentMessaged?.agentMessage || a.description || "";
-            const title = a.progressUpdated?.title || a.title || "";
-            linkMatch = desc.match(this.BRANCH_LINK_RE) || desc.match(this.COMPARE_LINK_RE) || title.match(this.BRANCH_LINK_RE) || title.match(this.COMPARE_LINK_RE);
-            if (linkMatch) { working = linkMatch[1]; break; }
-          }
-        }
-      }
     }
+  }
 
-    let repo = s.sourceContext?.source?.replace("sources/github/","");
-    if (!repo || repo.startsWith("sources/")) {
-      const pr = this.getPR(s);
-      if (pr && pr.url) {
-        const m = pr.url.match(this.PR_REPO_RE);
-        if (m) repo = m[1];
-      }
+  let repo = s.sourceContext?.source?.replace("sources/github/","");
+  if (!repo || repo.startsWith("sources/")) {
+    const pr = getPR(s);
+    if (pr && pr.url) {
+      const m = pr.url.match(PR_REPO_RE);
+      if (m) repo = m[1];
     }
+  }
 
-    const repoUrl = repo && !repo.startsWith("sources/") ? `https://github.com/${repo}` : null;
-    const res = { base, working: working || base, repo: repoUrl ? repo : null, repoUrl, isNew: working && working !== base };
-    if (sid !== "temp") {
-      if (this.BRANCH_INFO_CACHE.size > 500) this.BRANCH_INFO_CACHE.clear();
-      this.BRANCH_INFO_CACHE.set(cacheKey, res);
-    }
-    return res;
-  },
+  const repoUrl = repo && !repo.startsWith("sources/") ? `https://github.com/${repo}` : null;
+  const res = { base, working: working || base, repo: repoUrl ? repo : null, repoUrl, isNew: working && working !== base };
+  if (sid !== "temp") {
+    if (BRANCH_INFO_CACHE.size > 500) BRANCH_INFO_CACHE.clear();
+    BRANCH_INFO_CACHE.set(cacheKey, res);
+  }
+  return res;
+};
 
-  getWorkingSet(s, activities = []) {
-    if (!s) return [];
-    const sid = s.id || s.name || "temp";
-    const actLen = activities.length;
-    const promptLen = s.prompt?.length || 0;
-    const cacheKey = `${sid}:${actLen}:${promptLen}`;
+const WORKING_SET_CACHE = new Map();
+const FILE_MENTION_RE = /`([^`\s]+\.[a-z0-9]+)`/gi;
 
-    if (this.WORKING_SET_CACHE.has(cacheKey)) return this.WORKING_SET_CACHE.get(cacheKey);
+const getWorkingSet = (s, activities = []) => {
+  if (!s) return [];
+  const sid = s.id || s.name || "temp";
+  const actLen = activities.length;
+  const promptLen = s.prompt?.length || 0;
+  const cacheKey = `${sid}:${actLen}:${promptLen}`;
 
-    const files = new Set();
+  if (WORKING_SET_CACHE.has(cacheKey)) return WORKING_SET_CACHE.get(cacheKey);
 
-    for (let i = 0; i < activities.length; i++) {
-      const a = activities[i];
-      if (a.artifacts) {
-        for (let j = 0; j < a.artifacts.length; j++) {
-          const art = a.artifacts[j];
-          const patch = art.changeSet?.gitPatch?.unidiffPatch;
-          if (patch) {
-            const lines = patch.split("\n");
-            for (let k = 0; k < lines.length; k++) {
-              const line = lines[k];
-              if (line.startsWith("+++ ")) {
-                const file = line.slice(4).replace(/^b\//, "");
-                if (file && file !== "/dev/null") files.add(file);
-              }
+  const files = new Set();
+
+  // 1. Scan activities for patches
+  for (let i = 0; i < activities.length; i++) {
+    const a = activities[i];
+    if (a.artifacts) {
+      for (let j = 0; j < a.artifacts.length; j++) {
+        const art = a.artifacts[j];
+        const patch = art.changeSet?.gitPatch?.unidiffPatch;
+        if (patch) {
+          const lines = patch.split("\n");
+          for (let k = 0; k < lines.length; k++) {
+            const line = lines[k];
+            if (line.startsWith("+++ ")) {
+              const file = line.slice(4).replace(/^b\//, "");
+              if (file && file !== "/dev/null") files.add(file);
             }
           }
         }
       }
+    }
 
-      if (a.planGenerated?.plan?.steps) {
-        const steps = a.planGenerated.plan.steps;
-        for (let j = 0; j < steps.length; j++) {
-          const st = steps[j];
-          const text = st.title + " " + (st.description || "");
-          let match;
-          this.FILE_MENTION_RE.lastIndex = 0;
-          while ((match = this.FILE_MENTION_RE.exec(text)) !== null) {
-            const f = match[1];
-            if (f.includes("/") || f.includes(".")) files.add(f);
-          }
+    // 2. Scan planGenerated for file mentions
+    if (a.planGenerated?.plan?.steps) {
+      const steps = a.planGenerated.plan.steps;
+      for (let j = 0; j < steps.length; j++) {
+        const st = steps[j];
+        const text = st.title + " " + (st.description || "");
+        let match;
+        FILE_MENTION_RE.lastIndex = 0;
+        while ((match = FILE_MENTION_RE.exec(text)) !== null) {
+          const f = match[1];
+          if (f.includes("/") || f.includes(".")) files.add(f);
         }
       }
     }
-
-    if (files.size === 0 && s.prompt) {
-      let match;
-      this.FILE_MENTION_RE.lastIndex = 0;
-      while ((match = this.FILE_MENTION_RE.exec(s.prompt)) !== null) {
-        const f = match[1];
-        if (f.includes("/") || f.includes(".")) files.add(f);
-      }
-    }
-
-    const result = Array.from(files);
-    if (this.WORKING_SET_CACHE.size > 500) this.WORKING_SET_CACHE.clear();
-    this.WORKING_SET_CACHE.set(cacheKey, result);
-    return result;
-  },
-
-  getAheadCount(activities = []) {
-    let count = 0;
-    const pushHashes = new Set();
-
-    for (let i = 0; i < activities.length; i++) {
-      const a = activities[i];
-      const pu = a.progressUpdated;
-      if (!pu) continue;
-      const rawDesc = pu.description || "";
-      const desc = rawDesc.toLowerCase();
-      const hashes = rawDesc.match(this.HASH_RE);
-      if (hashes) {
-        for (let j = 0; j < hashes.length; j++) {
-          const h = hashes[j];
-          if (h.length >= 7 && !h.includes("-")) pushHashes.add(h);
-        }
-      }
-
-      const m = desc.match(this.COMMIT_COUNT_RE);
-      if (m) {
-        if (!hashes) count += parseInt(m[1], 10);
-      } else if (desc.includes("pushed a commit") || desc.includes("pushed 1 commit") || desc.includes("pushed the changes") || desc.includes("committed changes")) {
-        if (!hashes) count += 1;
-      } else if (desc.includes("pushed") && (desc.includes("change") || desc.includes("fix") || desc.includes("update"))) {
-        if (!hashes) count += 1;
-      }
-    }
-    return Math.max(count, pushHashes.size);
   }
+
+  // 3. Fallback: Scan prompt for file mentions if it's a new session
+  if (files.size === 0 && s.prompt) {
+    let match;
+    FILE_MENTION_RE.lastIndex = 0;
+    while ((match = FILE_MENTION_RE.exec(s.prompt)) !== null) {
+      const f = match[1];
+      if (f.includes("/") || f.includes(".")) files.add(f);
+    }
+  }
+
+  const result = Array.from(files);
+  if (WORKING_SET_CACHE.size > 500) WORKING_SET_CACHE.clear();
+  WORKING_SET_CACHE.set(cacheKey, result);
+  return result;
 };
 
-// Delegating global functions to preserve exactly the original public API / signatures
-const getPR = (s) => SessionMetadataService.getPR(s);
-const getPRInfo = (s, activities) => SessionMetadataService.getPRInfo(s, activities);
-const getCheckStatus = (activities) => SessionMetadataService.getCheckStatus(activities);
-const getBranchInfo = (s, activities) => SessionMetadataService.getBranchInfo(s, activities);
-const getWorkingSet = (s, activities) => SessionMetadataService.getWorkingSet(s, activities);
-const getAheadCount = (activities) => SessionMetadataService.getAheadCount(activities);
+const HASH_RE = /\b[a-f0-9]{7,40}\b/g;
+const COMMIT_COUNT_RE = /(?:pushed|committed|applied)\s+(\d+)\s+(?:commit|change|fix|update)/i;
+
+const getAheadCount = (activities = []) => {
+  let count = 0;
+  const pushHashes = new Set();
+
+  for (let i = 0; i < activities.length; i++) {
+    const a = activities[i];
+    const pu = a.progressUpdated;
+    if (!pu) continue;
+    const rawDesc = pu.description || "";
+    const desc = rawDesc.toLowerCase();
+    const hashes = rawDesc.match(HASH_RE);
+    if (hashes) {
+      for (let j = 0; j < hashes.length; j++) {
+        const h = hashes[j];
+        if (h.length >= 7 && !h.includes("-")) pushHashes.add(h);
+      }
+    }
+
+    const m = desc.match(COMMIT_COUNT_RE);
+    if (m) {
+      if (!hashes) count += parseInt(m[1], 10);
+    } else if (desc.includes("pushed a commit") || desc.includes("pushed 1 commit") || desc.includes("pushed the changes") || desc.includes("committed changes")) {
+      if (!hashes) count += 1;
+    } else if (desc.includes("pushed") && (desc.includes("change") || desc.includes("fix") || desc.includes("update"))) {
+      if (!hashes) count += 1;
+    }
+  }
+  return Math.max(count, pushHashes.size);
+};
 
 const fmtDuration = ms => {
   const d = Math.abs(ms);
@@ -3276,6 +3271,50 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], stat
   );
 }, areEqual);
 
+/**
+ * useSessionPolling
+ *
+ * Extracted custom hook that encapsulates the polling, countdown timer, and refresh logic
+ * for the SessionDetail view. It manages the effective interval state transitions, coordinates
+ * the useAutoPoll lifecycle, and handles the manual handleRefresh action without polluting
+ * the main component's state or render loops.
+ */
+const useSessionPolling = (
+  session,
+  pollInterval,
+  loadSession,
+  loadActivities,
+  lastTsRef,
+  isFinished,
+  busy,
+  setBusy,
+  setErr,
+  setJustUpdated
+) => {
+  const effectiveInterval = (isFinished && !busy) ? 0 : pollInterval;
+
+  const countdown = useAutoPoll(
+    effectiveInterval,
+    useCallback(() => Promise.all([loadSession(), loadActivities(lastTsRef.current)]), [loadSession, loadActivities, lastTsRef])
+  );
+
+  const handleRefresh = useCallback(async () => {
+    setBusy(true);
+    setErr(null);
+    try {
+      await Promise.all([loadSession(), loadActivities(null)]);
+      setJustUpdated(true);
+      setTimeout(() => setJustUpdated(false), 2000);
+    } catch (err) {
+      setErr(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }, [loadSession, loadActivities, setBusy, setErr, setJustUpdated]);
+
+  return { countdown, handleRefresh };
+};
+
 // ─── Session Detail ───────────────────────────────────────────────────────────
 const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete, onSessionUpdate, onStatsUpdate, isDesktop, pollInterval, setPollInterval, isArchived, onArchive, onUnarchive, onIgnore, cacheLimit, activityLimit, allSessions = [], activitiesMap = {}, onDraftChange }) => {
   const [session,setSession]     = useState(initSession);
@@ -3854,16 +3893,6 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     } catch (err) { setErr(err.message); setBusy(false); }
   };
 
-  const handleRefresh = async () => {
-    setBusy(true); setErr(null);
-    try {
-      await Promise.all([loadSession(), loadActivities(null)]);
-      setJustUpdated(true);
-      setTimeout(() => setJustUpdated(false), 2000);
-    } catch (err) { setErr(err.message); }
-    finally { setBusy(false); }
-  };
-
   const mediaArtifacts = useMemo(() =>
     activities.flatMap(a => (a.artifacts||[]).filter(x=>x.media?.data).map(x=>({...x.media,ts:a.createTime})))
   , [activities]);
@@ -3900,8 +3929,18 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   const pct     = pctFromState(currentState);
   const canSend = true; // Always allow follow-up messages
 
-  const effectiveInterval = (isFinished && !busy) ? 0 : pollInterval;
-  const countdown = useAutoPoll(effectiveInterval, useCallback(() => Promise.all([loadSession(), loadActivities(lastTsRef.current)]), [loadSession, loadActivities]));
+  const { countdown, handleRefresh } = useSessionPolling(
+    session,
+    pollInterval,
+    loadSession,
+    loadActivities,
+    lastTsRef,
+    isFinished,
+    busy,
+    setBusy,
+    setErr,
+    setJustUpdated
+  );
 
   const latestPlan = useMemo(() => {
     for (let i = activities.length - 1; i >= 0; i--) {
