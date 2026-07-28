@@ -13,7 +13,7 @@ async def run():
 
         # Inject sessions created ~24h ago to trigger resets NOW
         await page.evaluate("""() => {
-            localStorage.setItem('jac_key', 'AIza_fake');
+            localStorage.setItem('jac_key', 'AIzaSyFakeKeyFormVerificationTesting123');
             const now = Date.now();
             const reg = {};
             // Inject sessions around 24h ago
