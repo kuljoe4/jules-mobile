@@ -49,7 +49,7 @@ async def run():
         await page.goto("http://127.0.0.1:8085/")
         await page.evaluate("""() => {
             localStorage.clear();
-            localStorage.setItem('jac_key', 'AIza_fake');
+            localStorage.setItem('jac_key', 'AIzaSyFakeKeyFormVerificationTesting123');
             const now = new Date().toISOString();
 
             // Seed session list registry and cache
