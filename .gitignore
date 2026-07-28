@@ -4,3 +4,4 @@ dist/
 .temp-*.js*
 .temp-*.jsx
 *.log
+verification-archive/
