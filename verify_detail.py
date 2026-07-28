@@ -10,7 +10,7 @@ async def run():
 
         file_path = "file://" + os.path.abspath("dist/index.html")
         await page.goto(file_path)
-        await page.evaluate("localStorage.setItem('jac_key', 'AIza_fake')")
+        await page.evaluate("localStorage.setItem('jac_key', 'AIzaSyFakeKeyFormVerificationTesting123')")
         await page.reload()
         await page.wait_for_selector("#splash", state="hidden")
 

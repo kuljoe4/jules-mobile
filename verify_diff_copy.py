@@ -124,7 +124,7 @@ async def run():
         await page.goto(file_path)
 
         # Set fake api key to bypass setupscreen
-        await page.evaluate("localStorage.setItem('jac_key', 'AIza_fake_api_key_for_testing')")
+        await page.evaluate("localStorage.setItem('jac_key', 'AIzaSyFakeKeyFormVerificationTesting123')")
         await page.reload()
 
         # Wait for splash screen to disappear

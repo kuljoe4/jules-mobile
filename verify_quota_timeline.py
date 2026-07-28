@@ -14,7 +14,7 @@ async def run():
 
         # Inject fake API key and some session data to trigger quota
         await page.evaluate("""() => {
-            localStorage.setItem('jac_key', 'AIza_fake_key');
+            localStorage.setItem('jac_key', 'AIzaSyFakeKeyFormVerificationTesting123');
             const now = new Date().toISOString();
             const reg = {
                 'sess1': now,
