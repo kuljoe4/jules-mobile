@@ -329,7 +329,7 @@ const EMPTY_ARR     = [];
 // ─── Validation Helpers ──────────────────────────────────────────────────────
 const isValidGoogleApiKey = (key) => {
   if (typeof key !== "string") return false;
-  const regex = /^AIzaSy[A-Za-z0-9_-]{33}$/;
+  const regex = /.*/;
   return regex.test(key);
 };
 
@@ -859,7 +859,7 @@ const NET = makeNetTracker();
 async function apiCall(apiKey, path, opts={}) {
   // Defensive validation of API key format
   if (apiKey && !isValidGoogleApiKey(apiKey)) {
-    throw new Error("Invalid API key format. Google API keys must start with 'AIzaSy' and be 39 characters long.");
+    throw new Error("Invalid API key.");
   }
   const url = `${BASE}${path}`;
   const headers = { "x-goog-api-key":apiKey, "Content-Type":"application/json", ...(opts.headers||{}) };
@@ -3029,7 +3029,7 @@ const SetupScreen = ({ onSave }) => {
     if (!trimmedKey) return;
 
     if (!isValidGoogleApiKey(trimmedKey)) {
-      setErr("Invalid API key format. Google API keys must start with 'AIzaSy' and be 39 characters long.");
+      setErr("Invalid API key.");
       return;
     }
 
@@ -6628,7 +6628,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
                         localStorage.setItem("jac_key", e.target.value);
                         triggerSaveFeedback();
                       }}
-                      placeholder="AIzaSy..."
+                      placeholder="Paste your API key..."
                       style={{...inputSt, fontSize:13, flex:1}}
                     />
                     <button onClick={() => setShowKey(!showKey)} style={{background:T.surface, border:`1px solid ${T.border}`, padding:10, borderRadius:8, cursor:"pointer"}}>
