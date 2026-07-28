@@ -6613,6 +6613,30 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
             <div style={{animation:"fadeIn .2s ease", display:"flex", flexDirection:"column", gap:24}}>
               <div style={{background:T.surfaceHi, padding:20, borderRadius:12, border:`1px solid ${T.border}`}}>
                 <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:16}}>
+                  <Ic n="key" s={16} c={T.brand}/>
+                  <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:12, fontWeight:700, color:T.text}}>API KEY</span>
+                </div>
+                <div style={{marginBottom:10}}>
+                  <label htmlFor="jules_api_key_settings" style={{fontSize:11, color:T.textDim, marginBottom:8, fontFamily:"'JetBrains Mono',monospace", fontWeight:700, display: "block"}}>GOOGLE API KEY</label>
+                  <input
+                    id="jules_api_key_settings"
+                    type="password"
+                    value={localStorage.getItem("jac_key") || ""}
+                    onChange={(e) => {
+                      localStorage.setItem("jac_key", e.target.value);
+                      triggerSaveFeedback();
+                    }}
+                    placeholder="AIzaSy..."
+                    style={{...inputSt, fontSize:13}}
+                  />
+                  <div style={{marginTop:6, fontSize:10, color:T.textDim, fontFamily:"'IBM Plex Sans',sans-serif"}}>
+                    Your key is stored locally in your browser.
+                  </div>
+                </div>
+              </div>
+
+              <div style={{background:T.surfaceHi, padding:20, borderRadius:12, border:`1px solid ${T.border}`}}>
+                <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:16}}>
                   <Ic n="refresh" s={16} c={T.brand}/>
                   <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:12, fontWeight:700, color:T.text}}>POLLING & REFRESH</span>
                 </div>
