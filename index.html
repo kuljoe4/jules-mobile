@@ -7365,6 +7365,115 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
   );
 };
 
+// ─── Quota Tracker hook ────────────────────────────────────────────────────────
+/**
+ * useQuotaTracker
+ *
+ * Custom hook that encapsulates the daily quota tracking, session registry management,
+ * rolling 24-hour window computations, and upcoming/recent quota resets calculations.
+ *
+ * Exposes:
+ *  - todayCount: { total, done, resetIn, nextResetTs, upcomingResets, recentResets }
+ *  - registerSessions(sessionsList)
+ *  - registerSession(sessionObj)
+ */
+const useQuotaTracker = (sessions, plan) => {
+  const [sessionRegistry, setSessionRegistry] = useState(() => {
+    try {
+      const reg = JSON.parse(localStorage.getItem("jac_session_registry") || "{}");
+      // Prune old entries on load (older than 48h)
+      const now = Date.now();
+      const cutoff = now - 48 * 3600000;
+      const pruned = {};
+      Object.entries(reg).forEach(([id, time]) => {
+        if (new Date(time).getTime() > cutoff) pruned[id] = time;
+      });
+      return pruned;
+    } catch { return {}; }
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem("jac_session_registry", JSON.stringify(sessionRegistry)); }
+    catch {}
+  }, [sessionRegistry]);
+
+  const registerSessions = useCallback((incoming) => {
+    if (incoming.length > 0) {
+      setSessionRegistry(prev => {
+        const next = { ...prev };
+        let changed = false;
+        incoming.forEach(s => {
+          if (!next[s.id]) {
+            next[s.id] = s.createTime;
+            changed = true;
+          }
+        });
+        return changed ? next : prev;
+      });
+    }
+  }, []);
+
+  const registerSession = useCallback((s) => {
+    setSessionRegistry(prev => ({ ...prev, [s.id]: s.createTime }));
+  }, []);
+
+  const todayCount = useMemo(() => {
+    // Rolling 24h Window Logic using SessionRegistry for accuracy
+    const now = Date.now();
+    const windowStart = now - 24 * 3600000;
+
+    const allKnown = Object.entries(sessionRegistry).map(([id, time]) => ({
+      id, ts: new Date(time).getTime()
+    })).filter(s => s.ts >= windowStart);
+
+    allKnown.sort((a, b) => a.ts - b.ts);
+
+    let resetIn = "24h 0m";
+    let nextResetTs = null;
+    const upcomingResets = [];
+    const recentResets = [];
+
+    if (allKnown.length > 0) {
+      nextResetTs = allKnown[0].ts + 24 * 3600000;
+      const msLeft = nextResetTs - now;
+      const h = Math.floor(msLeft / 3600000);
+      const m = Math.floor((msLeft % 3600000) / 60000);
+      resetIn = `${h}h ${m}m`;
+
+      allKnown.slice(0, 4).forEach(s => {
+        const rTs = s.ts + 24 * 3600000;
+        const diff = rTs - now;
+        upcomingResets.push({
+          ts: rTs,
+          in: `${Math.floor(diff / 3600000)}h ${Math.floor((diff % 3600000) / 60000)}m`
+        });
+      });
+    }
+
+    // ── Find the last 2 resets that happened ───────────────────────────
+    const windowEnd = now - 24 * 3600000;
+    const recentlyDone = Object.entries(sessionRegistry)
+      .map(([id, time]) => ({ id, ts: new Date(time).getTime() }))
+      .filter(s => s.ts < windowEnd)
+      .sort((a, b) => b.ts - a.ts); // sort descending (newest reset first)
+
+    recentlyDone.slice(0, 2).forEach(s => {
+      const resetTs = s.ts + 24 * 3600000;
+      recentResets.push({ ts: resetTs, ago: fmtAgo(resetTs) });
+    });
+
+    const windowIds = new Set(allKnown.map(s => s.id));
+    const prCreated = sessions.filter(s => windowIds.has(s.id) && !!getPR(s)).length;
+
+    // Sort upcoming by ts
+    upcomingResets.sort((a, b) => a.ts - b.ts);
+
+    return { total: allKnown.length, done: prCreated, resetIn, nextResetTs, upcomingResets, recentResets };
+  }, [sessions, sessionRegistry, plan?.daily]);
+
+  return { todayCount, registerSession, registerSessions };
+};
+
 // ─── Main App ─────────────────────────────────────────────────────────────────
 function JulesClient() {
   const [apiKey,setApiKey]     = useState(() => { try { return localStorage.getItem("jac_key")||""; } catch (e) { return ""; } });
@@ -7433,77 +7542,8 @@ function JulesClient() {
   const [cacheLimit, setCacheLimitRaw] = useState(loadCacheLimit);
   const [notifications, setNotificationsRaw] = useState(loadNotify);
 
-  const [sessionRegistry, setSessionRegistry] = useState(() => {
-    try {
-      const reg = JSON.parse(localStorage.getItem("jac_session_registry") || "{}");
-      // Prune old entries on load (older than 48h)
-      const now = Date.now();
-      const cutoff = now - 48 * 3600000;
-      let changed = false;
-      const pruned = {};
-      Object.entries(reg).forEach(([id, time]) => {
-        if (new Date(time).getTime() > cutoff) pruned[id] = time;
-        else changed = true;
-      });
-      return pruned;
-    } catch { return {}; }
-  });
-
   const [planId,setPlanIdRaw]      = useState(loadPlan);
   const [customDaily,setCustomDailyRaw] = useState(loadCustomDaily);
-  const todayCount = useMemo(() => {
-    // Rolling 24h Window Logic using SessionRegistry for accuracy
-    const now = Date.now();
-    const windowStart = now - 24 * 3600000;
-
-    const allKnown = Object.entries(sessionRegistry).map(([id, time]) => ({
-      id, ts: new Date(time).getTime()
-    })).filter(s => s.ts >= windowStart);
-
-    allKnown.sort((a, b) => a.ts - b.ts);
-
-    let resetIn = "24h 0m";
-    let nextResetTs = null;
-    const upcomingResets = [];
-    const recentResets = [];
-
-    if (allKnown.length > 0) {
-      nextResetTs = allKnown[0].ts + 24 * 3600000;
-      const msLeft = nextResetTs - now;
-      const h = Math.floor(msLeft / 3600000);
-      const m = Math.floor((msLeft % 3600000) / 60000);
-      resetIn = `${h}h ${m}m`;
-
-      allKnown.slice(0, 4).forEach(s => {
-        const rTs = s.ts + 24 * 3600000;
-        const diff = rTs - now;
-        upcomingResets.push({
-          ts: rTs,
-          in: `${Math.floor(diff / 3600000)}h ${Math.floor((diff % 3600000) / 60000)}m`
-        });
-      });
-    }
-
-    // ── Find the last 2 resets that happened ───────────────────────────
-    const windowEnd = now - 24 * 3600000;
-    const recentlyDone = Object.entries(sessionRegistry)
-      .map(([id, time]) => ({ id, ts: new Date(time).getTime() }))
-      .filter(s => s.ts < windowEnd)
-      .sort((a, b) => b.ts - a.ts); // sort descending (newest reset first)
-
-    recentlyDone.slice(0, 2).forEach(s => {
-      const resetTs = s.ts + 24 * 3600000;
-      recentResets.push({ ts: resetTs, ago: fmtAgo(resetTs) });
-    });
-
-    const windowIds = new Set(allKnown.map(s => s.id));
-    const prCreated = sessions.filter(s => windowIds.has(s.id) && !!getPR(s)).length;
-
-    // Sort upcoming by ts
-    upcomingResets.sort((a, b) => a.ts - b.ts);
-
-    return { total: allKnown.length, done: prCreated, resetIn, nextResetTs, upcomingResets, recentResets };
-  }, [sessions, sessionRegistry]);
   const lastFetchTime = useRef(null);
 
   const [archivedIds, setArchivedIds] = useState(() => {
@@ -7532,6 +7572,8 @@ function JulesClient() {
     if (p.id === "custom") return { ...p, daily: customDaily };
     return p;
   }, [planId, customDaily]);
+
+  const { todayCount, registerSession, registerSessions } = useQuotaTracker(sessions, plan);
 
   useEffect(() => NET.subscribe(s=>setNetSnap(s)), []);
 
@@ -7574,11 +7616,6 @@ function JulesClient() {
     try { localStorage.setItem("jac_read_map", JSON.stringify(readMap)); }
     catch {}
   }, [readMap]);
-
-  useEffect(() => {
-    try { localStorage.setItem("jac_session_registry", JSON.stringify(sessionRegistry)); }
-    catch {}
-  }, [sessionRegistry]);
 
   const handleArchive = useCallback(id => {
     setArchivedIds(prev => {
@@ -7695,19 +7732,7 @@ function JulesClient() {
 
       setGlobalErr(null); // Clear error on success
 
-      if (incoming.length > 0) {
-        setSessionRegistry(prev => {
-          const next = { ...prev };
-          let changed = false;
-          incoming.forEach(s => {
-            if (!next[s.id]) {
-              next[s.id] = s.createTime;
-              changed = true;
-            }
-          });
-          return changed ? next : prev;
-        });
-      }
+      registerSessions(incoming);
 
       setSessions(prev => {
         let merged = [];
@@ -7823,12 +7848,12 @@ function JulesClient() {
   }, [isDesktop]);
 
   const handleCreate = useCallback(s => {
-    setSessionRegistry(prev => ({ ...prev, [s.id]: s.createTime }));
+    registerSession(s);
     lastStates.current.set(s.id, s.state);
     setSessions(prev => [s, ...prev]);
     setSelected(s);
     if (isDesktop) setDesktop("detail"); else setMobile("list");
-  }, [isDesktop]);
+  }, [isDesktop, registerSession]);
 
   const saveKey = k => {
     try { localStorage.setItem("jac_key", k); } catch {}
