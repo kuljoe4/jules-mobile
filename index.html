@@ -1153,6 +1153,49 @@ const getBranchInfo = (s, activities = []) => {
 const WORKING_SET_CACHE = new Map();
 const FILE_MENTION_RE = /`([^`\s]+\.[a-z0-9]+)`/gi;
 
+/**
+ * Parses a git unidiff patch text into a structured list of file groups, each containing
+ * filename, hunks (header, lines), additions (adds), removals (rems), and rawLines.
+ *
+ * This pure utility is extracted out of DiffViewer to prevent "God Mode" and mixed concerns,
+ * keeping low-level string parsing separate from high-level visual rendering and UI state.
+ */
+const parseUnidiffPatch = (patch, ts = null) => {
+  if (!patch) return [];
+  const allGroups = [];
+  const lines = patch.split("\n");
+  let currentGroup = null;
+
+  lines.forEach((line) => {
+    if (line.startsWith("--- ") || line.startsWith("diff --git")) return;
+    if (line.startsWith("+++ ")) {
+      const file = line.slice(4).replace(/^b\//, "");
+      currentGroup = {
+        file,
+        hunks: [],
+        adds: 0,
+        rems: 0,
+        ts,
+        rawLines: [`--- a/${file}`, `+++ b/${file}`]
+      };
+      allGroups.push(currentGroup);
+      return;
+    }
+    if (!currentGroup) return;
+
+    currentGroup.rawLines.push(line);
+
+    if (line.startsWith("@@")) {
+      currentGroup.hunks.push({ header: line, lines: [] });
+    } else if (currentGroup.hunks.length > 0) {
+      currentGroup.hunks[currentGroup.hunks.length - 1].lines.push(line);
+      if (line.startsWith("+")) currentGroup.adds++;
+      else if (line.startsWith("-")) currentGroup.rems++;
+    }
+  });
+  return allGroups;
+};
+
 const getWorkingSet = (s, activities = []) => {
   if (!s) return [];
   const sid = s.id || s.name || "temp";
@@ -1172,13 +1215,10 @@ const getWorkingSet = (s, activities = []) => {
         const art = a.artifacts[j];
         const patch = art.changeSet?.gitPatch?.unidiffPatch;
         if (patch) {
-          const lines = patch.split("\n");
-          for (let k = 0; k < lines.length; k++) {
-            const line = lines[k];
-            if (line.startsWith("+++ ")) {
-              const file = line.slice(4).replace(/^b\//, "");
-              if (file && file !== "/dev/null") files.add(file);
-            }
+          const parsedGroups = parseUnidiffPatch(patch);
+          for (let k = 0; k < parsedGroups.length; k++) {
+            const file = parsedGroups[k].file;
+            if (file && file !== "/dev/null") files.add(file);
           }
         }
       }
@@ -2715,32 +2755,7 @@ const DiffViewer = ({ activities = [], isDesktop = false }) => {
 
   const groups = useMemo(() => {
     if (!latestPatch) return [];
-    const { patch, ts } = latestPatch;
-    const allGroups = [];
-    const lines = patch.split("\n");
-    let currentGroup = null;
-
-    lines.forEach((line) => {
-      if (line.startsWith("--- ") || line.startsWith("diff --git")) return;
-      if (line.startsWith("+++ ")) {
-        const file = line.slice(4).replace(/^b\//, "");
-        currentGroup = { file, hunks: [], adds: 0, rems: 0, ts, rawLines: [`--- a/${file}`, `+++ b/${file}`] };
-        allGroups.push(currentGroup);
-        return;
-      }
-      if (!currentGroup) return;
-
-      currentGroup.rawLines.push(line);
-
-      if (line.startsWith("@@")) {
-        currentGroup.hunks.push({ header: line, lines: [] });
-      } else if (currentGroup.hunks.length > 0) {
-        currentGroup.hunks[currentGroup.hunks.length - 1].lines.push(line);
-        if (line.startsWith("+")) currentGroup.adds++;
-        else if (line.startsWith("-")) currentGroup.rems++;
-      }
-    });
-    return allGroups;
+    return parseUnidiffPatch(latestPatch.patch, latestPatch.ts);
   }, [latestPatch]);
 
   const safeCollapsed = useMemo(() => {
