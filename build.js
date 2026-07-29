@@ -83,6 +83,9 @@ async function build() {
     );
 
     // 8. Final polish: Remove whitespace and comments from the HTML (optional but good)
+    // Remove unsafe-eval from CSP since Babel is removed in production
+    optimizedHtml = optimizedHtml.replace(/'unsafe-eval'\s*/g, '');
+
     // For now, let's just make sure we didn't leave any "text/babel" hints
 
     const distDir = path.join(__dirname, 'dist');
