@@ -5051,11 +5051,11 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                   border: expanded ? `1px solid ${T.border}` : "none",
                 }}>
                   {msg.trim() && (
-                    <button onClick={()=>setMsg("")} title="Clear" style={{background:"transparent", border:"none", padding:4, cursor:"pointer", display:"flex", alignItems:"center"}}>
+                    <button onClick={()=>setMsg("")} title="Clear" aria-label="Clear" style={{background:"transparent", border:"none", padding:4, cursor:"pointer", display:"flex", alignItems:"center"}}>
                       <Ic n="x" s={16} c={T.red}/>
                     </button>
                   )}
-                  <button onClick={()=>setExpanded(!expanded)} title={expanded ? "Minimize" : "Expand"} style={{background:"transparent", border:"none", padding:4, cursor:"pointer", display:"flex", alignItems:"center"}}>
+                  <button onClick={()=>setExpanded(!expanded)} title={expanded ? "Minimize" : "Expand"} aria-label={expanded ? "Minimize" : "Expand"} style={{background:"transparent", border:"none", padding:4, cursor:"pointer", display:"flex", alignItems:"center"}}>
                     <Ic n={expanded ? "chevron_down" : "expand"} s={16} c={T.brand}/>
                   </button>
                   <div style={{width:1, height:16, background:T.border}}/>
@@ -5171,6 +5171,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
           onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.1)"; e.currentTarget.style.borderColor = T.brand; }}
           onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.borderColor = T.borderHi; }}
           title={scrollDirMode === "top" ? "Scroll to top" : "Scroll to bottom"}
+          aria-label={scrollDirMode === "top" ? "Scroll to top" : "Scroll to bottom"}
         >
           <Ic n={scrollDirMode === "top" ? "chevron_up" : "chevron_down"} s={24} c={T.brand}/>
         </button>
@@ -5692,7 +5693,7 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
         <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.text,letterSpacing:"0.05em",fontWeight:700,flex:1}}>NEW SESSION</div>
         {/* Draft indicator */}
         {draft&&(prompt||branch!=="main")&&!savedFlash&&(
-          <button onClick={handleClearDraft} title="Clear saved draft" style={{
+          <button onClick={handleClearDraft} title="Clear saved draft" aria-label="Clear saved draft" style={{
             display:"flex",alignItems:"center",gap:5,padding:"3px 9px",borderRadius:20,
             background:T.amberDim,border:`1px solid ${T.amber}40`,cursor:"pointer",
             fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.amber,letterSpacing:"0.07em",
@@ -5738,11 +5739,11 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
                 backdropFilter: expanded ? "none" : "blur(4px)",
               }}>
                 {prompt.trim() && (
-                   <button onClick={()=>setPrompt("")} title="Clear Prompt" style={{background:"transparent", border:"none", padding:4, cursor:"pointer", display:"flex", alignItems:"center"}}>
+                   <button onClick={()=>setPrompt("")} title="Clear Prompt" aria-label="Clear Prompt" style={{background:"transparent", border:"none", padding:4, cursor:"pointer", display:"flex", alignItems:"center"}}>
                      <Ic n="x" s={14} c={T.red}/>
                    </button>
                 )}
-                <button onClick={()=>setExpanded(!expanded)} title={expanded?"Minimize":"Expand"} style={{background:"transparent", border:"none", padding:4, cursor:"pointer", display:"flex", alignItems:"center"}}>
+                <button onClick={()=>setExpanded(!expanded)} title={expanded?"Minimize":"Expand"} aria-label={expanded?"Minimize":"Expand"} style={{background:"transparent", border:"none", padding:4, cursor:"pointer", display:"flex", alignItems:"center"}}>
                   <Ic n={expanded?"chevron_down":"expand"} s={14} c={T.brand}/>
                 </button>
               </div>
@@ -5953,7 +5954,7 @@ const DraftsBox = ({ onBack, isDesktop, onResume, onCreate, allSessions, activit
                           )}
                         </div>
                       </div>
-                      <button onClick={() => handleDelete(d.id)} style={{background:"none", border:"none", cursor:"pointer", padding:4, opacity:0.6}} title="Delete Draft">
+                      <button onClick={() => handleDelete(d.id)} style={{background:"none", border:"none", cursor:"pointer", padding:4, opacity:0.6}} title="Delete Draft" aria-label="Delete Draft">
                         <Ic n="trash" s={14} c={T.red}/>
                       </button>
                     </div>
@@ -6028,7 +6029,7 @@ const DraftsBox = ({ onBack, isDesktop, onResume, onCreate, allSessions, activit
                             )}
                           </div>
                         </div>
-                        <button onClick={() => handleDeleteFollowup(s.id)} style={{background:"none", border:"none", cursor:"pointer", padding:4, opacity:0.6}} title="Delete Draft">
+                        <button onClick={() => handleDeleteFollowup(s.id)} style={{background:"none", border:"none", cursor:"pointer", padding:4, opacity:0.6}} title="Delete Draft" aria-label="Delete Draft">
                           <Ic n="trash" s={14} c={T.red}/>
                         </button>
                       </div>
@@ -6582,13 +6583,13 @@ const QuotaTimeline = ({ todayCount, plan }) => {
 
         {/* Zoom Control */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, background: T.surfaceHi, padding: "4px 8px", borderRadius: 20, border: `1px solid ${T.border}` }}>
-          <button onClick={() => setZoomHours(h => Math.min(24, h + 2))} title="Zoom out" style={{ background: "none", border: "none", color: T.muted, cursor: "pointer", display: "flex" }}>
+          <button onClick={() => setZoomHours(h => Math.min(24, h + 2))} title="Zoom out" aria-label="Zoom out" style={{ background: "none", border: "none", color: T.muted, cursor: "pointer", display: "flex" }}>
              <Ic n="plus" s={10} c={T.muted} style={{ transform: "rotate(45deg)" }} />
           </button>
           <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: T.brand, fontWeight: 800, minWidth: 24, textAlign: "center" }}>
             {Math.round(zoomHours)}H
           </span>
-          <button onClick={() => setZoomHours(h => Math.max(1, h - 2))} title="Zoom in" style={{ background: "none", border: "none", color: T.muted, cursor: "pointer", display: "flex" }}>
+          <button onClick={() => setZoomHours(h => Math.max(1, h - 2))} title="Zoom in" aria-label="Zoom in" style={{ background: "none", border: "none", color: T.muted, cursor: "pointer", display: "flex" }}>
              <Ic n="plus" s={10} c={T.muted} />
           </button>
         </div>
