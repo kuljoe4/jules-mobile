@@ -5526,6 +5526,13 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
                   onFocus={()=>{setShowSources(true); setSourceInteracted(true);}}
                   placeholder="Search repositories..."
                   maxLength={500}
+                  onKeyDown={e => {
+                    if (e.key === "Escape") {
+                      setShowSources(false);
+                      if (srcObj) setSourceSearch(getSourceDisplay(srcObj));
+                      else if (source === "") setSourceSearch("No repo (repoless)");
+                    }
+                  }}
                   style={{
                     ...inputSt,
                     paddingRight:36, fontSize:13, padding: "8px 10px",
@@ -5598,6 +5605,12 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
                     onFocus={()=>setShowBranches(true)}
                     placeholder={defaultBranch || "main"}
                     maxLength={250}
+                    onKeyDown={e => {
+                      if (e.key === "Escape") {
+                        setShowBranches(false);
+                        setBranch(branch);
+                      }
+                    }}
                     style={{...inputSt, paddingRight:36, fontSize:13, padding: "8px 10px"}}
                   />
                   <div style={{position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", display:"flex", alignItems:"center", pointerEvents:"none"}}>
@@ -7215,6 +7228,42 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
   const [filter,setFilter] = useState("ALL");
   const [scrolled, handleScroll] = useScrollThreshold();
   const [searchOpen, setSearchOpen] = useState(false);
+  const searchInputRef = useRef(null);
+
+  const toggleSearch = () => {
+    if (searchOpen || searchQuery) {
+      setSearchOpen(false);
+      setSearchQuery("");
+    } else {
+      setSearchOpen(true);
+    }
+  };
+
+  useEffect(() => {
+    const handleGlobalKeyDown = (e) => {
+      const active = document.activeElement;
+      if (active && (
+        active.tagName === "INPUT" ||
+        active.tagName === "TEXTAREA" ||
+        active.tagName === "SELECT" ||
+        active.isContentEditable
+      )) {
+        return;
+      }
+      if (e.key === "/") {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+  }, []);
+
+  useEffect(() => {
+    if (searchOpen && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [searchOpen]);
   const baseFiltered = useMemo(() => {
     let list = sessions.filter(s => archivedIds.has(s.id) === showArchived && !ignoredIds.has(s.id));
     if (searchQuery.trim()) {
@@ -7256,7 +7305,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
             {!scrolled && <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:active>0?T.amber:T.muted}}>{active>0?`⚡ ${active} ACTIVE`:"AGENT CLIENT"}</div>}
           </div>
           <div style={{marginLeft:"auto",display:"flex",gap:6,alignItems:"center",flexShrink:0}}>
-            <button onClick={() => setSearchOpen(!searchOpen)} title="Search sessions" aria-label="Search sessions" style={{width:30,height:30,borderRadius:5,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="search" s={15} c={searchOpen||searchQuery?T.blue:T.muted}/></button>
+            <button onClick={toggleSearch} title="Search sessions (Press /)" aria-label="Search sessions (Press forward slash to search)" style={{width:30,height:30,borderRadius:5,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="search" s={15} c={searchOpen||searchQuery?T.blue:T.muted}/></button>
             {isDesktop&&<button onClick={onNew} title="New Session" aria-label="New Session" style={{width:30,height:30,borderRadius:5,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="plus" s={15} c={T.brand}/></button>}
             <button onClick={onDrafts} title="Drafts Box" aria-label="Drafts Box" style={{width:30,height:30,borderRadius:5,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="layers" s={15} c={T.muted}/></button>
             <button onClick={onSettings} title="Settings" aria-label="Settings" style={{width:30,height:30,borderRadius:5,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="settings" s={15} c={T.muted}/></button>
@@ -7318,7 +7367,24 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
           <div style={{height:scrolled?0:42, overflow:"hidden", opacity:scrolled?0:1, transition:"all .25s cubic-bezier(0.4, 0, 0.2, 1)", marginBottom:scrolled?0:8, padding:scrolled?0:"4px 2px", pointerEvents:scrolled?"none":"auto"}}>
             <div style={{position:"relative", display:"flex", alignItems:"center"}}>
               <div style={{position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", pointerEvents:"none"}}><Ic n="search" s={14} c={T.blue}/></div>
-              <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search by title, prompt or ID..." maxLength={200} style={{...inputSt, paddingLeft:34, paddingRight:34, borderColor:T.blue+"40", background:T.surfaceHi}} autoFocus />
+              <input
+                ref={searchInputRef}
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Search by title, prompt or ID... (Press Esc to close)"
+                maxLength={200}
+                style={{...inputSt, paddingLeft:34, paddingRight:34, borderColor:T.blue+"40", background:T.surfaceHi}}
+                autoFocus
+                onKeyDown={e => {
+                  if (e.key === "Escape") {
+                    if (searchQuery) {
+                      setSearchQuery("");
+                    } else {
+                      setSearchOpen(false);
+                    }
+                  }
+                }}
+              />
               {searchQuery && <button onClick={() => setSearchQuery("")} title="Clear search query" aria-label="Clear search query" style={{position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", padding:4}}><Ic n="x" s={14} c={T.muted}/></button>}
             </div>
           </div>
