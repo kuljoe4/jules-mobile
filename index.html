@@ -1083,6 +1083,9 @@ const getCheckStatus = (activities = []) => {
 };
 
 const BRANCH_INFO_CACHE = new Map();
+// Cache computed branch extraction per reference-stable activity object to prevent redundant regex executions
+const BRANCH_ACTIVITY_CACHE = new WeakMap();
+
 const PUSH_RE = /push(?:ing|ed).* to (?:the |a )?([^\s\.\(\)\`]+)/i;
 const BRANCH_RE = /branch (?:named )?([^\s\.\(\)\`]+)/i;
 const CREATE_BRANCH_RE = /created.* branch ([^\s\.\(\)\`]+)/i;
@@ -1102,13 +1105,49 @@ const getBranchInfo = (s, activities = []) => {
   const base = context?.startingBranch || "main";
 
   let working = null;
+
+  // Pre-fill cache for all activities to guarantee O(1) matching within nested search loops
   for (let i = 0; i < activities.length; i++) {
     const a = activities[i];
-    const desc = a.progressUpdated?.description || "";
-    const m = desc.match(PUSH_RE) || desc.match(BRANCH_RE) || desc.match(CREATE_BRANCH_RE);
-    if (m) {
-      const bname = m[1].replace(/['"`\.]/g, "");
-      if (bname !== "main" && bname !== "master") working = bname;
+    if (!a) continue;
+
+    if (!BRANCH_ACTIVITY_CACHE.has(a)) {
+      let pushBranch = null;
+      const desc1 = a.progressUpdated?.description || "";
+      const m1 = desc1.match(PUSH_RE) || desc1.match(BRANCH_RE) || desc1.match(CREATE_BRANCH_RE);
+      if (m1) {
+        const bname = m1[1].replace(/['"`\.]/g, "");
+        if (bname !== "main" && bname !== "master") {
+          pushBranch = bname;
+        }
+      }
+
+      const desc2 = a.progressUpdated?.description || a.userMessaged?.userMessage || a.agentMessaged?.agentMessage || a.description || "";
+      const title2 = a.progressUpdated?.title || a.title || "";
+
+      let treeBranch = null;
+      const m2 = desc2.match(TREE_LINK_RE) || title2.match(TREE_LINK_RE);
+      if (m2) {
+        treeBranch = m2[1];
+      }
+
+      let compareBranch = null;
+      const m3 = desc2.match(BRANCH_LINK_RE) || desc2.match(COMPARE_LINK_RE) || title2.match(BRANCH_LINK_RE) || title2.match(COMPARE_LINK_RE);
+      if (m3) {
+        compareBranch = m3[1];
+      }
+
+      BRANCH_ACTIVITY_CACHE.set(a, { pushBranch, treeBranch, compareBranch });
+    }
+  }
+
+  // 1. Scan for push / branch creation events (takes the last one, matching original loop logic)
+  for (let i = 0; i < activities.length; i++) {
+    const a = activities[i];
+    if (!a) continue;
+    const cached = BRANCH_ACTIVITY_CACHE.get(a);
+    if (cached && cached.pushBranch) {
+      working = cached.pushBranch;
     }
   }
 
@@ -1124,10 +1163,12 @@ const getBranchInfo = (s, activities = []) => {
     if (!working) {
       for (let i = 0; i < activities.length; i++) {
         const a = activities[i];
-        const desc = a.progressUpdated?.description || a.userMessaged?.userMessage || a.agentMessaged?.agentMessage || a.description || "";
-        const title = a.progressUpdated?.title || a.title || "";
-        linkMatch = desc.match(TREE_LINK_RE) || title.match(TREE_LINK_RE);
-        if (linkMatch) { working = linkMatch[1]; break; }
+        if (!a) continue;
+        const cached = BRANCH_ACTIVITY_CACHE.get(a);
+        if (cached && cached.treeBranch) {
+          working = cached.treeBranch;
+          break;
+        }
       }
     }
 
@@ -1139,10 +1180,12 @@ const getBranchInfo = (s, activities = []) => {
       if (!working) {
         for (let i = 0; i < activities.length; i++) {
           const a = activities[i];
-          const desc = a.progressUpdated?.description || a.userMessaged?.userMessage || a.agentMessaged?.agentMessage || a.description || "";
-          const title = a.progressUpdated?.title || a.title || "";
-          linkMatch = desc.match(BRANCH_LINK_RE) || desc.match(COMPARE_LINK_RE) || title.match(BRANCH_LINK_RE) || title.match(COMPARE_LINK_RE);
-          if (linkMatch) { working = linkMatch[1]; break; }
+          if (!a) continue;
+          const cached = BRANCH_ACTIVITY_CACHE.get(a);
+          if (cached && cached.compareBranch) {
+            working = cached.compareBranch;
+            break;
+          }
         }
       }
     }
