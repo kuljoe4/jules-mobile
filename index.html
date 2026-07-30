@@ -5320,7 +5320,13 @@ function clearDraftsBox() {
   try { localStorage.removeItem(DRAFTS_BOX_KEY); } catch {}
 }
 
-const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, todayCount, allSessions = [], activitiesMap = {}, initialDraft = null, onDraftSaved = null }) => {
+/**
+ * React custom hook `useNewSessionFlow` extracts and encapsulates all state management,
+ * repository and branch fetching/sorting, fuzzy filtering, and multi-tiered template
+ * auto-saving lifecycles from the NewSession component. This separates background orchestration,
+ * data flows, and persistence concerns from layout rendering to resolve "God Mode" complexity.
+ */
+const useNewSessionFlow = ({ apiKey, personas, onCreate, initialDraft, onDraftSaved }) => {
   const draft = useMemo(() => initialDraft || loadDraft(), [initialDraft]);
   const hasSavedOrSubmitted = useRef(false);
   const [sources,setSources]       = useState([]);
@@ -5342,7 +5348,6 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
   const [expanded,setExpanded]     = useState(false);
   const [showConfirm,setShowConfirm] = useState(false);
   const [sourceInteracted, setSourceInteracted] = useState(false);
-
 
   // ── Derive branches whenever selected source changes ─────────────────────
   const srcObj = useMemo(() => sources.find(s => s.name === source) || null, [sources, source]);
@@ -5515,6 +5520,70 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
       onCreate(d);
     } catch (err) { setErr(err.message); setSub(false); }
   };
+
+  return {
+    draft,
+    sources, setSources,
+    loadingSrc, setLoadSrc,
+    source, setSource,
+    sourceSearch, setSourceSearch,
+    showSources, setShowSources,
+    branch, setBranch,
+    branches, setBranches,
+    showBranches, setShowBranches,
+    defaultBranch, setDefault,
+    prompt, setPrompt,
+    autoMode, setAutoMode,
+    reqApproval, setReqApp,
+    selectedPersonas, setSelectedPersonas,
+    submitting, setSub,
+    err, setErr,
+    savedFlash, setSavedFlash,
+    expanded, setExpanded,
+    showConfirm, setShowConfirm,
+    sourceInteracted, setSourceInteracted,
+    srcObj,
+    getSourceDisplay,
+    filteredSources,
+    filteredBranches,
+    togglePersona,
+    handleClearDraft,
+    handleSaveToBox,
+    handleCreate
+  };
+};
+
+const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, todayCount, allSessions = [], activitiesMap = {}, initialDraft = null, onDraftSaved = null }) => {
+  const {
+    draft,
+    sources,
+    loadingSrc,
+    source, setSource,
+    sourceSearch, setSourceSearch,
+    showSources, setShowSources,
+    branch, setBranch,
+    branches,
+    showBranches, setShowBranches,
+    defaultBranch,
+    prompt, setPrompt,
+    autoMode, setAutoMode,
+    reqApproval, setReqApp,
+    selectedPersonas,
+    submitting,
+    err, setErr,
+    savedFlash,
+    expanded, setExpanded,
+    showConfirm, setShowConfirm,
+    sourceInteracted, setSourceInteracted,
+    srcObj,
+    getSourceDisplay,
+    filteredSources,
+    filteredBranches,
+    togglePersona,
+    handleClearDraft,
+    handleSaveToBox,
+    handleCreate
+  } = useNewSessionFlow({ apiKey, personas, onCreate, initialDraft, onDraftSaved });
 
   const payloadEst = (JSON.stringify({prompt,source,branch}).length/1024).toFixed(1);
 
