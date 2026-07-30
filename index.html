@@ -6617,7 +6617,7 @@ const QuotaTimeline = ({ todayCount, plan }) => {
 };
 
 const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPollInterval, setActPollInterval, activePollInterval, setActivePollInterval, sessionLimit, setSessionLimit, activityLimit, setActivityLimit, cacheLimit, setCacheLimit, personas, setPersonas, planId, setPlanId, customDaily, setCustomDaily, plan, todayCount, notifications, setNotifications, apiKey, setApiKey }) => {
-  const [tab, setTab] = useState("api");
+  const [tab, setTab] = useState("general");
   const [hasSaved, setHasSaved] = useState(false);
   const saveTimer = useRef(null);
 
@@ -6644,11 +6644,11 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
   const reduction = total > 0 ? Math.round(((webEst - total) / webEst) * 100) : 0;
 
   const TABS = [
-    { id: "api",     label: "API KEY", ic: "key" },
     { id: "general", label: "GENERAL", ic: "settings" },
     { id: "personas",label: "PERSONAS", ic: "tasks" },
     { id: "network", label: "NETWORK", ic: "layers" },
     { id: "storage", label: "STORAGE", ic: "database" },
+    { id: "api",     label: "API KEY", ic: "key" },
   ];
 
   return (
