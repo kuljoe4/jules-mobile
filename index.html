@@ -6820,6 +6820,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
                         triggerSaveFeedback();
                       }}
                       placeholder="Paste your API key..."
+                      maxLength={200}
                       style={{...inputSt, fontSize:13, flex:1}}
                     />
                     <button onClick={() => setShowKey(!showKey)} title={showKey ? "Hide API Key" : "Show API Key"} aria-label={showKey ? "Hide API Key" : "Show API Key"} style={{background:T.surface, border:`1px solid ${T.border}`, padding:10, borderRadius:8, cursor:"pointer"}}>
