@@ -6660,8 +6660,8 @@ const QuotaTimeline = ({ todayCount, plan }) => {
   );
 };
 
-const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPollInterval, setActPollInterval, activePollInterval, setActivePollInterval, sessionLimit, setSessionLimit, activityLimit, setActivityLimit, cacheLimit, setCacheLimit, personas, setPersonas, planId, setPlanId, customDaily, setCustomDaily, plan, todayCount, notifications, setNotifications }) => {
-  const [tab, setTab] = useState("general");
+const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPollInterval, setActPollInterval, activePollInterval, setActivePollInterval, sessionLimit, setSessionLimit, activityLimit, setActivityLimit, cacheLimit, setCacheLimit, personas, setPersonas, planId, setPlanId, customDaily, setCustomDaily, plan, todayCount, notifications, setNotifications, apiKey, setApiKey }) => {
+  const [tab, setTab] = useState("api");
   const [hasSaved, setHasSaved] = useState(false);
   const saveTimer = useRef(null);
 
@@ -6688,6 +6688,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
   const reduction = total > 0 ? Math.round(((webEst - total) / webEst) * 100) : 0;
 
   const TABS = [
+    { id: "api",     label: "API KEY", ic: "key" },
     { id: "general", label: "GENERAL", ic: "settings" },
     { id: "personas",label: "PERSONAS", ic: "tasks" },
     { id: "network", label: "NETWORK", ic: "layers" },
@@ -6729,7 +6730,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
       <div style={{flex:1,overflowY:"auto",padding:"20px 24px",WebkitOverflowScrolling:"touch",minHeight:0}}>
         <div style={{maxWidth:560,margin:"0 auto"}}>
 
-          {tab === "general" && (
+          {tab === "api" && (
             <div style={{animation:"fadeIn .2s ease", display:"flex", flexDirection:"column", gap:24}}>
               <div style={{background:T.surfaceHi, padding:20, borderRadius:12, border:`1px solid ${T.border}`}}>
                 <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:16}}>
@@ -6742,16 +6743,18 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
                     <input
                       id="jules_api_key_settings"
                       type={showKey ? "text" : "password"}
-                      value={localStorage.getItem("jac_key") || ""}
+                      value={apiKey}
                       onChange={(e) => {
-                        localStorage.setItem("jac_key", e.target.value);
+                        const newKey = e.target.value;
+                        localStorage.setItem("jac_key", newKey);
+                        setApiKey(newKey);
                         triggerSaveFeedback();
                       }}
                       placeholder="Paste your API key..."
                       style={{...inputSt, fontSize:13, flex:1}}
                     />
-                    <button onClick={() => setShowKey(!showKey)} style={{background:T.surface, border:`1px solid ${T.border}`, padding:10, borderRadius:8, cursor:"pointer"}}>
-                      <Ic n={showKey ? "eye-off" : "eye"} s={16} c={T.muted}/>
+                    <button onClick={() => setShowKey(!showKey)} title={showKey ? "Hide API Key" : "Show API Key"} aria-label={showKey ? "Hide API Key" : "Show API Key"} style={{background:T.surface, border:`1px solid ${T.border}`, padding:10, borderRadius:8, cursor:"pointer"}}>
+                      <Ic n={showKey ? "eye_closed" : "eye"} s={16} c={T.muted}/>
                     </button>
                   </div>
                   <div style={{marginTop:6, fontSize:10, color:T.textDim, fontFamily:"'IBM Plex Sans',sans-serif"}}>
@@ -6759,7 +6762,11 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
                   </div>
                 </div>
               </div>
+            </div>
+          )}
 
+          {tab === "general" && (
+            <div style={{animation:"fadeIn .2s ease", display:"flex", flexDirection:"column", gap:24}}>
               <div style={{background:T.surfaceHi, padding:20, borderRadius:12, border:`1px solid ${T.border}`}}>
                 <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:16}}>
                   <Ic n="refresh" s={16} c={T.brand}/>
@@ -8113,6 +8120,7 @@ function JulesClient() {
 
           {desktopView==="network"&&( <NetworkMonitor onBack={()=>setDesktop("empty")} isDesktop/> )} {desktopView==="settings"&&(
             <SettingsView onBack={()=>setDesktop("empty")} isDesktop
+              apiKey={apiKey} setApiKey={setApiKey}
               pollInterval={pollInterval} setPollInterval={setPollInterval}
               actPollInterval={actPollInterval} setActPollInterval={setActPollInterval}
               activePollInterval={activePollInterval} setActivePollInterval={setActivePollInterval}
@@ -8201,6 +8209,7 @@ function JulesClient() {
 
         {mobileScreen==="network"&&( <NetworkMonitor onBack={()=>setMobile("list")} isDesktop={false}/> )} {mobileScreen==="settings"&&(
           <SettingsView onBack={()=>setMobile("list")} isDesktop={false}
+            apiKey={apiKey} setApiKey={setApiKey}
             pollInterval={pollInterval} setPollInterval={setPollInterval}
             actPollInterval={actPollInterval} setActPollInterval={setActPollInterval}
             activePollInterval={activePollInterval} setActivePollInterval={setActivePollInterval}
