@@ -930,6 +930,21 @@ const PR_CACHE = new Map();
 const PR_INFO_CACHE = new Map();
 const GH_PR_RE = /https:\/\/github\.com\/[^\/]+\/[^\/]+\/pull\/(\d+)/;
 
+const getPrUrlAndNumber = (pr) => {
+  if (!pr) return null;
+  if (typeof pr === 'string') {
+    const m = pr.match(GH_PR_RE);
+    if (m) return { url: pr, number: m[1] };
+  }
+  if (typeof pr === 'object') {
+    const url = pr.url || pr.pullRequestUrl || pr.prUrl || pr.htmlUrl || pr.html_url || pr.pr_url;
+    if (url) {
+      return { ...pr, url, number: pr.number || url.split("/").pop() };
+    }
+  }
+  return null;
+};
+
 const getPR = (s) => {
   if (!s) return null;
   const sid = s.id || s.name || "temp";
@@ -939,18 +954,21 @@ const getPR = (s) => {
     if (!outputs || !Array.isArray(outputs)) return null;
     for (let i = 0; i < outputs.length; i++) {
       const o = outputs[i];
-      if (o.githubPullRequest) return o.githubPullRequest;
+      if (o.githubPullRequest) {
+        const pr = getPrUrlAndNumber(o.githubPullRequest);
+        if (pr) return pr;
+      }
       const u = o.pullRequestUrl || o.prUrl;
       if (u) return { url: u, number: u.split("/").pop() };
     }
     return null;
   };
 
-  let pr = findInOutputs(s.outputs) || s.githubPullRequest || s.pullRequest || s.sourceContext?.githubRepoContext?.pullRequest || s.github_pull_request;
-  if (pr && typeof pr === 'object' && pr.url) {
-    const res = { ...pr, number: pr.number || pr.url.split("/").pop() };
-    if (sid !== "temp") PR_CACHE.set(sid, res);
-    return res;
+  let rawPr = findInOutputs(s.outputs) || s.githubPullRequest || s.pullRequest || s.sourceContext?.githubRepoContext?.pullRequest || s.github_pull_request;
+  const pr = getPrUrlAndNumber(rawPr);
+  if (pr) {
+    if (sid !== "temp") PR_CACHE.set(sid, pr);
+    return pr;
   }
 
   // Avoid expensive serialization of full session object (can contain huge arrays/metadata)
@@ -987,8 +1005,9 @@ const getPRInfo = (s, activities = []) => {
       const a = activities[i];
       const actPR = a.sessionCompleted?.outputs?.find(o => o.githubPullRequest)?.githubPullRequest ||
                     a.progressUpdated?.outputs?.find(o => o.githubPullRequest)?.githubPullRequest;
-      if (actPR && actPR.url) {
-        pr = { ...actPR, number: actPR.number || actPR.url.split("/").pop() };
+      const parsed = getPrUrlAndNumber(actPR);
+      if (parsed) {
+        pr = parsed;
         break;
       }
 
@@ -2277,9 +2296,10 @@ const TimelineEvent = memo(({ act, onMediaClick, onReply }) => {
       if (isResearch) { ic.c = T.amber; ic.n = "search"; }
       break;
     }
-    case "sessionCompleted":
+    case "sessionCompleted": {
       title = "Session completed";
-      const pr = act.sessionCompleted?.outputs?.find(o => o.githubPullRequest)?.githubPullRequest;
+      const rawPr = act.sessionCompleted?.outputs?.find(o => o.githubPullRequest)?.githubPullRequest;
+      const pr = getPrUrlAndNumber(rawPr);
       detail = (
         <div style={{marginTop:8, display:"flex", gap:10, flexWrap:"wrap"}}>
           {pr && (
@@ -2308,6 +2328,7 @@ const TimelineEvent = memo(({ act, onMediaClick, onReply }) => {
         </div>
       );
       break;
+    }
     case "sessionFailed":
       title = "Session failed";
       detail = act.sessionFailed?.reason && (
@@ -4151,110 +4172,96 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
             </button>
           )}
           <div style={{flex:1,minWidth:0, position:"relative"}}>
-            {/* Unified Syncing/Downloading Overlay */}
-            {syncPhase !== "IDLE" ? (
+            {/* Session Title and Metadata */}
+            <>
               <div style={{
-                display:"flex", alignItems:"center", gap:12, height: scrolled ? 24 : 44,
-                animation: "fadeIn .3s cubic-bezier(0.4, 0, 0.2, 1)",
+                fontFamily:"'IBM Plex Sans',sans-serif",
+                fontSize:scrolled?13:15,
+                fontWeight:700,
+                color:T.textHi,
+                lineHeight:1.3,
+                overflow:"hidden",
+                textOverflow:"ellipsis",
+                whiteSpace: scrolled ? "nowrap" : "normal",
+                display: "-webkit-box",
+                WebkitLineClamp:scrolled?1:2,
+                WebkitBoxOrient:"vertical",
+                transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)",
+                minHeight: scrolled ? 18 : 38,
               }}>
-                <div style={{
-                  width:12, height:12, borderRadius:"50%",
-                  background: syncPhase === "DONE" ? T.brand : T.amber,
-                  animation: syncPhase === "DONE" ? "none" : (syncPhase === "CACHE" ? "dot 1s infinite" : "spin 1s linear infinite"),
-                  boxShadow: `0 0 12px ${syncPhase === "DONE" ? T.brand : T.amber}60`
-                }}/>
-                <div style={{display:"flex", flexDirection:"column", gap:2}}>
-                   <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize: scrolled ? 11 : 13, fontWeight: 900, color: syncPhase === "DONE" ? T.brand : T.amber, letterSpacing: "0.05em"}}>
-                      {syncPhase === "CACHE" ? "RECOVERING FROM CACHE..." :
-                       syncPhase === "FETCH" ? (syncStats.total > 0 ? `DOWNLOADING ASSETS ${Math.round((syncStats.loaded / syncStats.total) * 100)}%` : `FETCHING ${syncStats.count} ACTIVITY ITEMS...`) :
-                       syncPhase === "SYNC" ? "SYNCHRONIZING..." :
-                       syncPhase === "DONE" ? (syncStats.newItems > 0 ? "SYNCHRONIZATION COMPLETE" : "SESSION IS UP TO DATE") : "IDLE"}
-                   </span>
-                   <div style={{display:"flex", alignItems:"center", gap:8}}>
-                     {syncPhase === "DONE" && syncStats.newItems > 0 && (
-                       <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize: 9, fontWeight: 800, color: T.brandLight, opacity: 0.9}}>
-                          +{syncStats.newItems} NEW · {fmtBytes(syncStats.newBytes/1024)}
-                       </span>
-                     )}
-                     {syncPhase === "FETCH" && syncStats.total > 0 && (
-                       <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize: 9, fontWeight: 800, color: T.dim}}>
-                         {fmtBytes(syncStats.loaded/1024)} / {fmtBytes(syncStats.total/1024)}
-                       </span>
-                     )}
-                   </div>
-                </div>
+                {session.title||session.prompt}
               </div>
-            ) : (
-              <>
-                <div style={{
-                  fontFamily:"'IBM Plex Sans',sans-serif",
-                  fontSize:scrolled?13:15,
-                  fontWeight:700,
-                  color:T.textHi,
-                  lineHeight:1.3,
-                  overflow:"hidden",
-                  textOverflow:"ellipsis",
-                  whiteSpace: scrolled ? "nowrap" : "normal",
-                  display: "-webkit-box",
-                  WebkitLineClamp:scrolled?1:2,
-                  WebkitBoxOrient:"vertical",
-                  transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)",
-                  minHeight: scrolled ? 18 : 38,
-                }}>
-                  {session.title||session.prompt}
-                </div>
-                <div style={{display:"flex", alignItems:"center", gap:8, marginTop: 2, animation:"fadeIn .2s ease", height: (repo || (scrolled && !headerExpanded)) ? 14 : 0, overflow: "hidden", transition: "all .2s cubic-bezier(0.4, 0, 0.2, 1)"}}>
-                   {repo && (
-                     <div style={{display:"flex", alignItems:"center", gap:4, minWidth:0}}>
-                       <Ic n="code" s={9} c={T.dim}/>
-                       <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:8, color:T.dim, fontWeight:700, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>{repo}</span>
-                     </div>
-                   )}
-                   {scrolled && !headerExpanded && (
-                     <>
-                       {session.sourceContext?.source && (
-                         <a href={safeUrl(b?.repoUrl ? `${b.repoUrl}/branches` : "#")} target="_blank" rel="noopener noreferrer" style={{display:"flex", alignItems:"center", gap:3, color:T.blue, textDecoration:"none", flexShrink:0, borderBottom:`1px solid ${T.blue}40`}}>
-                           <Ic n="branch" s={9} c={T.blue}/>
-                           <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:8, fontWeight:900}}>{b?.working || "main"}</span>
-                         </a>
-                       )}
-                       {isStale && !isFinished && <div style={{width:5, height:5, borderRadius:"50%", background:T.brand, animation:"pulse 2s infinite"}}/>}
-                       {pr && (
-                          <a href={safeUrl(pr.url)} target="_blank" rel="noopener noreferrer" style={{
-                            background:pr.state==="merged"?T.purpleDim:pr.state==="closed"?T.dim:T.brandDim,
-                            border:`1px solid ${pr.state==="merged"?T.purple:pr.state==="closed"?T.muted:T.brand}40`,
-                            borderRadius:3, padding:"1px 4px", display:"flex", alignItems:"center", gap:3,
-                            color:pr.state==="merged"?T.purple:pr.state==="closed"?T.muted:T.brand,
-                            textDecoration:"none", fontFamily:"'JetBrains Mono',monospace", fontSize:8, fontWeight:900, flexShrink:0
-                          }}>
-                            <Ic n={pr.state==="merged"?"git_merge":"git_pull"} s={9} c={pr.state==="merged"?T.purple:pr.state==="closed"?T.muted:T.brand}/>
-                            #{pr.number}
-                          </a>
-                        )}
-                        {checks && (
-                          <div style={{
-                            background:checks.state==="success"?T.brandDim:checks.state==="failure"?T.redDim:T.amberDim,
-                            border:`1px solid ${checks.state==="success"?T.brand:checks.state==="failure"?T.red:T.amber}40`,
-                            borderRadius:3, padding:"1px 4px", display:"flex", alignItems:"center", gap:3,
-                            color:checks.state==="success"?T.brandLight:checks.state==="failure"?T.red:T.amber,
-                            fontFamily:"'JetBrains Mono',monospace", fontSize:8, fontWeight:900, flexShrink:0
-                          }}>
-                            <Ic n={checks.state==="success"?"check":checks.state==="failure"?"x":"refresh"} s={10} c={checks.state==="success"?T.brandLight:checks.state==="failure"?T.red:T.amber}/>
-                          </div>
-                        )}
-                      </>
-                   )}
-                </div>
-              </>
-            )}
+              <div style={{display:"flex", alignItems:"center", gap:8, marginTop: 2, animation:"fadeIn .2s ease", height: (repo || (scrolled && !headerExpanded)) ? 14 : 0, overflow: "hidden", transition: "all .2s cubic-bezier(0.4, 0, 0.2, 1)"}}>
+                 {repo && (
+                   <div style={{display:"flex", alignItems:"center", gap:4, minWidth:0}}>
+                     <Ic n="code" s={9} c={T.dim}/>
+                     <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:8, color:T.dim, fontWeight:700, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>{repo}</span>
+                   </div>
+                 )}
+                 {scrolled && !headerExpanded && (
+                   <>
+                     {session.sourceContext?.source && (
+                       <a href={safeUrl(b?.repoUrl ? `${b.repoUrl}/branches` : "#")} target="_blank" rel="noopener noreferrer" style={{display:"flex", alignItems:"center", gap:3, color:T.blue, textDecoration:"none", flexShrink:0, borderBottom:`1px solid ${T.blue}40`}}>
+                         <Ic n="branch" s={9} c={T.blue}/>
+                         <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:8, fontWeight:900}}>{b?.working || "main"}</span>
+                       </a>
+                     )}
+                     {isStale && !isFinished && <div style={{width:5, height:5, borderRadius:"50%", background:T.brand, animation:"pulse 2s infinite"}}/>}
+                     {pr && (
+                        <a href={safeUrl(pr.url)} target="_blank" rel="noopener noreferrer" style={{
+                          background:pr.state==="merged"?T.purpleDim:pr.state==="closed"?T.dim:T.brandDim,
+                          border:`1px solid ${pr.state==="merged"?T.purple:pr.state==="closed"?T.muted:T.brand}40`,
+                          borderRadius:3, padding:"1px 4px", display:"flex", alignItems:"center", gap:3,
+                          color:pr.state==="merged"?T.purple:pr.state==="closed"?T.muted:T.brand,
+                          textDecoration:"none", fontFamily:"'JetBrains Mono',monospace", fontSize:8, fontWeight:900, flexShrink:0
+                        }}>
+                          <Ic n={pr.state==="merged"?"git_merge":"git_pull"} s={9} c={pr.state==="merged"?T.purple:pr.state==="closed"?T.muted:T.brand}/>
+                          #{pr.number}
+                        </a>
+                      )}
+                      {checks && (
+                        <div style={{
+                          background:checks.state==="success"?T.brandDim:checks.state==="failure"?T.redDim:T.amberDim,
+                          border:`1px solid ${checks.state==="success"?T.brand:checks.state==="failure"?T.red:T.amber}40`,
+                          borderRadius:3, padding:"1px 4px", display:"flex", alignItems:"center", gap:3,
+                          color:checks.state==="success"?T.brandLight:checks.state==="failure"?T.red:T.amber,
+                          fontFamily:"'JetBrains Mono',monospace", fontSize:8, fontWeight:900, flexShrink:0
+                        }}>
+                          <Ic n={checks.state==="success"?"check":checks.state==="failure"?"x":"refresh"} s={10} c={checks.state==="success"?T.brandLight:checks.state==="failure"?T.red:T.amber}/>
+                        </div>
+                      )}
+                    </>
+                 )}
+              </div>
+            </>
           </div>
 
           <div style={{
             display:"flex",gap:6,alignItems:"center",flexShrink:0,
-            opacity: syncPhase !== "IDLE" ? 0 : 1,
-            pointerEvents: syncPhase !== "IDLE" ? "none" : "auto",
-            transition: "opacity .2s ease"
+            opacity: 1,
+            pointerEvents: "auto",
+            transition: "all .2s ease"
           }}>
+            {syncPhase !== "IDLE" && (
+              <span title={
+                syncPhase === "CACHE" ? "Recovering from cache..." :
+                syncPhase === "FETCH" ? (syncStats.total > 0 ? `Downloading assets ${Math.round((syncStats.loaded / syncStats.total) * 100)}%` : `Fetching ${syncStats.count} items...`) :
+                syncPhase === "SYNC" ? "Synchronizing..." : "Session is up to date"
+              } style={{
+                display: "inline-flex", alignItems: "center", gap: 4,
+                padding: "3px 6px", borderRadius: 4,
+                background: syncPhase === "DONE" ? `${T.brand}15` : `${T.amber}15`,
+                border: `1px solid ${syncPhase === "DONE" ? T.brand : T.amber}30`,
+                color: syncPhase === "DONE" ? T.brandLight : T.amber,
+                fontFamily: "'JetBrains Mono',monospace", fontSize: 9, fontWeight: 800,
+                letterSpacing: "0.05em", animation: "fadeIn 0.2s ease", flexShrink: 0
+              }}>
+                <div style={{ animation: syncPhase === "DONE" ? "none" : "spin 1.5s linear infinite", display: "flex" }}>
+                  <Ic n={syncPhase === "DONE" ? "check" : "refresh"} s={10} c={syncPhase === "DONE" ? T.brandLight : T.amber} />
+                </div>
+                {syncPhase === "DONE" ? "SYNCED" : syncPhase}
+              </span>
+            )}
             {driftDetected && (
               <span title="STALE BASE: Repository was updated since this session started" style={{
                 display:"flex", alignItems:"center", gap:4, padding:"3px 8px", borderRadius:4,
@@ -4399,16 +4406,16 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
 
         {/* Row 2: Secondary Metadata & Actions (Hidden when scrolled on mobile, expanded on scroll up) */}
         <div style={{
-          height: (headerExpanded && syncPhase === "IDLE") ? 22 : 0,
-          maxHeight: (headerExpanded && syncPhase === "IDLE") ? 40 : 0,
-          opacity: (headerExpanded && syncPhase === "IDLE") ? 1 : 0,
+          height: headerExpanded ? 22 : 0,
+          maxHeight: headerExpanded ? 40 : 0,
+          opacity: headerExpanded ? 1 : 0,
           overflow: "hidden",
           display: "flex",
           alignItems: "center",
           gap: 8,
-          marginBottom: (headerExpanded && syncPhase === "IDLE") ? 8 : 0,
+          marginBottom: headerExpanded ? 8 : 0,
           transition: "all .2s cubic-bezier(0.4, 0, 0.2, 1), height .2s ease",
-          pointerEvents: (headerExpanded && syncPhase === "IDLE") ? "auto" : "none",
+          pointerEvents: headerExpanded ? "auto" : "none",
           contain: "size layout",
         }}>
           <div style={{display:"flex", alignItems:"center", gap:8, overflowX:"auto", scrollbarWidth:"none", WebkitOverflowScrolling:"touch", width:"100%"}}>
