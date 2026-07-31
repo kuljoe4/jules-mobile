@@ -945,26 +945,34 @@ const getPrUrlAndNumber = (pr) => {
   return null;
 };
 
+const findInOutputs = (outputs) => {
+  if (!outputs || !Array.isArray(outputs)) return null;
+  for (let i = 0; i < outputs.length; i++) {
+    const o = outputs[i];
+    if (o.githubPullRequest) {
+      const pr = getPrUrlAndNumber(o.githubPullRequest);
+      if (pr) return pr;
+    }
+    if (o.pullRequest) {
+      const pr = getPrUrlAndNumber(o.pullRequest);
+      if (pr) return pr;
+    }
+    if (o.pr) {
+      const pr = getPrUrlAndNumber(o.pr);
+      if (pr) return pr;
+    }
+    const u = o.pullRequestUrl || o.prUrl || o.url || o.pr_url || o.htmlUrl || o.html_url;
+    if (u && typeof u === 'string') return { url: u, number: u.split("/").pop() };
+  }
+  return null;
+};
+
 const getPR = (s) => {
   if (!s) return null;
   const sid = s.id || s.name || "temp";
   if (PR_CACHE.has(sid)) return PR_CACHE.get(sid);
 
-  const findInOutputs = (outputs) => {
-    if (!outputs || !Array.isArray(outputs)) return null;
-    for (let i = 0; i < outputs.length; i++) {
-      const o = outputs[i];
-      if (o.githubPullRequest) {
-        const pr = getPrUrlAndNumber(o.githubPullRequest);
-        if (pr) return pr;
-      }
-      const u = o.pullRequestUrl || o.prUrl;
-      if (u) return { url: u, number: u.split("/").pop() };
-    }
-    return null;
-  };
-
-  let rawPr = findInOutputs(s.outputs) || s.githubPullRequest || s.pullRequest || s.sourceContext?.githubRepoContext?.pullRequest || s.github_pull_request;
+  let rawPr = findInOutputs(s.outputs) || s.githubPullRequest || s.pullRequest || s.sourceContext?.githubRepoContext?.pullRequest || s.github_pull_request || s.pr || s.prUrl || s.pullRequestUrl || s.htmlUrl || s.html_url;
   const pr = getPrUrlAndNumber(rawPr);
   if (pr) {
     if (sid !== "temp") PR_CACHE.set(sid, pr);
@@ -1003,11 +1011,16 @@ const getPRInfo = (s, activities = []) => {
   if (!pr && activities && activities.length > 0) {
     for (let i = activities.length - 1; i >= 0; i--) {
       const a = activities[i];
-      const actPR = a.sessionCompleted?.outputs?.find(o => o.githubPullRequest)?.githubPullRequest ||
-                    a.progressUpdated?.outputs?.find(o => o.githubPullRequest)?.githubPullRequest;
-      const parsed = getPrUrlAndNumber(actPR);
-      if (parsed) {
-        pr = parsed;
+      let actPR = findInOutputs(a.sessionCompleted?.outputs) || findInOutputs(a.progressUpdated?.outputs);
+      if (!actPR) {
+        const rawActPR = a.sessionCompleted?.outputs?.find(o => o.githubPullRequest)?.githubPullRequest ||
+                         a.progressUpdated?.outputs?.find(o => o.githubPullRequest)?.githubPullRequest ||
+                         a.sessionCompleted?.githubPullRequest || a.progressUpdated?.githubPullRequest ||
+                         a.sessionCompleted?.pullRequest || a.progressUpdated?.pullRequest;
+        actPR = getPrUrlAndNumber(rawActPR);
+      }
+      if (actPR) {
+        pr = actPR;
         break;
       }
 
@@ -4700,6 +4713,58 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                       }}
                     >DISMISS</button>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* Quick Links Card */}
+            {(pr || session.url) && (
+              <div style={{
+                background: `linear-gradient(135deg, ${T.brand}08, ${T.surfaceHi})`,
+                border: `1px solid ${T.brand}20`,
+                borderRadius: 10, padding: "14px 18px", marginBottom: 16,
+                display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
+                boxShadow: `0 4px 20px ${T.brand}05`,
+                animation: "fadeIn .25s ease-out"
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <Ic n="layers" s={14} c={T.brandLight}/>
+                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: T.brandLight, fontWeight: 800, letterSpacing: "0.1em" }}>
+                    QUICK LINKS
+                  </span>
+                </div>
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                  {pr && (
+                    <a href={safeUrl(pr.url)} target="_blank" rel="noopener noreferrer" style={{
+                      display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 12px",
+                      background: pr.state === "merged" ? T.purpleDim : pr.state === "closed" ? T.dim : T.brandDim,
+                      border: `1px solid ${pr.state === "merged" ? T.purple : pr.state === "closed" ? T.muted : T.brand}40`,
+                      borderRadius: 6,
+                      color: pr.state === "merged" ? T.purple : pr.state === "closed" ? T.muted : T.brandLight,
+                      textDecoration: "none", fontFamily: "'JetBrains Mono',monospace",
+                      fontSize: 11, fontWeight: 800, transition: "all .15s ease"
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = pr.state === "merged" ? `${T.purple}30` : `${T.brand}30`; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = pr.state === "merged" ? T.purpleDim : pr.state === "closed" ? T.dim : T.brandDim; }}
+                    >
+                      <Ic n={pr.state === "merged" ? "git_merge" : "git_pull"} s={13} c={pr.state === "merged" ? T.purple : pr.state === "closed" ? T.muted : T.brandLight}/>
+                      PR #{pr.number} ({pr.state.toUpperCase()}) ↗
+                    </a>
+                  )}
+                  {session.url && (
+                    <a href={safeUrl(session.url)} target="_blank" rel="noopener noreferrer" style={{
+                      display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 12px",
+                      background: T.surface, border: `1px solid ${T.borderHi}`, borderRadius: 6,
+                      color: T.text, textDecoration: "none", fontFamily: "'JetBrains Mono',monospace",
+                      fontSize: 11, fontWeight: 800, transition: "all .15s ease"
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = T.border; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = T.surface; }}
+                    >
+                      <Ic n="code" s={13} c={T.dim}/>
+                      JULES WEB ↗
+                    </a>
+                  )}
                 </div>
               </div>
             )}
