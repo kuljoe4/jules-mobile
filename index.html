@@ -1331,7 +1331,10 @@ const findInOutputs = (outputs) => {
 const getPR = (s) => {
   if (!s) return null;
   const sid = s.id || s.name || "temp";
-  if (PR_CACHE.has(sid)) return PR_CACHE.get(sid);
+  if (PR_CACHE.has(sid)) {
+    const cached = PR_CACHE.get(sid);
+    if (cached) return cached; // Ignore stale or null cache values to allow real-time PR discovery
+  }
 
   let rawPr = findInOutputs(s.outputs) || s.githubPullRequest || s.pullRequest || s.sourceContext?.githubRepoContext?.pullRequest || s.github_pull_request || s.pr || s.prUrl || s.pullRequestUrl || s.htmlUrl || s.html_url;
   const pr = getPrUrlAndNumber(rawPr);
@@ -1355,7 +1358,7 @@ const getPR = (s) => {
     return res;
   }
 
-  if (sid !== "temp") PR_CACHE.set(sid, null);
+  // To prevent blocking running or auto-refreshing sessions, do not cache null states
   return null;
 };
 
@@ -1364,7 +1367,10 @@ const getPRInfo = (s, activities = []) => {
   const sid = s.id || s.name || "temp";
   const actLen = activities.length;
   const cacheKey = `${sid}:${actLen}`;
-  if (sid !== "temp" && PR_INFO_CACHE.has(cacheKey)) return PR_INFO_CACHE.get(cacheKey);
+  if (sid !== "temp" && PR_INFO_CACHE.has(cacheKey)) {
+    const cached = PR_INFO_CACHE.get(cacheKey);
+    if (cached) return cached; // Ignore stale or null cache values to allow real-time PR discovery
+  }
 
   let pr = getPR(s);
 
@@ -1400,10 +1406,7 @@ const getPRInfo = (s, activities = []) => {
   }
 
   if (!pr) {
-    if (sid !== "temp") {
-      if (PR_INFO_CACHE.size > 500) PR_INFO_CACHE.clear();
-      PR_INFO_CACHE.set(cacheKey, null);
-    }
+    // To prevent blocking running or auto-refreshing sessions, do not cache null states
     return null;
   }
 
