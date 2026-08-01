@@ -1366,7 +1366,8 @@ const getPRInfo = (s, activities = []) => {
   if (!s) return null;
   const sid = s.id || s.name || "temp";
   const actLen = activities.length;
-  const cacheKey = `${sid}:${actLen}`;
+  const size = getApproxBytes(activities);
+  const cacheKey = `${sid}:${actLen}:${size}:${s.updateTime || s.createTime || ""}`;
   if (sid !== "temp" && PR_INFO_CACHE.has(cacheKey)) {
     const cached = PR_INFO_CACHE.get(cacheKey);
     if (cached) return cached; // Ignore stale or null cache values to allow real-time PR discovery
@@ -1410,20 +1411,9 @@ const getPRInfo = (s, activities = []) => {
     return null;
   }
 
-  let state = "open";
-  // Deep scan activities for merge or close events
-  for (let i = 0; i < activities.length; i++) {
-    const a = activities[i];
-    const desc = (a.progressUpdated?.description || "").toLowerCase();
-    const title = (a.progressUpdated?.title || "").toLowerCase();
-    if (desc.includes("merged pull request") || title.includes("merged pull request") || a.sessionCompleted) {
-      state = "merged";
-      break;
-    }
-    if (desc.includes("closed pull request") || title.includes("closed pull request")) {
-      state = "closed";
-    }
-  }
+  // Determine PR status accurately based on ahead commits to the default branch
+  const ahead = getAheadCount(activities);
+  const state = ahead === 0 ? "merged" : "open";
 
   const result = { ...pr, state };
   if (sid !== "temp") {
@@ -1495,7 +1485,8 @@ const getBranchInfo = (s, activities = []) => {
   if (!s) return null;
   const sid = s.id || s.name || "temp";
   const actLen = activities.length;
-  const cacheKey = sid + ":" + actLen;
+  const size = getApproxBytes(activities);
+  const cacheKey = `${sid}:${actLen}:${size}:${s.updateTime || s.createTime || ""}`;
   if (sid !== "temp" && BRANCH_INFO_CACHE.has(cacheKey)) return BRANCH_INFO_CACHE.get(cacheKey);
 
   const context = s.sourceContext?.githubRepoContext;
