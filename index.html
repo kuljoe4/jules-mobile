@@ -3224,7 +3224,10 @@ const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFeedback,
 });
 
 // ─── Diff Viewer ──────────────────────────────────────────────────────────────
-const DiffViewer = ({ activities = [], isDesktop = false }) => {
+// Performance Optimized: Wrapped in React.memo to prevent expensive re-rendering
+// and heavy virtual DOM diffing of large multi-line diff hunks on parent state
+// updates (such as the 1-second timer ticks or polling updates) when props are unchanged.
+const DiffViewer = memo(({ activities = [], isDesktop = false }) => {
   const [collapsed, setCollapsed] = useState(null); // null = auto-collapse all on first load
   const [copiedPaths, setCopiedPaths] = useState({}); // gi -> boolean
   const [copiedDiffs, setCopiedDiffs] = useState({}); // gi -> boolean
@@ -3527,7 +3530,7 @@ const DiffViewer = ({ activities = [], isDesktop = false }) => {
       })}
     </div>
   );
-};
+});
 
 // ─── Setup Screen ─────────────────────────────────────────────────────────────
 const SetupScreen = ({ onSave }) => {
@@ -6724,7 +6727,10 @@ const NetworkMonitor = ({ onBack, isDesktop }) => {
   );
 };
 
-const ConflictRadar = ({ currentSource, currentBranch, currentPrompt, allSessions, activitiesMap, currentSessionId, startTime, limit = 20 }) => {
+// Performance Optimized: Wrapped in React.memo to prevent unnecessary collision
+// scanning, prompt evaluation, and layout re-rendering on parent countdown timer
+// ticks and background poll cycles when props are reference-stable.
+const ConflictRadar = memo(({ currentSource, currentBranch, currentPrompt, allSessions, activitiesMap, currentSessionId, startTime, limit = 20 }) => {
   const [expanded, setExpanded] = useState(false);
   const [debouncedPrompt, setDebouncedPrompt] = useState(currentPrompt);
 
@@ -6887,7 +6893,7 @@ const ConflictRadar = ({ currentSource, currentBranch, currentPrompt, allSession
       </div>
     </div>
   );
-};
+});
 
 const Modal = ({ children, actions, onClose, title, subtitle, icon: IconN, maxWidth = 420 }) => (
   <div style={{
