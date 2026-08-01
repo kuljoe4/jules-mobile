@@ -610,6 +610,19 @@ const PRESET_COLORS = [
   "#bf99ff", "#ffffff", "#4da6ff", "#ff8844", "#a5b4fc"
 ];
 
+const COLOR_NAMES = {
+  "#ff66cc": "Pink",
+  "#ffbc00": "Amber",
+  "#00eaff": "Cyan",
+  "#ff4444": "Red",
+  "#5fb2ff": "Sky Blue",
+  "#bf99ff": "Lavender",
+  "#ffffff": "White",
+  "#4da6ff": "Soft Blue",
+  "#ff8844": "Orange",
+  "#a5b4fc": "Indigo"
+};
+
 function loadPersonas() {
   try {
     const saved = JSON.parse(localStorage.getItem(PERSONA_PROMPTS_KEY) || "{}");
@@ -7211,8 +7224,8 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
                     setNewPrompt("");
                     setNewColor("#ff66cc");
                     setIsAdding(true);
-                  }} style={{background:"none", border:"none", cursor:"pointer", color:T.brand, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700}}>+ ADD CUSTOM</button>
-                  <button onClick={() => { if(confirm("Reset all personas to defaults?")) { setPersonas(resetPersonas()); } }} style={{background:"none", border:"none", cursor:"pointer", color:T.red, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700}}>RESET ALL</button>
+                  }} title="Add new custom persona" aria-label="Add new custom persona" style={{background:"none", border:"none", cursor:"pointer", color:T.brand, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700}}>+ ADD CUSTOM</button>
+                  <button onClick={() => { if(confirm("Reset all personas to defaults?")) { setPersonas(resetPersonas()); } }} title="Reset all personas to default values" aria-label="Reset all personas to default values" style={{background:"none", border:"none", cursor:"pointer", color:T.red, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700}}>RESET ALL</button>
                 </div>
               </div>
               {personas.map(p => (
@@ -7227,7 +7240,7 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
                       setNewPrompt(p.prompt);
                       setNewColor(p.color || "#ffffff");
                       setEditingPersona(p);
-                    }} style={{background:T.brandDim, border:"none", borderRadius:4, padding:"3px 8px", cursor:"pointer", color:T.brand, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700}}>EDIT ROLE</button>
+                    }} title={`Edit ${p.label} role prompt`} aria-label={`Edit ${p.label} role prompt`} style={{background:T.brandDim, border:"none", borderRadius:4, padding:"3px 8px", cursor:"pointer", color:T.brand, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700}}>EDIT ROLE</button>
                   </div>
                   <ExpandablePersonaPrompt prompt={p.prompt} />
                 </div>
@@ -7338,19 +7351,41 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
         >
           <div style={{display:"flex", flexDirection:"column", gap:14}}>
             <div>
-              <label htmlFor="new-persona-label" style={{display:"block", fontSize:10, color:T.textDim, fontFamily:"'JetBrains Mono',monospace", fontWeight:700, marginBottom:6, cursor:"pointer"}}>PERSONA LABEL</label>
+              <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6}}>
+                <label htmlFor="new-persona-label" style={{fontSize:10, color:T.textDim, fontFamily:"'JetBrains Mono',monospace", fontWeight:700, cursor:"pointer"}}>PERSONA LABEL</label>
+                <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:T.textDim, opacity:0.8}}>{newName.length}/100</span>
+              </div>
               <input id="new-persona-label" type="text" value={newName} onChange={e => setNewName(e.target.value)} maxLength={100} placeholder="e.g. UX Expert" style={{width:"100%", background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:8, padding:10, color:T.text, fontSize:13, fontFamily:"'JetBrains Mono',monospace", boxSizing:"border-box"}} />
             </div>
             <div>
               <div style={{fontSize:10, color:T.textDim, fontFamily:"'JetBrains Mono',monospace", fontWeight:700, marginBottom:6}}>THEME COLOR</div>
               <div style={{display:"flex", flexWrap:"wrap", gap:8}}>
-                {PRESET_COLORS.map(c => (
-                  <button key={c} onClick={() => setNewColor(c)} style={{width:24, height:24, borderRadius:"50%", background:c, border:newColor === c ? `2px solid ${T.text}` : "2px solid transparent", cursor:"pointer", transition:"all .15s cubic-bezier(0.4, 0, 0.2, 1)", padding:0, flexShrink:0}} />
-                ))}
+                {PRESET_COLORS.map(c => {
+                  const colorName = COLOR_NAMES[c] || c;
+                  const isSelected = newColor === c;
+                  return (
+                    <button
+                      key={c}
+                      onClick={() => setNewColor(c)}
+                      title={`Select theme color ${colorName}${isSelected ? " (Selected)" : ""}`}
+                      aria-label={`Select theme color ${colorName}${isSelected ? " (Selected)" : ""}`}
+                      aria-pressed={isSelected ? "true" : "false"}
+                      style={{
+                        width:24, height:24, borderRadius:"50%", background:c,
+                        border:isSelected ? `2px solid ${T.text}` : "2px solid transparent",
+                        cursor:"pointer", transition:"all .15s cubic-bezier(0.4, 0, 0.2, 1)",
+                        padding:0, flexShrink:0
+                      }}
+                    />
+                  );
+                })}
               </div>
             </div>
             <div>
-              <label htmlFor="new-persona-prompt" style={{display:"block", fontSize:10, color:T.textDim, fontFamily:"'JetBrains Mono',monospace", fontWeight:700, marginBottom:6, cursor:"pointer"}}>SYSTEM PROMPT</label>
+              <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6}}>
+                <label htmlFor="new-persona-prompt" style={{fontSize:10, color:T.textDim, fontFamily:"'JetBrains Mono',monospace", fontWeight:700, cursor:"pointer"}}>SYSTEM PROMPT</label>
+                <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:T.textDim, opacity:0.8}}>{fmtChars(newPrompt.length)}/5kc</span>
+              </div>
               <textarea id="new-persona-prompt" value={newPrompt} onChange={e => setNewPrompt(e.target.value)} maxLength={5000} placeholder="Define the role behavior..." style={{width:"100%", height:120, background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:8, padding:10, color:T.text, fontSize:13, fontFamily:"'IBM Plex Sans',sans-serif", resize:"none", boxSizing:"border-box"}} />
             </div>
           </div>
@@ -7390,21 +7425,43 @@ const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPol
         >
           <div style={{display:"flex", flexDirection:"column", gap:14}}>
             <div>
-              <label htmlFor="edit-persona-label" style={{display:"block", fontSize:10, color:T.textDim, fontFamily:"'JetBrains Mono',monospace", fontWeight:700, marginBottom:6, cursor: editingPersona.isCustom ? "pointer" : "not-allowed"}}>PERSONA LABEL</label>
+              <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6}}>
+                <label htmlFor="edit-persona-label" style={{fontSize:10, color:T.textDim, fontFamily:"'JetBrains Mono',monospace", fontWeight:700, cursor: editingPersona.isCustom ? "pointer" : "not-allowed"}}>PERSONA LABEL</label>
+                {editingPersona.isCustom && <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:T.textDim, opacity:0.8}}>{newName.length}/100</span>}
+              </div>
               <input id="edit-persona-label" type="text" value={newName} onChange={e => setNewName(e.target.value)} maxLength={100} disabled={!editingPersona.isCustom} placeholder="e.g. UX Expert" style={{width:"100%", background:editingPersona.isCustom ? T.surfaceHi : `${T.surface}88`, border:`1px solid ${T.border}`, borderRadius:8, padding:10, color:editingPersona.isCustom ? T.text : T.textDim, fontSize:13, fontFamily:"'JetBrains Mono',monospace", boxSizing:"border-box", cursor: editingPersona.isCustom ? "text" : "not-allowed"}} />
             </div>
             {editingPersona.isCustom && (
               <div>
                 <div style={{fontSize:10, color:T.textDim, fontFamily:"'JetBrains Mono',monospace", fontWeight:700, marginBottom:6}}>THEME COLOR</div>
                 <div style={{display:"flex", flexWrap:"wrap", gap:8}}>
-                  {PRESET_COLORS.map(c => (
-                    <button key={c} onClick={() => setNewColor(c)} style={{width:24, height:24, borderRadius:"50%", background:c, border:newColor === c ? `2px solid ${T.text}` : "2px solid transparent", cursor:"pointer", transition:"all .15s cubic-bezier(0.4, 0, 0.2, 1)", padding:0, flexShrink:0}} />
-                  ))}
+                  {PRESET_COLORS.map(c => {
+                    const colorName = COLOR_NAMES[c] || c;
+                    const isSelected = newColor === c;
+                    return (
+                      <button
+                        key={c}
+                        onClick={() => setNewColor(c)}
+                        title={`Select theme color ${colorName}${isSelected ? " (Selected)" : ""}`}
+                        aria-label={`Select theme color ${colorName}${isSelected ? " (Selected)" : ""}`}
+                        aria-pressed={isSelected ? "true" : "false"}
+                        style={{
+                          width:24, height:24, borderRadius:"50%", background:c,
+                          border:isSelected ? `2px solid ${T.text}` : "2px solid transparent",
+                          cursor:"pointer", transition:"all .15s cubic-bezier(0.4, 0, 0.2, 1)",
+                          padding:0, flexShrink:0
+                        }}
+                      />
+                    );
+                  })}
                 </div>
               </div>
             )}
             <div>
-              <label htmlFor="edit-persona-prompt" style={{display:"block", fontSize:10, color:T.textDim, fontFamily:"'JetBrains Mono',monospace", fontWeight:700, marginBottom:6, cursor:"pointer"}}>SYSTEM PROMPT</label>
+              <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6}}>
+                <label htmlFor="edit-persona-prompt" style={{fontSize:10, color:T.textDim, fontFamily:"'JetBrains Mono',monospace", fontWeight:700, cursor:"pointer"}}>SYSTEM PROMPT</label>
+                <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:T.textDim, opacity:0.8}}>{fmtChars(newPrompt.length)}/5kc</span>
+              </div>
               <textarea id="edit-persona-prompt" value={newPrompt} onChange={e => setNewPrompt(e.target.value)} maxLength={5000} placeholder="Define the role behavior..." style={{width:"100%", height:120, background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:8, padding:10, color:T.text, fontSize:13, fontFamily:"'IBM Plex Sans',sans-serif", resize:"none", boxSizing:"border-box"}} />
             </div>
           </div>
