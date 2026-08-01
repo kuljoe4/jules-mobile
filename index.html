@@ -1245,15 +1245,33 @@ const getBranchInfo = (s, activities = []) => {
 const WORKING_SET_CACHE = new Map();
 const FILE_MENTION_RE = /`([^`\s]+\.[a-z0-9]+)`/gi;
 
+// Global WeakMap to cache parsed unidiff patch results directly by reference-stable gitPatch objects inside activities.
+// This turns repetitive string splitting, hunk iteration, and multi-pass line scanning into flat O(1) lookups on re-renders.
+const PARSED_PATCH_CACHE = new WeakMap();
+
 /**
  * Parses a git unidiff patch text into a structured list of file groups, each containing
  * filename, hunks (header, lines), additions (adds), removals (rems), and rawLines.
  *
  * This pure utility is extracted out of DiffViewer to prevent "God Mode" and mixed concerns,
  * keeping low-level string parsing separate from high-level visual rendering and UI state.
+ *
+ * Now optimized with reference-stable caching for extremely high performance.
  */
-const parseUnidiffPatch = (patch, ts = null) => {
+const parseUnidiffPatch = (patchOrObj, ts = null) => {
+  if (!patchOrObj) return [];
+  const isObj = typeof patchOrObj === "object" && patchOrObj !== null;
+  const patch = isObj ? patchOrObj.unidiffPatch : patchOrObj;
   if (!patch) return [];
+
+  if (isObj && PARSED_PATCH_CACHE.has(patchOrObj)) {
+    const cached = PARSED_PATCH_CACHE.get(patchOrObj);
+    if (ts !== null) {
+      cached.forEach(g => { g.ts = ts; });
+    }
+    return cached;
+  }
+
   const allGroups = [];
   const lines = patch.split("\n");
   let currentGroup = null;
@@ -1285,6 +1303,10 @@ const parseUnidiffPatch = (patch, ts = null) => {
       else if (line.startsWith("-")) currentGroup.rems++;
     }
   });
+
+  if (isObj) {
+    PARSED_PATCH_CACHE.set(patchOrObj, allGroups);
+  }
   return allGroups;
 };
 
@@ -1307,7 +1329,7 @@ const getWorkingSet = (s, activities = []) => {
         const art = a.artifacts[j];
         const patch = art.changeSet?.gitPatch?.unidiffPatch;
         if (patch) {
-          const parsedGroups = parseUnidiffPatch(patch);
+          const parsedGroups = parseUnidiffPatch(art.changeSet?.gitPatch || patch);
           for (let k = 0; k < parsedGroups.length; k++) {
             const file = parsedGroups[k].file;
             if (file && file !== "/dev/null") files.add(file);
@@ -2862,6 +2884,7 @@ const DiffViewer = ({ activities = [], isDesktop = false }) => {
           if (art.changeSet?.gitPatch?.unidiffPatch) {
             return {
               patch: art.changeSet.gitPatch.unidiffPatch,
+              gitPatch: art.changeSet.gitPatch,
               ts: a.createTime,
               id: a.id || i
             };
@@ -2874,7 +2897,7 @@ const DiffViewer = ({ activities = [], isDesktop = false }) => {
 
   const groups = useMemo(() => {
     if (!latestPatch) return [];
-    return parseUnidiffPatch(latestPatch.patch, latestPatch.ts);
+    return parseUnidiffPatch(latestPatch.gitPatch || latestPatch.patch, latestPatch.ts);
   }, [latestPatch]);
 
   const safeCollapsed = useMemo(() => {
