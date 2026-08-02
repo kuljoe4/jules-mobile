@@ -7117,7 +7117,20 @@ const QuotaTimeline = ({ todayCount, plan }) => {
   );
 };
 
-const SettingsView = ({ onBack, isDesktop, pollInterval, setPollInterval, actPollInterval, setActPollInterval, activePollInterval, setActivePollInterval, sessionLimit, setSessionLimit, activityLimit, setActivityLimit, cacheLimit, setCacheLimit, personas, setPersonas, planId, setPlanId, customDaily, setCustomDaily, plan, todayCount, notifications, setNotifications, apiKey, setApiKey }) => {
+const SettingsView = ({ onBack, isDesktop, settings, personas, setPersonas, todayCount, apiKey, setApiKey }) => {
+  const {
+    pollInterval, setPollInterval,
+    actPollInterval, setActPollInterval,
+    activePollInterval, setActivePollInterval,
+    sessionLimit, setSessionLimit,
+    activityLimit, setActivityLimit,
+    cacheLimit, setCacheLimit,
+    notifications, setNotifications,
+    planId, setPlanId,
+    customDaily, setCustomDaily,
+    plan
+  } = settings;
+
   const [tab, setTab] = useState("general");
   const [hasSaved, setHasSaved] = useState(false);
   const saveTimer = useRef(null);
@@ -8139,6 +8152,95 @@ const useQuotaTracker = (sessions, plan) => {
   return { todayCount, registerSession, registerSessions };
 };
 
+// ─── App Settings hook ────────────────────────────────────────────────────────
+/**
+ * useAppSettings
+ *
+ * Custom hook that encapsulates all application settings state, their synchronization
+ * with browser storage (SafeStorage), and computed plan configurations.
+ * This decouples settings management from the main JulesClient component.
+ */
+const useAppSettings = ({ onSessionLimitChange } = {}) => {
+  const [pollInterval, setPollIntervalRaw] = useState(loadPollMs);
+  const [actPollInterval, setActPollIntervalRaw] = useState(loadActPollMs);
+  const [activePollInterval, setActivePollIntervalRaw] = useState(loadActivePollMs);
+  const [sessionLimit, setSessionLimitRaw] = useState(loadLimit);
+  const [activityLimit, setActivityLimitRaw] = useState(loadActivityLimit);
+  const [cacheLimit, setCacheLimitRaw] = useState(loadCacheLimit);
+  const [notifications, setNotificationsRaw] = useState(loadNotify);
+  const [planId, setPlanIdRaw] = useState(loadPlan);
+  const [customDaily, setCustomDailyRaw] = useState(loadCustomDaily);
+
+  const setPollInterval = useCallback(ms => {
+    savePollMs(ms);
+    setPollIntervalRaw(ms);
+  }, []);
+
+  const setActPollInterval = useCallback(ms => {
+    saveActPollMs(ms);
+    setActPollIntervalRaw(ms);
+  }, []);
+
+  const setActivePollInterval = useCallback(ms => {
+    saveActivePollMs(ms);
+    setActivePollIntervalRaw(ms);
+  }, []);
+
+  const setSessionLimit = useCallback(v => {
+    saveLimit(v);
+    setSessionLimitRaw(v);
+    if (onSessionLimitChange) onSessionLimitChange(v);
+  }, [onSessionLimitChange]);
+
+  const setActivityLimit = useCallback(v => {
+    saveActivityLimit(v);
+    setActivityLimitRaw(v);
+  }, []);
+
+  const setCacheLimit = useCallback(v => {
+    saveCacheLimit(v);
+    setCacheLimitRaw(v);
+  }, []);
+
+  const setNotifications = useCallback(async v => {
+    if (v) {
+      const ok = await requestNotificationPermission();
+      if (!ok) { alert("Please enable notifications in your browser settings."); return; }
+    }
+    saveNotify(v);
+    setNotificationsRaw(v);
+  }, []);
+
+  const setPlanId = useCallback(id => {
+    savePlan(id);
+    setPlanIdRaw(id);
+  }, []);
+
+  const setCustomDaily = useCallback(v => {
+    saveCustomDaily(v);
+    setCustomDailyRaw(v);
+  }, []);
+
+  const plan = useMemo(() => {
+    const p = PLANS.find(p => p.id === planId) || PLANS[0];
+    if (p.id === "custom") return { ...p, daily: customDaily };
+    return p;
+  }, [planId, customDaily]);
+
+  return {
+    pollInterval, setPollInterval,
+    actPollInterval, setActPollInterval,
+    activePollInterval, setActivePollInterval,
+    sessionLimit, setSessionLimit,
+    activityLimit, setActivityLimit,
+    cacheLimit, setCacheLimit,
+    notifications, setNotifications,
+    planId, setPlanId,
+    customDaily, setCustomDaily,
+    plan
+  };
+};
+
 // ─── Main App ─────────────────────────────────────────────────────────────────
 function JulesClient() {
   const [apiKey,setApiKey]     = useState(() => SafeStorage.loadApiKey());
@@ -8195,17 +8297,29 @@ function JulesClient() {
   }, []);
   const [refreshing,setRefreshing] = useState(false);
   const [netSnap,setNetSnap]       = useState(NET.snapshot());
-  const [pollInterval,setPollIntervalRaw] = useState(loadPollMs);
-  const [actPollInterval,setActPollIntervalRaw] = useState(loadActPollMs);
-  const [activePollInterval,setActivePollIntervalRaw] = useState(loadActivePollMs);
-  const [sessionLimit,setSessionLimitRaw] = useState(loadLimit);
-  const [activityLimit, setActivityLimitRaw] = useState(loadActivityLimit);
-  const [cacheLimit, setCacheLimitRaw] = useState(loadCacheLimit);
-  const [notifications, setNotificationsRaw] = useState(loadNotify);
 
-  const [planId,setPlanIdRaw]      = useState(loadPlan);
-  const [customDaily,setCustomDailyRaw] = useState(loadCustomDaily);
   const lastFetchTime = useRef(null);
+
+  const handleSessionLimitChange = useCallback(() => {
+    lastFetchTime.current = null; // Force full fetch with new limit
+  }, []);
+
+  const settings = useAppSettings({
+    onSessionLimitChange: handleSessionLimitChange
+  });
+
+  const {
+    pollInterval, setPollInterval,
+    actPollInterval, setActPollInterval,
+    activePollInterval, setActivePollInterval,
+    sessionLimit, setSessionLimit,
+    activityLimit, setActivityLimit,
+    cacheLimit, setCacheLimit,
+    notifications, setNotifications,
+    planId, setPlanId,
+    customDaily, setCustomDaily,
+    plan
+  } = settings;
 
   const [archivedIds, setArchivedIds] = useState(() => {
     try { return new Set(SafeStorage.loadArchived()); }
@@ -8225,14 +8339,6 @@ function JulesClient() {
   });
 
   const isDesktop = useIsDesktop();
-
-  const setPlanId = useCallback(id => { savePlan(id); setPlanIdRaw(id); }, []);
-  const setCustomDaily = useCallback(v => { saveCustomDaily(v); setCustomDailyRaw(v); }, []);
-  const plan = useMemo(() => {
-    const p = PLANS.find(p=>p.id===planId)||PLANS[0];
-    if (p.id === "custom") return { ...p, daily: customDaily };
-    return p;
-  }, [planId, customDaily]);
 
   const { todayCount, registerSession, registerSessions } = useQuotaTracker(sessions, plan);
 
@@ -8301,46 +8407,6 @@ function JulesClient() {
     setSelected(null);
     setDesktop("empty");
     setMobile("list");
-  }, []);
-
-  const setPollInterval = useCallback(ms => {
-    savePollMs(ms);
-    setPollIntervalRaw(ms);
-  }, []);
-
-  const setActPollInterval = useCallback(ms => {
-    saveActPollMs(ms);
-    setActPollIntervalRaw(ms);
-  }, []);
-
-  const setActivePollInterval = useCallback(ms => {
-    saveActivePollMs(ms);
-    setActivePollIntervalRaw(ms);
-  }, []);
-
-  const setSessionLimit = useCallback(v => {
-    saveLimit(v);
-    setSessionLimitRaw(v);
-    lastFetchTime.current = null; // Force full fetch with new limit
-  }, []);
-
-  const setActivityLimit = useCallback(v => {
-    saveActivityLimit(v);
-    setActivityLimitRaw(v);
-  }, []);
-
-  const setCacheLimit = useCallback(v => {
-    saveCacheLimit(v);
-    setCacheLimitRaw(v);
-  }, []);
-
-  const setNotifications = useCallback(async v => {
-    if (v) {
-      const ok = await requestNotificationPermission();
-      if (!ok) { alert("Please enable notifications in your browser settings."); return; }
-    }
-    saveNotify(v);
-    setNotificationsRaw(v);
   }, []);
 
   const fetchSupplemental = useCallback(async (ids) => {
@@ -8615,17 +8681,9 @@ function JulesClient() {
           {desktopView==="network"&&( <NetworkMonitor onBack={()=>setDesktop("empty")} isDesktop/> )} {desktopView==="settings"&&(
             <SettingsView onBack={()=>setDesktop("empty")} isDesktop
               apiKey={apiKey} setApiKey={setApiKey}
-              pollInterval={pollInterval} setPollInterval={setPollInterval}
-              actPollInterval={actPollInterval} setActPollInterval={setActPollInterval}
-              activePollInterval={activePollInterval} setActivePollInterval={setActivePollInterval}
-              sessionLimit={sessionLimit} setSessionLimit={setSessionLimit}
-              activityLimit={activityLimit} setActivityLimit={setActivityLimit}
-              cacheLimit={cacheLimit} setCacheLimit={setCacheLimit}
+              settings={settings}
               personas={personas} setPersonas={setPersonas}
-              planId={planId} setPlanId={setPlanId}
-              customDaily={customDaily} setCustomDaily={setCustomDaily}
-              plan={plan} todayCount={todayCount}
-              notifications={notifications} setNotifications={setNotifications} />
+              todayCount={todayCount} />
           )}
         </div>
       </Shell>
@@ -8704,17 +8762,9 @@ function JulesClient() {
         {mobileScreen==="network"&&( <NetworkMonitor onBack={()=>setMobile("list")} isDesktop={false}/> )} {mobileScreen==="settings"&&(
           <SettingsView onBack={()=>setMobile("list")} isDesktop={false}
             apiKey={apiKey} setApiKey={setApiKey}
-            pollInterval={pollInterval} setPollInterval={setPollInterval}
-            actPollInterval={actPollInterval} setActPollInterval={setActPollInterval}
-            activePollInterval={activePollInterval} setActivePollInterval={setActivePollInterval}
-            sessionLimit={sessionLimit} setSessionLimit={setSessionLimit}
-            activityLimit={activityLimit} setActivityLimit={setActivityLimit}
-            cacheLimit={cacheLimit} setCacheLimit={setCacheLimit}
+            settings={settings}
             personas={personas} setPersonas={setPersonas}
-            planId={planId} setPlanId={setPlanId}
-            customDaily={customDaily} setCustomDaily={setCustomDaily}
-            plan={plan} todayCount={todayCount}
-            notifications={notifications} setNotifications={setNotifications} />
+            todayCount={todayCount} />
         )}
       </div>
       <nav style={{display:"flex",borderTop:`1px solid ${T.border}`,background:T.surface,transform:"translateZ(0)",flexShrink:0}}>
