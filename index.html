@@ -1362,15 +1362,42 @@ const getPR = (s) => {
   return null;
 };
 
+const hasMergeEvidence = (activities) => {
+  if (!activities || activities.length === 0) return false;
+
+  for (let i = 0; i < activities.length; i++) {
+    const a = activities[i];
+    if (!a) continue;
+
+    const desc = (a.progressUpdated?.description || "").toLowerCase();
+    const title = (a.progressUpdated?.title || "").toLowerCase();
+
+    if (desc.includes("merged") ||
+        desc.includes("pull request merged") ||
+        title.includes("merged")) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
 const getPRInfo = (s, activities = []) => {
   if (!s) return null;
+
   const sid = s.id || s.name || "temp";
   const actLen = activities.length;
   const size = getApproxBytes(activities);
   const cacheKey = `${sid}:${actLen}:${size}:${s.updateTime || s.createTime || ""}`;
+
+  // Check cache first (with expiry)
   if (sid !== "temp" && PR_INFO_CACHE.has(cacheKey)) {
     const cached = PR_INFO_CACHE.get(cacheKey);
-    if (cached) return cached; // Ignore stale or null cache values to allow real-time PR discovery
+    if (cached && cached.expiresAt && Date.now() < cached.expiresAt) {
+      return cached;
+    } else if (cached) {
+      PR_INFO_CACHE.delete(cacheKey);
+    }
   }
 
   let pr = getPR(s);
@@ -1411,15 +1438,25 @@ const getPRInfo = (s, activities = []) => {
     return null;
   }
 
-  // Determine PR status accurately based on ahead commits to the default branch
+  // Check if commits were pushed
   const ahead = getAheadCount(activities);
-  const state = ahead === 0 ? "merged" : "open";
 
-  const result = { ...pr, state };
+  // If no commits pushed, PR doesn't exist yet
+  if (ahead === 0) {
+    return null;
+  }
+
+  // If commits pushed, determine if merged based on activity evidence
+  const isMerged = hasMergeEvidence(activities);
+  const state = isMerged ? "merged" : "open";
+
+  const result = { ...pr, state, expiresAt: Date.now() + (5 * 60 * 1000) };
+
   if (sid !== "temp") {
     if (PR_INFO_CACHE.size > 500) PR_INFO_CACHE.clear();
     PR_INFO_CACHE.set(cacheKey, result);
   }
+
   return result;
 };
 
