@@ -1400,7 +1400,8 @@ const getPRInfo = (s, activities = []) => {
     }
   }
 
-  let pr = getPR(s);
+  const prOnSession = getPR(s);
+  let pr = prOnSession;
 
   // If not found in session object, scan activities (crucial for recent sessions)
   if (!pr && activities && activities.length > 0) {
@@ -1433,21 +1434,21 @@ const getPRInfo = (s, activities = []) => {
     }
   }
 
+  // If no PR was found anywhere, return null
   if (!pr) {
-    // To prevent blocking running or auto-refreshing sessions, do not cache null states
     return null;
   }
 
   // Check if commits were pushed
   const ahead = getAheadCount(activities);
 
-  // If no commits pushed, PR doesn't exist yet
-  if (ahead === 0) {
+  // If no commits pushed AND we don't have a PR on the session object directly, PR doesn't exist yet
+  if (!prOnSession && ahead === 0) {
     return null;
   }
 
-  // If commits pushed, determine if merged based on activity evidence
-  const isMerged = hasMergeEvidence(activities);
+  // Determine if merged based on activity evidence or session completion state
+  const isMerged = hasMergeEvidence(activities) || s.state === "COMPLETED" || s.state === "SUCCESS";
   const state = isMerged ? "merged" : "open";
 
   const result = { ...pr, state, expiresAt: Date.now() + (5 * 60 * 1000) };
