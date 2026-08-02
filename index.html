@@ -1439,14 +1439,6 @@ const getPRInfo = (s, activities = []) => {
     return null;
   }
 
-  // Check if commits were pushed
-  const ahead = getAheadCount(activities);
-
-  // If no commits pushed AND we don't have a PR on the session object directly, PR doesn't exist yet
-  if (!prOnSession && ahead === 0) {
-    return null;
-  }
-
   // Determine if merged based on activity evidence or session completion state
   const isMerged = hasMergeEvidence(activities) || s.state === "COMPLETED" || s.state === "SUCCESS";
   const state = isMerged ? "merged" : "open";
