@@ -7896,6 +7896,10 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
   }, [filter, baseFiltered, draftsMap]);
   const active = useMemo(() => sessions.filter(s=>ACTIVE_STATES.has(s.state)).length, [sessions]);
 
+  const hasDrafts = useMemo(() => {
+    return Object.keys(draftsMap).length > 0 || loadDraftsBox().length > 0;
+  }, [draftsMap]);
+
   const latestCompletedTimeByRepo = useMemo(() => {
     const map = {};
     sessions.forEach(other => {
@@ -7924,7 +7928,39 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
           <div style={{marginLeft:"auto",display:"flex",gap:6,alignItems:"center",flexShrink:0}}>
             <button onClick={toggleSearch} title="Search sessions (Press /)" aria-label="Search sessions (Press forward slash to search)" style={{width:30,height:30,borderRadius:5,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="search" s={15} c={searchOpen||searchQuery?T.blue:T.muted}/></button>
             {isDesktop&&<button onClick={onNew} title="New Session" aria-label="New Session" style={{width:30,height:30,borderRadius:5,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="plus" s={15} c={T.brand}/></button>}
-            <button onClick={onDrafts} title="Drafts Box" aria-label="Drafts Box" style={{width:30,height:30,borderRadius:5,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="layers" s={15} c={T.muted}/></button>
+            <button
+              onClick={onDrafts}
+              title={hasDrafts ? "Drafts Box (Has saved drafts)" : "Drafts Box"}
+              aria-label={hasDrafts ? "Drafts Box (Has saved drafts)" : "Drafts Box"}
+              style={{
+                width:30,
+                height:30,
+                borderRadius:5,
+                background:"transparent",
+                border:"none",
+                display:"flex",
+                alignItems:"center",
+                justifyContent:"center",
+                cursor:"pointer",
+                position:"relative"
+              }}
+            >
+              <Ic n="layers" s={15} c={hasDrafts ? T.amber : T.muted}/>
+              {hasDrafts && (
+                <span
+                  style={{
+                    position: "absolute",
+                    top: 4,
+                    right: 4,
+                    width: 6,
+                    height: 6,
+                    borderRadius: "50%",
+                    background: T.amber,
+                    boxShadow: `0 0 4px ${T.amber}`
+                  }}
+                />
+              )}
+            </button>
             <button onClick={onSettings} title="Settings" aria-label="Settings" style={{width:30,height:30,borderRadius:5,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="settings" s={15} c={T.muted}/></button>
             <div style={{display:"flex", alignItems:"center", gap:4}}>
               {countdown > 0 && !refreshing && (
