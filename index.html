@@ -1232,7 +1232,7 @@ const NET = makeNetTracker();
 
 let quotaRetryAfter = 0;
 let lastQuotaError = null;
-const QUOTA_ERROR_CODES = [429, 403, 500, 503];
+const QUOTA_ERROR_CODES = [429, 403];
 
 async function apiCall(apiKey, path, opts={}) {
   // Defensive validation of API key format
@@ -1325,7 +1325,8 @@ async function apiCall(apiKey, path, opts={}) {
 
     if (QUOTA_ERROR_CODES.includes(res.status)) {
       const retryAfterHeader = res.headers.get('Retry-After');
-      const waitSec = retryAfterHeader ? parseInt(retryAfterHeader, 10) : 60;
+      const parsed = retryAfterHeader ? parseInt(retryAfterHeader, 10) : NaN;
+      const waitSec = Number.isFinite(parsed) ? parsed : 60;
       quotaRetryAfter = Date.now() + (waitSec * 1000);
       lastQuotaError = { status: res.status, msg, at: new Date() };
 
