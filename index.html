@@ -1811,6 +1811,25 @@ const getAheadCount = (activities = []) => {
   return Math.max(count, pushHashes.size);
 };
 
+// Bounded cache to avoid memory leaks. Caches parsed string date values to their epoch milliseconds.
+const DATE_MS_CACHE = new Map();
+const parseDateMs = (dateVal) => {
+  if (!dateVal) return 0;
+  if (typeof dateVal === 'number') return dateVal;
+  if (dateVal instanceof Date) return dateVal.getTime();
+  if (typeof dateVal !== 'string') {
+    return new Date(dateVal).getTime() || 0;
+  }
+  let cached = DATE_MS_CACHE.get(dateVal);
+  if (cached !== undefined) return cached;
+  const ms = new Date(dateVal).getTime() || 0;
+  if (DATE_MS_CACHE.size > 2000) {
+    DATE_MS_CACHE.clear();
+  }
+  DATE_MS_CACHE.set(dateVal, ms);
+  return ms;
+};
+
 const fmtDuration = ms => {
   const d = Math.abs(ms);
   if (d < 60000) return `${Math.floor(d / 1000)}s`;
@@ -1819,7 +1838,7 @@ const fmtDuration = ms => {
   return `${Math.floor(d / 86400000)}d`;
 };
 const fmtAgo = ts => { const d=Date.now()-ts; if(d<60000)return`${Math.floor(d/1000)}s ago`; if(d<3600000)return`${Math.floor(d/60000)}m ago`; if(d<86400000)return`${Math.floor(d/3600000)}h ago`; return`${Math.floor(d/86400000)}d ago`; };
-const fmtTime = ts => new Date(ts).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
+const fmtTime = ts => new Date(parseDateMs(ts)).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
 const pctFromState = s => ({QUEUED:5,PLANNING:20,AWAITING_PLAN_APPROVAL:35,IN_PROGRESS:65,AWAITING_USER_FEEDBACK:60,COMPLETED:100,FAILED:30,PAUSED:50}[s]||0);
 const getActType = a =>
   a.planGenerated?"planGenerated":a.planApproved?"planApproved":
@@ -2465,7 +2484,7 @@ const MediaArtifacts = memo(({ artifacts, ts, onMediaClick }) => {
 const ChatBubble = memo(({ act, type, onMediaClick, onEdit, onReply, forceExpanded = false }) => {
   const isUser = type === "userMessaged";
   const text   = isUser ? act.userMessaged?.userMessage : act.agentMessaged?.agentMessage;
-  const time   = fmtTime(new Date(act.createTime).getTime());
+  const time   = fmtTime(parseDateMs(act.createTime));
   const isTemp = act._temp === true;
   const [copied, setCopied] = useState(false);
 
@@ -2602,7 +2621,7 @@ const TimelineEvent = memo(({ act, onMediaClick, onReply }) => {
     system:{n:"code",c:T.muted},
   };
   const ic  = { ...(IC_MAP[type] || IC_MAP.system) };
-  const time = fmtTime(new Date(act.createTime).getTime());
+  const time = fmtTime(parseDateMs(act.createTime));
 
   let title = "", detail = null;
   switch (type) {
@@ -2851,7 +2870,7 @@ const MediaModal = ({ media, onClose }) => {
             MEDIA ARTIFACT
           </div>
           <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.textDim }}>
-            {media.mimeType} · {fmtBytes(dataSize/1024)} · {fmtTime(new Date(media.ts).getTime())}
+            {media.mimeType} · {fmtBytes(dataSize/1024)} · {fmtTime(parseDateMs(media.ts))}
           </div>
         </div>
         <button
@@ -2952,9 +2971,9 @@ const ActivityFeed = memo(({ activities, showAll, onShowAll, onMediaClick, onEdi
   }, [visible]);
 
   const combined = useMemo(() => {
-    const list = [...deduped.map(a => ({ type: "activity", data: a, ts: new Date(a.createTime).getTime() }))];
+    const list = [...deduped.map(a => ({ type: "activity", data: a, ts: parseDateMs(a.createTime) }))];
     driftSessions.forEach(s => {
-      list.push({ type: "drift", data: s, ts: new Date(s.updateTime || s.createTime).getTime() });
+      list.push({ type: "drift", data: s, ts: parseDateMs(s.updateTime || s.createTime) });
     });
     return list.sort((a, b) => a.ts - b.ts);
   }, [deduped, driftSessions]);
@@ -3038,8 +3057,8 @@ const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFeedback,
   // Check if plan already approved in activity history (must be after the plan was generated)
   const approved = useMemo(() => {
     if (!planAct) return false;
-    const planTs = new Date(planAct.createTime).getTime();
-    return activities.some(a => a.planApproved && new Date(a.createTime).getTime() >= planTs);
+    const planTs = parseDateMs(planAct.createTime);
+    return activities.some(a => a.planApproved && parseDateMs(a.createTime) >= planTs);
   }, [activities, planAct]);
 
   const hasFeedback = globalNote.trim() || Object.values(stepNotes).some(n => n.trim());
@@ -3085,7 +3104,7 @@ const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFeedback,
         allSessions={allSessions}
         activitiesMap={activitiesMap}
         currentSessionId={session.id}
-        startTime={new Date(session.createTime).getTime()}
+        startTime={parseDateMs(session.createTime)}
       />
 
       {/* Plan header */}
@@ -3728,7 +3747,7 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], stat
   const driftDetected = useMemo(() => {
     if (currentState === "COMPLETED") return false;
     if (!latestCompletedTime) return false;
-    const currentStart = new Date(s.createTime).getTime();
+    const currentStart = parseDateMs(s.createTime);
     return latestCompletedTime > currentStart;
   }, [s.createTime, latestCompletedTime, currentState]);
 
@@ -3804,7 +3823,7 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], stat
           {s.title||s.prompt}
         </div>
         <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.muted,fontWeight:500,flexShrink:0}}>
-          {fmtAgo(new Date(s.updateTime||s.createTime).getTime())}
+          {fmtAgo(parseDateMs(s.updateTime||s.createTime))}
         </div>
       </div>
 
@@ -3988,7 +4007,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     return allSessions.filter(s => {
       if (s.id === session.id || s.state !== "COMPLETED") return false;
       if (s.sourceContext?.source !== session.sourceContext?.source) return false;
-      return new Date(s.updateTime || s.createTime).getTime() > new Date(session.createTime).getTime();
+      return parseDateMs(s.updateTime || s.createTime) > parseDateMs(session.createTime);
     });
   }, [allSessions, session]);
 
@@ -4072,12 +4091,12 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     if (!session) return false;
     const repo = session.sourceContext?.source;
     if (!repo) return false;
-    const currentStart = new Date(session.createTime).getTime();
+    const currentStart = parseDateMs(session.createTime);
     const repoCompletions = completedSessionsMap.get(repo) || [];
 
     return repoCompletions.some(s => {
       if (s.id === session.id) return false;
-      const completionTime = new Date(s.updateTime || s.createTime).getTime();
+      const completionTime = parseDateMs(s.updateTime || s.createTime);
       return completionTime > currentStart;
     });
   }, [session, completedSessionsMap]);
@@ -4166,7 +4185,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
         setSyncProgress("SYNC");
         let sorted = Array.from(actMapRef.current.values())
           .filter(a => !a._temp)
-          .sort((a,b) => new Date(a.createTime) - new Date(b.createTime));
+          .sort((a,b) => parseDateMs(a.createTime) - parseDateMs(b.createTime));
 
         // Enforce limit if we exceeded it during this load
         if (sorted.length > activityLimit) {
@@ -4196,7 +4215,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
       if (cacheLimit > 0) {
         try {
           const cache = SafeStorage.loadSessionCache();
-          cache[session.id] = { activities: Array.from(actMapRef.current.values()).filter(a => !a._temp).sort((a,b) => new Date(a.createTime) - new Date(b.createTime)).slice(-activityLimit), ts: Date.now() };
+          cache[session.id] = { activities: Array.from(actMapRef.current.values()).filter(a => !a._temp).sort((a,b) => parseDateMs(a.createTime) - parseDateMs(b.createTime)).slice(-activityLimit), ts: Date.now() };
           // Strict LRU Strategy
           let keys = Object.keys(cache);
           if (keys.length > cacheLimit) {
@@ -5395,7 +5414,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                   }}>
                     FOLLOW-UP #{i+1}
                     <div style={{height:1, flex:1, background:T.brandDim}}/>
-                    <span style={{color:T.textDim, fontSize:10}}>{fmtTime(new Date(a.createTime).getTime())}</span>
+                    <span style={{color:T.textDim, fontSize:10}}>{fmtTime(parseDateMs(a.createTime))}</span>
                   </div>
                   <div
                     onClick={() => scrollToActivityInChat(actKey, false)}
@@ -5467,7 +5486,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                       {m.mimeType.split("/")[1]?.toUpperCase() || "IMAGE"}
                     </div>
                     <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.textDim, display:"flex", justifyContent:"space-between" }}>
-                      <span>{fmtTime(new Date(m.ts).getTime())}</span>
+                      <span>{fmtTime(parseDateMs(m.ts))}</span>
                       <span>{fmtBytes((m.data?.length || 0) * 0.75 / 1024)}</span>
                     </div>
                   </div>
@@ -6571,7 +6590,7 @@ const DraftsBox = ({ onBack, isDesktop, onResume, onCreate, allSessions, activit
                             {(s.updateTime || s.createTime) && (
                               <div style={{display:"flex", alignItems:"center", gap:4, opacity:0.7}}>
                                 <Ic n="clock" s={11} c={T.muted}/>
-                                <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.muted, fontWeight:700}}>{fmtAgo(new Date(s.updateTime || s.createTime).getTime())}</span>
+                                <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.muted, fontWeight:700}}>{fmtAgo(parseDateMs(s.updateTime || s.createTime))}</span>
                               </div>
                             )}
                           </div>
@@ -6785,7 +6804,7 @@ const ConflictRadar = memo(({ currentSource, currentBranch, currentPrompt, allSe
       const isCompleted = s.state === "COMPLETED";
       if (isCompleted) {
         if (!startTime) continue;
-        const compTime = new Date(s.updateTime || s.createTime).getTime();
+        const compTime = parseDateMs(s.updateTime || s.createTime);
         if (compTime <= startTime) continue;
       }
 
@@ -6874,7 +6893,7 @@ const ConflictRadar = memo(({ currentSource, currentBranch, currentPrompt, allSe
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
                     <Pill status={c.session.state} small hideLabel />
-                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: T.dim }}>{fmtAgo(new Date(c.session.updateTime || c.session.createTime).getTime())}</span>
+                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: T.dim }}>{fmtAgo(parseDateMs(c.session.updateTime || c.session.createTime))}</span>
                   </div>
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
@@ -7902,7 +7921,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
       if (other.state === "COMPLETED") {
         const repo = other.sourceContext?.source;
         if (repo) {
-          const completionTime = new Date(other.updateTime || other.createTime).getTime();
+          const completionTime = parseDateMs(other.updateTime || other.createTime);
           if (!map[repo] || completionTime > map[repo]) {
             map[repo] = completionTime;
           }
@@ -8116,7 +8135,7 @@ const useQuotaTracker = (sessions, plan) => {
       const cutoff = now - 48 * 3600000;
       const pruned = {};
       Object.entries(reg).forEach(([id, time]) => {
-        if (new Date(time).getTime() > cutoff) pruned[id] = time;
+        if (parseDateMs(time) > cutoff) pruned[id] = time;
       });
       return pruned;
     } catch { return {}; }
@@ -8152,7 +8171,7 @@ const useQuotaTracker = (sessions, plan) => {
     const windowStart = now - 24 * 3600000;
 
     const allKnown = Object.entries(sessionRegistry).map(([id, time]) => ({
-      id, ts: new Date(time).getTime()
+      id, ts: parseDateMs(time)
     })).filter(s => s.ts >= windowStart);
 
     allKnown.sort((a, b) => a.ts - b.ts);
@@ -8182,7 +8201,7 @@ const useQuotaTracker = (sessions, plan) => {
     // ── Find the last 2 resets that happened ───────────────────────────
     const windowEnd = now - 24 * 3600000;
     const recentlyDone = Object.entries(sessionRegistry)
-      .map(([id, time]) => ({ id, ts: new Date(time).getTime() }))
+      .map(([id, time]) => ({ id, ts: parseDateMs(time) }))
       .filter(s => s.ts < windowEnd)
       .sort((a, b) => b.ts - a.ts); // sort descending (newest reset first)
 
@@ -8308,8 +8327,8 @@ function JulesClient() {
     const map = new Map();
     [...sessions, ...supplementalSessions].forEach(s => map.set(s.id, s));
     return Array.from(map.values()).sort((a, b) => {
-      const aTime = new Date(a.updateTime || a.createTime).getTime();
-      const bTime = new Date(b.updateTime || b.createTime).getTime();
+      const aTime = parseDateMs(a.updateTime || a.createTime);
+      const bTime = parseDateMs(b.updateTime || b.createTime);
       return bTime - aTime;
     });
   }, [sessions, supplementalSessions]);
@@ -8496,8 +8515,8 @@ function JulesClient() {
         pageToken = d.nextPageToken;
         iterations++;
 
-        const windowStart = new Date(Date.now() - 24 * 3600000);
-        const hasOlderThanWindow = batch.length > 0 && new Date(batch[batch.length-1].createTime) < windowStart;
+        const windowStart = Date.now() - 24 * 3600000;
+        const hasOlderThanWindow = batch.length > 0 && parseDateMs(batch[batch.length-1].createTime) < windowStart;
 
         if (!isFull) break;
         if (hasOlderThanWindow) break;
@@ -8527,8 +8546,8 @@ function JulesClient() {
           const bActive = ACTIVE_STATES.has(b.state);
           if (aActive && !bActive) return -1;
           if (!aActive && bActive) return 1;
-          const aTime = new Date(a.updateTime || a.createTime).getTime();
-          const bTime = new Date(b.updateTime || b.createTime).getTime();
+          const aTime = parseDateMs(a.updateTime || a.createTime);
+          const bTime = parseDateMs(b.updateTime || b.createTime);
           return bTime - aTime;
         });
 
