@@ -6099,13 +6099,11 @@ const useNewSessionFlow = ({ apiKey, personas, onCreate, initialDraft, onDraftSa
         ...(autoMode&&{automationMode:"AUTO_CREATE_PR"}),
       }),
       requirePlanApproval: reqApproval,
-      idempotencyKey,
     };
     try {
-      const d = await apiCall(apiKey, "/sessions", {
+      const d = await apiCall(apiKey, `/sessions?idempotencyKey=${idempotencyKey}`, {
         method: "POST",
         body,
-        headers: { "Idempotency-Key": idempotencyKey },
         timeout: 60000,
         _label: "Create session"
       });
