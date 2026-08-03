@@ -6071,7 +6071,6 @@ const useNewSessionFlow = ({ apiKey, personas, onCreate, initialDraft, onDraftSa
       }
     }
 
-    const idempotencyKey = `session-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     const body = {
       prompt: finalPrompt,
       ...(source&&{
@@ -6081,7 +6080,7 @@ const useNewSessionFlow = ({ apiKey, personas, onCreate, initialDraft, onDraftSa
       requirePlanApproval: reqApproval,
     };
     try {
-      const d = await apiCall(apiKey, `/sessions?idempotencyKey=${idempotencyKey}`, {
+      const d = await apiCall(apiKey, "/sessions", {
         method: "POST",
         body,
         timeout: 60000,
