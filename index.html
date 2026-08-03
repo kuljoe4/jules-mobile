@@ -381,7 +381,18 @@ const SafeStorage = {
   getJSON(key, fallback = null) {
     try {
       const v = localStorage.getItem(key);
-      return v ? JSON.parse(v) : fallback;
+      if (v === null) return fallback;
+      const parsed = JSON.parse(v);
+      if (fallback !== null) {
+        if (Array.isArray(fallback)) {
+          if (!Array.isArray(parsed)) return fallback;
+        } else if (typeof fallback === 'object') {
+          if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return fallback;
+        } else if (typeof parsed !== typeof fallback) {
+          return fallback;
+        }
+      }
+      return parsed;
     } catch {
       return fallback;
     }
@@ -1060,7 +1071,8 @@ const MultiPersonaPicker = ({ personas, selectedIds, onToggle, style: s = {} }) 
 
 const ExpandablePersonaPrompt = ({ prompt, limit = 120 }) => {
   const [expanded, setExpanded] = React.useState(false);
-  const isLong = prompt.length > limit;
+  const promptLength = React.useMemo(() => Array.from(prompt || "").length, [prompt]);
+  const isLong = promptLength > limit;
 
   if (!isLong) {
     return (
@@ -1070,7 +1082,7 @@ const ExpandablePersonaPrompt = ({ prompt, limit = 120 }) => {
     );
   }
 
-  const displayedText = expanded ? prompt : prompt.slice(0, limit);
+  const displayedText = expanded ? prompt : safeSlice(prompt, limit);
 
   return (
     <div style={{fontSize:13, color:T.textDim, lineHeight:1.5, fontFamily:"'IBM Plex Sans',sans-serif"}}>
@@ -1218,77 +1230,187 @@ function makeNetTracker() {
 }
 const NET = makeNetTracker();
 
+let quotaRetryAfter = 0;
+let lastQuotaError = null;
+const QUOTA_ERROR_CODES = [429, 403, 500, 503];
+const pendingRequests = new Map();
+
 async function apiCall(apiKey, path, opts={}) {
   // Defensive validation of API key format
   if (apiKey && !isValidGoogleApiKey(apiKey)) {
     throw new Error("Invalid API key.");
   }
-  const url = `${BASE}${path}`;
-  const headers = { "x-goog-api-key":apiKey, "Content-Type":"application/json", ...(opts.headers||{}) };
-  const body = opts.body ? JSON.stringify(opts.body) : undefined;
-
-  // Estimate outgoing bytes (method + url + headers + body)
-  const outBytes = (opts.method || "GET").length + url.length + JSON.stringify(headers).length + (body?.length || 0);
-
-  // Implement a defensive request timeout to prevent client resource exhaustion and hanging socket connections
-  const controller = new AbortController();
-  const timeoutMs = opts.timeout || 30000; // default 30-second timeout
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
-  let res;
-  try {
-    res = await fetch(url, { ...opts, headers, body, signal: controller.signal });
-  } catch (err) {
-    if (err.name === 'AbortError') {
-      throw new Error(`API request timed out after ${timeoutMs}ms`);
-    }
+  const now = Date.now();
+  if (quotaRetryAfter > now) {
+    const waitSec = Math.ceil((quotaRetryAfter - now) / 1000);
+    const err = new Error(`Quota or temporary service error. Please wait ${waitSec}s before retrying.`);
+    err.status = 503;
     throw err;
-  } finally {
-    clearTimeout(timeoutId);
   }
 
-  let text = "";
-  let headerSize = 0;
-  res.headers.forEach((v, k) => headerSize += k.length + v.length + 4);
+  const method = opts.method || "GET";
+  const isGet = method === "GET";
+  const dedupKey = `${method}:${path}`;
 
-  if (opts.onProgress && res.body) {
-    const reader = res.body.getReader();
-    const contentLength = +res.headers.get("Content-Length") || 0;
-    let receivedLength = 0;
-    const chunks = [];
+  if (isGet && pendingRequests.has(dedupKey)) {
+    return pendingRequests.get(dedupKey);
+  }
 
-    while (true) {
-      const {done, value} = await reader.read();
-      if (done) break;
-      chunks.push(value);
-      receivedLength += value.length;
-      opts.onProgress({ loaded: receivedLength, total: contentLength });
+  const execute = async () => {
+    const url = `${BASE}${path}`;
+    const headers = { "x-goog-api-key":apiKey, "Content-Type":"application/json", ...(opts.headers||{}) };
+    const body = opts.body ? JSON.stringify(opts.body) : undefined;
+
+    // Estimate outgoing bytes (method + url + headers + body)
+    const outBytes = (opts.method || "GET").length + url.length + JSON.stringify(headers).length + (body?.length || 0);
+
+    // Implement a defensive request timeout to prevent client resource exhaustion and hanging socket connections
+    const controller = new AbortController();
+    const timeoutMs = opts.timeout || 30000; // default 30-second timeout
+    let timedOut = false;
+    const timeoutId = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, timeoutMs);
+
+    if (opts.signal) {
+      if (opts.signal.aborted) {
+        controller.abort();
+      } else {
+        opts.signal.addEventListener('abort', () => {
+          controller.abort();
+        });
+      }
     }
 
-    const all = new Uint8Array(receivedLength);
-    let pos = 0;
-    for (let c of chunks) { all.set(c, pos); pos += c.length; }
-    text = new TextDecoder().decode(all);
-  } else {
-    text = await res.text();
-  }
+    let res;
+    try {
+      res = await fetch(url, { ...opts, headers, body, signal: controller.signal });
+    } catch (err) {
+      if (err.name === 'AbortError') {
+        if (timedOut) {
+          throw new Error(`API request timed out after ${timeoutMs}ms`);
+        }
+        const abortErr = new Error("The user aborted a request.");
+        abortErr.name = "AbortError";
+        throw abortErr;
+      }
+      throw err;
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
-  const inBytes = headerSize + new TextEncoder().encode(text).length;
-  NET.record(opts._label || path, inBytes / 1024, outBytes / 1024, res.status);
+    let text = "";
+    let headerSize = 0;
+    res.headers.forEach((v, k) => headerSize += k.length + v.length + 4);
 
-  if (!res.ok) {
-    let msg = text;
-    try { msg = JSON.parse(text)?.error?.message || text; } catch {}
-    throw new Error(`${res.status}: ${msg}`);
+    if (opts.onProgress && res.body) {
+      const reader = res.body.getReader();
+      const contentLength = +res.headers.get("Content-Length") || 0;
+      let receivedLength = 0;
+      const chunks = [];
+
+      while (true) {
+        const {done, value} = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        receivedLength += value.length;
+        opts.onProgress({ loaded: receivedLength, total: contentLength });
+      }
+
+      const all = new Uint8Array(receivedLength);
+      let pos = 0;
+      for (let c of chunks) { all.set(c, pos); pos += c.length; }
+      text = new TextDecoder().decode(all);
+    } else {
+      text = await res.text();
+    }
+
+    const inBytes = headerSize + new TextEncoder().encode(text).length;
+    NET.record(opts._label || path, inBytes / 1024, outBytes / 1024, res.status);
+
+    if (!res.ok) {
+      let msg = text;
+      try { msg = JSON.parse(text)?.error?.message || text; } catch {}
+
+      if (QUOTA_ERROR_CODES.includes(res.status)) {
+        const retryAfterHeader = res.headers.get('Retry-After');
+        const waitSec = retryAfterHeader ? parseInt(retryAfterHeader, 10) : 60;
+        quotaRetryAfter = Date.now() + (waitSec * 1000);
+        lastQuotaError = { status: res.status, msg, at: new Date() };
+
+        try {
+          window.dispatchEvent(new CustomEvent('quota-error', {
+            detail: { retryAfter: quotaRetryAfter, msg, status: res.status }
+          }));
+        } catch (e) {
+          console.error("Failed to dispatch quota-error event:", e);
+        }
+      }
+
+      throw new Error(`${res.status}: ${msg}`);
+    }
+
+    // Reset quota on success
+    quotaRetryAfter = 0;
+    return text ? JSON.parse(text) : {};
+  };
+
+  const promise = execute();
+  if (isGet) {
+    pendingRequests.set(dedupKey, promise);
+    promise.finally(() => {
+      pendingRequests.delete(dedupKey);
+    });
   }
-  return text ? JSON.parse(text) : {};
+  return promise;
 }
 
 // ─── Utils ────────────────────────────────────────────────────────────────────
+class LRUCache {
+  constructor(maxSize = 500) {
+    this.map = new Map();
+    this.maxSize = maxSize;
+  }
+  get(key) {
+    if (!this.map.has(key)) return null;
+    const val = this.map.get(key);
+    this.map.delete(key);
+    this.map.set(key, val);
+    return val;
+  }
+  set(key, val) {
+    if (this.map.has(key)) this.map.delete(key);
+    this.map.set(key, val);
+    if (this.map.size > this.maxSize) {
+      const oldestKey = this.map.keys().next().value;
+      this.map.delete(oldestKey);
+    }
+  }
+  has(key) {
+    return this.map.has(key);
+  }
+  delete(key) {
+    return this.map.delete(key);
+  }
+  clear() {
+    this.map.clear();
+  }
+  get size() {
+    return this.map.size;
+  }
+}
+
 const fmtBytes = b => b<1?`${(b*1024).toFixed(0)}B`:b<1024?`${b.toFixed(1)}KB`:`${(b/1024).toFixed(2)}MB`;
 const fmtChars = n => n<1000?`${n}c`: `${(n/1000).toFixed(1)}kc`;
-const PR_CACHE = new Map();
-const PR_INFO_CACHE = new Map();
+const safeSlice = (str, limit) => {
+  if (!str) return "";
+  const chars = Array.from(str);
+  if (chars.length <= limit) return str;
+  return chars.slice(0, limit).join("");
+};
+const PR_CACHE = new LRUCache(500);
+const PR_INFO_CACHE = new LRUCache(500);
 const GH_PR_RE = /https:\/\/github\.com\/[^\/]+\/[^\/]+\/pull\/(\d+)/;
 
 const getPrUrlAndNumber = (pr) => {
@@ -1499,7 +1621,7 @@ const getCheckStatus = (activities = []) => {
   return status;
 };
 
-const BRANCH_INFO_CACHE = new Map();
+const BRANCH_INFO_CACHE = new LRUCache(500);
 // Cache computed branch extraction per reference-stable activity object to prevent redundant regex executions
 const BRANCH_ACTIVITY_CACHE = new WeakMap();
 
@@ -1627,7 +1749,7 @@ const getBranchInfo = (s, activities = []) => {
   return res;
 };
 
-const WORKING_SET_CACHE = new Map();
+const WORKING_SET_CACHE = new LRUCache(500);
 const FILE_MENTION_RE = /`([^`\s]+\.[a-z0-9]+)`/gi;
 
 // Global WeakMap to cache parsed unidiff patch results directly by reference-stable gitPatch objects inside activities.
@@ -4090,11 +4212,18 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   const feedEndRef   = useRef(null);
   const actMapRef    = useRef(new Map());      // id → activity (dedup)
   const prevLenRef   = useRef(0);
+  const activitiesAbortRef = useRef(null);
 
   // ── Optimized activity loader: createTime cursor + Map dedup ──────────────
   // First load fetches all; subsequent loads fetch only new (createTime filter)
   const lastTsRef = useRef(null);
   const loadActivities = useCallback(async (sinceTs=null) => {
+    if (activitiesAbortRef.current) {
+      activitiesAbortRef.current.abort();
+    }
+    const controller = new AbortController();
+    activitiesAbortRef.current = controller;
+
     setIsSyncing(true); setIsStale(true);
     setSyncProgress(sinceTs ? (busy ? "SYNC" : "FETCH") : "CACHE");
     setSyncPhaseStats({ count: 0, pages: 0, bytes: 0, newItems: 0, newBytes: 0, loaded: 0, total: 0 });
@@ -4120,12 +4249,15 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
 
         const d = await apiCall(apiKey, `/sessions/${session.id}/activities?${qs}`, {
           _label:`Acts ${sinceTs?"Δ":"full"} ${session.id?.slice(0,6)}`,
+          signal: controller.signal,
           onProgress: ({ loaded, total }) => {
             currentLoaded = loaded;
             currentTotal = total;
             setSyncPhaseStats(prev => ({ ...prev, loaded: currentLoaded, total: currentTotal }));
           }
         });
+
+        if (activitiesAbortRef.current !== controller) return;
 
         const incoming = d.activities || [];
         const batchBytes = getApproxBytes(incoming);
@@ -4160,6 +4292,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
         if (sinceTs) break;
 
       } while (pageToken);
+
+      if (activitiesAbortRef.current !== controller) return;
 
       if (latestTs) lastTsRef.current = latestTs;
       if (changed) {
@@ -4209,11 +4343,14 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
         } catch {}
       }
     } catch (err) {
+      if (err.name === 'AbortError') return;
       console.error("[LoadActivities] Error:", err);
     } finally {
-      setIsSyncing(false); setIsStale(false);
-      setSyncProgress("DONE");
-      setTimeout(() => setSyncProgress("IDLE"), 2000);
+      if (activitiesAbortRef.current === controller) {
+        setIsSyncing(false); setIsStale(false);
+        setSyncProgress("DONE");
+        setTimeout(() => setSyncProgress("IDLE"), 2000);
+      }
     }
   }, [apiKey, session.id, activityLimit, cacheLimit]);
 
@@ -4248,6 +4385,10 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
 
     loadActivities(null); // full load on first open
     loadSession();
+
+    return () => {
+      if (activitiesAbortRef.current) activitiesAbortRef.current.abort();
+    };
   }, []); // intentional: component is keyed by session.id
 
   // Auto-scroll to bottom when new messages arrive
@@ -4323,8 +4464,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
       }
 
       // Limit quoteText length
-      if (quoteText.length > 200) {
-        quoteText = quoteText.substring(0, 197) + "...";
+      if (Array.from(quoteText).length > 200) {
+        quoteText = safeSlice(quoteText, 197) + "...";
       }
 
       const headerLine = `> **Replying to ${replyingTo.sender || "JULES"}**: *"${quoteText.replace(/\n/g, " ")}"*`;
@@ -5853,7 +5994,12 @@ const useNewSessionFlow = ({ apiKey, personas, onCreate, initialDraft, onDraftSa
             autoMode: current.autoMode,
             reqApproval: current.reqApproval,
             selectedPersonas: Array.from(current.selectedPersonas),
-            title: current.prompt.trim().split("\n")[0].slice(0, 50) + (current.prompt.trim().length > 50 ? "..." : "")
+            title: (() => {
+              const firstLine = current.prompt.trim().split("\n")[0];
+              const truncated = safeSlice(firstLine, 50);
+              const hasMore = Array.from(current.prompt.trim()).length > 50 || firstLine !== current.prompt.trim();
+              return truncated + (hasMore ? "..." : "");
+            })()
           };
           saveDraftToBox(d);
           clearDraft();
@@ -5901,7 +6047,12 @@ const useNewSessionFlow = ({ apiKey, personas, onCreate, initialDraft, onDraftSa
       autoMode,
       reqApproval,
       selectedPersonas: Array.from(selectedPersonas),
-      title: prompt.trim().split("\n")[0].slice(0, 50) + (prompt.trim().length > 50 ? "..." : "")
+      title: (() => {
+        const firstLine = prompt.trim().split("\n")[0];
+        const truncated = safeSlice(firstLine, 50);
+        const hasMore = Array.from(prompt.trim()).length > 50 || firstLine !== prompt.trim();
+        return truncated + (hasMore ? "..." : "");
+      })()
     };
     saveDraftToBox(d);
     handleClearDraft();
@@ -5921,6 +6072,7 @@ const useNewSessionFlow = ({ apiKey, personas, onCreate, initialDraft, onDraftSa
       }
     }
 
+    const idempotencyKey = `session-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     const body = {
       prompt: finalPrompt,
       ...(source&&{
@@ -5928,9 +6080,16 @@ const useNewSessionFlow = ({ apiKey, personas, onCreate, initialDraft, onDraftSa
         ...(autoMode&&{automationMode:"AUTO_CREATE_PR"}),
       }),
       requirePlanApproval: reqApproval,
+      idempotencyKey,
     };
     try {
-      const d = await apiCall(apiKey, "/sessions", { method:"POST", body, _label:"Create session" });
+      const d = await apiCall(apiKey, "/sessions", {
+        method: "POST",
+        body,
+        headers: { "Idempotency-Key": idempotencyKey },
+        timeout: 60000,
+        _label: "Create session"
+      });
       hasSavedOrSubmitted.current = true;
       clearDraft();
       if (source) {
@@ -8419,6 +8578,7 @@ function JulesClient() {
   const [showArchived, setShowArchived] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [globalErr, setGlobalErr] = useState(null);
+  const sessionsAbortRef = useRef(null);
   const [personas, setPersonas] = useState(loadPersonas);
   const [readMap, setReadMap] = useState(() => {
     try { return SafeStorage.loadReadMap(); }
@@ -8516,6 +8676,12 @@ function JulesClient() {
 
   const fetchSessions = useCallback(async (quiet=false, forceFull=false) => {
     if (!apiKey) return;
+    if (sessionsAbortRef.current) {
+      sessionsAbortRef.current.abort();
+    }
+    const controller = new AbortController();
+    sessionsAbortRef.current = controller;
+
     const isFull = !lastFetchTime.current || forceFull;
     if (!quiet) setRefreshing(true);
     try {
@@ -8526,7 +8692,10 @@ function JulesClient() {
 
       do {
         const qs = `pageSize=${sessionLimit}${pageToken ? `&pageToken=${pageToken}` : ""}`;
-        const d = await apiCall(apiKey, `/sessions?${qs}`, { _label:`Sessions ${isFull?"full":"Δ"} p${iterations+1}` });
+        const d = await apiCall(apiKey, `/sessions?${qs}`, {
+          _label:`Sessions ${isFull?"full":"Δ"} p${iterations+1}`,
+          signal: controller.signal
+        });
         const batch = d.sessions || [];
         incoming = [...incoming, ...batch];
         pageToken = d.nextPageToken;
@@ -8540,6 +8709,8 @@ function JulesClient() {
         if (incoming.length >= Math.max(sessionLimit, quotaNeeded * 2)) break;
         if (iterations > 15) break;
       } while (pageToken);
+
+      if (sessionsAbortRef.current !== controller) return;
 
       setGlobalErr(null); // Clear error on success
 
@@ -8602,12 +8773,23 @@ function JulesClient() {
         setTimeout(() => setJustRefreshed(false), 2000);
       }
     } catch (err) {
+      if (err.name === 'AbortError') return;
       console.error("[FetchSessions] Error:", err);
       if (!quiet) setGlobalErr(err.message);
-    } finally { if (!quiet) setRefreshing(false); }
+    } finally {
+      if (sessionsAbortRef.current === controller) {
+        if (!quiet) setRefreshing(false);
+      }
+    }
   }, [apiKey, sessionLimit, plan.daily]);
 
   useEffect(() => { if (apiKey) fetchSessions(); }, [apiKey, fetchSessions]);
+
+  useEffect(() => {
+    return () => {
+      if (sessionsAbortRef.current) sessionsAbortRef.current.abort();
+    };
+  }, []);
 
   // Combined polling: use activePollInterval if any session is in progress, else pollInterval
   const isBoosted = useMemo(() => sessions.some(s => ACTIVE_STATES.has(s.state)) && activePollInterval > 0, [sessions, activePollInterval]);
