@@ -86,6 +86,13 @@ async function build() {
     // Remove unsafe-eval from CSP since Babel is removed in production
     optimizedHtml = optimizedHtml.replace(/'unsafe-eval'\s*/g, '');
 
+    // Harden CSP script-src to restrict allowed script domains in production.
+    // Specifying the full paths to only the needed React & ReactDOM scripts prevents complete unpkg.com CDN bypass.
+    optimizedHtml = optimizedHtml.replace(
+      /script-src 'self' 'unsafe-inline' https:\/\/unpkg\.com/g,
+      "script-src 'self' 'unsafe-inline' https://unpkg.com/react@18/umd/react.production.min.js https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"
+    );
+
     // For now, let's just make sure we didn't leave any "text/babel" hints
 
     const distDir = path.join(__dirname, 'dist');
