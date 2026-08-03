@@ -5015,26 +5015,6 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
               </a>
             )}
 
-            {checks && (() => {
-              const sanitizedChecksUrl = safeUrl(checks.url);
-              return (
-                <div style={{
-                  display:"flex", alignItems:"center", gap:4, background:checks.state==="success"?T.brandDim:checks.state==="failure"?T.redDim:T.amberDim,
-                  border:`1px solid ${checks.state==="success"?T.brand:checks.state==="failure"?T.red:T.amber}40`,
-                  borderRadius:4, padding:"3px 8px", color:checks.state==="success"?T.brandLight:checks.state==="failure"?T.red:T.amber,
-                  fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:900, cursor:(checks.url && sanitizedChecksUrl !== "#") ? "pointer" : "default", flexShrink:0,
-                  animation: isSyncing ? "shimmerPulse 1.5s infinite 0.2s" : "none"
-                }} onClick={() => {
-                  if (checks.url && sanitizedChecksUrl !== "#") {
-                    window.open(sanitizedChecksUrl, "_blank", "noopener,noreferrer");
-                  }
-                }}>
-                  <Ic n={checks.state==="success"?"check":checks.state==="failure"?"x":"refresh"} s={10} c={checks.state==="success"?T.brandLight:checks.state==="failure"?T.red:T.amber}/>
-                  {checks.label}
-                </div>
-              );
-            })()}
-
             {session.sourceContext?.source && (
               <a href={safeUrl(b?.repoUrl ? `${b.repoUrl}/branches` : "#")} target="_blank" rel="noopener noreferrer" style={{
                 background:T.blueDim, border:`1px solid ${T.blue}30`, borderRadius:4, padding:"3px 8px",
