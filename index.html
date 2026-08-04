@@ -986,53 +986,33 @@ const COLOR_NAMES = {
   "#a5b4fc": "Indigo"
 };
 
+/**
+ * Global Persona Storage Helpers
+ *
+ * To reduce "God Mode" and redundant/broken raw localStorage operations,
+ * these functions are delegated to the centralized, safe `SafeStorage` helper service.
+ * This ensures strict adherence to Single Responsibility (SRP) and Don't Repeat Yourself (DRY)
+ * principles while preserving the existing public interface exactly.
+ */
+
 function loadPersonas() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(PERSONA_PROMPTS_KEY) || "{}");
-    const custom = JSON.parse(localStorage.getItem(CUSTOM_PERSONAS_KEY) || "[]");
-    const mergedDefaults = DEFAULT_PERSONAS.map(p => ({
-      ...p,
-      prompt: saved[p.id] || p.prompt
-    }));
-    return [...mergedDefaults, ...custom.map(c => ({ ...c, isCustom: true }))];
-  } catch { return DEFAULT_PERSONAS; }
+  return SafeStorage.loadPersonas();
 }
 
 function savePersonaPrompt(id, prompt) {
-  try {
-    const saved = JSON.parse(localStorage.getItem(PERSONA_PROMPTS_KEY) || "{}");
-    saved[id] = prompt;
-    localStorage.setItem(PERSONA_PROMPTS_KEY, JSON.stringify(saved));
-  } catch {}
+  SafeStorage.savePersonaPrompt(id, prompt);
 }
 
 function saveCustomPersona(persona) {
-  try {
-    const custom = JSON.parse(localStorage.getItem(CUSTOM_PERSONAS_KEY) || "[]");
-    const index = custom.findIndex(p => p.id === persona.id);
-    if (index >= 0) {
-      custom[index] = { ...custom[index], ...persona };
-    } else {
-      custom.push(persona);
-    }
-    localStorage.setItem(CUSTOM_PERSONAS_KEY, JSON.stringify(custom));
-  } catch {}
+  SafeStorage.saveCustomPersona(persona);
 }
 
 function deleteCustomPersona(id) {
-  try {
-    const custom = JSON.parse(localStorage.getItem(CUSTOM_PERSONAS_KEY) || "[]");
-    const filtered = custom.filter(p => p.id !== id);
-    localStorage.setItem(CUSTOM_PERSONAS_KEY, JSON.stringify(filtered));
-  } catch {}
+  SafeStorage.deleteCustomPersona(id);
 }
 
 function resetPersonas() {
-  try {
-    localStorage.removeItem(PERSONA_PROMPTS_KEY);
-    localStorage.removeItem(CUSTOM_PERSONAS_KEY);
-    return DEFAULT_PERSONAS;
-  } catch { return DEFAULT_PERSONAS; }
+  return SafeStorage.resetPersonas();
 }
 
 const MultiPersonaPicker = ({ personas, selectedIds, onToggle, style: s = {} }) => {
