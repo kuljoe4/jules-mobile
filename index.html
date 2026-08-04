@@ -348,6 +348,7 @@ const SafeStorage = {
     IGNORED: "jac_ignored",
     READ_MAP: "jac_read_map",
     API_KEY: "jac_key",
+    API_TIMEOUT: "jac_api_timeout",
   },
 
   // ─── CORE GENERIC HELPERS ──────────────────────────────────────────────────
@@ -449,6 +450,18 @@ const SafeStorage = {
   },
   saveActivePollMs(ms) {
     this.setItem(this.KEYS.ACTIVE_POLL, ms);
+  },
+
+  loadApiTimeout() {
+    try {
+      const v = parseInt(this.getItem(this.KEYS.API_TIMEOUT));
+      return [15000, 30000, 60000, 120000].includes(v) ? v : 30000;
+    } catch {
+      return 30000;
+    }
+  },
+  saveApiTimeout(ms) {
+    this.setItem(this.KEYS.API_TIMEOUT, ms);
   },
 
   loadCacheLimit() {
@@ -838,6 +851,9 @@ function saveActPollMs(ms) { SafeStorage.saveActPollMs(ms); }
 
 function loadActivePollMs() { return SafeStorage.loadActivePollMs(); }
 function saveActivePollMs(ms) { SafeStorage.saveActivePollMs(ms); }
+
+function loadApiTimeout() { return SafeStorage.loadApiTimeout(); }
+function saveApiTimeout(ms) { SafeStorage.saveApiTimeout(ms); }
 
 // ─── Session list limits ──────────────────────────────────────────────────────
 function loadCacheLimit() { return SafeStorage.loadCacheLimit(); }
@@ -1236,7 +1252,7 @@ async function apiCall(apiKey, path, opts={}) {
 
   // Implement a defensive request timeout to prevent client resource exhaustion and hanging socket connections
   const controller = new AbortController();
-  const timeoutMs = opts.timeout || 30000; // default 30-second timeout
+  const timeoutMs = opts.timeout || loadApiTimeout(); // default configured timeout
   let timedOut = false;
   const timeoutId = setTimeout(() => {
     timedOut = true;
@@ -7280,6 +7296,7 @@ const SettingsView = ({ onBack, isDesktop, settings, personas, setPersonas, toda
     notifications, setNotifications,
     planId, setPlanId,
     customDaily, setCustomDaily,
+    apiTimeout, setApiTimeout,
     plan
   } = settings;
 
@@ -7635,6 +7652,31 @@ const SettingsView = ({ onBack, isDesktop, settings, personas, setPersonas, toda
               <div style={{background:T.amberDim,border:`1px solid ${T.amber}20`,borderRadius:12,padding:16,fontFamily:"'IBM Plex Sans',sans-serif",fontSize:12,color:T.amber,lineHeight:1.6, display:"flex", gap:12, alignItems:"center"}}>
                 <span style={{fontSize:20}} aria-hidden="true">⚡</span>
                 <div>Smart delta-polling is active. Bandwidth is conserved by only fetching session changes.</div>
+              </div>
+
+              <div style={{background:T.surfaceHi, padding:20, borderRadius:12, border:`1px solid ${T.border}`}}>
+                <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:16}}>
+                  <Ic n="clock" s={16} c={T.brand}/>
+                  <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:12, fontWeight:700, color:T.text}}>API REQUEST TIMEOUT</span>
+                </div>
+                <div>
+                  <div style={{display:"flex", gap:4, flexWrap:"wrap", marginBottom:12}}>
+                    {[
+                      { label: "15s", ms: 15000 },
+                      { label: "30s (DEFAULT)", ms: 30000 },
+                      { label: "60s", ms: 60000 },
+                      { label: "120s", ms: 120000 }
+                    ].map(opt => {
+                      const isAct = opt.ms === apiTimeout;
+                      return (
+                        <PickerBtn key={opt.label} label={opt.label} isAct={isAct} onClick={() => { setApiTimeout(opt.ms); triggerSaveFeedback(); }} />
+                      );
+                    })}
+                  </div>
+                  <div style={{fontSize:10, color:T.textDim, fontFamily:"'IBM Plex Sans',sans-serif", lineHeight:1.4}}>
+                    Controls how long the client waits for an API response before aborting. Higher limits are recommended on slower networks or for complex tasks.
+                  </div>
+                </div>
               </div>
 
               <div style={{marginTop:8}}>
@@ -8373,6 +8415,7 @@ const useAppSettings = ({ onSessionLimitChange } = {}) => {
   const [notifications, setNotificationsRaw] = useState(loadNotify);
   const [planId, setPlanIdRaw] = useState(loadPlan);
   const [customDaily, setCustomDailyRaw] = useState(loadCustomDaily);
+  const [apiTimeout, setApiTimeoutRaw] = useState(loadApiTimeout);
 
   const setPollInterval = useCallback(ms => {
     savePollMs(ms);
@@ -8424,6 +8467,11 @@ const useAppSettings = ({ onSessionLimitChange } = {}) => {
     setCustomDailyRaw(v);
   }, []);
 
+  const setApiTimeout = useCallback(ms => {
+    saveApiTimeout(ms);
+    setApiTimeoutRaw(ms);
+  }, []);
+
   const plan = useMemo(() => {
     const p = PLANS.find(p => p.id === planId) || PLANS[0];
     if (p.id === "custom") return { ...p, daily: customDaily };
@@ -8440,6 +8488,7 @@ const useAppSettings = ({ onSessionLimitChange } = {}) => {
     notifications, setNotifications,
     planId, setPlanId,
     customDaily, setCustomDaily,
+    apiTimeout, setApiTimeout,
     plan
   };
 };
