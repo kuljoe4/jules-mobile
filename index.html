@@ -4819,7 +4819,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
             {syncPhase !== "IDLE" && (
               <span title={
                 syncPhase === "CACHE" ? "Recovering from cache..." :
-                syncPhase === "FETCH" ? (syncStats.total > 0 ? `Downloading assets ${Math.round((syncStats.loaded / syncStats.total) * 100)}%` : `Fetching ${syncStats.count} items...`) :
+                syncPhase === "FETCH" ? (syncStats.total > 0 ? `Downloading assets ${Math.round((syncStats.loaded / syncStats.total) * 100)}% (${fmtBytes(syncStats.loaded / 1024)} / ${fmtBytes(syncStats.total / 1024)})` : `Fetching ${syncStats.count} items... (${fmtBytes(syncStats.loaded / 1024)})`) :
                 syncPhase === "SYNC" ? "Synchronizing..." : "Session is up to date"
               } style={{
                 display: "inline-flex", alignItems: "center", gap: 4,
@@ -4833,7 +4833,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                 <div style={{ animation: syncPhase === "DONE" ? "none" : "spin 1.5s linear infinite", display: "flex" }}>
                   <Ic n={syncPhase === "DONE" ? "check" : "refresh"} s={10} c={syncPhase === "DONE" ? T.brandLight : T.amber} />
                 </div>
-                {syncPhase === "DONE" ? "SYNCED" : syncPhase}
+                {syncPhase === "DONE" ? "SYNCED" : (syncPhase === "FETCH" && syncStats.loaded > 0 ? `FETCH (${fmtBytes(syncStats.loaded / 1024)})` : syncPhase)}
               </span>
             )}
             {driftDetected && (
@@ -8744,12 +8744,65 @@ function JulesClient() {
           signal: controller.signal
         });
         const batch = d.sessions || [];
+        console.log(`[FetchSessions] Fetched page ${iterations + 1} with ${batch.length} sessions.`);
         incoming = [...incoming, ...batch];
         pageToken = d.nextPageToken;
-        iterations++;
 
         const windowStart = Date.now() - 24 * 3600000;
         const hasOlderThanWindow = batch.length > 0 && parseDateMs(batch[batch.length-1].createTime) < windowStart;
+
+        // Register batch for quota tracking immediately
+        registerSessions(batch);
+
+        // Guard against race conditions if superseded by a newer request
+        if (sessionsAbortRef.current !== controller) break;
+
+        // Update sessions state instantly for incremental/one-by-one rendering!
+        const currentBatch = batch;
+        const currentIsFirstPageOfFull = isFull && (iterations === 0);
+        setSessions(prev => {
+          let merged = [];
+          if (currentIsFirstPageOfFull) {
+            merged = currentBatch;
+          } else {
+            const batchIds = new Set(currentBatch.map(s => s.id));
+            merged = [
+              ...currentBatch,
+              ...prev.filter(s => !batchIds.has(s.id))
+            ];
+          }
+
+          // Sort: Active first, then by latest update/create time
+          const sorted = [...merged].sort((a, b) => {
+            const aActive = ACTIVE_STATES.has(a.state);
+            const bActive = ACTIVE_STATES.has(b.state);
+            if (aActive && !bActive) return -1;
+            if (!aActive && bActive) return 1;
+            const aTime = parseDateMs(a.updateTime || a.createTime);
+            const bTime = parseDateMs(b.updateTime || b.createTime);
+            return bTime - aTime;
+          });
+
+          // ── Status Notifications ──
+          if (loadNotify()) {
+            currentBatch.forEach(s => {
+              const lastState = lastStates.current.get(s.id);
+              if (lastState && lastState !== s.state) {
+                const label = s.title || s.prompt || s.id;
+                if (s.state === "AWAITING_PLAN_APPROVAL") sendNotification("PLAN READY", `Session: ${label}`, s.id);
+                else if (s.state === "AWAITING_USER_FEEDBACK") sendNotification("INPUT NEEDED", `Session: ${label}`, s.id);
+                else if (s.state === "COMPLETED") sendNotification("SESSION DONE", `Session: ${label}`, s.id);
+                else if (s.state === "FAILED") sendNotification("SESSION FAILED", `Session: ${label}`, s.id);
+              }
+              lastStates.current.set(s.id, s.state);
+            });
+          }
+
+          console.log(`[FetchSessions] Populated state with ${sorted.length} sessions total (increment: ${currentBatch.length}).`);
+          return sorted;
+        });
+
+        iterations++;
 
         if (!isFull) break;
         if (hasOlderThanWindow) break;
@@ -8760,49 +8813,7 @@ function JulesClient() {
       if (sessionsAbortRef.current !== controller) return;
 
       setGlobalErr(null); // Clear error on success
-
-      registerSessions(incoming);
-
-      setSessions(prev => {
-        let merged = [];
-        if (isFull) {
-          merged = incoming;
-        } else {
-          const incomingIds = new Set(incoming.map(s => s.id));
-          merged = [
-            ...incoming,
-            ...prev.filter(s => !incomingIds.has(s.id))
-          ];
-        }
-
-        // Sort: Active first, then by latest update/create time
-        const sorted = [...merged].sort((a, b) => {
-          const aActive = ACTIVE_STATES.has(a.state);
-          const bActive = ACTIVE_STATES.has(b.state);
-          if (aActive && !bActive) return -1;
-          if (!aActive && bActive) return 1;
-          const aTime = parseDateMs(a.updateTime || a.createTime);
-          const bTime = parseDateMs(b.updateTime || b.createTime);
-          return bTime - aTime;
-        });
-
-        // ── Status Notifications ──
-        if (loadNotify()) {
-          incoming.forEach(s => {
-            const lastState = lastStates.current.get(s.id);
-            if (lastState && lastState !== s.state) {
-              const label = s.title || s.prompt || s.id;
-              if (s.state === "AWAITING_PLAN_APPROVAL") sendNotification("PLAN READY", `Session: ${label}`, s.id);
-              else if (s.state === "AWAITING_USER_FEEDBACK") sendNotification("INPUT NEEDED", `Session: ${label}`, s.id);
-              else if (s.state === "COMPLETED") sendNotification("SESSION DONE", `Session: ${label}`, s.id);
-              else if (s.state === "FAILED") sendNotification("SESSION FAILED", `Session: ${label}`, s.id);
-            }
-            lastStates.current.set(s.id, s.state);
-          });
-        }
-
-        return sorted;
-      });
+      console.log(`[FetchSessions] Loading sequence completed successfully. Total processed: ${incoming.length}`);
 
       // Update lastFetchTime with the latest timestamp from the incoming results
       if (incoming.length > 0) {
