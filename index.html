@@ -8269,7 +8269,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
               </div>
               {FILTERS.map(f => {
                 const cnt = f==="ALL" ? sessions.length : (f === "HAS_DRAFT" ? sessions.filter(s => draftsMap[s.id]).length : sessions.filter(s=>s.state===f).length);
-                if (cnt===0 && f!=="ALL") return null;
+                if (cnt===0 && f!=="ALL" && f!==filter) return null;
                 const isAct = f===filter;
                 const ac = STATUS_META[f]?.color || T.brand;
                 return (
@@ -8282,7 +8282,32 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
       </div>
       <div onScroll={handleScroll} style={{flex:1,overflowY:"auto",padding:"10px 12px",WebkitOverflowScrolling:"touch",minHeight:200}}>
         {refreshing&&sessions.length===0&&<div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>Loading sessions…</div>}
-        {!refreshing&&filtered.length===0&&<div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>{filter==="ALL"?"No sessions yet":"No sessions with this status"}</div>}
+        {!refreshing&&filtered.length===0&&(() => {
+          let icon = "tasks", color = T.brand, bg = T.brandDim, titleText = "NO SESSIONS", descText = "No sessions found.", ctaText = null, ctaAction = null;
+          if (sessions.length === 0) {
+            icon = "database"; color = T.brand; bg = T.brandDim; titleText = "GET STARTED"; descText = "Create your first coding session to begin working with Jules."; ctaText = "CREATE SESSION"; ctaAction = onNew;
+          } else if (searchQuery.trim() !== "") {
+            icon = "search"; color = T.blue; bg = T.blueDim; titleText = "NO MATCHES"; descText = `No results found for "${searchQuery}".`; ctaText = "CLEAR SEARCH"; ctaAction = () => setSearchQuery("");
+          } else if (filter !== "ALL") {
+            const meta = STATUS_META[filter] || {}; icon = meta.icon || "tasks"; color = meta.color || T.brand; bg = meta.bg || T.brandDim; titleText = `NO ${meta.label || filter}`; descText = `No sessions are currently in ${meta.label || filter} status.`; ctaText = "SHOW ALL SESSIONS"; ctaAction = () => setFilter("ALL");
+          } else if (showArchived) {
+            icon = "archive"; color = T.purple; bg = T.purpleDim; titleText = "ARCHIVE EMPTY"; descText = "You have no archived sessions."; ctaText = "VIEW ACTIVE"; ctaAction = () => setShowArchived(false);
+          } else {
+            icon = "tasks"; color = T.brand; bg = T.brandDim; titleText = "NO ACTIVE SESSIONS"; descText = "There are no active sessions to display."; ctaText = "CREATE SESSION"; ctaAction = onNew;
+          }
+          return (
+            <div role="status" style={{textAlign:"center", padding:"36px 16px", background:T.surface, border:`1px dashed ${T.border}`, borderRadius:12, margin:"12px 4px", display:"flex", flexDirection:"column", alignItems:"center", gap:14, animation:"fadeIn .3s ease"}}>
+              <div style={{width:44, height:44, borderRadius:"50%", background:bg, border:`1px solid ${color}30`, display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 6px 12px rgba(0,0,0,0.15)"}}><Ic n={icon} s={18} c={color}/></div>
+              <div>
+                <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:900, color, letterSpacing:"0.08em", marginBottom:4}}>{titleText}</div>
+                <div style={{fontFamily:"'IBM Plex Sans',sans-serif", fontSize:13, color:T.textDim, lineHeight:1.4, maxWidth:260, margin:"0 auto"}}>{descText}</div>
+              </div>
+              {ctaText && ctaAction && (
+                <button onClick={ctaAction} title={ctaText} aria-label={ctaText} style={{marginTop:4, padding:"8px 16px", borderRadius:6, border:"none", background:color, color:"#000", cursor:"pointer", fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:900, letterSpacing:"0.06em", transition:"all .15s ease", boxShadow:`0 4px 12px ${color}30`}} onMouseEnter={e=>e.currentTarget.style.transform="translateY(-1px)"} onMouseLeave={e=>e.currentTarget.style.transform="none"}>{ctaText}</button>
+              )}
+            </div>
+          );
+        })()}
         {filtered.map((s,i)=><SessionCard key={s.id||s.name} index={i+1} s={s} onPress={()=>onSelect(s)} isSelected={s.id===selectedId} activities={activitiesMap[s.id] || EMPTY_ARR} stats={activityStatsMap[s.id]} lastReadTs={readMap[s.id]} latestCompletedTime={latestCompletedTimeByRepo[s.sourceContext?.source]} hasFollowupDraft={!!draftsMap[s.id]}/>)}
       </div>
     </div>
@@ -8972,6 +8997,7 @@ function JulesClient() {
         {mobileScreen==="list"&&(
           <SessionList sessions={allSessions} onSelect={handleSelect} onRefresh={()=>fetchSessions(false, true)}
             refreshing={refreshing} justRefreshed={justRefreshed} selectedId={selected?.id} isDesktop={false}
+            onNew={() => { setSelectedDraft(null); setMobile("new"); }}
             onDrafts={()=>setMobile("drafts")}
             onSettings={()=>setMobile("settings")}
             pollInterval={effectivePollInterval}
