@@ -1314,7 +1314,11 @@ async function apiCall(apiKey, path, opts={}) {
 
     while (true) {
       const {done, value} = await reader.read();
-      if (done) break;
+      if (done) {
+        // Guarantee 100% progress completion at the end of stream
+        opts.onProgress({ loaded: receivedLength, total: receivedLength });
+        break;
+      }
       chunks.push(value);
       receivedLength += value.length;
       opts.onProgress({ loaded: receivedLength, total: contentLength });
@@ -4819,7 +4823,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
             {syncPhase !== "IDLE" && (
               <span title={
                 syncPhase === "CACHE" ? "Recovering from cache..." :
-                syncPhase === "FETCH" ? (syncStats.total > 0 ? `Downloading assets ${Math.round((syncStats.loaded / syncStats.total) * 100)}% (${fmtBytes(syncStats.loaded / 1024)} / ${fmtBytes(syncStats.total / 1024)})` : `Fetching ${syncStats.count} items... (${fmtBytes(syncStats.loaded / 1024)})`) :
+                syncPhase === "FETCH" ? (syncStats.total > 0 ? `Downloading assets ${Math.min(100, Math.round((syncStats.loaded / syncStats.total) * 100))}% (${fmtBytes(syncStats.loaded / 1024)} / ${fmtBytes(syncStats.total / 1024)})` : `Fetching ${syncStats.count} items... (${fmtBytes(syncStats.loaded / 1024)})`) :
                 syncPhase === "SYNC" ? "Synchronizing..." : "Session is up to date"
               } style={{
                 display: "inline-flex", alignItems: "center", gap: 4,
@@ -5041,7 +5045,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
             pct={pct}
             status={currentState}
             syncing={isSyncing || busy || syncPhase === "DONE"}
-            secondaryPct={isSyncing ? (syncStats.total > 0 ? (syncStats.loaded / syncStats.total) * 100 : Math.min(100, (syncStats.count / activityLimit) * 100)) : 0}
+            secondaryPct={isSyncing ? (syncStats.total > 0 ? Math.min(100, (syncStats.loaded / syncStats.total) * 100) : Math.min(100, (syncStats.count / activityLimit) * 100)) : 0}
           />
         </div>
       </div>
