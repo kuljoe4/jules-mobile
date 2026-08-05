@@ -781,6 +781,19 @@ const safeUrl = (url) => {
 // We do not cache arrays to avoid potential stale values if an array reference is mutated.
 const approxBytesCache = new WeakMap();
 
+// Bounded WeakMap cache for computing aggregate byte sizes of reference-stable immutable activities arrays.
+// Caching at the array reference level avoids O(N) array traversals across render loops and cache-key generations.
+const ACTIVITIES_SIZE_CACHE = new WeakMap();
+
+const getActivitiesSize = (activities) => {
+  if (!activities || !Array.isArray(activities)) return 0;
+  const cached = ACTIVITIES_SIZE_CACHE.get(activities);
+  if (cached !== undefined) return cached;
+  const size = getApproxBytes(activities);
+  ACTIVITIES_SIZE_CACHE.set(activities, size);
+  return size;
+};
+
 // Calculates the approximate byte size of any object recursively/iteratively
 // without slow serialization (JSON.stringify) or heavy binary array conversions.
 const getApproxBytes = (val) => {
@@ -1486,7 +1499,7 @@ const getPRInfo = (s, activities = []) => {
 
   const sid = s.id || s.name || "temp";
   const actLen = activities.length;
-  const size = getApproxBytes(activities);
+  const size = getActivitiesSize(activities);
   const cacheKey = `${sid}:${actLen}:${size}:${s.updateTime || s.createTime || ""}`;
 
   // Check cache first (with expiry)
@@ -1614,7 +1627,7 @@ const getBranchInfo = (s, activities = []) => {
   if (!s) return null;
   const sid = s.id || s.name || "temp";
   const actLen = activities.length;
-  const size = getApproxBytes(activities);
+  const size = getActivitiesSize(activities);
   const cacheKey = `${sid}:${actLen}:${size}:${s.updateTime || s.createTime || ""}`;
   if (sid !== "temp" && BRANCH_INFO_CACHE.has(cacheKey)) return BRANCH_INFO_CACHE.get(cacheKey);
 
@@ -3867,7 +3880,7 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], stat
     if (stats) return stats;
     return {
       count: activities.length,
-      size: getApproxBytes(activities)
+      size: getActivitiesSize(activities)
     };
   }, [activities, stats]);
 
@@ -4256,7 +4269,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
         if (activitiesAbortRef.current !== controller) return;
 
         const incoming = d.activities || [];
-        const batchBytes = getApproxBytes(incoming);
+        const batchBytes = getActivitiesSize(incoming);
 
         currentCount += incoming.length;
         currentBytes += batchBytes;
@@ -4312,7 +4325,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
 
         // Persist stats
         try {
-          const size = getApproxBytes(sorted);
+          const size = getActivitiesSize(sorted);
           const stats = { count: sorted.length, size };
           const allStats = SafeStorage.loadActStats();
           allStats[session.id] = stats;
@@ -4371,7 +4384,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     // If we have cached activities, report their stats immediately
     if (activities.length > 0) {
       try {
-        const size = getApproxBytes(activities);
+        const size = getActivitiesSize(activities);
         onStatsUpdate?.(session.id, { count: activities.length, size });
       } catch {}
     }
@@ -4635,7 +4648,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   const activityStats = useMemo(() => {
     return {
       count: activities.length,
-      size: getApproxBytes(activities)
+      size: getActivitiesSize(activities)
     };
   }, [activities]);
 
