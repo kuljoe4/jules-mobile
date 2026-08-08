@@ -349,6 +349,7 @@ const SafeStorage = {
     READ_MAP: "jac_read_map",
     API_KEY: "jac_key",
     API_TIMEOUT: "jac_api_timeout",
+    GITHUB_TOKEN: "jac_github_token",
   },
 
   // ─── CORE GENERIC HELPERS ──────────────────────────────────────────────────
@@ -707,6 +708,13 @@ const SafeStorage = {
     this.setItem(this.KEYS.API_KEY, val);
   },
 
+  loadGithubToken() {
+    return this.getItem(this.KEYS.GITHUB_TOKEN, "");
+  },
+  saveGithubToken(val) {
+    this.setItem(this.KEYS.GITHUB_TOKEN, val);
+  },
+
   loadFollowupDraft(sessionId) {
     return this.getItem(`jac_draft_${sessionId}`, "");
   },
@@ -1058,14 +1066,14 @@ const MultiPersonaPicker = ({ personas, selectedIds, onToggle, style: s = {} }) 
             key={p.id}
             onClick={() => onToggle(p.id)}
             style={{
-              flexShrink: 0, padding: "4px 10px", borderRadius: 20,
+              flexShrink: 0, minHeight: 36, padding: "0 14px", borderRadius: 20,
               background: isSelected ? `${p.color}20` : T.surfaceHi,
               border: `1px solid ${isSelected ? p.color : T.border}`,
               color: isSelected ? p.color : T.muted,
-              fontFamily: "'JetBrains Mono',monospace", fontSize: 9,
+              fontFamily: "'JetBrains Mono',monospace", fontSize: 11,
               fontWeight: isSelected ? 800 : 500, letterSpacing: "0.05em",
               cursor: "pointer", transition: "all .15s cubic-bezier(0.4, 0, 0.2, 1)",
-              display: "flex", alignItems: "center", gap: 5,
+              display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 5,
               boxShadow: "none",
             }}
           >
@@ -1153,6 +1161,25 @@ const STATUS_META = {
   HAS_DRAFT:             { label:"HAS DRAFT", color:T.amberLight, bg:T.amberDim,             pulse:false, icon:"layers" },
 };
 
+function getBucketCategory(label, path) {
+  const p = (path || "").toLowerCase();
+  const l = (label || "").toLowerCase();
+
+  if (p.includes("/activities") || l.includes("activities")) {
+    return "Session Polling & Activities";
+  }
+  if (p.includes(":sendmessage") || l.includes("sendmessage") || p.includes(":approveplan") || l.includes("approveplan")) {
+    return "Chat & User Messages";
+  }
+  if (p === "/sessions" || p.startsWith("/sessions?") || l.includes("sessions") || l.includes("supp ")) {
+    return "Sessions List Sync";
+  }
+  if (p.includes("/sources") || l.includes("sources") || l.includes("list sources")) {
+    return "Repo & Branch Queries";
+  }
+  return "Session Metadata & Actions";
+}
+
 // ─── Network tracker ──────────────────────────────────────────────────────────
 function makeNetTracker() {
   const initial = SafeStorage.loadNetStats();
@@ -1162,6 +1189,9 @@ function makeNetTracker() {
   let stats = initial;
   let log = [];
   const subs = [];
+
+  if (!stats.overallBuckets) stats.overallBuckets = {};
+  if (!stats.dailyBuckets) stats.dailyBuckets = {};
 
   const save = () => {
     SafeStorage.saveNetStats(stats);
@@ -1176,8 +1206,8 @@ function makeNetTracker() {
     const month = { in: 0, out: 0 };
     Object.entries(stats.daily).forEach(([date, val]) => {
       if (date.startsWith(monthKey)) {
-        month.in += val.in;
-        month.out += val.out;
+        month.in += val.in || 0;
+        month.out += val.out || 0;
       }
     });
 
@@ -1190,10 +1220,114 @@ function makeNetTracker() {
     return { today, month, overall: stats.overall, session: sessionUsage, duration };
   };
 
+  const getBuckets = () => {
+    const now = new Date();
+    const todayKey = now.toISOString().split("T")[0];
+    const monthKey = todayKey.slice(0, 7);
+
+    const bucketsToday = {};
+    const bucketsMonth = {};
+    const bucketsOverall = {};
+
+    const categories = [
+      "Session Polling & Activities",
+      "Sessions List Sync",
+      "Repo & Branch Queries",
+      "Chat & User Messages",
+      "Session Metadata & Actions"
+    ];
+
+    categories.forEach(c => {
+      bucketsToday[c] = { in: 0, out: 0, total: 0 };
+      bucketsMonth[c] = { in: 0, out: 0, total: 0 };
+      bucketsOverall[c] = { in: 0, out: 0, total: 0 };
+    });
+
+    if (stats.overallBuckets) {
+      Object.entries(stats.overallBuckets).forEach(([cat, val]) => {
+        const c = categories.includes(cat) ? cat : "Session Metadata & Actions";
+        bucketsOverall[c].in += val.in || 0;
+        bucketsOverall[c].out += val.out || 0;
+        bucketsOverall[c].total += (val.in || 0) + (val.out || 0);
+      });
+    }
+
+    if (stats.dailyBuckets) {
+      Object.entries(stats.dailyBuckets).forEach(([date, dayBuckets]) => {
+        const isToday = (date === todayKey);
+        const isMonth = date.startsWith(monthKey);
+
+        if (dayBuckets) {
+          Object.entries(dayBuckets).forEach(([cat, val]) => {
+            const c = categories.includes(cat) ? cat : "Session Metadata & Actions";
+            if (isToday) {
+              bucketsToday[c].in += val.in || 0;
+              bucketsToday[c].out += val.out || 0;
+              bucketsToday[c].total += (val.in || 0) + (val.out || 0);
+            }
+            if (isMonth) {
+              bucketsMonth[c].in += val.in || 0;
+              bucketsMonth[c].out += val.out || 0;
+              bucketsMonth[c].total += (val.in || 0) + (val.out || 0);
+            }
+          });
+        }
+      });
+    }
+
+    // Fallback if empty but overall stats exist
+    const hasOverall = Object.values(bucketsOverall).some(b => b.total > 0);
+    if (!hasOverall && (stats.overall.in > 0 || stats.overall.out > 0)) {
+      bucketsOverall["Session Polling & Activities"] = {
+        in: stats.overall.in,
+        out: stats.overall.out,
+        total: stats.overall.in + stats.overall.out
+      };
+      const todayTotal = (stats.daily[todayKey]?.in || 0) + (stats.daily[todayKey]?.out || 0);
+      if (todayTotal > 0) {
+        bucketsToday["Session Polling & Activities"] = {
+          in: stats.daily[todayKey].in,
+          out: stats.daily[todayKey].out,
+          total: todayTotal
+        };
+      }
+      let monthIn = 0, monthOut = 0;
+      Object.entries(stats.daily).forEach(([date, val]) => {
+        if (date.startsWith(monthKey)) {
+          monthIn += val.in || 0;
+          monthOut += val.out || 0;
+        }
+      });
+      if (monthIn + monthOut > 0) {
+        bucketsMonth["Session Polling & Activities"] = {
+          in: monthIn,
+          out: monthOut,
+          total: monthIn + monthOut
+        };
+      }
+    }
+
+    const computeShares = (buckets) => {
+      const totalAll = Object.values(buckets).reduce((sum, b) => sum + b.total, 0);
+      return Object.entries(buckets).map(([name, data]) => {
+        const pct = totalAll > 0 ? (data.total / totalAll) * 100 : 0;
+        return { name, ...data, pct };
+      }).sort((a, b) => b.total - a.total);
+    };
+
+    return {
+      today: computeShares(bucketsToday),
+      month: computeShares(bucketsMonth),
+      overall: computeShares(bucketsOverall)
+    };
+  };
+
   const notify = () => {
     const usage = getUsage();
+    const buckets = getBuckets();
     subs.forEach(f => f({
       ...usage,
+      buckets,
       total: usage.overall.in + usage.overall.out,
       totalIn: usage.overall.in,
       totalOut: usage.overall.out,
@@ -1205,6 +1339,7 @@ function makeNetTracker() {
     record(label, bytesIn, bytesOut, status) {
       const now = new Date();
       const todayKey = now.toISOString().split("T")[0];
+      const category = getBucketCategory(label, label);
 
       if (!stats.daily[todayKey]) stats.daily[todayKey] = { in: 0, out: 0 };
       stats.daily[todayKey].in += bytesIn;
@@ -1214,9 +1349,24 @@ function makeNetTracker() {
       sessionUsage.in += bytesIn;
       sessionUsage.out += bytesOut;
 
-      // Keep only last 60 days of daily stats to prevent bloat
+      if (!stats.overallBuckets) stats.overallBuckets = {};
+      if (!stats.overallBuckets[category]) stats.overallBuckets[category] = { in: 0, out: 0 };
+      stats.overallBuckets[category].in += bytesIn;
+      stats.overallBuckets[category].out += bytesOut;
+
+      if (!stats.dailyBuckets) stats.dailyBuckets = {};
+      if (!stats.dailyBuckets[todayKey]) stats.dailyBuckets[todayKey] = {};
+      if (!stats.dailyBuckets[todayKey][category]) stats.dailyBuckets[todayKey][category] = { in: 0, out: 0 };
+      stats.dailyBuckets[todayKey][category].in += bytesIn;
+      stats.dailyBuckets[todayKey][category].out += bytesOut;
+
+      // Keep only last 60 days of daily stats
       const dailyKeys = Object.keys(stats.daily).sort();
-      if (dailyKeys.length > 60) delete stats.daily[dailyKeys[0]];
+      if (dailyKeys.length > 60) {
+        const oldestKey = dailyKeys[0];
+        delete stats.daily[oldestKey];
+        if (stats.dailyBuckets) delete stats.dailyBuckets[oldestKey];
+      }
 
       log.unshift({ id: Math.random(), label, bytesIn, bytesOut, status, ts: now.getTime() });
       if (log.length > 80) log.length = 80;
@@ -1227,8 +1377,10 @@ function makeNetTracker() {
     subscribe(fn) { subs.push(fn); return () => { const i = subs.indexOf(fn); if (i > -1) subs.splice(i, 1); }; },
     snapshot() {
       const usage = getUsage();
+      const buckets = getBuckets();
       return {
         ...usage,
+        buckets,
         total: usage.overall.in + usage.overall.out,
         totalIn: usage.overall.in,
         totalOut: usage.overall.out,
@@ -1501,6 +1653,80 @@ const hasMergeEvidence = (activities) => {
   return false;
 };
 
+const GH_STATE_CACHE = new Map();
+const GH_IN_FLIGHT = new Set();
+
+function triggerGitHubFetch(url) {
+  if (GH_IN_FLIGHT.has(url)) return;
+
+  const match = url.match(/https:\/\/github\.com\/([^\/]+)\/([^\/]+)\/pull\/(\d+)/);
+  if (!match) return;
+
+  const [_, owner, repo, number] = match;
+  GH_IN_FLIGHT.add(url);
+
+  const token = SafeStorage.loadGithubToken();
+  const headers = {
+    "Accept": "application/vnd.github.v3+json"
+  };
+  if (token) {
+    headers["Authorization"] = `token ${token}`;
+  }
+
+  fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${number}`, { headers })
+    .then(res => {
+      if (!res.ok) throw new Error(`PR fetch failed with status ${res.status}`);
+      return res.json();
+    })
+    .then(prData => {
+      let state = "open";
+      if (prData.merged) state = "merged";
+      else if (prData.state === "closed") state = "closed";
+
+      const additions = prData.additions || 0;
+      const deletions = prData.deletions || 0;
+      const changedFiles = prData.changed_files || 0;
+      const commitsCount = prData.commits || 0;
+      const title = prData.title || "";
+      const body = prData.body || "";
+
+      return fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${number}/commits?per_page=10`, { headers })
+        .then(resCommits => {
+          if (!resCommits.ok) return [];
+          return resCommits.json();
+        })
+        .then(commitsData => {
+          const commitsList = (Array.isArray(commitsData) ? commitsData : []).map(c => ({
+            sha: c.sha ? c.sha.slice(0, 7) : "",
+            message: c.commit?.message || "",
+            author: c.commit?.author?.name || "",
+            date: c.commit?.author?.date || ""
+          }));
+
+          const updatedInfo = {
+            state,
+            additions,
+            deletions,
+            changedFiles,
+            commitsCount,
+            title,
+            body,
+            commitsList,
+            fetchedAt: Date.now()
+          };
+
+          GH_STATE_CACHE.set(url, updatedInfo);
+          GH_IN_FLIGHT.delete(url);
+
+          window.dispatchEvent(new CustomEvent("gh-pr-updated", { detail: { url, ...updatedInfo } }));
+        });
+    })
+    .catch(err => {
+      console.warn("Error fetching PR metadata from GitHub:", err);
+      GH_IN_FLIGHT.delete(url);
+    });
+}
+
 const getPRInfo = (s, activities = []) => {
   if (!s) return null;
 
@@ -1558,11 +1784,38 @@ const getPRInfo = (s, activities = []) => {
     return null;
   }
 
-  // Determine if merged based on activity evidence or session completion state
-  const isMerged = hasMergeEvidence(activities) || s.state === "COMPLETED" || s.state === "SUCCESS";
-  const state = isMerged ? "merged" : "open";
+  // Determine if merged based on activity evidence or session completion state (fallback)
+  const isMergedFallback = hasMergeEvidence(activities) || s.state === "COMPLETED" || s.state === "SUCCESS";
+  let state = isMergedFallback ? "merged" : "open";
+  let additions = 0, deletions = 0, changedFiles = 0, commitsCount = 0;
+  let prTitle = "", prBody = "", commitsList = [];
 
-  const result = { ...pr, state, expiresAt: Date.now() + (5 * 60 * 1000) };
+  const ghCached = GH_STATE_CACHE.get(pr.url);
+  if (ghCached && (Date.now() - ghCached.fetchedAt < 5 * 60 * 1000)) {
+    state = ghCached.state;
+    additions = ghCached.additions;
+    deletions = ghCached.deletions;
+    changedFiles = ghCached.changedFiles;
+    commitsCount = ghCached.commitsCount;
+    prTitle = ghCached.title;
+    prBody = ghCached.body;
+    commitsList = ghCached.commitsList;
+  } else {
+    triggerGitHubFetch(pr.url);
+  }
+
+  const result = {
+    ...pr,
+    state,
+    additions,
+    deletions,
+    changedFiles,
+    commitsCount,
+    title: prTitle,
+    body: prBody,
+    commitsList,
+    expiresAt: Date.now() + (5 * 60 * 1000)
+  };
 
   if (sid !== "temp") {
     if (PR_INFO_CACHE.size > 500) PR_INFO_CACHE.clear();
@@ -2215,11 +2468,12 @@ const Field = ({label,htmlFor,children,style:s={}}) => (
 
 const PickerBtn = ({ label, isAct, onClick, activeColor=T.brand, activeBg=null }) => (
   <button onClick={onClick} style={{
-    flexShrink:0, padding:"3px 9px", borderRadius:20, border:"none",
+    flexShrink:0, minHeight:36, padding:"0 14px", borderRadius:20, border:"none",
+    display:"inline-flex", alignItems:"center", justifyContent:"center",
     background:isAct ? (activeBg || `${activeColor}15`) : "transparent",
-    outline:`1px solid ${isAct ? `${activeColor}60` : T.border}`,
+    border:`1px solid ${isAct ? `${activeColor}60` : T.border}`,
     color:isAct ? activeColor : T.muted,
-    fontFamily:"'JetBrains Mono',monospace", fontSize:9, fontWeight:isAct?700:400,
+    fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:isAct?700:400,
     letterSpacing:"0.05em", cursor:"pointer", transition:"all .12s cubic-bezier(0.4, 0, 0.2, 1)",
   }}>{label}</button>
 );
@@ -2398,11 +2652,6 @@ const ExpandableContent = memo(({ text, limit = 300, showCopy = false, forceExpa
               onClick={(e) => {
                 e.stopPropagation();
                 setExpanded(true);
-                requestAnimationFrame(() => {
-                  if (ref.current) {
-                    ref.current.scrollIntoView({ behavior: "smooth", block: "center" });
-                  }
-                });
               }}
               onMouseDown={e => e.currentTarget.style.transform = "translateY(6px) scale(0.96)"}
               onMouseUp={e => e.currentTarget.style.transform = "translateY(4px) scale(1)"}
@@ -2426,11 +2675,6 @@ const ExpandableContent = memo(({ text, limit = 300, showCopy = false, forceExpa
             onClick={(e) => {
               e.stopPropagation();
               setExpanded(false);
-              requestAnimationFrame(() => {
-                if (ref.current) {
-                  ref.current.scrollIntoView({ behavior: "smooth", block: "center" });
-                }
-              });
             }}
             style={{
               background: "none", border: "none", color: T.dim, cursor: "pointer",
@@ -2629,7 +2873,7 @@ const ChatBubble = memo(({ act, type, onMediaClick, onEdit, onReply, forceExpand
         <div style={{
           width: 20, height: 20, borderRadius: 5,
           background: isUser ? T.blueDim : T.brandDim,
-          border: `1px solid ${isUser ? T.blue + "40" : T.brand + "40"}`,
+          border: "none",
           display: "flex", alignItems: "center", justifyContent: "center",
           fontFamily: "'JetBrains Mono',monospace", fontSize: 9, fontWeight: 900,
           color: isUser ? T.blue : T.brandLight, flexShrink: 0
@@ -2641,9 +2885,9 @@ const ChatBubble = memo(({ act, type, onMediaClick, onEdit, onReply, forceExpand
 
       {/* Structured Expandable Card */}
       <div style={{
-        background: T.surfaceHi, border: `1px solid ${T.border}`,
+        background: "transparent", border: "none",
         borderLeft: `3px solid ${isUser ? T.blue : T.brand}`,
-        borderRadius: 10, padding: "20px", position: "relative",
+        borderRadius: 0, padding: "12px 0 12px 20px", position: "relative",
         boxShadow: "none", transition: "all .2s cubic-bezier(0.4, 0, 0.2, 1)",
         width: "100%", opacity: isTemp ? 0.6 : 1
       }}>
@@ -3908,7 +4152,7 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], stat
     ? `${T.brand}20`
     : isUnread ? `${T.indigo}0a` : isWorking ? `${T.blue}06` : T.surface;
 
-  const borderColor = isSelected ? `${T.brand}30` : isUnread ? `${T.indigo}20` : isWorking ? `${T.blue}20` : "transparent";
+  const borderColor = isSelected ? `${T.brand}30` : isUnread ? `${T.indigo}20` : isWorking ? `${T.blue}20` : `${T.border}66`;
 
   return (
     <button ref={cardRef} onClick={onPress}
@@ -3916,6 +4160,7 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], stat
       style={{
         width:"100%", background:bg, textAlign:"left", cursor:"pointer",
         border:`1px solid ${borderColor}`,
+        borderLeft:`2px solid ${isUnread ? T.indigo : (isSelected ? T.brand : T.border)}`,
         borderRadius:6, padding:"8px 12px", marginBottom:4, transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)",
         position:"relative",
         transform:isSelected?"translateX(4px) scale(1.005)":"none",
@@ -3937,16 +4182,8 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], stat
             <Ic n={m.icon} s={11} c={m.color}/>
           </div>
         </div>
-        <div style={{flex:1,minWidth:0,fontFamily:"'IBM Plex Sans',sans-serif",fontSize:13,fontWeight:600,color:isSelected?T.textHi:T.textDim,lineHeight:1.3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:6}}>
-          {(isUnread || isWorking) && (
-            <span style={{
-              width: 5, height: 5, borderRadius: "50%",
-              background: isUnread ? T.indigo : T.brand,
-              display: "inline-block", flexShrink: 0,
-              boxShadow: `0 0 8px ${isUnread ? T.indigo : T.brand}`
-            }} />
-          )}
-          <span style={{overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>{s.title||s.prompt}</span>
+        <div style={{flex:1,minWidth:0,fontFamily:"'IBM Plex Sans',sans-serif",fontSize:13,fontWeight:600,color:isSelected?T.textHi:T.textDim,lineHeight:1.3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+          {s.title||s.prompt}
         </div>
         <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.muted,fontWeight:500,flexShrink:0}}>
           {fmtAgo(parseDateMs(s.updateTime||s.createTime))}
@@ -4127,6 +4364,12 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   const headerPromptRef = useRef(null);
   const [showDriftWarning, setShowDriftWarning] = useState(false);
   const [driftExpanded, setDriftExpanded] = useState(false);
+  const [ghPrNonce, setGhPrNonce] = useState(0);
+  useEffect(() => {
+    const h = () => setGhPrNonce(n => n + 1);
+    window.addEventListener("gh-pr-updated", h);
+    return () => window.removeEventListener("gh-pr-updated", h);
+  }, []);
 
   const driftSessions = useMemo(() => {
     if (!session) return [];
@@ -4192,9 +4435,24 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
       setHeaderExpanded(true);
     }
 
-    const canScroll = h - vh > 200;
-    setShowScroll(canScroll && (y > 100 || h - y - vh > 100));
-    setScrollDirMode(y > (h - vh) / 2 ? "top" : "bottom");
+    const isCloseToBottom = h - y - vh < 150;
+    const isCloseToTop = y < 150;
+    const canScroll = h - vh > 250;
+
+    if (canScroll) {
+      if (isCloseToBottom) {
+        setShowScroll(true);
+        setScrollDirMode("top");
+      } else if (isCloseToTop) {
+        setShowScroll(true);
+        setScrollDirMode("bottom");
+      } else {
+        setShowScroll(true);
+        setScrollDirMode(scrollDir.current === -1 ? "bottom" : "top");
+      }
+    } else {
+      setShowScroll(false);
+    }
 
     lastScrollY.current = y;
   }, [scrolled]);
@@ -4671,7 +4929,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   const checks = useMemo(() => getCheckStatus(activities), [activities]);
 
   const summary = session.outputs?.find(o=>o.sessionSummary)?.sessionSummary;
-  const pri = useMemo(() => getPRInfo(session, activities), [session, activities]);
+  const pri = useMemo(() => getPRInfo(session, activities), [session, activities, ghPrNonce]);
   const pr = pri;
   const isActuallyDone = useMemo(() => {
     if (ACTIVE_STATES.has(session.state)) return false;
@@ -5167,11 +5425,11 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                   key={f}
                   onClick={() => setChatFilter(f)}
                   style={{
-                    padding: "4px 10px", borderRadius: 12, border: "none",
+                    minHeight: 36, padding: "0 14px", display: "inline-flex", alignItems: "center", justifyContent: "center", borderRadius: 12, border: "none",
                     background: chatFilter === f ? T.brandDim : "transparent",
                     color: chatFilter === f ? T.brand : T.muted,
                     fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 800,
-                    cursor: "pointer", outline: chatFilter === f ? `1px solid ${T.brand}40` : `1px solid ${T.border}`,
+                    cursor: "pointer", border: chatFilter === f ? `1px solid ${T.brand}40` : `1px solid ${T.border}`,
                     transition: "all .15s cubic-bezier(0.4, 0, 0.2, 1)"
                   }}
                 >
@@ -5316,6 +5574,93 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                       <Ic n="code" s={13} c={T.dim}/>
                       JULES WEB ↗
                     </a>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Custom Pull Request Metadata Card in Chat Completion Style */}
+            {pr && (
+              <div style={{ marginBottom: 24, width: "100%", animation: "fadeIn .25s ease-out" }}>
+                {/* Header Accent Row */}
+                <div style={{
+                  fontFamily: "'JetBrains Mono',monospace", fontSize: 11,
+                  color: pr.state === "merged" ? T.purple : T.brand, fontWeight: 800,
+                  letterSpacing: "0.1em", marginBottom: 12,
+                  display: "flex", alignItems: "center", gap: 8
+                }}>
+                  <div style={{
+                    width: 20, height: 20, borderRadius: 5,
+                    background: pr.state === "merged" ? T.purpleDim : T.brandDim,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontFamily: "'JetBrains Mono',monospace", fontSize: 9, fontWeight: 900,
+                    color: pr.state === "merged" ? T.purple : T.brandLight, flexShrink: 0
+                  }}>G</div>
+                  <span>GITHUB PULL REQUEST #{pr.number}</span>
+                  <div style={{ height: 1, flex: 1, background: pr.state === "merged" ? `${T.purple}20` : `${T.brand}20` }}/>
+                  <span style={{ color: T.textDim, fontSize: 10, fontWeight: 500, textTransform: "uppercase" }}>
+                    {pr.state}
+                  </span>
+                </div>
+
+                {/* Structured Card */}
+                <div style={{
+                  background: "transparent", border: "none",
+                  borderLeft: `3px solid ${pr.state === "merged" ? T.purple : T.brand}`,
+                  borderRadius: 0, padding: "12px 0 12px 20px", position: "relative",
+                  boxShadow: "none", transition: "all .2s cubic-bezier(0.4, 0, 0.2, 1)",
+                  width: "100%"
+                }}>
+                  {/* PR Title & Desc */}
+                  {pr.title && (
+                    <div style={{ marginBottom: 12 }}>
+                      <div style={{ fontSize: 15, fontWeight: 800, color: T.text, marginBottom: 4, fontFamily: "'IBM Plex Sans',sans-serif" }}>
+                        {pr.title}
+                      </div>
+                      {pr.body && (
+                        <div style={{ fontSize: 13, color: T.textDim, lineHeight: 1.4, fontFamily: "'IBM Plex Sans',sans-serif", whiteSpace: "pre-wrap", overflowWrap: "break-word", opacity: 0.85 }}>
+                          {pr.body.length > 300 ? pr.body.slice(0, 300) + "..." : pr.body}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* PR Metrics Badges */}
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+                    <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 700, color: T.brandLight, background: T.brandDim, padding: "2px 8px", borderRadius: 4 }}>
+                      +{pr.additions || 0} additions
+                    </div>
+                    <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 700, color: T.red, background: T.redDim, padding: "2px 8px", borderRadius: 4 }}>
+                      -{pr.deletions || 0} deletions
+                    </div>
+                    <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 700, color: T.purple, background: T.purpleDim, padding: "2px 8px", borderRadius: 4 }}>
+                      {pr.changedFiles || 0} files changed
+                    </div>
+                    <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 700, color: T.amber, background: T.amberDim, padding: "2px 8px", borderRadius: 4 }}>
+                      {pr.commitsCount || 0} commits
+                    </div>
+                  </div>
+
+                  {/* High Density Commits list */}
+                  {pr.commitsList && pr.commitsList.length > 0 && (
+                    <div style={{ marginTop: 12, background: T.surfaceHi, borderRadius: 8, border: `1px solid ${T.border}`, padding: 12 }}>
+                      <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 800, color: T.brand, marginBottom: 8, letterSpacing: "0.05em" }}>
+                        COMMITS COMPARISON
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        {pr.commitsList.map(c => (
+                          <div key={c.sha} style={{ display: "flex", gap: 10, alignItems: "flex-start", fontFamily: "'JetBrains Mono',monospace", fontSize: 11 }}>
+                            <span style={{ color: T.purple, fontWeight: 700, fontSize: 11 }}>{c.sha}</span>
+                            <div style={{ flex: 1, color: T.text, fontSize: 11, minWidth: 0, textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
+                              {c.message}
+                            </div>
+                            <span style={{ color: T.textDim, fontSize: 10, opacity: 0.6, flexShrink: 0 }}>
+                              {c.author}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>
@@ -5521,7 +5866,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                 </div>
                 <div style={{ position:"absolute", top:12, right:12, display:"flex", gap:6 }}>
                   <button onClick={(e) => { e.stopPropagation(); onEditMessage(session.prompt); }} style={{
-                    background:T.dim, border:"none", borderRadius:4, padding:"4px 8px",
+                    background:T.brandDim, border:"none", borderRadius:4, padding:"4px 8px",
                     color:T.brand, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700, cursor:"pointer"
                   }}>EDIT</button>
                 </div>
@@ -5556,7 +5901,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                     </div>
                     <div style={{ position:"absolute", top:12, right:12, display:"flex", gap:6 }}>
                       <button onClick={(e) => { e.stopPropagation(); onEditMessage(a.userMessaged.userMessage); }} style={{
-                        background:T.dim, border:"none", borderRadius:4, padding:"4px 8px",
+                        background:T.brandDim, border:"none", borderRadius:4, padding:"4px 8px",
                         color:T.brand, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700, cursor:"pointer"
                       }}>EDIT</button>
                     </div>
@@ -6768,9 +7113,66 @@ const DraftsBox = ({ onBack, isDesktop, onResume, onCreate, allSessions, activit
 };
 
 // ─── Settings View ────────────────────────────────────────────────────────────
+const BucketBreakdown = ({ snap, timeframe, setTimeframe }) => {
+  return (
+    <div style={{background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:12, padding:18, marginTop:4}}>
+      <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14}}>
+        <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:700, color:T.textDim}}>DATA INGESTION BY BUCKET</div>
+        <div style={{display:"flex", gap:4}}>
+          {["today", "month", "overall"].map(tf => (
+            <button
+              key={tf}
+              onClick={() => setTimeframe(tf)}
+              style={{
+                background: timeframe === tf ? T.brandDim : "none",
+                border: `1px solid ${timeframe === tf ? T.brand : T.border}`,
+                borderRadius: 4,
+                padding: "2px 8px",
+                fontSize: 9,
+                fontWeight: 700,
+                color: timeframe === tf ? T.brandLight : T.textDim,
+                cursor: "pointer",
+                fontFamily: "'JetBrains Mono',monospace",
+                textTransform: "uppercase"
+              }}
+            >
+              {tf}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div style={{display:"flex", flexDirection:"column", gap:12}}>
+        {snap.buckets?.[timeframe]?.map(b => (
+          <div key={b.name}>
+            <div style={{display:"flex", justifyContent:"space-between", alignItems:"baseline", marginBottom:4, fontSize:11, fontFamily:"'JetBrains Mono',monospace"}}>
+              <span style={{color:T.text, fontWeight:500}}>{b.name}</span>
+              <span style={{color:T.textHi, fontWeight:700}}>{fmtBytes(b.total)} <span style={{color:T.textDim, fontSize:10, fontWeight:500}}>({b.pct.toFixed(1)}%)</span></span>
+            </div>
+            <div style={{height:6, background:T.line, borderRadius:3, overflow:"hidden"}}>
+              <div style={{
+                height:"100%",
+                borderRadius:3,
+                width:`${b.pct}%`,
+                background: b.name.includes("Polling") ? T.brand : b.name.includes("Chat") ? T.purple : b.name.includes("Repo") ? T.amber : b.name.includes("List") ? T.blue : T.dim,
+                transition: "width .3s ease"
+              }}/>
+            </div>
+          </div>
+        ))}
+        {(!snap.buckets?.[timeframe] || snap.buckets[timeframe].length === 0 || snap.buckets[timeframe].every(b => b.total === 0)) && (
+          <div style={{fontSize:11, color:T.textDim, textAlign:"center", padding:"12px 0", fontFamily:"'IBM Plex Sans',sans-serif"}}>
+            No data recorded for this timeframe.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const NetworkMonitor = ({ onBack, isDesktop }) => {
   const [snap, setSnap] = useState(NET.snapshot());
   const [storage, setStorage] = useState(null);
+  const [bucketTimeframe, setBucketTimeframe] = useState("overall");
 
   useEffect(() => NET.subscribe(s => setSnap(s)), []);
   useEffect(() => { getStorageInfo().then(setStorage); }, []);
@@ -6854,6 +7256,8 @@ const NetworkMonitor = ({ onBack, isDesktop }) => {
                 }} onMouseEnter={e=>e.currentTarget.style.background=`${T.blue}25`} onMouseLeave={e=>e.currentTarget.style.background=`${T.blue}15`}>CLEAR CACHE</button>
               </div>
             </div>
+
+            <BucketBreakdown snap={snap} timeframe={bucketTimeframe} setTimeframe={setBucketTimeframe} />
 
             <div style={{marginTop:8}}>
               <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12}}>
@@ -7312,7 +7716,7 @@ const QuotaTimeline = ({ todayCount, plan }) => {
   );
 };
 
-const SettingsView = ({ onBack, isDesktop, settings, personas, setPersonas, todayCount, apiKey, setApiKey }) => {
+const SettingsView = ({ onBack, isDesktop, settings, personas, setPersonas, todayCount, apiKey, setApiKey, githubToken, setGithubToken }) => {
   const {
     pollInterval, setPollInterval,
     actPollInterval, setActPollInterval,
@@ -7337,6 +7741,8 @@ const SettingsView = ({ onBack, isDesktop, settings, personas, setPersonas, toda
   const [newPrompt, setNewPrompt] = useState("");
   const [newColor, setNewColor] = useState("#ffffff");
   const [showKey, setShowKey] = useState(false);
+  const [showGhKey, setShowGhKey] = useState(false);
+  const [bucketTimeframe, setBucketTimeframe] = useState("overall");
 
   const triggerSaveFeedback = () => {
     setHasSaved(true);
@@ -7440,6 +7846,43 @@ const SettingsView = ({ onBack, isDesktop, settings, personas, setPersonas, toda
                     )}
                     <div style={{marginTop:6, fontSize:10, color:T.textDim, fontFamily:"'IBM Plex Sans',sans-serif"}}>
                       Your key is stored locally in your browser.
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{background:T.surfaceHi, padding:20, borderRadius:12, border:`1px solid ${T.border}`}}>
+                  <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:16}}>
+                    <Ic n="git_pull" s={16} c={T.brand}/>
+                    <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:12, fontWeight:700, color:T.text}}>GITHUB PAT (OPTIONAL)</span>
+                  </div>
+                  <div style={{marginBottom:10}}>
+                    <label htmlFor="github_pat_settings" style={{fontSize:11, color:T.textDim, marginBottom:8, fontFamily:"'JetBrains Mono',monospace", fontWeight:700, display: "block"}}>GITHUB PERSONAL ACCESS TOKEN</label>
+                    <div style={{display:"flex", alignItems:"center", gap:8}}>
+                      <input
+                        id="github_pat_settings"
+                        type={showGhKey ? "text" : "password"}
+                        value={githubToken}
+                        onChange={(e) => {
+                          const newToken = e.target.value.trim();
+                          SafeStorage.saveGithubToken(newToken);
+                          setGithubToken(newToken);
+                          triggerSaveFeedback();
+                        }}
+                        placeholder="ghp_..."
+                        maxLength={200}
+                        style={{
+                          ...inputSt,
+                          fontSize:13,
+                          flex:1,
+                          borderColor: T.border
+                        }}
+                      />
+                      <button onClick={() => setShowGhKey(!showGhKey)} title={showGhKey ? "Hide Token" : "Show Token"} aria-label={showGhKey ? "Hide Token" : "Show Token"} style={{background:T.surface, border:`1px solid ${T.border}`, padding:10, borderRadius:8, cursor:"pointer"}}>
+                        <Ic n={showGhKey ? "eye_closed" : "eye"} s={16} c={T.muted}/>
+                      </button>
+                    </div>
+                    <div style={{marginTop:6, fontSize:10, color:T.textDim, fontFamily:"'IBM Plex Sans',sans-serif"}}>
+                      Allows querying public/private GitHub repositories without rate limits. Stored locally in your browser.
                     </div>
                   </div>
                 </div>
@@ -8162,6 +8605,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
                 onClick={onRefresh}
                 disabled={refreshing}
                 title={`Refresh now ${countdown > 0 ? `(Auto in ${countdown}s)` : ""}`}
+                aria-label="Refresh session list"
                 style={{
                   background:"none", border:"none", cursor:refreshing?"default":"pointer",
                   display:"flex", padding:4, borderRadius:20, transition:"all .15s cubic-bezier(0.4, 0, 0.2, 1)",
@@ -8230,8 +8674,8 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
         {isDesktop && (
           <div style={{display:"flex", gap:4, alignItems:"center", height:scrolled?0:22, overflow:"hidden", opacity:scrolled?0:1, marginBottom:scrolled?0:8, padding:scrolled?0:"4px 2px", transition:"all .25s cubic-bezier(0.4, 0, 0.2, 1)", pointerEvents:scrolled?"none":"auto"}}>
             <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.textDim, letterSpacing:"0.08em", flexShrink:0, paddingRight:2}}>SESSIONS</span>
-            <button onClick={() => setShowArchived(false)} style={{flexShrink:0, padding:"3px 9px", borderRadius:20, border:"none", background:!showArchived ? T.brandDim : "transparent", outline:`1px solid ${!showArchived ? T.brand+"60" : T.border}`, color:!showArchived ? T.brand : T.muted, fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:!showArchived?700:400, letterSpacing:"0.05em", cursor:"pointer", transition:"all .12s cubic-bezier(0.4, 0, 0.2, 1)"}}>ACTIVE</button>
-            <button onClick={() => setShowArchived(true)} style={{flexShrink:0, padding:"3px 9px", borderRadius:20, border:"none", background:showArchived ? T.purpleDim : "transparent", outline:`1px solid ${showArchived ? T.purple+"60" : T.border}`, color:showArchived ? T.purple : T.muted, fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:showArchived?700:400, letterSpacing:"0.05em", cursor:"pointer", transition:"all .12s cubic-bezier(0.4, 0, 0.2, 1)"}}>ARCHIVED</button>
+            <button onClick={() => setShowArchived(false)} style={{flexShrink:0, minHeight:36, padding:"0 14px", display:"inline-flex", alignItems:"center", justifyContent:"center", borderRadius:20, border:"none", background:!showArchived ? T.brandDim : "transparent", border:`1px solid ${!showArchived ? T.brand+"60" : T.border}`, color:!showArchived ? T.brand : T.muted, fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:!showArchived?700:400, letterSpacing:"0.05em", cursor:"pointer", transition:"all .12s cubic-bezier(0.4, 0, 0.2, 1)"}}>ACTIVE</button>
+            <button onClick={() => setShowArchived(true)} style={{flexShrink:0, minHeight:36, padding:"0 14px", display:"inline-flex", alignItems:"center", justifyContent:"center", borderRadius:20, border:"none", background:showArchived ? T.purpleDim : "transparent", border:`1px solid ${showArchived ? T.purple+"60" : T.border}`, color:showArchived ? T.purple : T.muted, fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:showArchived?700:400, letterSpacing:"0.05em", cursor:"pointer", transition:"all .12s cubic-bezier(0.4, 0, 0.2, 1)"}}>ARCHIVED</button>
           </div>
         )}
         <div style={{position: "relative", maxHeight:scrolled?0:60, opacity:scrolled?0:1, transition:"all .25s cubic-bezier(0.4, 0, 0.2, 1)", pointerEvents:scrolled?"none":"auto"}}>
@@ -8300,7 +8744,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
                 const isAct = f===filter;
                 const ac = STATUS_META[f]?.color || T.brand;
                 return (
-                  <button key={f} onClick={()=>setFilter(f)} style={{flexShrink:0,padding:"4px 10px",borderRadius:20,border:"none",background:isAct?`${ac}20`:"transparent",outline:`1px solid ${isAct?`${ac}80`:T.border}`,color:isAct?ac:T.muted,fontFamily:"'JetBrains Mono',monospace",fontSize:11,fontWeight:700,letterSpacing:"0.06em",cursor:"pointer",transition:"background .12s cubic-bezier(0.4, 0, 0.2, 1), color .12s cubic-bezier(0.4, 0, 0.2, 1)"}}>{FILTER_LABELS[f]||f} {cnt>0?cnt:""}</button>
+                  <button key={f} onClick={()=>setFilter(f)} style={{flexShrink:0, minHeight:36, padding:"0 14px", display:"inline-flex", alignItems:"center", justifyContent:"center", borderRadius:20,border:"none",background:isAct?`${ac}20`:"transparent",border:`1px solid ${isAct?`${ac}80`:T.border}`,color:isAct?ac:T.muted,fontFamily:"'JetBrains Mono',monospace",fontSize:11,fontWeight:700,letterSpacing:"0.06em",cursor:"pointer",transition:"background .12s cubic-bezier(0.4, 0, 0.2, 1), color .12s cubic-bezier(0.4, 0, 0.2, 1)"}}>{FILTER_LABELS[f]||f} {cnt>0?cnt:""}</button>
                 );
               })}
             </div>
@@ -8548,6 +8992,7 @@ const useAppSettings = ({ onSessionLimitChange } = {}) => {
 // ─── Main App ─────────────────────────────────────────────────────────────────
 function JulesClient() {
   const [apiKey,setApiKey]     = useState(() => SafeStorage.loadApiKey());
+  const [githubToken,setGithubToken] = useState(() => SafeStorage.loadGithubToken());
   const [sessions,setSessions] = useState([]);
   const lastStates = useRef(new Map()); // id -> state
   const [activitiesMap, setActivitiesMap] = useState(() => SafeStorage.loadActivitiesMap());
@@ -8772,13 +9217,39 @@ function JulesClient() {
         const currentBatch = batch;
         const currentIsFirstPageOfFull = isFull && (iterations === 0);
         setSessions(prev => {
+          const selectedId = selected?.id;
+          const prevSelected = selectedId ? prev.find(s => s.id === selectedId) : null;
+          let adjustedBatch = currentBatch;
+          if (prevSelected) {
+            adjustedBatch = currentBatch.map(s => {
+              if (s.id === selectedId) {
+                const sTs = parseDateMs(s.updateTime || s.createTime);
+                const prevTs = parseDateMs(prevSelected.updateTime || prevSelected.createTime);
+                if (prevTs > sTs) {
+                  return prevSelected;
+                }
+              }
+              return s;
+            });
+          }
+
           let merged = [];
           if (currentIsFirstPageOfFull) {
-            merged = currentBatch;
+            let oldestTs = 0;
+            if (adjustedBatch.length > 0) {
+              oldestTs = Math.min(...adjustedBatch.map(s => parseDateMs(s.updateTime || s.createTime)));
+            }
+            const batchIds = new Set(adjustedBatch.map(s => s.id));
+            const preserved = prev.filter(s => {
+              if (batchIds.has(s.id)) return false;
+              const ts = parseDateMs(s.updateTime || s.createTime);
+              return ts >= oldestTs || ACTIVE_STATES.has(s.state);
+            });
+            merged = [...adjustedBatch, ...preserved];
           } else {
-            const batchIds = new Set(currentBatch.map(s => s.id));
+            const batchIds = new Set(adjustedBatch.map(s => s.id));
             merged = [
-              ...currentBatch,
+              ...adjustedBatch,
               ...prev.filter(s => !batchIds.has(s.id))
             ];
           }
@@ -9019,6 +9490,7 @@ function JulesClient() {
           {desktopView==="network"&&( <NetworkMonitor onBack={()=>setDesktop("empty")} isDesktop/> )} {desktopView==="settings"&&(
             <SettingsView onBack={()=>setDesktop("empty")} isDesktop
               apiKey={apiKey} setApiKey={setApiKey}
+              githubToken={githubToken} setGithubToken={setGithubToken}
               settings={settings}
               personas={personas} setPersonas={setPersonas}
               todayCount={todayCount} />
@@ -9101,6 +9573,7 @@ function JulesClient() {
         {mobileScreen==="network"&&( <NetworkMonitor onBack={()=>setMobile("list")} isDesktop={false}/> )} {mobileScreen==="settings"&&(
           <SettingsView onBack={()=>setMobile("list")} isDesktop={false}
             apiKey={apiKey} setApiKey={setApiKey}
+            githubToken={githubToken} setGithubToken={setGithubToken}
             settings={settings}
             personas={personas} setPersonas={setPersonas}
             todayCount={todayCount} />
@@ -9244,15 +9717,7 @@ function Shell({ children, desktop=false }) {
           outline-offset: 2px !important;
           box-shadow: 0 0 0 4px ${T.brandDim} !important;
         }
-        @media screen and (min-width: 768px) and (max-width: 1366px) and (orientation: portrait) {
-          body { display: flex; align-items: center; justify-content: center; text-align: center; }
-          body > #root { display: none; }
-          body::after {
-            content: "PLEASE ROTATE YOUR TABLET TO LANDSCAPE MODE";
-            font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 700; color: ${T.brand};
-            padding: 40px; letter-spacing: 0.1em; line-height: 1.6;
-          }
-        }
+
         @media screen and (max-width: 767px) and (orientation: landscape) {
           body { display: flex; align-items: center; justify-content: center; text-align: center; }
           body > #root { display: none; }
