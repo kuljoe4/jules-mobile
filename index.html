@@ -1656,6 +1656,9 @@ const hasMergeEvidence = (activities) => {
 const GH_STATE_CACHE = new Map();
 const GH_IN_FLIGHT = new Set();
 
+const GH_BRANCH_STATE_CACHE = new Map();
+const GH_BRANCH_IN_FLIGHT = new Set();
+
 function triggerGitHubFetch(url) {
   if (GH_IN_FLIGHT.has(url)) return;
 
@@ -1690,12 +1693,80 @@ function triggerGitHubFetch(url) {
       const title = prData.title || "";
       const body = prData.body || "";
 
-      return fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${number}/commits?per_page=10`, { headers })
-        .then(resCommits => {
-          if (!resCommits.ok) return [];
-          return resCommits.json();
-        })
-        .then(commitsData => {
+      const baseRef = prData.base?.ref || "main";
+      const headRef = prData.head?.ref || "main";
+      const headSha = prData.head?.sha || headRef;
+
+      const compareUrl = `https://api.github.com/repos/${owner}/${repo}/compare/${baseRef}...${headRef}`;
+      const statusUrl = `https://api.github.com/repos/${owner}/${repo}/commits/${headSha}/status`;
+      const checkRunsUrl = `https://api.github.com/repos/${owner}/${repo}/commits/${headSha}/check-runs`;
+      const commitsUrl = `https://api.github.com/repos/${owner}/${repo}/pulls/${number}/commits?per_page=10`;
+
+      const fetchCompare = fetch(compareUrl, { headers }).then(res => res.ok ? res.json() : null).catch(() => null);
+      const fetchStatus = fetch(statusUrl, { headers }).then(res => res.ok ? res.json() : null).catch(() => null);
+      const fetchCheckRuns = fetch(checkRunsUrl, { headers }).then(res => res.ok ? res.json() : null).catch(() => null);
+      const fetchCommits = fetch(commitsUrl, { headers }).then(res => res.ok ? res.json() : []).catch(() => []);
+
+      return Promise.all([fetchCompare, fetchStatus, fetchCheckRuns, fetchCommits])
+        .then(([compareData, statusData, checkRunsData, commitsData]) => {
+          let ahead = 0;
+          let behind = 0;
+          let statusState = "identical";
+          if (compareData) {
+            ahead = compareData.ahead_by || 0;
+            behind = compareData.behind_by || 0;
+            statusState = compareData.status || "identical";
+          }
+
+          // Aggregate checks
+          let finalState = null;
+          let finalLabel = "";
+          let checkCount = 0;
+          let successCount = 0;
+          let failureCount = 0;
+          let pendingCount = 0;
+
+          if (statusData && statusData.statuses) {
+            const st = statusData.state;
+            if (st && st !== "pending" && statusData.statuses.length > 0) {
+              for (const s of statusData.statuses) {
+                checkCount++;
+                if (s.state === "success") successCount++;
+                else if (s.state === "failure" || s.state === "error") failureCount++;
+                else pendingCount++;
+              }
+            } else if (st === "pending") {
+              pendingCount++;
+              checkCount++;
+            }
+          }
+
+          if (checkRunsData && checkRunsData.check_runs) {
+            for (const run of checkRunsData.check_runs) {
+              checkCount++;
+              if (run.status === "completed") {
+                if (run.conclusion === "success" || run.conclusion === "neutral") successCount++;
+                else if (run.conclusion === "failure" || run.conclusion === "timed_out" || run.conclusion === "action_required") failureCount++;
+                else successCount++;
+              } else {
+                pendingCount++;
+              }
+            }
+          }
+
+          if (checkCount > 0) {
+            if (failureCount > 0) {
+              finalState = "failure";
+              finalLabel = `${successCount}/${checkCount} PASSED`;
+            } else if (pendingCount > 0) {
+              finalState = "pending";
+              finalLabel = `${successCount}/${checkCount} RUNNING`;
+            } else {
+              finalState = "success";
+              finalLabel = `${successCount}/${checkCount} PASSED`;
+            }
+          }
+
           const commitsList = (Array.isArray(commitsData) ? commitsData : []).map(c => ({
             sha: c.sha ? c.sha.slice(0, 7) : "",
             message: c.commit?.message || "",
@@ -1712,6 +1783,14 @@ function triggerGitHubFetch(url) {
             title,
             body,
             commitsList,
+            ahead,
+            behind,
+            statusState,
+            checks: finalState ? {
+              state: finalState,
+              label: finalLabel,
+              url: checkRunsData?.check_runs?.[0]?.html_url || `https://github.com/${owner}/${repo}/actions`
+            } : null,
             fetchedAt: Date.now()
           };
 
@@ -1724,6 +1803,112 @@ function triggerGitHubFetch(url) {
     .catch(err => {
       console.warn("Error fetching PR metadata from GitHub:", err);
       GH_IN_FLIGHT.delete(url);
+    });
+}
+
+function triggerGitHubBranchFetch(repo, base, working) {
+  if (!repo || !base || !working) return;
+  const key = `${repo}:${base}:${working}`;
+  if (GH_BRANCH_IN_FLIGHT.has(key)) return;
+
+  GH_BRANCH_IN_FLIGHT.add(key);
+
+  const token = SafeStorage.loadGithubToken();
+  const headers = {
+    "Accept": "application/vnd.github.v3+json"
+  };
+  if (token) {
+    headers["Authorization"] = `token ${token}`;
+  }
+
+  const compareUrl = `https://api.github.com/repos/${repo}/compare/${base}...${working}`;
+  const statusUrl = `https://api.github.com/repos/${repo}/commits/${working}/status`;
+  const checkRunsUrl = `https://api.github.com/repos/${repo}/commits/${working}/check-runs`;
+
+  const fetchCompare = fetch(compareUrl, { headers }).then(res => res.ok ? res.json() : null).catch(() => null);
+  const fetchStatus = fetch(statusUrl, { headers }).then(res => res.ok ? res.json() : null).catch(() => null);
+  const fetchCheckRuns = fetch(checkRunsUrl, { headers }).then(res => res.ok ? res.json() : null).catch(() => null);
+
+  Promise.all([fetchCompare, fetchStatus, fetchCheckRuns])
+    .then(([compareData, statusData, checkRunsData]) => {
+      let ahead = 0;
+      let behind = 0;
+      let statusState = "identical";
+      if (compareData) {
+        ahead = compareData.ahead_by || 0;
+        behind = compareData.behind_by || 0;
+        statusState = compareData.status || "identical";
+      }
+
+      // Aggregate checks
+      let finalState = null;
+      let finalLabel = "";
+      let checkCount = 0;
+      let successCount = 0;
+      let failureCount = 0;
+      let pendingCount = 0;
+
+      if (statusData && statusData.statuses) {
+        const st = statusData.state;
+        if (st && st !== "pending" && statusData.statuses.length > 0) {
+          for (const s of statusData.statuses) {
+            checkCount++;
+            if (s.state === "success") successCount++;
+            else if (s.state === "failure" || s.state === "error") failureCount++;
+            else pendingCount++;
+          }
+        } else if (st === "pending") {
+          pendingCount++;
+          checkCount++;
+        }
+      }
+
+      if (checkRunsData && checkRunsData.check_runs) {
+        for (const run of checkRunsData.check_runs) {
+          checkCount++;
+          if (run.status === "completed") {
+            if (run.conclusion === "success" || run.conclusion === "neutral") successCount++;
+            else if (run.conclusion === "failure" || run.conclusion === "timed_out" || run.conclusion === "action_required") failureCount++;
+            else successCount++;
+          } else {
+            pendingCount++;
+          }
+        }
+      }
+
+      if (checkCount > 0) {
+        if (failureCount > 0) {
+          finalState = "failure";
+          finalLabel = `${successCount}/${checkCount} PASSED`;
+        } else if (pendingCount > 0) {
+          finalState = "pending";
+          finalLabel = `${successCount}/${checkCount} RUNNING`;
+        } else {
+          finalState = "success";
+          finalLabel = `${successCount}/${checkCount} PASSED`;
+        }
+      }
+
+      const updatedInfo = {
+        ahead,
+        behind,
+        statusState,
+        checks: finalState ? {
+          state: finalState,
+          label: finalLabel,
+          url: checkRunsData?.check_runs?.[0]?.html_url || `https://github.com/${repo}/actions`
+        } : null,
+        fetchedAt: Date.now()
+      };
+
+      GH_BRANCH_STATE_CACHE.set(key, updatedInfo);
+      GH_BRANCH_IN_FLIGHT.delete(key);
+
+      window.dispatchEvent(new CustomEvent("gh-pr-updated", { detail: { repo, base, working, ...updatedInfo } }));
+    })
+    .catch(err => {
+      console.warn("Error fetching branch comparisons from GitHub:", err);
+      GH_BRANCH_IN_FLIGHT.delete(key);
     });
 }
 
@@ -1789,6 +1974,7 @@ const getPRInfo = (s, activities = []) => {
   let state = isMergedFallback ? "merged" : "open";
   let additions = 0, deletions = 0, changedFiles = 0, commitsCount = 0;
   let prTitle = "", prBody = "", commitsList = [];
+  let ahead = 0, behind = 0, statusState = "identical", checks = null;
 
   const ghCached = GH_STATE_CACHE.get(pr.url);
   if (ghCached && (Date.now() - ghCached.fetchedAt < 5 * 60 * 1000)) {
@@ -1800,6 +1986,10 @@ const getPRInfo = (s, activities = []) => {
     prTitle = ghCached.title;
     prBody = ghCached.body;
     commitsList = ghCached.commitsList;
+    ahead = ghCached.ahead || 0;
+    behind = ghCached.behind || 0;
+    statusState = ghCached.statusState || "identical";
+    checks = ghCached.checks || null;
   } else {
     triggerGitHubFetch(pr.url);
   }
@@ -1814,6 +2004,10 @@ const getPRInfo = (s, activities = []) => {
     title: prTitle,
     body: prBody,
     commitsList,
+    ahead,
+    behind,
+    statusState,
+    checks,
     expiresAt: Date.now() + (5 * 60 * 1000)
   };
 
@@ -1991,7 +2185,37 @@ const getBranchInfo = (s, activities = []) => {
   }
 
   const repoUrl = repo && !repo.startsWith("sources/") ? `https://github.com/${repo}` : null;
-  const res = { base, working: working || base, repo: repoUrl ? repo : null, repoUrl, isNew: working && working !== base };
+
+  let ahead = 0;
+  let behind = 0;
+  let statusState = "identical";
+  let checks = null;
+
+  const activeWorking = working || base;
+  if (sid !== "temp" && repo && base && activeWorking && activeWorking !== base) {
+    const bKey = `${repo}:${base}:${activeWorking}`;
+    const bCached = GH_BRANCH_STATE_CACHE.get(bKey);
+    if (bCached && (Date.now() - bCached.fetchedAt < 5 * 60 * 1000)) {
+      ahead = bCached.ahead || 0;
+      behind = bCached.behind || 0;
+      statusState = bCached.statusState || "identical";
+      checks = bCached.checks || null;
+    } else {
+      triggerGitHubBranchFetch(repo, base, activeWorking);
+    }
+  }
+
+  const res = {
+    base,
+    working: activeWorking,
+    repo: repoUrl ? repo : null,
+    repoUrl,
+    isNew: activeWorking && activeWorking !== base,
+    ahead,
+    behind,
+    statusState,
+    checks
+  };
   if (sid !== "temp") {
     if (BRANCH_INFO_CACHE.size > 500) BRANCH_INFO_CACHE.clear();
     BRANCH_INFO_CACHE.set(cacheKey, res);
@@ -4201,19 +4425,29 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], stat
           <div style={{display:"flex", alignItems:"center", gap:4, color:pri.state==="merged"?T.purple:T.brand, opacity:0.9}}>
             <Ic n={pri.state==="merged"?"git_merge":"git_pull"} s={10} c={pri.state==="merged"?T.purple:T.brand}/>
             <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:900}}>#{pri.number}</span>
+            {pri.ahead > 0 && <span aria-label={`${pri.ahead} commits ahead`} style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900,color:T.brandLight,background:T.brandDim,padding:"1px 3px",borderRadius:2}}>↑{pri.ahead}</span>}
+            {pri.behind > 0 && <span aria-label={`${pri.behind} commits behind`} style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900,color:T.amber,background:T.amberDim,padding:"1px 3px",borderRadius:2}}>↓{pri.behind}</span>}
           </div>
         )}
         {(!pri || pri.state === "closed") && b?.isNew && (
           <div style={{display:"flex", alignItems:"center", gap:4, color:T.blue, opacity:0.9}}>
             <Ic n="branch" s={10} c={T.blue}/>
-            <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:900}}>{b.working}{ahead>0?` +${ahead}`:''}</span>
+            <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:900}}>{b.working}</span>
+            {b.ahead > 0 && <span aria-label={`${b.ahead} commits ahead`} style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900,color:T.brandLight,background:T.brandDim,padding:"1px 3px",borderRadius:2}}>↑{b.ahead}</span>}
+            {b.behind > 0 && <span aria-label={`${b.behind} commits behind`} style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900,color:T.amber,background:T.amberDim,padding:"1px 3px",borderRadius:2}}>↓{b.behind}</span>}
+            {!(b.ahead > 0 || b.behind > 0) && ahead > 0 && <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900,color:T.blue}}>+{ahead}</span>}
           </div>
         )}
-        {checks && (
-          <div style={{display:"flex", alignItems:"center", gap:3, color:checks.state==="success"?T.brand:checks.state==="failure"?T.red:T.amber, opacity:0.9}}>
-            <Ic n={checks.state==="success"?"check":checks.state==="failure"?"x":"refresh"} s={9} c={checks.state==="success"?T.brand:checks.state==="failure"?T.red:T.amber}/>
-            <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900}}>{checks.label}</span>
-          </div>
+        {(pri?.checks || b?.checks || checks) && (
+          (() => {
+            const ck = pri?.checks || b?.checks || checks;
+            return (
+              <div style={{display:"flex", alignItems:"center", gap:3, color:ck.state==="success"?T.brandLight:ck.state==="failure"?T.red:T.amber, opacity:0.9}}>
+                <Ic n={ck.state==="success"?"check":ck.state==="failure"?"x":"refresh"} s={9} c={ck.state==="success"?T.brandLight:ck.state==="failure"?T.red:T.amber}/>
+                <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900}}>{ck.label}</span>
+              </div>
+            );
+          })()
         )}
         {driftDetected && (
           <div style={{display:"flex", alignItems:"center", gap:3, color:T.amber, opacity:0.9}}>
@@ -5062,17 +5296,30 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                           #{pr.number}
                         </a>
                       )}
-                      {checks && (
-                        <div style={{
-                          background:checks.state==="success"?T.brandDim:checks.state==="failure"?T.redDim:T.amberDim,
-                          border:`1px solid ${checks.state==="success"?T.brand:checks.state==="failure"?T.red:T.amber}40`,
-                          borderRadius:3, padding:"1px 4px", display:"flex", alignItems:"center", gap:3,
-                          color:checks.state==="success"?T.brandLight:checks.state==="failure"?T.red:T.amber,
-                          fontFamily:"'JetBrains Mono',monospace", fontSize:8, fontWeight:900, flexShrink:0
-                        }}>
-                          <Ic n={checks.state==="success"?"check":checks.state==="failure"?"x":"refresh"} s={10} c={checks.state==="success"?T.brandLight:checks.state==="failure"?T.red:T.amber}/>
-                        </div>
-                      )}
+                      {(() => {
+                        const ck = pri?.checks || b?.checks || checks;
+                        if (!ck) return null;
+                        const isGitHub = !!ck.url;
+                        const Component = isGitHub ? "a" : "div";
+                        return (
+                          <Component
+                            href={isGitHub ? safeUrl(ck.url) : undefined}
+                            target={isGitHub ? "_blank" : undefined}
+                            rel={isGitHub ? "noopener noreferrer" : undefined}
+                            title={ck.label}
+                            style={{
+                              background:ck.state==="success"?T.brandDim:ck.state==="failure"?T.redDim:T.amberDim,
+                              border:`1px solid ${ck.state==="success"?T.brand:ck.state==="failure"?T.red:T.amber}40`,
+                              borderRadius:3, padding:"1px 4px", display:"flex", alignItems:"center", gap:3,
+                              color:ck.state==="success"?T.brandLight:ck.state==="failure"?T.red:T.amber,
+                              textDecoration:"none", fontFamily:"'JetBrains Mono',monospace", fontSize:8, fontWeight:900, flexShrink:0,
+                              cursor: isGitHub ? "pointer" : "default"
+                            }}
+                          >
+                            <Ic n={ck.state==="success"?"check":ck.state==="failure"?"x":"refresh"} s={10} c={ck.state==="success"?T.brandLight:ck.state==="failure"?T.red:T.amber}/>
+                          </Component>
+                        );
+                      })()}
                     </>
                  )}
               </div>
@@ -5264,7 +5511,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
           <div style={{display:"flex", alignItems:"center", gap:8, overflowX:"auto", scrollbarWidth:"none", WebkitOverflowScrolling:"touch", width:"100%"}}>
 
             {pr && (
-              <a href={safeUrl(pr.url)} target="_blank" rel="noopener noreferrer" style={{
+              <a href={safeUrl(pr.url)} target="_blank" rel="noopener noreferrer" aria-label={`Pull Request #${pr.number} is ${pr.state}. ${pr.ahead || 0} commits ahead, ${pr.behind || 0} commits behind.`} style={{
                 background:pr.state==="merged"?T.purpleDim:pr.state==="closed"?T.dim:T.brandDim,
                 border:`1px solid ${pr.state==="merged"?T.purple:pr.state==="closed"?T.muted:T.brand}40`,
                 borderRadius:4, padding:"3px 8px", display:"flex", alignItems:"center", gap:4,
@@ -5274,11 +5521,13 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
               }}>
                 <Ic n={pr.state==="merged"?"git_merge":"git_pull"} s={11} c={pr.state==="merged"?T.purple:pr.state==="closed"?T.muted:T.brand}/>
                 #{pr.number} <span style={{fontSize:8, opacity:0.8}}>{pr.state.toUpperCase()}</span>
+                {pr.ahead > 0 && <span style={{fontSize:9, background:`${T.brand}22`, color:T.brandLight, borderRadius:3, padding:"0px 4px", marginLeft:2, border:`1px solid ${T.brand}40`}}>↑{pr.ahead}</span>}
+                {pr.behind > 0 && <span style={{fontSize:9, background:`${T.amber}22`, color:T.amber, borderRadius:3, padding:"0px 4px", marginLeft:2, border:`1px solid ${T.amber}40`}}>↓{pr.behind}</span>}
               </a>
             )}
 
             {session.sourceContext?.source && (
-              <a href={safeUrl(b?.repoUrl ? `${b.repoUrl}/branches` : "#")} target="_blank" rel="noopener noreferrer" style={{
+              <a href={safeUrl(b?.repoUrl ? `${b.repoUrl}/branches` : "#")} target="_blank" rel="noopener noreferrer" aria-label={`Branch ${b?.working || "main"}. ${b?.ahead || ahead || 0} commits ahead, ${b?.behind || 0} commits behind.`} style={{
                 background:T.blueDim, border:`1px solid ${T.blue}30`, borderRadius:4, padding:"3px 8px",
                 display:"flex", alignItems:"center", gap:4, color:T.blue, textDecoration:"none",
                 fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:900, flexShrink:0,
@@ -5286,8 +5535,28 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
               }}>
                 <Ic n="branch" s={11} c={T.blue}/>
                 {b?.working || "main"}
-                {ahead > 0 && <span style={{fontSize:9}}>+{ahead}</span>}
+                {b?.ahead > 0 && <span style={{fontSize:9, background:`${T.brand}22`, color:T.brandLight, borderRadius:3, padding:"0px 4px", border:`1px solid ${T.brand}40`}}>↑{b.ahead}</span>}
+                {b?.behind > 0 && <span style={{fontSize:9, background:`${T.amber}22`, color:T.amber, borderRadius:3, padding:"0px 4px", border:`1px solid ${T.amber}40`}}>↓{b.behind}</span>}
+                {!(b?.ahead > 0 || b?.behind > 0) && ahead > 0 && <span style={{fontSize:9}}>+{ahead}</span>}
               </a>
+            )}
+
+            {(pri?.checks || b?.checks || checks) && (
+              (() => {
+                const ck = pri?.checks || b?.checks || checks;
+                return (
+                  <a href={safeUrl(ck.url || "#")} target="_blank" rel="noopener noreferrer" aria-label={`Build Checks status: ${ck.label}.`} style={{
+                    background:ck.state==="success"?T.brandDim:ck.state==="failure"?T.redDim:T.amberDim,
+                    border:`1px solid ${ck.state==="success"?T.brand:ck.state==="failure"?T.red:T.amber}40`,
+                    borderRadius:4, padding:"3px 8px", display:"flex", alignItems:"center", gap:4,
+                    color:ck.state==="success"?T.brandLight:ck.state==="failure"?T.red:T.amber,
+                    textDecoration:"none", fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:900, flexShrink:0
+                  }}>
+                    <Ic n={ck.state==="success"?"check":ck.state==="failure"?"x":"refresh"} s={11} c={ck.state==="success"?T.brandLight:ck.state==="failure"?T.red:T.amber}/>
+                    {ck.label}
+                  </a>
+                );
+              })()
             )}
 
             {session.url && (
@@ -5337,7 +5606,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
           )}
         </div>
 
-        {(pr?.state === "closed" || !pr) && b?.isNew && ahead > 0 && (
+        {(pr?.state === "closed" || !pr) && b?.isNew && (b.ahead > 0 || ahead > 0) && (
           <div style={{
             marginBottom:10, padding:"10px 14px", background:T.blueDim,
             border:`1px solid ${T.blue}40`, borderRadius:8, display:"flex",
@@ -5346,7 +5615,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
             <div style={{flex:1}}>
               <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.blue, fontWeight:800, letterSpacing:"0.05em", marginBottom:2}}>BRANCH AHEAD</div>
               <div style={{fontFamily:"'IBM Plex Sans',sans-serif", fontSize:13, color:T.textDim}}>
-                {ahead} commit{ahead!==1?'s':''} pushed to <span style={{color:T.blue, fontWeight:600}}>{b.working}</span>. No PR created yet.
+                {b.ahead || ahead} commit{(b.ahead || ahead)!==1?'s':''} pushed to <span style={{color:T.blue, fontWeight:600}}>{b.working}</span>. No PR created yet.
               </div>
             </div>
             {b.repoUrl && (
@@ -5641,6 +5910,47 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                     </div>
                   </div>
 
+                  {/* PR Branch Sync and CI/CD Build Status Grid */}
+                  <div style={{
+                    display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12,
+                    background: `${T.surfaceHi}80`, borderRadius: 8, border: `1px solid ${T.border}`,
+                    padding: 12, marginBottom: 12
+                  }}>
+                    {/* Branch Sync */}
+                    <div>
+                      <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 800, color: T.blue, letterSpacing: "0.05em", marginBottom: 4 }}>
+                        BRANCH SYNC
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <div style={{ display: "flex", gap: 6 }}>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: T.brandLight }}>↑ {pr.ahead || 0}</span>
+                          <span style={{ fontSize: 13, color: T.dim }}>/</span>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: T.amber }}>↓ {pr.behind || 0}</span>
+                        </div>
+                        <span style={{ fontSize: 12, color: T.textDim }}>
+                          {pr.behind > 0 ? "Behind upstream branch" : pr.ahead > 0 ? "Ahead of base branch" : "Fully synchronized"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* CI/CD Status */}
+                    {pr.checks && (
+                      <div>
+                        <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 800, color: T.blue, letterSpacing: "0.05em", marginBottom: 4 }}>
+                          CI/CD CHECKS
+                        </div>
+                        <a href={safeUrl(pr.checks.url)} target="_blank" rel="noopener noreferrer" style={{
+                          display: "inline-flex", alignItems: "center", gap: 6, textDecoration: "none",
+                          fontSize: 12, color: pr.checks.state === "success" ? T.brandLight : pr.checks.state === "failure" ? T.red : T.amber,
+                          fontWeight: 700, transition: "opacity .15s ease"
+                        }} onMouseEnter={e => e.currentTarget.style.opacity = 0.8} onMouseLeave={e => e.currentTarget.style.opacity = 1}>
+                          <Ic n={pr.checks.state === "success" ? "check" : pr.checks.state === "failure" ? "x" : "refresh"} s={12} c={pr.checks.state === "success" ? T.brandLight : pr.checks.state === "failure" ? T.red : T.amber}/>
+                          {pr.checks.label} ↗
+                        </a>
+                      </div>
+                    )}
+                  </div>
+
                   {/* High Density Commits list */}
                   {pr.commitsList && pr.commitsList.length > 0 && (
                     <div style={{ marginTop: 12, background: T.surfaceHi, borderRadius: 8, border: `1px solid ${T.border}`, padding: 12 }}>
@@ -5662,6 +5972,93 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                       </div>
                     </div>
                   )}
+                </div>
+              </div>
+            )}
+
+            {/* Custom Branch Status Metadata Card in Chat Completion Style when no PR exists */}
+            {!pr && b?.isNew && (
+              <div style={{ marginBottom: 24, width: "100%", animation: "fadeIn .25s ease-out" }}>
+                {/* Header Accent Row */}
+                <div style={{
+                  fontFamily: "'JetBrains Mono',monospace", fontSize: 11,
+                  color: T.blue, fontWeight: 800,
+                  letterSpacing: "0.1em", marginBottom: 12,
+                  display: "flex", alignItems: "center", gap: 8
+                }}>
+                  <div style={{
+                    width: 20, height: 20, borderRadius: 5,
+                    background: T.blueDim,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontFamily: "'JetBrains Mono',monospace", fontSize: 9, fontWeight: 900,
+                    color: T.blue, flexShrink: 0
+                  }}>B</div>
+                  <span>GITHUB BRANCH STATUS</span>
+                  <div style={{ height: 1, flex: 1, background: `${T.blue}20` }}/>
+                  <span style={{ color: T.textDim, fontSize: 10, fontWeight: 500, textTransform: "uppercase" }}>
+                    {b.statusState || "FEATURE"}
+                  </span>
+                </div>
+
+                {/* Structured Card */}
+                <div style={{
+                  background: "transparent", border: "none",
+                  borderLeft: `3px solid ${T.blue}`,
+                  borderRadius: 0, padding: "12px 0 12px 20px", position: "relative",
+                  boxShadow: "none", transition: "all .2s cubic-bezier(0.4, 0, 0.2, 1)",
+                  width: "100%"
+                }}>
+                  {/* Branch Name & Base Branch */}
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={{ fontSize: 15, fontWeight: 800, color: T.text, marginBottom: 4, fontFamily: "'IBM Plex Sans',sans-serif", display:"flex", alignItems:"center", gap:6 }}>
+                      <Ic n="branch" s={14} c={T.blue}/>
+                      {b.working}
+                    </div>
+                    <div style={{ fontSize: 13, color: T.textDim, lineHeight: 1.4, fontFamily: "'IBM Plex Sans',sans-serif", opacity: 0.85 }}>
+                      Working branch based on <span style={{color: T.blue, fontWeight: 600}}>{b.base}</span>.
+                    </div>
+                  </div>
+
+                  {/* Branch Sync and CI/CD Status Grid */}
+                  <div style={{
+                    display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12,
+                    background: `${T.surfaceHi}80`, borderRadius: 8, border: `1px solid ${T.border}`,
+                    padding: 12, marginBottom: 12
+                  }}>
+                    {/* Sync Status */}
+                    <div>
+                      <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 800, color: T.blue, letterSpacing: "0.05em", marginBottom: 4 }}>
+                        BRANCH SYNC
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <div style={{ display: "flex", gap: 6 }}>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: T.brandLight }}>↑ {b.ahead || ahead || 0}</span>
+                          <span style={{ fontSize: 13, color: T.dim }}>/</span>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: T.amber }}>↓ {b.behind || 0}</span>
+                        </div>
+                        <span style={{ fontSize: 12, color: T.textDim }}>
+                          {b.behind > 0 ? "Behind upstream branch" : (b.ahead || ahead) > 0 ? "Ahead of base branch" : "Fully synchronized"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* CI/CD Status */}
+                    {b.checks && (
+                      <div>
+                        <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 800, color: T.blue, letterSpacing: "0.05em", marginBottom: 4 }}>
+                          CI/CD CHECKS
+                        </div>
+                        <a href={safeUrl(b.checks.url)} target="_blank" rel="noopener noreferrer" style={{
+                          display: "inline-flex", alignItems: "center", gap: 6, textDecoration: "none",
+                          fontSize: 12, color: b.checks.state === "success" ? T.brandLight : b.checks.state === "failure" ? T.red : T.amber,
+                          fontWeight: 700, transition: "opacity .15s ease"
+                        }} onMouseEnter={e => e.currentTarget.style.opacity = 0.8} onMouseLeave={e => e.currentTarget.style.opacity = 1}>
+                          <Ic n={b.checks.state === "success" ? "check" : b.checks.state === "failure" ? "x" : "refresh"} s={12} c={b.checks.state === "success" ? T.brandLight : b.checks.state === "failure" ? T.red : T.amber}/>
+                          {b.checks.label} ↗
+                        </a>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
