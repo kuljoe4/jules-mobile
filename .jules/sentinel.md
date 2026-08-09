@@ -34,3 +34,8 @@
 **Vulnerability:** Whitelisting an entire CDN origin like `https://unpkg.com` in the Content-Security-Policy (CSP) `script-src` directive introduces a bypass vulnerability because CDNs allow any user to upload arbitrary npm packages. If any HTML injection or DOM XSS occurs, attackers can load external scripts from unpkg.com, bypassing CSP entirely.
 **Learning:** When using public CDNs for common libraries in production, avoid whitelisting the whole origin. Instead, restrict the CSP to the exact full file paths actually loaded.
 **Prevention:** Restrict the allowed script paths in the CSP to exact files (e.g., specific React and ReactDOM URLs) during the production build script (`build.js`) to minimize the attack surface.
+
+## 2026-08-08 - GitHub PAT Format Validation and HTTP Header Injection Mitigation
+**Vulnerability:** The application accepted arbitrary strings as GitHub Personal Access Tokens (PAT) and dynamically injected them into fetch request `Authorization` headers in background API calls. This lacked validation and could potentially expose the application to HTTP Header Injection or Request Splitting if a malformed token containing newline or carriage return characters was loaded.
+**Learning:** Standard security credentials must be verified on the client-side to ensure compliance with expected formats before dynamic header construction occurs.
+**Prevention:** Define a defensive helper `isValidGithubToken` restricting the optional PAT to printable non-space ASCII characters (`/^[\x21-\x7E]+$/`), and pair it with accessible visual warning alerts (`role="alert"`) directly on settings inputs.

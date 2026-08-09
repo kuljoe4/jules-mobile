@@ -772,6 +772,13 @@ const isValidGoogleApiKey = (key) => {
   return regex.test(key);
 };
 
+const isValidGithubToken = (token) => {
+  if (!token) return true;
+  if (typeof token !== "string") return false;
+  const regex = /^[\x21-\x7E]+$/;
+  return regex.test(token);
+};
+
 const safeUrl = (url) => {
   if (!url) return "#";
   try {
@@ -1672,7 +1679,8 @@ function triggerGitHubFetch(url) {
   const headers = {
     "Accept": "application/vnd.github.v3+json"
   };
-  if (token) {
+  // Defense-in-depth: Validate token format to prevent potential HTTP Header Injection/Request Splitting
+  if (token && isValidGithubToken(token)) {
     headers["Authorization"] = `token ${token}`;
   }
 
@@ -1817,7 +1825,8 @@ function triggerGitHubBranchFetch(repo, base, working) {
   const headers = {
     "Accept": "application/vnd.github.v3+json"
   };
-  if (token) {
+  // Defense-in-depth: Validate token format to prevent potential HTTP Header Injection/Request Splitting
+  if (token && isValidGithubToken(token)) {
     headers["Authorization"] = `token ${token}`;
   }
 
@@ -8237,6 +8246,7 @@ const SettingsView = ({ onBack, isDesktop, settings, personas, setPersonas, toda
 
           {tab === "api" && (() => {
             const isKeyInvalid = apiKey ? !isValidGoogleApiKey(apiKey) : false;
+            const isGhTokenInvalid = githubToken ? !isValidGithubToken(githubToken) : false;
             return (
               <div style={{animation:"fadeIn .2s ease", display:"flex", flexDirection:"column", gap:24}}>
                 <div style={{background:T.surfaceHi, padding:20, borderRadius:12, border:`1px solid ${T.border}`}}>
@@ -8303,17 +8313,24 @@ const SettingsView = ({ onBack, isDesktop, settings, personas, setPersonas, toda
                         }}
                         placeholder="ghp_..."
                         maxLength={200}
+                        aria-invalid={isGhTokenInvalid ? "true" : "false"}
+                        aria-describedby={isGhTokenInvalid ? "settings-github-token-error" : undefined}
                         style={{
                           ...inputSt,
                           fontSize:13,
                           flex:1,
-                          borderColor: T.border
+                          borderColor: isGhTokenInvalid ? T.red : T.border
                         }}
                       />
                       <button onClick={() => setShowGhKey(!showGhKey)} title={showGhKey ? "Hide Token" : "Show Token"} aria-label={showGhKey ? "Hide Token" : "Show Token"} style={{background:T.surface, border:`1px solid ${T.border}`, padding:10, borderRadius:8, cursor:"pointer"}}>
                         <Ic n={showGhKey ? "eye_closed" : "eye"} s={16} c={T.muted}/>
                       </button>
                     </div>
+                    {isGhTokenInvalid && (
+                      <div id="settings-github-token-error" role="alert" style={{marginTop:6, fontSize:11, color:T.red, fontFamily:"'JetBrains Mono',monospace", fontWeight:700}}>
+                        ⚠️ Invalid GitHub token format detected. Only printable non-space ASCII characters are allowed.
+                      </div>
+                    )}
                     <div style={{marginTop:6, fontSize:10, color:T.textDim, fontFamily:"'IBM Plex Sans',sans-serif"}}>
                       Allows querying public/private GitHub repositories without rate limits. Stored locally in your browser.
                     </div>
