@@ -4733,6 +4733,37 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   }, [driftDetected, isArchived]);
 
   const txtRef       = useRef(null);
+
+  // Performance Optimization: Wrap callbacks in reference-stable useCallback
+  // to avoid breaking React.memo for the ActivityFeed child component.
+  const handleShowAll = useCallback(() => {
+    setShowAll(true);
+  }, []);
+
+  const handleEditMessage = useCallback((text) => {
+    setMsg(text);
+    setComposerVisible(true);
+    requestAnimationFrame(() => {
+      if (txtRef.current) {
+        txtRef.current.focus();
+        txtRef.current.setSelectionRange(text.length, text.length);
+        txtRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    });
+  }, []);
+
+  const handleReply = useCallback((act, sender) => {
+    setReplyingTo({ act, sender });
+    setComposerMinimized(false);
+    setComposerVisible(true);
+    requestAnimationFrame(() => {
+      if (txtRef.current) {
+        txtRef.current.focus();
+        txtRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    });
+  }, []);
+
   const feedEndRef   = useRef(null);
   const actMapRef    = useRef(new Map());      // id → activity (dedup)
   const prevLenRef   = useRef(0);
@@ -6135,30 +6166,10 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                   showAll={showAll}
                   justUpdated={justUpdated}
                   scrolledActivityId={scrolledActivityId}
-                  onShowAll={()=>setShowAll(true)}
+                  onShowAll={handleShowAll}
                   onMediaClick={setActiveMedia}
-                  onEditMessage={(text) => {
-                    setMsg(text);
-                    setComposerVisible(true);
-                    requestAnimationFrame(() => {
-                      if (txtRef.current) {
-                        txtRef.current.focus();
-                        txtRef.current.setSelectionRange(text.length, text.length);
-                        txtRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
-                      }
-                    });
-                  }}
-                  onReply={(act, sender) => {
-                    setReplyingTo({ act, sender });
-                    setComposerMinimized(false);
-                    setComposerVisible(true);
-                    requestAnimationFrame(() => {
-                      if (txtRef.current) {
-                        txtRef.current.focus();
-                        txtRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
-                      }
-                    });
-                  }}
+                  onEditMessage={handleEditMessage}
+                  onReply={handleReply}
                 />
             }
             <div style={{
