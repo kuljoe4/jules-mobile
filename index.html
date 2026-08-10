@@ -1072,6 +1072,9 @@ const MultiPersonaPicker = ({ personas, selectedIds, onToggle, style: s = {} }) 
           <button
             key={p.id}
             onClick={() => onToggle(p.id)}
+            title={`Toggle focus role: ${p.label}`}
+            aria-label={`Toggle focus role: ${p.label}`}
+            aria-pressed={isSelected ? "true" : "false"}
             style={{
               flexShrink: 0, minHeight: 36, padding: "0 14px", borderRadius: 20,
               background: isSelected ? `${p.color}20` : T.surfaceHi,
@@ -7231,6 +7234,9 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
                   key={opt.label}
                   onClick={()=>!opt.disabled&&opt.set(v=>!v)}
                   disabled={opt.disabled}
+                  title={`${opt.label}: ${opt.hint}`}
+                  aria-label={`${opt.label}: ${opt.hint}`}
+                  aria-pressed={opt.val ? "true" : "false"}
                   style={{
                     flex:"1 1 100px",padding:"8px",borderRadius:5,cursor:opt.disabled?"default":"pointer",
                     background:opt.val?T.brandDim:T.surfaceHi,
