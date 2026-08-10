@@ -6837,7 +6837,10 @@ const useNewSessionFlow = ({ apiKey, personas, onCreate, initialDraft, onDraftSa
       }
     }
 
+    const idempotencyKey = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+
     const body = {
+      idempotencyKey,
       prompt: finalPrompt,
       ...(source&&{
         sourceContext:{ source, githubRepoContext:{ startingBranch:branch||defaultBranch||"main" } },
@@ -6848,6 +6851,7 @@ const useNewSessionFlow = ({ apiKey, personas, onCreate, initialDraft, onDraftSa
     try {
       const d = await apiCall(apiKey, "/sessions", {
         method: "POST",
+        headers: { "Idempotency-Key": idempotencyKey },
         body,
         timeout: 60000,
         _label: "Create session"
