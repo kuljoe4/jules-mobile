@@ -3540,7 +3540,15 @@ const COLLAPSE_SHOW      = 25;
 
 const ActivityFeed = memo(({ activities, showAll, onShowAll, onMediaClick, onEditMessage, onReply, driftSessions = [], justUpdated = false, scrolledActivityId = null }) => {
   const collapse  = !showAll && activities.length > COLLAPSE_THRESHOLD;
-  const visible   = collapse ? activities.slice(activities.length - COLLAPSE_SHOW) : activities;
+
+  // OPTIMIZATION: Memoize the sliced visible activities array. Since activities is reference-stable
+  // and collapse is a boolean, memoizing the slice prevents recreating a new array reference on
+  // every render. This prevents downstream useMemo hooks (deduped, combined) from being re-evaluated
+  // during active countdown ticks or parent polling ticks.
+  const visible   = useMemo(() => {
+    return collapse ? activities.slice(activities.length - COLLAPSE_SHOW) : activities;
+  }, [activities, collapse]);
+
   const hidden    = activities.length - visible.length;
 
   const deduped = useMemo(() => {
@@ -7530,7 +7538,9 @@ const DraftsBox = ({ onBack, isDesktop, onResume, onCreate, allSessions, activit
 };
 
 // ─── Settings View ────────────────────────────────────────────────────────────
-const RecentActivityLog = ({ log, total }) => {
+// OPTIMIZATION: Wrap RecentActivityLog in React.memo to prevent unnecessary re-renders when parent
+// state updates but the network log and totals remain reference-stable.
+const RecentActivityLog = memo(({ log, total }) => {
   const [mode, setMode] = useState("chrono"); // "chrono", "ranked-indiv", "ranked-group"
 
   const groupedData = useMemo(() => {
@@ -7731,7 +7741,7 @@ const RecentActivityLog = ({ log, total }) => {
       </div>
     </div>
   );
-};
+});
 
 const BucketBreakdown = ({ snap, timeframe, setTimeframe }) => {
   return (
