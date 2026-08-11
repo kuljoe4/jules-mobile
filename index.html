@@ -9663,7 +9663,10 @@ function JulesClient() {
     if (s === "list" || s === "detail") setLastSessionScreen(s);
   }, []);
   const [refreshing,setRefreshing] = useState(false);
-  const [netSnap,setNetSnap]       = useState(NET.snapshot());
+  // OPTIMIZATION (Bolt): Removed global root-level `netSnap` state and subscription from JulesClient.
+  // Since netSnap was unused for rendering in JulesClient, every network record (NET.record) previously
+  // triggered a full root-level re-render of the entire tree. Removing this redundant subscription isolates
+  // network updates strictly to SettingsView and NetworkMonitor, eliminating severe CPU/Virtual DOM churn.
 
   const lastFetchTime = useRef(null);
 
@@ -9709,8 +9712,6 @@ function JulesClient() {
   const isDesktop = useIsDesktop();
 
   const { todayCount, registerSession, registerSessions } = useQuotaTracker(sessions, plan);
-
-  useEffect(() => NET.subscribe(s=>setNetSnap(s)), []);
 
   useEffect(() => {
     const handleStorage = (e) => {
