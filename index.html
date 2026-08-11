@@ -3811,6 +3811,7 @@ const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFeedback,
                     value={note}
                     onChange={e=>setStepNotes(prev=>({...prev,[st.id]:e.target.value}))}
                     placeholder={`What should change about this step? (e.g. "Use TypeScript instead of JS", "Skip this — not needed")`}
+                    aria-label={`Feedback for Step ${i+1}`}
                     rows={2}
                     maxLength={5000}
                     style={{
@@ -3845,6 +3846,7 @@ const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFeedback,
             value={globalNote}
             onChange={e=>setGlobalNote(e.target.value)}
             placeholder="Any overall comments before approving? (e.g. 'Make sure to run tests', 'Keep changes minimal')"
+            aria-label="Overall comments or feedback"
             rows={2}
             maxLength={5000}
             style={{
@@ -6479,6 +6481,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                   onChange={e=>setMsg(e.target.value)}
                   onKeyDown={e=>e.key==="Enter"&&!e.shiftKey&&(e.preventDefault(),handleSend())}
                   placeholder="Message Jules or give new instructions…"
+                  aria-label="Message Jules or give new instructions"
                   rows={expanded?15:3}
                   maxLength={20000}
                   style={{
@@ -7017,6 +7020,7 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
                   onChange={e=>{setSourceSearch(e.target.value); setShowSources(true); setSourceInteracted(true);}}
                   onFocus={()=>{setShowSources(true); setSourceInteracted(true);}}
                   placeholder="Search repositories..."
+                  aria-label="Search target repository"
                   maxLength={500}
                   onKeyDown={e => {
                     if (e.key === "Escape") {
@@ -7096,6 +7100,7 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
                     onChange={e=>{setBranch(e.target.value); setShowBranches(true);}}
                     onFocus={()=>setShowBranches(true)}
                     placeholder={defaultBranch || "main"}
+                    aria-label="Starting branch"
                     maxLength={250}
                     onKeyDown={e => {
                       if (e.key === "Escape") {
@@ -9266,6 +9271,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 placeholder="Search by title, prompt or ID... (Press Esc to close)"
+                aria-label="Search by title, prompt or ID"
                 maxLength={200}
                 style={{...inputSt, paddingLeft:34, paddingRight:34, borderColor:T.blue+"40", background:T.surfaceHi}}
                 autoFocus
