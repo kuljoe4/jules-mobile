@@ -9916,7 +9916,7 @@ function JulesClient() {
         const d = await apiCall(apiKey, `/sessions?${qs}`, {
           _label:`Sessions ${isFull?"full":"Δ"} p${iterations+1}`,
           signal: controller.signal,
-          timeout: Math.min(15000, loadApiTimeout())
+          timeout: loadApiTimeout()
         });
         const batch = d.sessions || [];
         console.log(`[FetchSessions] Fetched page ${iterations + 1} with ${batch.length} sessions.`);
