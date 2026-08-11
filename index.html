@@ -779,6 +779,19 @@ const isValidGithubToken = (token) => {
   return regex.test(token);
 };
 
+const isValidGitBranchName = (name) => {
+  if (!name) return true;
+  if (typeof name !== "string") return false;
+  if (name.length > 250) return false;
+  if (name.startsWith("/") || name.endsWith("/") || name.includes("//") || /\s/.test(name)) return false;
+  if (name.includes("..")) return false;
+  const invalidChars = /[~^:\?\*\[\\]|@\{/;
+  if (invalidChars.test(name)) return false;
+  if (name.endsWith(".lock")) return false;
+  if (name === "@") return false;
+  return true;
+};
+
 const safeUrl = (url) => {
   if (!url) return "#";
   try {
@@ -3798,6 +3811,7 @@ const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFeedback,
                     value={note}
                     onChange={e=>setStepNotes(prev=>({...prev,[st.id]:e.target.value}))}
                     placeholder={`What should change about this step? (e.g. "Use TypeScript instead of JS", "Skip this — not needed")`}
+                    aria-label={`Feedback for Step ${i+1}`}
                     rows={2}
                     maxLength={5000}
                     style={{
@@ -3832,6 +3846,7 @@ const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFeedback,
             value={globalNote}
             onChange={e=>setGlobalNote(e.target.value)}
             placeholder="Any overall comments before approving? (e.g. 'Make sure to run tests', 'Keep changes minimal')"
+            aria-label="Overall comments or feedback"
             rows={2}
             maxLength={5000}
             style={{
@@ -6466,6 +6481,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                   onChange={e=>setMsg(e.target.value)}
                   onKeyDown={e=>e.key==="Enter"&&!e.shiftKey&&(e.preventDefault(),handleSend())}
                   placeholder="Message Jules or give new instructions…"
+                  aria-label="Message Jules or give new instructions"
                   rows={expanded?15:3}
                   maxLength={20000}
                   style={{
@@ -6838,6 +6854,13 @@ const useNewSessionFlow = ({ apiKey, personas, onCreate, initialDraft, onDraftSa
   const handleCreate = async () => {
     setSub(true); setErr(null); setShowConfirm(false);
 
+    const activeBranch = branch || defaultBranch || "main";
+    if (source && !isValidGitBranchName(activeBranch)) {
+      setErr("Invalid branch name format. Branch names cannot contain spaces, consecutive dots, or characters like ~, ^, :, ?, *, [, \\.");
+      setSub(false);
+      return;
+    }
+
     let finalPrompt = prompt.trim();
     if (selectedPersonas.size > 0) {
       const personaPrompts = Array.from(selectedPersonas)
@@ -6942,6 +6965,8 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
     handleCreate
   } = useNewSessionFlow({ apiKey, personas, onCreate, initialDraft, onDraftSaved });
 
+  const isBranchInvalid = branch ? !isValidGitBranchName(branch) : false;
+
   const payloadEst = (JSON.stringify({prompt,source,branch}).length/1024).toFixed(1);
 
   return (
@@ -6995,6 +7020,7 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
                   onChange={e=>{setSourceSearch(e.target.value); setShowSources(true); setSourceInteracted(true);}}
                   onFocus={()=>{setShowSources(true); setSourceInteracted(true);}}
                   placeholder="Search repositories..."
+                  aria-label="Search target repository"
                   maxLength={500}
                   onKeyDown={e => {
                     if (e.key === "Escape") {
@@ -7074,6 +7100,7 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
                     onChange={e=>{setBranch(e.target.value); setShowBranches(true);}}
                     onFocus={()=>setShowBranches(true)}
                     placeholder={defaultBranch || "main"}
+                    aria-label="Starting branch"
                     maxLength={250}
                     onKeyDown={e => {
                       if (e.key === "Escape") {
@@ -7081,9 +7108,22 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
                         setBranch(branch);
                       }
                     }}
-                    style={{...inputSt, paddingRight:36, fontSize:13, padding: "8px 10px"}}
+                    aria-invalid={isBranchInvalid ? "true" : "false"}
+                    aria-describedby={isBranchInvalid ? "new-session-branch-error" : undefined}
+                    style={{
+                      ...inputSt,
+                      paddingRight:36,
+                      fontSize:13,
+                      padding: "8px 10px",
+                      borderColor: isBranchInvalid ? T.red : T.border
+                    }}
                   />
-                  <div style={{position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", display:"flex", alignItems:"center", pointerEvents:"none"}}>
+                  {isBranchInvalid && (
+                    <div id="new-session-branch-error" role="alert" style={{marginTop:6, fontSize:11, color:T.red, fontFamily:"'JetBrains Mono',monospace", fontWeight:700}}>
+                      ⚠️ Invalid Git branch name format. Spaces, consecutive dots (..), and characters like ~, ^, :, ?, *, [, \ are not allowed.
+                    </div>
+                  )}
+                  <div style={{position:"absolute", right:10, top: isBranchInvalid ? "20px" : "50%", transform:"translateY(-50%)", display:"flex", alignItems:"center", pointerEvents:"none"}}>
                     <Ic n="branch" s={14} c={showBranches?T.brand:T.muted}/>
                   </div>
 
@@ -9231,6 +9271,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 placeholder="Search by title, prompt or ID... (Press Esc to close)"
+                aria-label="Search by title, prompt or ID"
                 maxLength={200}
                 style={{...inputSt, paddingLeft:34, paddingRight:34, borderColor:T.blue+"40", background:T.surfaceHi}}
                 autoFocus
