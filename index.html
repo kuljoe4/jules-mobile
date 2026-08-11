@@ -1432,49 +1432,71 @@ async function apiCall(apiKey, path, opts={}) {
   }
 
   const url = `${BASE}${path}`;
-  const headers = { "x-goog-api-key":apiKey, "Content-Type":"application/json", ...(opts.headers||{}) };
   const body = opts.body ? JSON.stringify(opts.body) : undefined;
+  const headers = { "x-goog-api-key": apiKey, ...(opts.headers || {}) };
+  if (body) {
+    headers["Content-Type"] = "application/json";
+  }
 
   // Estimate outgoing bytes (method + url + headers + body)
   const outBytes = (opts.method || "GET").length + url.length + JSON.stringify(headers).length + (body?.length || 0);
 
-  // Implement a defensive request timeout to prevent client resource exhaustion and hanging socket connections
-  const controller = new AbortController();
-  const timeoutMs = opts.timeout || loadApiTimeout(); // default configured timeout
-  let timedOut = false;
-  const timeoutId = setTimeout(() => {
-    timedOut = true;
-    controller.abort();
-  }, timeoutMs);
-
-  if (opts.signal) {
-    if (opts.signal.aborted) {
-      controller.abort();
-    } else {
-      opts.signal.addEventListener('abort', () => {
-        controller.abort();
-      });
-    }
-  }
-
   let res;
-  try {
-    res = await fetch(url, { ...opts, headers, body, signal: controller.signal });
-  } catch (err) {
-    if (err.name === 'AbortError') {
-      if (timedOut) {
-        throw new Error(`API request timed out after ${timeoutMs}ms`);
+  const attempts = 3;
+  let attempt = 0;
+
+  while (attempt < attempts) {
+    attempt++;
+
+    // Implement a defensive request timeout to prevent client resource exhaustion and hanging socket connections
+    const controller = new AbortController();
+    const timeoutMs = opts.timeout || loadApiTimeout(); // default configured timeout
+    let timedOut = false;
+    const timeoutId = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, timeoutMs);
+
+    let removeAbortListener = null;
+    if (opts.signal) {
+      if (opts.signal.aborted) {
+        controller.abort();
+      } else {
+        const onAbort = () => controller.abort();
+        opts.signal.addEventListener('abort', onAbort);
+        removeAbortListener = () => opts.signal.removeEventListener('abort', onAbort);
       }
-      const abortErr = new Error("The user aborted a request.");
-      abortErr.name = "AbortError";
-      throw abortErr;
     }
-    if (err instanceof TypeError) {
-      throw new Error("Network or CORS request failed. Please check your network connection, API key validity, or if CORS restrictions are active.");
+
+    try {
+      res = await fetch(url, { ...opts, headers, body, signal: controller.signal });
+      if (removeAbortListener) removeAbortListener();
+      clearTimeout(timeoutId);
+      break; // Success! Exit retry loop
+    } catch (err) {
+      if (removeAbortListener) removeAbortListener();
+      clearTimeout(timeoutId);
+
+      if (err.name === 'AbortError') {
+        if (timedOut) {
+          throw new Error(`API request timed out after ${timeoutMs}ms`);
+        }
+        const abortErr = new Error("The user aborted a request.");
+        abortErr.name = "AbortError";
+        throw abortErr;
+      }
+
+      if (err instanceof TypeError) {
+        if (attempt < attempts) {
+          const delay = attempt * 500;
+          console.warn(`[apiCall] Transient network failure on attempt ${attempt}. Retrying in ${delay}ms...`, err);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+        throw new Error("Network or CORS request failed. Please check your network connection, API key validity, or if CORS restrictions are active.");
+      }
+      throw err;
     }
-    throw err;
-  } finally {
-    clearTimeout(timeoutId);
   }
 
   let text = "";
@@ -1514,7 +1536,8 @@ async function apiCall(apiKey, path, opts={}) {
     let msg = text;
     try { msg = JSON.parse(text)?.error?.message || text; } catch {}
 
-    if (QUOTA_ERROR_CODES.includes(res.status)) {
+    const isQuotaError = res.status === 429 || (res.status === 403 && /quota|limit|exceeded|exhausted/i.test(msg));
+    if (isQuotaError) {
       const retryAfterHeader = res.headers.get('Retry-After');
       const parsed = retryAfterHeader ? parseInt(retryAfterHeader, 10) : NaN;
       const waitSec = Number.isFinite(parsed) ? parsed : 60;
@@ -1682,6 +1705,20 @@ const GH_IN_FLIGHT = new Set();
 const GH_BRANCH_STATE_CACHE = new Map();
 const GH_BRANCH_IN_FLIGHT = new Set();
 
+function githubFetch(url, headers) {
+  return fetch(url, { headers }).then(res => {
+    if (!res.ok) {
+      if ((res.status === 403 || res.status === 429) && res.headers.get("x-ratelimit-remaining") === "0") {
+        const resetTime = res.headers.get("x-ratelimit-reset");
+        const resetDate = resetTime ? new Date(parseInt(resetTime, 10) * 1000).toLocaleTimeString() : "soon";
+        window.dispatchEvent(new CustomEvent("gh-rate-limited", { detail: { resetAt: resetDate } }));
+      }
+      throw new Error(`Status ${res.status}`);
+    }
+    return res.json();
+  });
+}
+
 function triggerGitHubFetch(url) {
   if (GH_IN_FLIGHT.has(url)) return;
 
@@ -1700,11 +1737,7 @@ function triggerGitHubFetch(url) {
     headers["Authorization"] = `token ${token}`;
   }
 
-  fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${number}`, { headers })
-    .then(res => {
-      if (!res.ok) throw new Error(`PR fetch failed with status ${res.status}`);
-      return res.json();
-    })
+  githubFetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${number}`, headers)
     .then(prData => {
       let state = "open";
       if (prData.merged) state = "merged";
@@ -1726,10 +1759,10 @@ function triggerGitHubFetch(url) {
       const checkRunsUrl = `https://api.github.com/repos/${owner}/${repo}/commits/${headSha}/check-runs`;
       const commitsUrl = `https://api.github.com/repos/${owner}/${repo}/pulls/${number}/commits?per_page=10`;
 
-      const fetchCompare = fetch(compareUrl, { headers }).then(res => res.ok ? res.json() : null).catch(() => null);
-      const fetchStatus = fetch(statusUrl, { headers }).then(res => res.ok ? res.json() : null).catch(() => null);
-      const fetchCheckRuns = fetch(checkRunsUrl, { headers }).then(res => res.ok ? res.json() : null).catch(() => null);
-      const fetchCommits = fetch(commitsUrl, { headers }).then(res => res.ok ? res.json() : []).catch(() => []);
+      const fetchCompare = githubFetch(compareUrl, headers).catch(() => null);
+      const fetchStatus = githubFetch(statusUrl, headers).catch(() => null);
+      const fetchCheckRuns = githubFetch(checkRunsUrl, headers).catch(() => null);
+      const fetchCommits = githubFetch(commitsUrl, headers).catch(() => []);
 
       return Promise.all([fetchCompare, fetchStatus, fetchCheckRuns, fetchCommits])
         .then(([compareData, statusData, checkRunsData, commitsData]) => {
@@ -1815,7 +1848,8 @@ function triggerGitHubFetch(url) {
               label: finalLabel,
               url: checkRunsData?.check_runs?.[0]?.html_url || `https://github.com/${owner}/${repo}/actions`
             } : null,
-            fetchedAt: Date.now()
+            fetchedAt: Date.now(),
+            failed: false
           };
 
           GH_STATE_CACHE.set(url, updatedInfo);
@@ -1827,6 +1861,24 @@ function triggerGitHubFetch(url) {
     .catch(err => {
       console.warn("Error fetching PR metadata from GitHub:", err);
       GH_IN_FLIGHT.delete(url);
+      GH_STATE_CACHE.set(url, {
+        state: "open",
+        additions: 0,
+        deletions: 0,
+        changedFiles: 0,
+        commitsCount: 0,
+        title: "",
+        body: "",
+        commitsList: [],
+        ahead: 0,
+        behind: 0,
+        statusState: "identical",
+        checks: null,
+        fetchedAt: Date.now(),
+        failed: true,
+        errorMsg: err.message
+      });
+      window.dispatchEvent(new CustomEvent("gh-pr-updated", { detail: { url, failed: true } }));
     });
 }
 
@@ -1850,9 +1902,9 @@ function triggerGitHubBranchFetch(repo, base, working) {
   const statusUrl = `https://api.github.com/repos/${repo}/commits/${working}/status`;
   const checkRunsUrl = `https://api.github.com/repos/${repo}/commits/${working}/check-runs`;
 
-  const fetchCompare = fetch(compareUrl, { headers }).then(res => res.ok ? res.json() : null).catch(() => null);
-  const fetchStatus = fetch(statusUrl, { headers }).then(res => res.ok ? res.json() : null).catch(() => null);
-  const fetchCheckRuns = fetch(checkRunsUrl, { headers }).then(res => res.ok ? res.json() : null).catch(() => null);
+  const fetchCompare = githubFetch(compareUrl, headers).catch(() => null);
+  const fetchStatus = githubFetch(statusUrl, headers).catch(() => null);
+  const fetchCheckRuns = githubFetch(checkRunsUrl, headers).catch(() => null);
 
   Promise.all([fetchCompare, fetchStatus, fetchCheckRuns])
     .then(([compareData, statusData, checkRunsData]) => {
@@ -1923,7 +1975,8 @@ function triggerGitHubBranchFetch(repo, base, working) {
           label: finalLabel,
           url: checkRunsData?.check_runs?.[0]?.html_url || `https://github.com/${repo}/actions`
         } : null,
-        fetchedAt: Date.now()
+        fetchedAt: Date.now(),
+        failed: !compareData
       };
 
       GH_BRANCH_STATE_CACHE.set(key, updatedInfo);
@@ -1934,6 +1987,15 @@ function triggerGitHubBranchFetch(repo, base, working) {
     .catch(err => {
       console.warn("Error fetching branch comparisons from GitHub:", err);
       GH_BRANCH_IN_FLIGHT.delete(key);
+      GH_BRANCH_STATE_CACHE.set(key, {
+        ahead: 0,
+        behind: 0,
+        statusState: "identical",
+        checks: null,
+        fetchedAt: Date.now(),
+        failed: true
+      });
+      window.dispatchEvent(new CustomEvent("gh-pr-updated", { detail: { repo, base, working, failed: true } }));
     });
 }
 
@@ -2000,6 +2062,7 @@ const getPRInfo = (s, activities = []) => {
   let additions = 0, deletions = 0, changedFiles = 0, commitsCount = 0;
   let prTitle = "", prBody = "", commitsList = [];
   let ahead = 0, behind = 0, statusState = "identical", checks = null;
+  let failed = false;
 
   const ghCached = GH_STATE_CACHE.get(pr.url);
   if (ghCached && (Date.now() - ghCached.fetchedAt < 5 * 60 * 1000)) {
@@ -2015,6 +2078,7 @@ const getPRInfo = (s, activities = []) => {
     behind = ghCached.behind || 0;
     statusState = ghCached.statusState || "identical";
     checks = ghCached.checks || null;
+    failed = ghCached.failed || false;
   } else {
     triggerGitHubFetch(pr.url);
   }
@@ -2033,6 +2097,7 @@ const getPRInfo = (s, activities = []) => {
     behind,
     statusState,
     checks,
+    failed,
     expiresAt: Date.now() + (5 * 60 * 1000)
   };
 
@@ -2215,6 +2280,7 @@ const getBranchInfo = (s, activities = []) => {
   let behind = 0;
   let statusState = "identical";
   let checks = null;
+  let failed = false;
 
   const activeWorking = working || base;
   if (sid !== "temp" && repo && base && activeWorking && activeWorking !== base) {
@@ -2225,6 +2291,7 @@ const getBranchInfo = (s, activities = []) => {
       behind = bCached.behind || 0;
       statusState = bCached.statusState || "identical";
       checks = bCached.checks || null;
+      failed = bCached.failed || false;
     } else {
       triggerGitHubBranchFetch(repo, base, activeWorking);
     }
@@ -2239,7 +2306,8 @@ const getBranchInfo = (s, activities = []) => {
     ahead,
     behind,
     statusState,
-    checks
+    checks,
+    failed
   };
   if (sid !== "temp") {
     if (BRANCH_INFO_CACHE.size > 500) BRANCH_INFO_CACHE.clear();
@@ -5946,6 +6014,14 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                   boxShadow: "none", transition: "all .2s cubic-bezier(0.4, 0, 0.2, 1)",
                   width: "100%"
                 }}>
+                  {pr.failed && (
+                    <div style={{ marginBottom: 12, padding: 8, background: `${T.amber}10`, border: `1px solid ${T.amber}30`, borderRadius: 6, display: "flex", alignItems: "center", gap: 8 }}>
+                      <Ic n="refresh" s={14} c={T.amber}/>
+                      <span style={{ fontSize: 11, color: T.amber, fontFamily: "'JetBrains Mono',monospace", fontWeight: 700 }}>
+                        ⚠️ GITHUB METADATA FETCH PAUSED (RATE LIMIT OR PRIVACY SETTINGS)
+                      </span>
+                    </div>
+                  )}
                   {/* PR Title & Desc */}
                   {pr.title && (
                     <div style={{ marginBottom: 12 }}>
@@ -6074,6 +6150,14 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                   boxShadow: "none", transition: "all .2s cubic-bezier(0.4, 0, 0.2, 1)",
                   width: "100%"
                 }}>
+                  {b.failed && (
+                    <div style={{ marginBottom: 12, padding: 8, background: `${T.amber}10`, border: `1px solid ${T.amber}30`, borderRadius: 6, display: "flex", alignItems: "center", gap: 8 }}>
+                      <Ic n="refresh" s={14} c={T.amber}/>
+                      <span style={{ fontSize: 11, color: T.amber, fontFamily: "'JetBrains Mono',monospace", fontWeight: 700 }}>
+                        ⚠️ GITHUB BRANCH STATUS PAUSED (RATE LIMIT OR PRIVACY SETTINGS)
+                      </span>
+                    </div>
+                  )}
                   {/* Branch Name & Base Branch */}
                   <div style={{ marginBottom: 12 }}>
                     <div style={{ fontSize: 15, fontWeight: 800, color: T.text, marginBottom: 4, fontFamily: "'IBM Plex Sans',sans-serif", display:"flex", alignItems:"center", gap:6 }}>
@@ -8379,7 +8463,7 @@ const QuotaTimeline = ({ todayCount, plan }) => {
   );
 };
 
-const SettingsView = ({ onBack, isDesktop, settings, personas, setPersonas, todayCount, apiKey, setApiKey, githubToken, setGithubToken }) => {
+const SettingsView = ({ onBack, isDesktop, settings, personas, setPersonas, todayCount, apiKey, setApiKey, githubToken, setGithubToken, ghRateLimitedReset }) => {
   const {
     pollInterval, setPollInterval,
     actPollInterval, setActPollInterval,
@@ -8555,6 +8639,11 @@ const SettingsView = ({ onBack, isDesktop, settings, personas, setPersonas, toda
                     <div style={{marginTop:6, fontSize:10, color:T.textDim, fontFamily:"'IBM Plex Sans',sans-serif"}}>
                       Allows querying public/private GitHub repositories without rate limits. Stored locally in your browser.
                     </div>
+                    {ghRateLimitedReset && (
+                      <div role="alert" style={{marginTop:8, fontSize:11, color:T.amber, fontFamily:"'JetBrains Mono',monospace", fontWeight:700, background: `${T.amber}10`, padding: 8, borderRadius: 6, border: `1px solid ${T.amber}30`}}>
+                        ⚠️ GitHub rate limit exceeded. Public API is limited to 60 req/hr. Reset at {ghRateLimitedReset}. Configure a Personal Access Token to increase this limit.
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -9611,6 +9700,16 @@ const useAppSettings = ({ onSessionLimitChange } = {}) => {
 function JulesClient() {
   const [apiKey,setApiKey]     = useState(() => SafeStorage.loadApiKey());
   const [githubToken,setGithubToken] = useState(() => SafeStorage.loadGithubToken());
+  const [ghRateLimitedReset, setGhRateLimitedReset] = useState(null);
+
+  useEffect(() => {
+    const handleGhRateLimit = (e) => {
+      setGhRateLimitedReset(e.detail?.resetAt || "soon");
+    };
+    window.addEventListener("gh-rate-limited", handleGhRateLimit);
+    return () => window.removeEventListener("gh-rate-limited", handleGhRateLimit);
+  }, []);
+
   const [sessions,setSessions] = useState([]);
   const lastStates = useRef(new Map()); // id -> state
   const [activitiesMap, setActivitiesMap] = useState(() => SafeStorage.loadActivitiesMap());
@@ -9816,7 +9915,8 @@ function JulesClient() {
         const qs = `pageSize=${sessionLimit}${pageToken ? `&pageToken=${pageToken}` : ""}`;
         const d = await apiCall(apiKey, `/sessions?${qs}`, {
           _label:`Sessions ${isFull?"full":"Δ"} p${iterations+1}`,
-          signal: controller.signal
+          signal: controller.signal,
+          timeout: Math.min(15000, loadApiTimeout())
         });
         const batch = d.sessions || [];
         console.log(`[FetchSessions] Fetched page ${iterations + 1} with ${batch.length} sessions.`);
@@ -10110,6 +10210,7 @@ function JulesClient() {
             <SettingsView onBack={()=>setDesktop("empty")} isDesktop
               apiKey={apiKey} setApiKey={setApiKey}
               githubToken={githubToken} setGithubToken={setGithubToken}
+              ghRateLimitedReset={ghRateLimitedReset}
               settings={settings}
               personas={personas} setPersonas={setPersonas}
               todayCount={todayCount} />
@@ -10193,6 +10294,7 @@ function JulesClient() {
           <SettingsView onBack={()=>setMobile("list")} isDesktop={false}
             apiKey={apiKey} setApiKey={setApiKey}
             githubToken={githubToken} setGithubToken={setGithubToken}
+            ghRateLimitedReset={ghRateLimitedReset}
             settings={settings}
             personas={personas} setPersonas={setPersonas}
             todayCount={todayCount} />
