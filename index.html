@@ -9231,9 +9231,15 @@ const SettingsView = ({ onBack, isDesktop, settings, personas, setPersonas, toda
 const FILTERS = ["ALL","QUEUED","PLANNING","AWAITING_PLAN_APPROVAL","IN_PROGRESS","COMPLETED","FAILED","HAS_DRAFT"];
 const FILTER_LABELS = { AWAITING_PLAN_APPROVAL:"APPROVE", ALL:"ALL", HAS_DRAFT:"HAS DRAFT" };
 
-const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed, selectedId, isDesktop, onNew, onDrafts, onSettings, pollInterval, sessionLimit, countdown, plan, todayCount, searchQuery, setSearchQuery, archivedIds, showArchived, setShowArchived, activitiesMap = {}, activityStatsMap = {}, error, clearError, isBoosted, readMap, draftsMap = {}, ignoredIds = new Set() }) => {
+const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed, selectedId, isDesktop, onNew, onDrafts, onSettings, pollInterval, sessionLimit, countdown, plan, todayCount, searchQuery, setSearchQuery, archivedIds, showArchived, setShowArchived, activitiesMap = {}, activityStatsMap = {}, error, clearError, isBoosted, readMap, draftsMap = {}, ignoredIds = new Set(), filterResetTrigger }) => {
   const [filter,setFilter] = useState("ALL");
   const [scrolled, handleScroll] = useScrollThreshold();
+
+  useEffect(() => {
+    if (filterResetTrigger) {
+      setFilter("ALL");
+    }
+  }, [filterResetTrigger]);
   const [searchOpen, setSearchOpen] = useState(false);
   const searchInputRef = useRef(null);
 
@@ -9801,6 +9807,7 @@ function JulesClient() {
   }, [sessions, supplementalSessions]);
   const [desktopView,setDesktop]   = useState("empty");
   const [selectedDraft, setSelectedDraft] = useState(null);
+  const [filterResetTrigger, setFilterResetTrigger] = useState(0);
 
   const [draftsMap, setDraftsMap] = useState(() => {
     const map = {};
@@ -10181,6 +10188,12 @@ function JulesClient() {
     lastStates.current.set(s.id, s.state);
     setSessions(prev => [s, ...prev]);
     setSelected(s);
+
+    // Reset filters to guarantee the newly created session is visible
+    setShowArchived(false);
+    setSearchQuery("");
+    setFilterResetTrigger(prev => prev + 1);
+
     if (isDesktop) setDesktop("detail"); else setMobile("list");
   }, [isDesktop, registerSession]);
 
@@ -10224,6 +10237,7 @@ function JulesClient() {
             readMap={readMap}
             draftsMap={draftsMap}
             ignoredIds={ignoredIds}
+            filterResetTrigger={filterResetTrigger}
           />
         </div>
         {/* Main panel */}
@@ -10320,7 +10334,8 @@ function JulesClient() {
             isBoosted={isBoosted}
             readMap={readMap}
             draftsMap={draftsMap}
-            ignoredIds={ignoredIds} />
+            ignoredIds={ignoredIds}
+            filterResetTrigger={filterResetTrigger} />
         )}
         {mobileScreen==="detail"&&selected&&(
           <SessionDetail key={selected.id} session={selected} apiKey={apiKey}
@@ -10342,7 +10357,7 @@ function JulesClient() {
           <NewSession
             apiKey={apiKey} personas={personas}
             onBack={()=>setMobile("list")}
-            onCreate={s=>{ setSessions(prev=>[s,...prev]); setMobile("list"); }}
+            onCreate={handleCreate}
             isDesktop={false} plan={plan} todayCount={todayCount}
             allSessions={allSessions} activitiesMap={activitiesMap}
             initialDraft={selectedDraft}
