@@ -783,6 +783,9 @@ const isValidGitBranchName = (name) => {
   if (!name) return true;
   if (typeof name !== "string") return false;
   if (name.length > 250) return false;
+  // Git branch names cannot start with a hyphen '-' (mitigating down-stream command argument/flag injection)
+  // or start/end with a dot '.' (per standard git reference naming safety).
+  if (name.startsWith("-") || name.startsWith(".") || name.endsWith(".")) return false;
   if (name.startsWith("/") || name.endsWith("/") || name.includes("//") || /\s/.test(name)) return false;
   if (name.includes("..")) return false;
   const invalidChars = /[~^:\?\*\[\\]|@\{/;
