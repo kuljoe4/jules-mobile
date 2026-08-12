@@ -444,9 +444,9 @@ const SafeStorage = {
   loadActivePollMs() {
     try {
       const v = parseInt(this.getItem(this.KEYS.ACTIVE_POLL));
-      return POLL_OPTIONS.some(o => o.ms === v) ? v : DEFAULT_POLL_MS;
+      return POLL_OPTIONS.some(o => o.ms === v) ? v : 10000;
     } catch {
-      return DEFAULT_POLL_MS;
+      return 10000;
     }
   },
   saveActivePollMs(ms) {
@@ -2077,7 +2077,7 @@ const GitHubTracker = {
       return null;
     }
 
-    const isMergedFallback = this.hasMergeEvidence(activities) || s.state === "COMPLETED" || s.state === "SUCCESS";
+    const isMergedFallback = this.hasMergeEvidence(activities);
     let state = isMergedFallback ? "merged" : "open";
     let additions = 0, deletions = 0, changedFiles = 0, commitsCount = 0;
     let prTitle = "", prBody = "", commitsList = [];
@@ -9910,10 +9910,15 @@ function JulesClient() {
       const missing = ids.filter(id => !sessions.some(s => s.id === id) && !supplementalSessions.some(s => s.id === id));
       if (missing.length === 0) return;
 
-      const results = await Promise.all(missing.map(id =>
-        apiCall(apiKey, `/sessions/${id}`, { _label: `Supp ${id.slice(0,6)}` }).catch(() => null)
-      ));
-      const valid = results.filter(Boolean);
+      const batchSize = 5;
+      const valid = [];
+      for (let i = 0; i < missing.length; i += batchSize) {
+        const chunk = missing.slice(i, i + batchSize);
+        const results = await Promise.all(chunk.map(id =>
+          apiCall(apiKey, `/sessions/${id}`, { _label: `Supp ${id.slice(0,6)}` }).catch(() => null)
+        ));
+        valid.push(...results.filter(Boolean));
+      }
       if (valid.length > 0) setSupplementalSessions(prev => [...prev, ...valid]);
     } catch {}
   }, [apiKey, sessions, supplementalSessions]);
@@ -9989,7 +9994,8 @@ function JulesClient() {
             const preserved = prev.filter(s => {
               if (batchIds.has(s.id)) return false;
               const ts = parseDateMs(s.updateTime || s.createTime);
-              return ts >= oldestTs || ACTIVE_STATES.has(s.state);
+              const isRecent = (Date.now() - parseDateMs(s.createTime || s.updateTime)) < 300000;
+              return ts >= oldestTs || ACTIVE_STATES.has(s.state) || isRecent;
             });
             merged = [...adjustedBatch, ...preserved];
           } else {
@@ -10155,7 +10161,7 @@ function JulesClient() {
         {/* Sidebar */}
         <div style={{width:320,flexShrink:0,borderRight:`1px solid ${T.border}`,display:"flex",flexDirection:"column",height:"100vh",overflow:"hidden"}}>
           <SessionList
-            onSelect={handleSelect} onRefresh={()=>fetchSessions(false, true)}
+            onSelect={handleSelect} onRefresh={()=>fetchSessions(false)}
             refreshing={refreshing} justRefreshed={justRefreshed} selectedId={selected?.id}
             isDesktop onNew={()=>setDesktop("new")}
             onDrafts={()=>setDesktop("drafts")}
@@ -10252,7 +10258,7 @@ function JulesClient() {
     <Shell>
       <div style={{flex:1,overflow:"hidden",display:"flex",flexDirection:"column",minHeight:0}}>
         {mobileScreen==="list"&&(
-          <SessionList sessions={allSessions} onSelect={handleSelect} onRefresh={()=>fetchSessions(false, true)}
+          <SessionList sessions={allSessions} onSelect={handleSelect} onRefresh={()=>fetchSessions(false)}
             refreshing={refreshing} justRefreshed={justRefreshed} selectedId={selected?.id} isDesktop={false}
             onNew={() => { setSelectedDraft(null); setMobile("new"); }}
             onDrafts={()=>setMobile("drafts")}
