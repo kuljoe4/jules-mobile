@@ -783,6 +783,9 @@ const isValidGitBranchName = (name) => {
   if (!name) return true;
   if (typeof name !== "string") return false;
   if (name.length > 250) return false;
+  // Git branch names cannot start with a hyphen '-' (mitigating down-stream command argument/flag injection)
+  // or start/end with a dot '.' (per standard git reference naming safety).
+  if (name.startsWith("-") || name.startsWith(".") || name.endsWith(".")) return false;
   if (name.startsWith("/") || name.endsWith("/") || name.includes("//") || /\s/.test(name)) return false;
   if (name.includes("..")) return false;
   const invalidChars = /[~^:\?\*\[\\]|@\{/;
@@ -1620,6 +1623,7 @@ const GitHubTracker = {
   GH_BRANCH_STATE_CACHE: new Map(),
   GH_BRANCH_IN_FLIGHT: new Set(),
   CHECK_ACTIVITY_CACHE: new WeakMap(),
+  CHECK_STATUS_ARRAY_CACHE: new WeakMap(),
   BRANCH_INFO_CACHE: new LRUCache(500),
   BRANCH_ACTIVITY_CACHE: new WeakMap(),
 
@@ -2130,7 +2134,9 @@ const GitHubTracker = {
   },
 
   getCheckStatus(activities = []) {
-    if (!activities) return null;
+    if (!activities || !Array.isArray(activities)) return null;
+    const cachedResult = this.CHECK_STATUS_ARRAY_CACHE.get(activities);
+    if (cachedResult !== undefined) return cachedResult;
 
     let status = null;
     for (let i = 0; i < activities.length; i++) {
@@ -2168,6 +2174,7 @@ const GitHubTracker = {
         status = actStatus;
       }
     }
+    this.CHECK_STATUS_ARRAY_CACHE.set(activities, status);
     return status;
   },
 
@@ -2462,8 +2469,14 @@ const COMMIT_COUNT_RE = /(?:pushed|committed|applied)\s+(\d+)\s+(?:commit|change
 // Cache computed ahead/commit stats per reference-stable activity object to avoid redundant string/regex matching on re-renders
 const AHEAD_ACTIVITY_CACHE = new WeakMap();
 
+// Bounded WeakMap cache for computing aggregate ahead counts of reference-stable immutable activities arrays.
+// Caching at the array reference level avoids O(N) array traversals across render loops.
+const AHEAD_COUNT_ARRAY_CACHE = new WeakMap();
+
 const getAheadCount = (activities = []) => {
-  if (!activities) return 0;
+  if (!activities || !Array.isArray(activities)) return 0;
+  const cached = AHEAD_COUNT_ARRAY_CACHE.get(activities);
+  if (cached !== undefined) return cached;
 
   let count = 0;
   const pushHashes = new Set();
@@ -2510,7 +2523,32 @@ const getAheadCount = (activities = []) => {
     }
   }
 
-  return Math.max(count, pushHashes.size);
+  const result = Math.max(count, pushHashes.size);
+  AHEAD_COUNT_ARRAY_CACHE.set(activities, result);
+  return result;
+};
+
+// Bounded WeakMap cache for computing whether a session is actually completed based on reference-stable immutable activities arrays.
+const IS_ACTUALLY_DONE_CACHE = new WeakMap();
+
+const getIsActuallyDone = (sState, activities = []) => {
+  if (ACTIVE_STATES.has(sState)) return false;
+  if (sState === "COMPLETED") return true;
+  if (!activities || !Array.isArray(activities)) return false;
+
+  const cached = IS_ACTUALLY_DONE_CACHE.get(activities);
+  if (cached !== undefined) return cached;
+
+  let lastComp = -1, lastUser = -1;
+  for (let i = activities.length - 1; i >= 0; i--) {
+    const type = getActType(activities[i]);
+    if (lastComp === -1 && type === "sessionCompleted") lastComp = i;
+    if (lastUser === -1 && type === "userMessaged") lastUser = i;
+    if (lastComp !== -1 && lastUser !== -1) break;
+  }
+  const result = lastComp !== -1 && lastComp > lastUser;
+  IS_ACTUALLY_DONE_CACHE.set(activities, result);
+  return result;
 };
 
 // Bounded cache to avoid memory leaks. Caches parsed string date values to their epoch milliseconds.
@@ -4434,16 +4472,7 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], stat
   }, [isSelected]);
 
   const isActuallyDone = useMemo(() => {
-    if (ACTIVE_STATES.has(s.state)) return false;
-    if (s.state === "COMPLETED") return true;
-    let lastComp = -1, lastUser = -1;
-    for (let i = activities.length - 1; i >= 0; i--) {
-      const type = getActType(activities[i]);
-      if (lastComp === -1 && type === "sessionCompleted") lastComp = i;
-      if (lastUser === -1 && type === "userMessaged") lastUser = i;
-      if (lastComp !== -1 && lastUser !== -1) break;
-    }
-    return lastComp !== -1 && lastComp > lastUser;
+    return getIsActuallyDone(s.state, activities);
   }, [activities, s.state]);
   const currentState = isActuallyDone ? "COMPLETED" : s.state;
 
@@ -5313,15 +5342,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   const pri = useMemo(() => getPRInfo(session, activities), [session, activities, ghPrNonce]);
   const pr = pri;
   const isActuallyDone = useMemo(() => {
-    if (ACTIVE_STATES.has(session.state)) return false;
-    let lastComp = -1, lastUser = -1;
-    for (let i = activities.length - 1; i >= 0; i--) {
-      const type = getActType(activities[i]);
-      if (lastComp === -1 && type === "sessionCompleted") lastComp = i;
-      if (lastUser === -1 && type === "userMessaged") lastUser = i;
-      if (lastComp !== -1 && lastUser !== -1) break;
-    }
-    return lastComp !== -1 && lastComp > lastUser;
+    return getIsActuallyDone(session.state, activities);
   }, [activities, session.state]);
   const currentState = isActuallyDone ? "COMPLETED" : session.state;
   const isFinished = currentState === "COMPLETED" || currentState === "FAILED";
@@ -5819,9 +5840,9 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
         )}
 
 
-        <div style={{display:"flex", paddingBottom:scrolled?4:0, transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)"}}>
+        <div role="tablist" style={{display:"flex", paddingBottom:scrolled?4:0, transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)"}}>
           {TABS.map(t=>(
-            <button key={t.id} onClick={()=>setTab(t.id)} style={{
+            <button key={t.id} role="tab" aria-selected={tab===t.id?"true":"false"} onClick={()=>setTab(t.id)} style={{
               flex:1,padding:"6px 0",background:"none",border:"none",
               borderBottom:`2px solid ${tab===t.id?T.brand:"transparent"}`,
               color:tab===t.id?T.brand:T.muted,cursor:"pointer",
@@ -8539,9 +8560,9 @@ const SettingsView = ({ onBack, isDesktop, settings, personas, setPersonas, toda
             </button>
           )}
         </div>
-          <div style={{display:"flex", gap:16, position:"relative", borderBottom:`1px solid ${T.border}33`, overflowX: "auto", scrollbarWidth: "none", WebkitOverflowScrolling: "touch"}}>
+          <div role="tablist" style={{display:"flex", gap:16, position:"relative", borderBottom:`1px solid ${T.border}33`, overflowX: "auto", scrollbarWidth: "none", WebkitOverflowScrolling: "touch"}}>
           {TABS.map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)} style={{
+            <button key={t.id} role="tab" aria-selected={tab===t.id?"true":"false"} onClick={() => setTab(t.id)} style={{
               padding:"8px 4px", background:"none", border:"none", cursor:"pointer",
               borderBottom:`2px solid ${tab===t.id?T.brand:"transparent"}`,
               marginBottom: -1, whiteSpace: "nowrap",
@@ -9372,10 +9393,10 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
                 ref={searchInputRef}
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                placeholder="Search by title, prompt or ID... (Press Esc to close)"
+                placeholder="Search by title, prompt or ID..."
                 aria-label="Search by title, prompt or ID"
                 maxLength={200}
-                style={{...inputSt, paddingLeft:34, paddingRight:34, borderColor:T.blue+"40", background:T.surfaceHi}}
+                style={{...inputSt, paddingLeft:34, paddingRight: searchQuery ? 34 : 48, borderColor:T.blue+"40", background:T.surfaceHi}}
                 autoFocus
                 onKeyDown={e => {
                   if (e.key === "Escape") {
@@ -9387,6 +9408,21 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
                   }
                 }}
               />
+              {!searchQuery && (
+                <div style={{position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", pointerEvents:"none", display:"flex", alignItems:"center"}}>
+                  <kbd style={{
+                    fontFamily: "'JetBrains Mono',monospace",
+                    fontSize: "9px",
+                    fontWeight: 700,
+                    color: T.muted,
+                    background: T.surface,
+                    border: `1px solid ${T.border}`,
+                    borderRadius: "4px",
+                    padding: "2px 4px",
+                    lineHeight: 1,
+                  }}>ESC</kbd>
+                </div>
+              )}
               {searchQuery && <button onClick={() => setSearchQuery("")} title="Clear search query" aria-label="Clear search query" style={{position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", padding:4}}><Ic n="x" s={14} c={T.muted}/></button>}
             </div>
           </div>
