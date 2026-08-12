@@ -2333,6 +2333,7 @@ const getPR = (s) => GitHubTracker.getPR(s);
 const getPRInfo = (s, activities = []) => GitHubTracker.getPRInfo(s, activities);
 const getBranchInfo = (s, activities = []) => GitHubTracker.getBranchInfo(s, activities);
 const getCheckStatus = (activities = []) => GitHubTracker.getCheckStatus(activities);
+const getPrUrlAndNumber = (pr) => GitHubTracker.getPrUrlAndNumber(pr);
 
 
 const WORKING_SET_CACHE = new LRUCache(500);
