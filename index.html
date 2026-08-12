@@ -7003,7 +7003,7 @@ const useNewSessionFlow = ({ apiKey, personas, onCreate, initialDraft, onDraftSa
     try {
       const d = await apiCall(apiKey, "/sessions", {
         method: "POST",
-        headers: { "Idempotency-Key": idempotencyKey },
+        headers: {},
         body,
         timeout: 60000,
         _label: "Create session"
