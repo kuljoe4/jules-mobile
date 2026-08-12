@@ -1898,6 +1898,7 @@ const GitHubTracker = {
 
             GitHubTracker.GH_STATE_CACHE.set(url, updatedInfo);
             GitHubTracker.GH_IN_FLIGHT.delete(url);
+            GitHubTracker.PR_INFO_CACHE.clear();
 
             window.dispatchEvent(new CustomEvent("gh-pr-updated", { detail: { url, ...updatedInfo } }));
           });
@@ -1922,6 +1923,7 @@ const GitHubTracker = {
           failed: true,
           errorMsg: err.message
         });
+        GitHubTracker.PR_INFO_CACHE.clear();
         window.dispatchEvent(new CustomEvent("gh-pr-updated", { detail: { url, failed: true } }));
       });
   },
@@ -2023,6 +2025,7 @@ const GitHubTracker = {
 
         GitHubTracker.GH_BRANCH_STATE_CACHE.set(key, updatedInfo);
         GitHubTracker.GH_BRANCH_IN_FLIGHT.delete(key);
+        GitHubTracker.BRANCH_INFO_CACHE.clear();
 
         window.dispatchEvent(new CustomEvent("gh-pr-updated", { detail: { key, ...updatedInfo } }));
       })
@@ -2038,6 +2041,7 @@ const GitHubTracker = {
           failed: true,
           errorMsg: err.message
         });
+        GitHubTracker.BRANCH_INFO_CACHE.clear();
         window.dispatchEvent(new CustomEvent("gh-pr-updated", { detail: { key, failed: true } }));
       });
   },
@@ -2501,15 +2505,15 @@ const getAheadCount = (activities = []) => {
   const cached = AHEAD_COUNT_ARRAY_CACHE.get(activities);
   if (cached !== undefined) return cached;
 
-  let count = 0;
-  const pushHashes = new Set();
+  let totalCommits = 0;
+  const seenHashes = new Set();
 
   for (let i = 0; i < activities.length; i++) {
     const a = activities[i];
     if (!a) continue;
 
     if (!AHEAD_ACTIVITY_CACHE.has(a)) {
-      let actCount = 0;
+      let textCount = 0;
       const actHashes = [];
       const pu = a.progressUpdated;
       if (pu) {
@@ -2527,28 +2531,37 @@ const getAheadCount = (activities = []) => {
 
         const m = desc.match(COMMIT_COUNT_RE);
         if (m) {
-          if (!hashes) actCount = parseInt(m[1], 10);
+          textCount = parseInt(m[1], 10);
         } else if (desc.includes("pushed a commit") || desc.includes("pushed 1 commit") || desc.includes("pushed the changes") || desc.includes("committed changes")) {
-          if (!hashes) actCount = 1;
+          textCount = 1;
         } else if (desc.includes("pushed") && (desc.includes("change") || desc.includes("fix") || desc.includes("update"))) {
-          if (!hashes) actCount = 1;
+          textCount = 1;
         }
       }
-      AHEAD_ACTIVITY_CACHE.set(a, { count: actCount, hashes: actHashes });
+      AHEAD_ACTIVITY_CACHE.set(a, { textCount, hashes: actHashes });
     }
 
     const cached = AHEAD_ACTIVITY_CACHE.get(a);
     if (cached) {
-      count += cached.count;
-      for (let j = 0; j < cached.hashes.length; j++) {
-        pushHashes.add(cached.hashes[j]);
+      if (cached.hashes.length > 0) {
+        let newHashesCount = 0;
+        for (let j = 0; j < cached.hashes.length; j++) {
+          const h = cached.hashes[j];
+          if (!seenHashes.has(h)) {
+            seenHashes.add(h);
+            newHashesCount++;
+          }
+        }
+        const unhashedContribution = Math.max(0, cached.textCount - cached.hashes.length);
+        totalCommits += newHashesCount + unhashedContribution;
+      } else {
+        totalCommits += cached.textCount;
       }
     }
   }
 
-  const result = Math.max(count, pushHashes.size);
-  AHEAD_COUNT_ARRAY_CACHE.set(activities, result);
-  return result;
+  AHEAD_COUNT_ARRAY_CACHE.set(activities, totalCommits);
+  return totalCommits;
 };
 
 // Bounded WeakMap cache for computing whether a session is actually completed based on reference-stable immutable activities arrays.
@@ -2557,6 +2570,7 @@ const IS_ACTUALLY_DONE_CACHE = new WeakMap();
 const getIsActuallyDone = (sState, activities = []) => {
   if (ACTIVE_STATES.has(sState)) return false;
   if (sState === "COMPLETED") return true;
+  if (sState === "FAILED" || sState === "CANCELLED") return false;
   if (!activities || !Array.isArray(activities)) return false;
 
   const cached = IS_ACTUALLY_DONE_CACHE.get(activities);
@@ -4487,12 +4501,7 @@ const areEqual = (prevProps, nextProps) => {
 
 const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], stats, lastReadTs, latestCompletedTime, hasFollowupDraft }) => {
   const cardRef = useRef(null);
-
-  useEffect(() => {
-    if (isSelected && cardRef.current) {
-      cardRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
-  }, [isSelected]);
+  const [ghPrNonce, setGhPrNonce] = useState(0);
 
   const isActuallyDone = useMemo(() => {
     return getIsActuallyDone(s.state, activities);
@@ -4514,10 +4523,39 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], stat
   const pct  = pctFromState(currentState);
   const m    = STATUS_META[currentState] || STATUS_META.QUEUED;
   const repo = s.sourceContext?.githubRepoContext ? s.sourceContext.source?.replace("sources/github/","") : null;
-  const pri  = useMemo(() => getPRInfo(s, activities), [s, activities]);
-  const b    = useMemo(() => getBranchInfo(s, activities), [s, activities]);
+  const pri  = useMemo(() => getPRInfo(s, activities), [s, activities, ghPrNonce]);
+  const b    = useMemo(() => getBranchInfo(s, activities), [s, activities, ghPrNonce]);
   const ahead = useMemo(() => getAheadCount(activities), [activities]);
   const checks = useMemo(() => getCheckStatus(activities), [activities]);
+
+  const pr = useMemo(() => getPR(s), [s]);
+  const prUrl = pr?.url;
+  const context = s.sourceContext?.githubRepoContext;
+  const base = context?.startingBranch || "main";
+
+  useEffect(() => {
+    const h = (e) => {
+      const detail = e.detail || {};
+      if (detail.url && prUrl && detail.url === prUrl) {
+        setGhPrNonce(n => n + 1);
+      } else if (detail.key && repo && b?.working) {
+        const expectedKey = `${repo}:${base}:${b.working}`;
+        if (detail.key === expectedKey) {
+          setGhPrNonce(n => n + 1);
+        }
+      } else if (!detail.url && !detail.key) {
+        setGhPrNonce(n => n + 1);
+      }
+    };
+    window.addEventListener("gh-pr-updated", h);
+    return () => window.removeEventListener("gh-pr-updated", h);
+  }, [prUrl, repo, base, b?.working]);
+
+  useEffect(() => {
+    if (isSelected && cardRef.current) {
+      cardRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [isSelected]);
 
   const activityStats = useMemo(() => {
     if (stats) return stats;
@@ -4703,6 +4741,15 @@ const useSessionPolling = (
 // ─── Session Detail ───────────────────────────────────────────────────────────
 const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete, onSessionUpdate, onStatsUpdate, isDesktop, pollInterval, setPollInterval, isArchived, onArchive, onUnarchive, onIgnore, cacheLimit, activityLimit, allSessions = [], activitiesMap = {}, onDraftChange }) => {
   const [session,setSession]     = useState(initSession);
+
+  useEffect(() => {
+    const sTs = parseDateMs(session.updateTime || session.createTime);
+    const initTs = parseDateMs(initSession.updateTime || initSession.createTime);
+    if (initTs > sTs || initSession.id !== session.id) {
+      setSession(initSession);
+    }
+  }, [initSession, session.updateTime, session.createTime, session.id]);
+
   const [activities,setActivities] = useState(() => {
     try {
       const cache = SafeStorage.loadSessionCache();
@@ -5059,6 +5106,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     } catch (err) {
       if (err.name === 'AbortError') return;
       console.error("[LoadActivities] Error:", err);
+      throw err;
     } finally {
       if (activitiesAbortRef.current === controller) {
         setIsSyncing(false); setIsStale(false);
@@ -5073,7 +5121,10 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
       const d = await apiCall(apiKey, `/sessions/${session.id}`, { _label:`Session ${session.id?.slice(0,6)}` });
       setSession(d);
       onSessionUpdate?.(d);
-    } catch {}
+    } catch (err) {
+      console.error("[LoadSession] Error:", err);
+      throw err;
+    }
   }, [apiKey, session.id, onSessionUpdate]);
 
   // On mount (keyed by session.id, so fresh per-session)
@@ -9789,6 +9840,7 @@ function JulesClient() {
 
   const [sessions,setSessions] = useState([]);
   const lastStates = useRef(new Map()); // id -> state
+  const lastCreatedSessionIdRef = useRef(null);
   const [activitiesMap, setActivitiesMap] = useState(() => SafeStorage.loadActivitiesMap());
   const [activityStatsMap, setActivityStatsMap] = useState(() => SafeStorage.loadActStats());
   const [selected,setSelected] = useState(null);
@@ -9800,6 +9852,11 @@ function JulesClient() {
     const map = new Map();
     [...sessions, ...supplementalSessions].forEach(s => map.set(s.id, s));
     return Array.from(map.values()).sort((a, b) => {
+      const aIsNewest = a.id === lastCreatedSessionIdRef.current;
+      const bIsNewest = b.id === lastCreatedSessionIdRef.current;
+      if (aIsNewest && !bIsNewest) return -1;
+      if (!aIsNewest && bIsNewest) return 1;
+
       const aTime = parseDateMs(a.updateTime || a.createTime);
       const bTime = parseDateMs(b.updateTime || b.createTime);
       return bTime - aTime;
@@ -10057,8 +10114,13 @@ function JulesClient() {
             ];
           }
 
-          // Sort: Active first, then by latest update/create time
+          // Sort: Newly created first, then active first, then by latest update/create time
           const sorted = [...merged].sort((a, b) => {
+            const aIsNewest = a.id === lastCreatedSessionIdRef.current;
+            const bIsNewest = b.id === lastCreatedSessionIdRef.current;
+            if (aIsNewest && !bIsNewest) return -1;
+            if (!aIsNewest && bIsNewest) return 1;
+
             const aActive = ACTIVE_STATES.has(a.state);
             const bActive = ACTIVE_STATES.has(b.state);
             if (aActive && !bActive) return -1;
@@ -10184,6 +10246,7 @@ function JulesClient() {
   }, [isDesktop]);
 
   const handleCreate = useCallback(s => {
+    lastCreatedSessionIdRef.current = s.id;
     registerSession(s);
     lastStates.current.set(s.id, s.state);
     setSessions(prev => [s, ...prev]);
