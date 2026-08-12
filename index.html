@@ -1620,6 +1620,7 @@ const GitHubTracker = {
   GH_BRANCH_STATE_CACHE: new Map(),
   GH_BRANCH_IN_FLIGHT: new Set(),
   CHECK_ACTIVITY_CACHE: new WeakMap(),
+  CHECK_STATUS_ARRAY_CACHE: new WeakMap(),
   BRANCH_INFO_CACHE: new LRUCache(500),
   BRANCH_ACTIVITY_CACHE: new WeakMap(),
 
@@ -2130,7 +2131,9 @@ const GitHubTracker = {
   },
 
   getCheckStatus(activities = []) {
-    if (!activities) return null;
+    if (!activities || !Array.isArray(activities)) return null;
+    const cachedResult = this.CHECK_STATUS_ARRAY_CACHE.get(activities);
+    if (cachedResult !== undefined) return cachedResult;
 
     let status = null;
     for (let i = 0; i < activities.length; i++) {
@@ -2168,6 +2171,7 @@ const GitHubTracker = {
         status = actStatus;
       }
     }
+    this.CHECK_STATUS_ARRAY_CACHE.set(activities, status);
     return status;
   },
 
@@ -2461,8 +2465,14 @@ const COMMIT_COUNT_RE = /(?:pushed|committed|applied)\s+(\d+)\s+(?:commit|change
 // Cache computed ahead/commit stats per reference-stable activity object to avoid redundant string/regex matching on re-renders
 const AHEAD_ACTIVITY_CACHE = new WeakMap();
 
+// Bounded WeakMap cache for computing aggregate ahead counts of reference-stable immutable activities arrays.
+// Caching at the array reference level avoids O(N) array traversals across render loops.
+const AHEAD_COUNT_ARRAY_CACHE = new WeakMap();
+
 const getAheadCount = (activities = []) => {
-  if (!activities) return 0;
+  if (!activities || !Array.isArray(activities)) return 0;
+  const cached = AHEAD_COUNT_ARRAY_CACHE.get(activities);
+  if (cached !== undefined) return cached;
 
   let count = 0;
   const pushHashes = new Set();
@@ -2509,7 +2519,32 @@ const getAheadCount = (activities = []) => {
     }
   }
 
-  return Math.max(count, pushHashes.size);
+  const result = Math.max(count, pushHashes.size);
+  AHEAD_COUNT_ARRAY_CACHE.set(activities, result);
+  return result;
+};
+
+// Bounded WeakMap cache for computing whether a session is actually completed based on reference-stable immutable activities arrays.
+const IS_ACTUALLY_DONE_CACHE = new WeakMap();
+
+const getIsActuallyDone = (sState, activities = []) => {
+  if (ACTIVE_STATES.has(sState)) return false;
+  if (sState === "COMPLETED") return true;
+  if (!activities || !Array.isArray(activities)) return false;
+
+  const cached = IS_ACTUALLY_DONE_CACHE.get(activities);
+  if (cached !== undefined) return cached;
+
+  let lastComp = -1, lastUser = -1;
+  for (let i = activities.length - 1; i >= 0; i--) {
+    const type = getActType(activities[i]);
+    if (lastComp === -1 && type === "sessionCompleted") lastComp = i;
+    if (lastUser === -1 && type === "userMessaged") lastUser = i;
+    if (lastComp !== -1 && lastUser !== -1) break;
+  }
+  const result = lastComp !== -1 && lastComp > lastUser;
+  IS_ACTUALLY_DONE_CACHE.set(activities, result);
+  return result;
 };
 
 // Bounded cache to avoid memory leaks. Caches parsed string date values to their epoch milliseconds.
@@ -4433,16 +4468,7 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], stat
   }, [isSelected]);
 
   const isActuallyDone = useMemo(() => {
-    if (ACTIVE_STATES.has(s.state)) return false;
-    if (s.state === "COMPLETED") return true;
-    let lastComp = -1, lastUser = -1;
-    for (let i = activities.length - 1; i >= 0; i--) {
-      const type = getActType(activities[i]);
-      if (lastComp === -1 && type === "sessionCompleted") lastComp = i;
-      if (lastUser === -1 && type === "userMessaged") lastUser = i;
-      if (lastComp !== -1 && lastUser !== -1) break;
-    }
-    return lastComp !== -1 && lastComp > lastUser;
+    return getIsActuallyDone(s.state, activities);
   }, [activities, s.state]);
   const currentState = isActuallyDone ? "COMPLETED" : s.state;
 
@@ -5312,15 +5338,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   const pri = useMemo(() => getPRInfo(session, activities), [session, activities, ghPrNonce]);
   const pr = pri;
   const isActuallyDone = useMemo(() => {
-    if (ACTIVE_STATES.has(session.state)) return false;
-    let lastComp = -1, lastUser = -1;
-    for (let i = activities.length - 1; i >= 0; i--) {
-      const type = getActType(activities[i]);
-      if (lastComp === -1 && type === "sessionCompleted") lastComp = i;
-      if (lastUser === -1 && type === "userMessaged") lastUser = i;
-      if (lastComp !== -1 && lastUser !== -1) break;
-    }
-    return lastComp !== -1 && lastComp > lastUser;
+    return getIsActuallyDone(session.state, activities);
   }, [activities, session.state]);
   const currentState = isActuallyDone ? "COMPLETED" : session.state;
   const isFinished = currentState === "COMPLETED" || currentState === "FAILED";
