@@ -444,9 +444,9 @@ const SafeStorage = {
   loadActivePollMs() {
     try {
       const v = parseInt(this.getItem(this.KEYS.ACTIVE_POLL));
-      return POLL_OPTIONS.some(o => o.ms === v) ? v : DEFAULT_POLL_MS;
+      return POLL_OPTIONS.some(o => o.ms === v) ? v : 10000;
     } catch {
-      return DEFAULT_POLL_MS;
+      return 10000;
     }
   },
   saveActivePollMs(ms) {
@@ -783,6 +783,9 @@ const isValidGitBranchName = (name) => {
   if (!name) return true;
   if (typeof name !== "string") return false;
   if (name.length > 250) return false;
+  // Git branch names cannot start with a hyphen '-' (mitigating down-stream command argument/flag injection)
+  // or start/end with a dot '.' (per standard git reference naming safety).
+  if (name.startsWith("-") || name.startsWith(".") || name.endsWith(".")) return false;
   if (name.startsWith("/") || name.endsWith("/") || name.includes("//") || /\s/.test(name)) return false;
   if (name.includes("..")) return false;
   const invalidChars = /[~^:\?\*\[\\]|@\{/;
@@ -2078,7 +2081,7 @@ const GitHubTracker = {
       return null;
     }
 
-    const isMergedFallback = this.hasMergeEvidence(activities) || s.state === "COMPLETED" || s.state === "SUCCESS";
+    const isMergedFallback = this.hasMergeEvidence(activities);
     let state = isMergedFallback ? "merged" : "open";
     let additions = 0, deletions = 0, changedFiles = 0, commitsCount = 0;
     let prTitle = "", prBody = "", commitsList = [];
@@ -5836,9 +5839,9 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
         )}
 
 
-        <div style={{display:"flex", paddingBottom:scrolled?4:0, transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)"}}>
+        <div role="tablist" style={{display:"flex", paddingBottom:scrolled?4:0, transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)"}}>
           {TABS.map(t=>(
-            <button key={t.id} onClick={()=>setTab(t.id)} style={{
+            <button key={t.id} role="tab" aria-selected={tab===t.id?"true":"false"} onClick={()=>setTab(t.id)} style={{
               flex:1,padding:"6px 0",background:"none",border:"none",
               borderBottom:`2px solid ${tab===t.id?T.brand:"transparent"}`,
               color:tab===t.id?T.brand:T.muted,cursor:"pointer",
@@ -8556,9 +8559,9 @@ const SettingsView = ({ onBack, isDesktop, settings, personas, setPersonas, toda
             </button>
           )}
         </div>
-          <div style={{display:"flex", gap:16, position:"relative", borderBottom:`1px solid ${T.border}33`, overflowX: "auto", scrollbarWidth: "none", WebkitOverflowScrolling: "touch"}}>
+          <div role="tablist" style={{display:"flex", gap:16, position:"relative", borderBottom:`1px solid ${T.border}33`, overflowX: "auto", scrollbarWidth: "none", WebkitOverflowScrolling: "touch"}}>
           {TABS.map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)} style={{
+            <button key={t.id} role="tab" aria-selected={tab===t.id?"true":"false"} onClick={() => setTab(t.id)} style={{
               padding:"8px 4px", background:"none", border:"none", cursor:"pointer",
               borderBottom:`2px solid ${tab===t.id?T.brand:"transparent"}`,
               marginBottom: -1, whiteSpace: "nowrap",
@@ -9389,10 +9392,10 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
                 ref={searchInputRef}
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                placeholder="Search by title, prompt or ID... (Press Esc to close)"
+                placeholder="Search by title, prompt or ID..."
                 aria-label="Search by title, prompt or ID"
                 maxLength={200}
-                style={{...inputSt, paddingLeft:34, paddingRight:34, borderColor:T.blue+"40", background:T.surfaceHi}}
+                style={{...inputSt, paddingLeft:34, paddingRight: searchQuery ? 34 : 48, borderColor:T.blue+"40", background:T.surfaceHi}}
                 autoFocus
                 onKeyDown={e => {
                   if (e.key === "Escape") {
@@ -9404,6 +9407,21 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
                   }
                 }}
               />
+              {!searchQuery && (
+                <div style={{position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", pointerEvents:"none", display:"flex", alignItems:"center"}}>
+                  <kbd style={{
+                    fontFamily: "'JetBrains Mono',monospace",
+                    fontSize: "9px",
+                    fontWeight: 700,
+                    color: T.muted,
+                    background: T.surface,
+                    border: `1px solid ${T.border}`,
+                    borderRadius: "4px",
+                    padding: "2px 4px",
+                    lineHeight: 1,
+                  }}>ESC</kbd>
+                </div>
+              )}
               {searchQuery && <button onClick={() => setSearchQuery("")} title="Clear search query" aria-label="Clear search query" style={{position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", padding:4}}><Ic n="x" s={14} c={T.muted}/></button>}
             </div>
           </div>
@@ -9913,10 +9931,15 @@ function JulesClient() {
       const missing = ids.filter(id => !sessions.some(s => s.id === id) && !supplementalSessions.some(s => s.id === id));
       if (missing.length === 0) return;
 
-      const results = await Promise.all(missing.map(id =>
-        apiCall(apiKey, `/sessions/${id}`, { _label: `Supp ${id.slice(0,6)}` }).catch(() => null)
-      ));
-      const valid = results.filter(Boolean);
+      const batchSize = 5;
+      const valid = [];
+      for (let i = 0; i < missing.length; i += batchSize) {
+        const chunk = missing.slice(i, i + batchSize);
+        const results = await Promise.all(chunk.map(id =>
+          apiCall(apiKey, `/sessions/${id}`, { _label: `Supp ${id.slice(0,6)}` }).catch(() => null)
+        ));
+        valid.push(...results.filter(Boolean));
+      }
       if (valid.length > 0) setSupplementalSessions(prev => [...prev, ...valid]);
     } catch {}
   }, [apiKey, sessions, supplementalSessions]);
@@ -9992,7 +10015,8 @@ function JulesClient() {
             const preserved = prev.filter(s => {
               if (batchIds.has(s.id)) return false;
               const ts = parseDateMs(s.updateTime || s.createTime);
-              return ts >= oldestTs || ACTIVE_STATES.has(s.state);
+              const isRecent = (Date.now() - parseDateMs(s.createTime || s.updateTime)) < 300000;
+              return ts >= oldestTs || ACTIVE_STATES.has(s.state) || isRecent;
             });
             merged = [...adjustedBatch, ...preserved];
           } else {
@@ -10158,7 +10182,7 @@ function JulesClient() {
         {/* Sidebar */}
         <div style={{width:320,flexShrink:0,borderRight:`1px solid ${T.border}`,display:"flex",flexDirection:"column",height:"100vh",overflow:"hidden"}}>
           <SessionList
-            onSelect={handleSelect} onRefresh={()=>fetchSessions(false, true)}
+            onSelect={handleSelect} onRefresh={()=>fetchSessions(false)}
             refreshing={refreshing} justRefreshed={justRefreshed} selectedId={selected?.id}
             isDesktop onNew={()=>setDesktop("new")}
             onDrafts={()=>setDesktop("drafts")}
@@ -10255,7 +10279,7 @@ function JulesClient() {
     <Shell>
       <div style={{flex:1,overflow:"hidden",display:"flex",flexDirection:"column",minHeight:0}}>
         {mobileScreen==="list"&&(
-          <SessionList sessions={allSessions} onSelect={handleSelect} onRefresh={()=>fetchSessions(false, true)}
+          <SessionList sessions={allSessions} onSelect={handleSelect} onRefresh={()=>fetchSessions(false)}
             refreshing={refreshing} justRefreshed={justRefreshed} selectedId={selected?.id} isDesktop={false}
             onNew={() => { setSelectedDraft(null); setMobile("new"); }}
             onDrafts={()=>setMobile("drafts")}
