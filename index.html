@@ -5818,9 +5818,9 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
         )}
 
 
-        <div style={{display:"flex", paddingBottom:scrolled?4:0, transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)"}}>
+        <div role="tablist" style={{display:"flex", paddingBottom:scrolled?4:0, transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)"}}>
           {TABS.map(t=>(
-            <button key={t.id} onClick={()=>setTab(t.id)} style={{
+            <button key={t.id} role="tab" aria-selected={tab===t.id?"true":"false"} onClick={()=>setTab(t.id)} style={{
               flex:1,padding:"6px 0",background:"none",border:"none",
               borderBottom:`2px solid ${tab===t.id?T.brand:"transparent"}`,
               color:tab===t.id?T.brand:T.muted,cursor:"pointer",
@@ -8538,9 +8538,9 @@ const SettingsView = ({ onBack, isDesktop, settings, personas, setPersonas, toda
             </button>
           )}
         </div>
-          <div style={{display:"flex", gap:16, position:"relative", borderBottom:`1px solid ${T.border}33`, overflowX: "auto", scrollbarWidth: "none", WebkitOverflowScrolling: "touch"}}>
+          <div role="tablist" style={{display:"flex", gap:16, position:"relative", borderBottom:`1px solid ${T.border}33`, overflowX: "auto", scrollbarWidth: "none", WebkitOverflowScrolling: "touch"}}>
           {TABS.map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)} style={{
+            <button key={t.id} role="tab" aria-selected={tab===t.id?"true":"false"} onClick={() => setTab(t.id)} style={{
               padding:"8px 4px", background:"none", border:"none", cursor:"pointer",
               borderBottom:`2px solid ${tab===t.id?T.brand:"transparent"}`,
               marginBottom: -1, whiteSpace: "nowrap",
@@ -9371,10 +9371,10 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
                 ref={searchInputRef}
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                placeholder="Search by title, prompt or ID... (Press Esc to close)"
+                placeholder="Search by title, prompt or ID..."
                 aria-label="Search by title, prompt or ID"
                 maxLength={200}
-                style={{...inputSt, paddingLeft:34, paddingRight:34, borderColor:T.blue+"40", background:T.surfaceHi}}
+                style={{...inputSt, paddingLeft:34, paddingRight: searchQuery ? 34 : 48, borderColor:T.blue+"40", background:T.surfaceHi}}
                 autoFocus
                 onKeyDown={e => {
                   if (e.key === "Escape") {
@@ -9386,6 +9386,21 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
                   }
                 }}
               />
+              {!searchQuery && (
+                <div style={{position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", pointerEvents:"none", display:"flex", alignItems:"center"}}>
+                  <kbd style={{
+                    fontFamily: "'JetBrains Mono',monospace",
+                    fontSize: "9px",
+                    fontWeight: 700,
+                    color: T.muted,
+                    background: T.surface,
+                    border: `1px solid ${T.border}`,
+                    borderRadius: "4px",
+                    padding: "2px 4px",
+                    lineHeight: 1,
+                  }}>ESC</kbd>
+                </div>
+              )}
               {searchQuery && <button onClick={() => setSearchQuery("")} title="Clear search query" aria-label="Clear search query" style={{position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", padding:4}}><Ic n="x" s={14} c={T.muted}/></button>}
             </div>
           </div>
