@@ -1445,10 +1445,11 @@ async function apiCall(apiKey, path, opts={}) {
   const outBytes = (opts.method || "GET").length + url.length + JSON.stringify(headers).length + (body?.length || 0);
 
   let res;
-  const attempts = 3;
+  const maxAttempts = opts.attempts || 3;
+  const delayMultiplier = opts.retryDelayMultiplier || 500;
   let attempt = 0;
 
-  while (attempt < attempts) {
+  while (attempt < maxAttempts) {
     attempt++;
 
     // Implement a defensive request timeout to prevent client resource exhaustion and hanging socket connections
@@ -1490,8 +1491,30 @@ async function apiCall(apiKey, path, opts={}) {
       }
 
       if (err instanceof TypeError) {
-        if (attempt < attempts) {
-          const delay = attempt * 500;
+        if (attempt < maxAttempts) {
+          // Robust connection waiter: if offline, wait up to 10s for connection to recover
+          if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+            console.warn("[apiCall] Device is offline. Waiting up to 10s for network connection...");
+            await new Promise(resolve => {
+              let resolved = false;
+              const onOnline = () => {
+                if (resolved) return;
+                resolved = true;
+                window.removeEventListener("online", onOnline);
+                clearTimeout(offlineTimeout);
+                resolve();
+              };
+              window.addEventListener("online", onOnline);
+              const offlineTimeout = setTimeout(() => {
+                if (resolved) return;
+                resolved = true;
+                window.removeEventListener("online", onOnline);
+                resolve();
+              }, 10000);
+            });
+          }
+
+          const delay = attempt * delayMultiplier;
           console.warn(`[apiCall] Transient network failure on attempt ${attempt}. Retrying in ${delay}ms...`, err);
           await new Promise(resolve => setTimeout(resolve, delay));
           continue;
@@ -7006,6 +7029,8 @@ const useNewSessionFlow = ({ apiKey, personas, onCreate, initialDraft, onDraftSa
         headers: {},
         body,
         timeout: 60000,
+        attempts: 4,
+        retryDelayMultiplier: 2000,
         _label: "Create session"
       });
       hasSavedOrSubmitted.current = true;
