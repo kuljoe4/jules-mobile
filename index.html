@@ -4820,6 +4820,9 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     return () => window.removeEventListener("gh-pr-updated", h);
   }, []);
 
+  const [copiedReviews, setCopiedReviews] = useState({});
+  const [copiedChat, setCopiedChat] = useState(false);
+
   const driftSessions = useMemo(() => {
     if (!session) return [];
     return allSessions.filter(s => {
@@ -5962,8 +5965,10 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                     if (a.progressUpdated) return `[SYSTEM] ${a.progressUpdated.title}: ${a.progressUpdated.description}`;
                     return `[SYSTEM] ${Object.keys(a)[0]}`;
                   }).join("\n\n");
-                  navigator.clipboard.writeText(text);
-                  alert("Copied filtered chat to clipboard");
+                  navigator.clipboard.writeText(text).then(() => {
+                    setCopiedChat(true);
+                    setTimeout(() => setCopiedChat(false), 2000);
+                  });
                 }}
                 style={{
                   background: "transparent", border: "none", color: T.brand,
@@ -5971,7 +5976,11 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                   cursor: "pointer", display: "flex", alignItems: "center", gap: 4
                 }}
               >
-                <Ic n="copy" s={10} c={T.brand}/> COPY ALL
+                {copiedChat ? (
+                  "COPIED ✓"
+                ) : (
+                  <><Ic n="copy" s={10} c={T.brand}/> COPY ALL</>
+                )}
               </button>
             </div>
             {showDriftWarning && (
@@ -6459,14 +6468,26 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                          {fmtChars(p.description?.length || 0)}
                        </div>
                        <button
-                         onClick={() => { navigator.clipboard.writeText(p.description); alert("Copied review text"); }}
+                         onClick={() => {
+                           navigator.clipboard.writeText(p.description).then(() => {
+                             const actKey = getActKey(act);
+                             setCopiedReviews(prev => ({ ...prev, [actKey]: true }));
+                             setTimeout(() => {
+                               setCopiedReviews(prev => ({ ...prev, [actKey]: false }));
+                             }, 2000);
+                           });
+                         }}
                          style={{
                            background:"transparent", border:"none", color:T.brand,
                            fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:700,
                            cursor:"pointer", display:"flex", alignItems:"center", gap:4
                          }}
                        >
-                         <Ic n="copy" s={12} c={T.brand}/> COPY
+                         {copiedReviews[getActKey(act)] ? (
+                           "COPIED ✓"
+                         ) : (
+                           <><Ic n="copy" s={12} c={T.brand}/> COPY</>
+                         )}
                        </button>
                     </div>
                   </div>
@@ -7783,6 +7804,8 @@ const DraftsBox = ({ onBack, isDesktop, onResume, onCreate, allSessions, activit
 // state updates but the network log and totals remain reference-stable.
 const RecentActivityLog = memo(({ log, total }) => {
   const [mode, setMode] = useState("chrono"); // "chrono", "ranked-indiv", "ranked-group"
+  const [copiedAll, setCopiedAll] = useState(false);
+  const [copiedItems, setCopiedItems] = useState({});
 
   const groupedData = useMemo(() => {
     const groups = {};
@@ -7824,7 +7847,8 @@ const RecentActivityLog = memo(({ log, total }) => {
             onClick={() => {
               const data = JSON.stringify(log, null, 2);
               navigator.clipboard.writeText(data).then(() => {
-                alert("Activity log copied to clipboard");
+                setCopiedAll(true);
+                setTimeout(() => setCopiedAll(false), 2000);
               });
             }}
             aria-label="Copy all network activity to clipboard"
@@ -7833,7 +7857,7 @@ const RecentActivityLog = memo(({ log, total }) => {
               padding:"3px 8px", cursor:"pointer", color:T.brand,
               fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700
             }}
-          >COPY ALL</button>
+          >{copiedAll ? "COPIED ✓" : "COPY ALL"}</button>
         </div>
 
         <div style={{display:"flex", gap:4, background:T.surface, border:`1px solid ${T.border}`, borderRadius:6, padding:2, width:"fit-content"}}>
@@ -7889,12 +7913,18 @@ const RecentActivityLog = memo(({ log, total }) => {
               <div style={{display:"flex", alignItems:"center", gap:8}}>
                 <button
                   onClick={() => {
-                    navigator.clipboard.writeText(JSON.stringify(r, null, 2));
+                    navigator.clipboard.writeText(JSON.stringify(r, null, 2)).then(() => {
+                      setCopiedItems(prev => ({ ...prev, [r.id]: true }));
+                      setTimeout(() => {
+                        setCopiedItems(prev => ({ ...prev, [r.id]: false }));
+                      }, 2000);
+                    });
                   }}
                   aria-label="Copy request JSON"
-                  style={{background:T.surface, border:`1px solid ${T.border}`, borderRadius:4, cursor:"pointer", padding:6, display:"flex"}}
+                  title="Copy request JSON"
+                  style={{background:T.surface, border:`1px solid ${copiedItems[r.id] ? T.brand : T.border}`, borderRadius:4, cursor:"pointer", padding:6, display:"flex"}}
                 >
-                  <Ic n="copy" s={12} c={T.muted}/>
+                  <Ic n={copiedItems[r.id] ? "check" : "copy"} s={12} c={copiedItems[r.id] ? T.brand : T.muted}/>
                 </button>
               </div>
             </div>
