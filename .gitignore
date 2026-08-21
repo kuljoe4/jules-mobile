@@ -6,3 +6,5 @@ dist/
 *.log
 verification-archive/
 verification/
+__pycache__/
+*.pyc
