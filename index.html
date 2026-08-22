@@ -9705,6 +9705,21 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
   }, [filter, baseFiltered, draftsMap]);
   const active = useMemo(() => sessions.filter(s=>ACTIVE_STATES.has(s.state)).length, [sessions]);
 
+  // Pre-aggregate filter counts in a single O(N) pass to avoid O(N * K) full array filters on every render tick
+  const filterCountsMap = useMemo(() => {
+    const counts = { ALL: sessions.length, HAS_DRAFT: 0 };
+    for (let i = 0; i < sessions.length; i++) {
+      const s = sessions[i];
+      if (draftsMap[s.id]) {
+        counts.HAS_DRAFT = (counts.HAS_DRAFT || 0) + 1;
+      }
+      if (s.state) {
+        counts[s.state] = (counts[s.state] || 0) + 1;
+      }
+    }
+    return counts;
+  }, [sessions, draftsMap]);
+
   const hasDrafts = useMemo(() => {
     return Object.keys(draftsMap).length > 0 || loadDraftsBox().length > 0;
   }, [draftsMap]);
@@ -9936,7 +9951,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
                 </div>
               </div>
               {FILTERS.map(f => {
-                const cnt = f==="ALL" ? sessions.length : (f === "HAS_DRAFT" ? sessions.filter(s => draftsMap[s.id]).length : sessions.filter(s=>s.state===f).length);
+                const cnt = filterCountsMap[f] || 0;
                 if (cnt===0 && f!=="ALL" && f!==filter) return null;
                 const isAct = f===filter;
                 const ac = STATUS_META[f]?.color || T.brand;
