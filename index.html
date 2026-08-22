@@ -3039,7 +3039,8 @@ const ExpandableContent = memo(({ text, limit = 300, showCopy = false, forceExpa
     }
   }, [forceExpanded]);
 
-  const handleCopy = () => {
+  const handleCopy = (e) => {
+    if (e && e.stopPropagation) e.stopPropagation();
     if (copied) return;
     navigator.clipboard.writeText(text).then(() => {
       setCopied(true);
@@ -3271,7 +3272,8 @@ const ChatBubble = memo(({ act, type, onMediaClick, onEdit, onReply, forceExpand
   const isTemp = act._temp === true;
   const [copied, setCopied] = useState(false);
 
-  const handleCopy = () => {
+  const handleCopy = (e) => {
+    if (e && e.stopPropagation) e.stopPropagation();
     if (copied) return;
     navigator.clipboard.writeText(text).then(() => {
       setCopied(true);
@@ -6525,23 +6527,28 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                 <div style={{height:1, flex:1, background:T.brandDim}}/>
               </div>
               <div
-                onClick={() => scrollToActivityInChat(null, true)}
                 style={{
                   background:T.surfaceHi, border:`1px solid ${T.border}`,
                   borderRadius:10, padding:"20px", boxShadow:"none", position:"relative",
-                  cursor: "pointer", transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)"
+                  transition: "border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1)"
                 }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = T.brand; e.currentTarget.style.transform = "translateY(-1px)"; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.transform = "none"; }}
               >
                 <div style={{ fontSize:16, color:T.text, lineHeight:1.6, fontFamily:"'IBM Plex Sans',sans-serif" }}>
                   <ExpandableContent text={session.prompt} showCopy />
                 </div>
                 <div style={{ position:"absolute", top:12, right:12, display:"flex", gap:6 }}>
+                  <button onClick={(e) => { e.stopPropagation(); scrollToActivityInChat(null, true); }} style={{
+                    background:T.surface, border:`1px solid ${T.border}`, borderRadius:4, padding:"4px 8px",
+                    color:T.brand, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700, cursor:"pointer",
+                    display:"inline-flex", alignItems:"center", gap:4
+                  }} title="Jump to this prompt in chat tab" aria-label="Jump to this prompt in chat tab">
+                    <Ic n="reply" s={11} c={T.brand}/>
+                    VIEW IN CHAT
+                  </button>
                   <button onClick={(e) => { e.stopPropagation(); onEditMessage(session.prompt); }} style={{
                     background:T.brandDim, border:"none", borderRadius:4, padding:"4px 8px",
                     color:T.brand, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700, cursor:"pointer"
-                  }}>EDIT</button>
+                  }} title="Edit message prompt" aria-label="Edit message prompt">EDIT</button>
                 </div>
               </div>
             </div>
@@ -6560,23 +6567,28 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                     <span style={{color:T.textDim, fontSize:10}}>{fmtTime(parseDateMs(a.createTime))}</span>
                   </div>
                   <div
-                    onClick={() => scrollToActivityInChat(actKey, false)}
                     style={{
                       background:T.surfaceHi, border:`1px solid ${T.border}`,
                       borderRadius:10, padding:"20px", boxShadow:"none", position:"relative",
-                      cursor: "pointer", transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)"
+                      transition: "border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1)"
                     }}
-                    onMouseEnter={e => { e.currentTarget.style.borderColor = T.brand; e.currentTarget.style.transform = "translateY(-1px)"; }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.transform = "none"; }}
                   >
                     <div style={{ fontSize:16, color:T.text, lineHeight:1.6, fontFamily:"'IBM Plex Sans',sans-serif" }}>
                       <ExpandableContent text={a.userMessaged.userMessage} showCopy />
                     </div>
                     <div style={{ position:"absolute", top:12, right:12, display:"flex", gap:6 }}>
+                      <button onClick={(e) => { e.stopPropagation(); scrollToActivityInChat(actKey, false); }} style={{
+                        background:T.surface, border:`1px solid ${T.border}`, borderRadius:4, padding:"4px 8px",
+                        color:T.brand, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700, cursor:"pointer",
+                        display:"inline-flex", alignItems:"center", gap:4
+                      }} title="Jump to this follow-up in chat tab" aria-label="Jump to this follow-up in chat tab">
+                        <Ic n="reply" s={11} c={T.brand}/>
+                        VIEW IN CHAT
+                      </button>
                       <button onClick={(e) => { e.stopPropagation(); onEditMessage(a.userMessaged.userMessage); }} style={{
                         background:T.brandDim, border:"none", borderRadius:4, padding:"4px 8px",
                         color:T.brand, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700, cursor:"pointer"
-                      }}>EDIT</button>
+                      }} title="Edit follow-up prompt" aria-label="Edit follow-up prompt">EDIT</button>
                     </div>
                   </div>
                 </div>
@@ -9751,16 +9763,6 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
   const hasDrafts = useMemo(() => {
     return Object.keys(draftsMap).length > 0 || loadDraftsBox().length > 0;
   }, [draftsMap]);
-
-  // Performance Optimization: Compute filter counts in a single O(N) pass to avoid O(N*K) array filter iterations on every render tick
-  const filterCountsMap = useMemo(() => {
-    const counts = { ALL: sessions.length, HAS_DRAFT: 0 };
-    sessions.forEach(s => {
-      if (s.state) counts[s.state] = (counts[s.state] || 0) + 1;
-      if (draftsMap[s.id]) counts.HAS_DRAFT = (counts.HAS_DRAFT || 0) + 1;
-    });
-    return counts;
-  }, [sessions, draftsMap]);
 
   const latestCompletedTimeByRepo = useMemo(() => {
     const map = {};
