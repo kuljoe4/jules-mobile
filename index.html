@@ -7246,6 +7246,11 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
                       borderRadius:6, maxHeight:180, overflowY:"auto",
                       boxShadow:"0 -10px 25px rgba(0,0,0,0.5)",
                     }}>
+                      {filteredSources.length === 0 && (
+                        <div style={{padding:"12px", textAlign:"center", fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.textDim}}>
+                          NO REPOSITORIES FOUND
+                        </div>
+                      )}
                       {filteredSources.map((s, idx) => {
                         const sName = s === null ? "" : s.name;
                         const isSelected = sName === source;
@@ -7330,6 +7335,11 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
                         borderRadius:6, maxHeight:150, overflowY:"auto",
                         boxShadow:"0 -10px 25px rgba(0,0,0,0.5)",
                       }}>
+                        {filteredBranches.length === 0 && (
+                          <div style={{padding:"12px", textAlign:"center", fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.textDim}}>
+                            NO BRANCHES FOUND
+                          </div>
+                        )}
                         {filteredBranches.map(b => (
                           <button
                             key={b}
