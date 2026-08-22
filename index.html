@@ -806,6 +806,20 @@ const safeUrl = (url) => {
   return "#";
 };
 
+// Security: Validates and sanitizes media MIME types to restrict allowed formats to explicit image/video types.
+// Prevents MIME-type injection and execution of untrusted data payloads.
+const ALLOWED_MEDIA_MIMES = new Set([
+  "image/png", "image/jpeg", "image/jpg", "image/webp", "image/gif",
+  "video/webm", "video/mp4", "video/ogg"
+]);
+
+const safeMediaMimeType = (mimeType) => {
+  if (mimeType && ALLOWED_MEDIA_MIMES.has(mimeType.toLowerCase().trim())) {
+    return mimeType.toLowerCase().trim();
+  }
+  return "image/png";
+};
+
 // ─── Performance Helpers ─────────────────────────────────────────────────────
 // Global WeakMap to cache byte size calculations for reference-stable, non-array objects.
 // This prevents redundant recursive traversal overhead, making repeat size checks O(1).
@@ -3214,11 +3228,12 @@ const MediaArtifacts = memo(({ artifacts, ts, onMediaClick }) => {
   return (
     <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginTop:8 }}>
       {mediaItems.map((a, i) => {
-        const isVideo = (a.media.mimeType || "").includes("video") || (a.media.mimeType || "").includes("webm");
+        const mime = safeMediaMimeType(a.media?.mimeType);
+        const isVideo = mime.startsWith("video/");
         return (
           <button
             key={i}
-            onClick={() => onMediaClick?.({ ...a.media, ts })}
+            onClick={() => onMediaClick?.({ ...a.media, mimeType: mime, ts })}
             style={{
               padding:0, border:`1px solid ${T.border}`, borderRadius:6,
               background:T.surfaceHi, cursor:"pointer", overflow:"hidden",
@@ -3230,13 +3245,13 @@ const MediaArtifacts = memo(({ artifacts, ts, onMediaClick }) => {
           >
             {isVideo ? (
               <video
-                src={`data:${a.media.mimeType};base64,${a.media.data}`}
+                src={`data:${mime};base64,${a.media.data}`}
                 muted autoPlay loop playsInline
                 style={{ width:"100%", height:"100%", objectFit:"cover" }}
               />
             ) : (
               <img
-                src={`data:${a.media.mimeType};base64,${a.media.data}`}
+                src={`data:${mime};base64,${a.media.data}`}
                 alt="artifact-thumb"
                 style={{ width:"100%", height:"100%", objectFit:"cover" }}
               />
@@ -3600,17 +3615,19 @@ const TimelineEvent = memo(({ act, onMediaClick, onReply }) => {
 const MediaModal = ({ media, onClose }) => {
   if (!media) return null;
 
+  const mime = safeMediaMimeType(media.mimeType);
+
   const handleDownload = (e) => {
     e.stopPropagation();
     const link = document.createElement("a");
-    link.href = `data:${media.mimeType};base64,${media.data}`;
-    link.download = `jules-artifact-${Date.now()}.${media.mimeType.split("/")[1] || "png"}`;
+    link.href = `data:${mime};base64,${media.data}`;
+    link.download = `jules-artifact-${Date.now()}.${mime.split("/")[1] || "png"}`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
-  const isVideo = (media.mimeType || "").includes("video") || (media.mimeType || "").includes("webm");
+  const isVideo = mime.startsWith("video/");
   const dataSize = media.data ? media.data.length * 0.75 : 0; // Approx base64 to bytes
 
   return (
@@ -3638,7 +3655,7 @@ const MediaModal = ({ media, onClose }) => {
             MEDIA ARTIFACT
           </div>
           <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.textDim }}>
-            {media.mimeType} · {fmtBytes(dataSize/1024)} · {fmtTime(parseDateMs(media.ts))}
+            {mime} · {fmtBytes(dataSize/1024)} · {fmtTime(parseDateMs(media.ts))}
           </div>
         </div>
         <button
@@ -3672,7 +3689,7 @@ const MediaModal = ({ media, onClose }) => {
       }}>
         {isVideo ? (
           <video
-            src={`data:${media.mimeType};base64,${media.data}`}
+            src={`data:${mime};base64,${media.data}`}
             controls autoPlay loop playsInline
             style={{
               maxWidth:"100%", maxHeight:"100%", objectFit:"contain",
@@ -3683,7 +3700,7 @@ const MediaModal = ({ media, onClose }) => {
           />
         ) : (
           <img
-            src={`data:${media.mimeType};base64,${media.data}`}
+            src={`data:${mime};base64,${media.data}`}
             alt="artifact-preview"
             style={{
               maxWidth:"100%", maxHeight:"100%", objectFit:"contain",
@@ -6585,11 +6602,12 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
           ?<div style={{textAlign:"center",padding:"40px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>No media artifacts</div>
           :<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:12}}>
             {mediaArtifacts.map((m,i)=>{
-              const isVideo = (m.mimeType || "").includes("video") || (m.mimeType || "").includes("webm");
+              const mime = safeMediaMimeType(m.mimeType);
+              const isVideo = mime.startsWith("video/");
               return (
                 <button
                   key={i}
-                  onClick={() => setActiveMedia(m)}
+                  onClick={() => setActiveMedia({ ...m, mimeType: mime })}
                   style={{
                     background:T.surface, border:`1px solid ${T.border}`, borderRadius:8,
                     overflow:"hidden", cursor:"pointer", padding:0, textAlign:"left",
@@ -6600,16 +6618,16 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                 >
                   <div style={{ width:"100%", height:120, background:"#040507", display:"flex", alignItems:"center", justifyContent:"center" }}>
                     {isVideo ? (
-                      <video src={`data:${m.mimeType};base64,${m.data}`} muted autoPlay loop playsInline
+                      <video src={`data:${mime};base64,${m.data}`} muted autoPlay loop playsInline
                         style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
                     ) : (
-                      <img src={`data:${m.mimeType};base64,${m.data}`} alt={`artifact-${i}`}
+                      <img src={`data:${mime};base64,${m.data}`} alt={`artifact-${i}`}
                         style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
                     )}
                   </div>
                   <div style={{ padding:"8px 10px" }}>
                     <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.text, fontWeight:700, marginBottom:2 }}>
-                      {m.mimeType.split("/")[1]?.toUpperCase() || "IMAGE"}
+                      {mime.split("/")[1]?.toUpperCase() || "IMAGE"}
                     </div>
                     <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.textDim, display:"flex", justifyContent:"space-between" }}>
                       <span>{fmtTime(parseDateMs(m.ts))}</span>
