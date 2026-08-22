@@ -9752,16 +9752,6 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
     return Object.keys(draftsMap).length > 0 || loadDraftsBox().length > 0;
   }, [draftsMap]);
 
-  // Performance Optimization: Compute filter counts in a single O(N) pass to avoid O(N*K) array filter iterations on every render tick
-  const filterCountsMap = useMemo(() => {
-    const counts = { ALL: sessions.length, HAS_DRAFT: 0 };
-    sessions.forEach(s => {
-      if (s.state) counts[s.state] = (counts[s.state] || 0) + 1;
-      if (draftsMap[s.id]) counts.HAS_DRAFT = (counts.HAS_DRAFT || 0) + 1;
-    });
-    return counts;
-  }, [sessions, draftsMap]);
-
   const latestCompletedTimeByRepo = useMemo(() => {
     const map = {};
     sessions.forEach(other => {
