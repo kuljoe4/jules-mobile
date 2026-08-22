@@ -806,6 +806,20 @@ const safeUrl = (url) => {
   return "#";
 };
 
+// Security: Validates and sanitizes media MIME types to restrict allowed formats to explicit image/video types.
+// Prevents MIME-type injection and execution of untrusted data payloads.
+const ALLOWED_MEDIA_MIMES = new Set([
+  "image/png", "image/jpeg", "image/jpg", "image/webp", "image/gif",
+  "video/webm", "video/mp4", "video/ogg"
+]);
+
+const safeMediaMimeType = (mimeType) => {
+  if (mimeType && ALLOWED_MEDIA_MIMES.has(mimeType.toLowerCase().trim())) {
+    return mimeType.toLowerCase().trim();
+  }
+  return "image/png";
+};
+
 // ─── Performance Helpers ─────────────────────────────────────────────────────
 // Global WeakMap to cache byte size calculations for reference-stable, non-array objects.
 // This prevents redundant recursive traversal overhead, making repeat size checks O(1).
@@ -3214,11 +3228,12 @@ const MediaArtifacts = memo(({ artifacts, ts, onMediaClick }) => {
   return (
     <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginTop:8 }}>
       {mediaItems.map((a, i) => {
-        const isVideo = (a.media.mimeType || "").includes("video") || (a.media.mimeType || "").includes("webm");
+        const mime = safeMediaMimeType(a.media?.mimeType);
+        const isVideo = mime.startsWith("video/");
         return (
           <button
             key={i}
-            onClick={() => onMediaClick?.({ ...a.media, ts })}
+            onClick={() => onMediaClick?.({ ...a.media, mimeType: mime, ts })}
             style={{
               padding:0, border:`1px solid ${T.border}`, borderRadius:6,
               background:T.surfaceHi, cursor:"pointer", overflow:"hidden",
@@ -3230,13 +3245,13 @@ const MediaArtifacts = memo(({ artifacts, ts, onMediaClick }) => {
           >
             {isVideo ? (
               <video
-                src={`data:${a.media.mimeType};base64,${a.media.data}`}
+                src={`data:${mime};base64,${a.media.data}`}
                 muted autoPlay loop playsInline
                 style={{ width:"100%", height:"100%", objectFit:"cover" }}
               />
             ) : (
               <img
-                src={`data:${a.media.mimeType};base64,${a.media.data}`}
+                src={`data:${mime};base64,${a.media.data}`}
                 alt="artifact-thumb"
                 style={{ width:"100%", height:"100%", objectFit:"cover" }}
               />
@@ -3600,17 +3615,19 @@ const TimelineEvent = memo(({ act, onMediaClick, onReply }) => {
 const MediaModal = ({ media, onClose }) => {
   if (!media) return null;
 
+  const mime = safeMediaMimeType(media.mimeType);
+
   const handleDownload = (e) => {
     e.stopPropagation();
     const link = document.createElement("a");
-    link.href = `data:${media.mimeType};base64,${media.data}`;
-    link.download = `jules-artifact-${Date.now()}.${media.mimeType.split("/")[1] || "png"}`;
+    link.href = `data:${mime};base64,${media.data}`;
+    link.download = `jules-artifact-${Date.now()}.${mime.split("/")[1] || "png"}`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
-  const isVideo = (media.mimeType || "").includes("video") || (media.mimeType || "").includes("webm");
+  const isVideo = mime.startsWith("video/");
   const dataSize = media.data ? media.data.length * 0.75 : 0; // Approx base64 to bytes
 
   return (
@@ -3638,7 +3655,7 @@ const MediaModal = ({ media, onClose }) => {
             MEDIA ARTIFACT
           </div>
           <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.textDim }}>
-            {media.mimeType} · {fmtBytes(dataSize/1024)} · {fmtTime(parseDateMs(media.ts))}
+            {mime} · {fmtBytes(dataSize/1024)} · {fmtTime(parseDateMs(media.ts))}
           </div>
         </div>
         <button
@@ -3672,7 +3689,7 @@ const MediaModal = ({ media, onClose }) => {
       }}>
         {isVideo ? (
           <video
-            src={`data:${media.mimeType};base64,${media.data}`}
+            src={`data:${mime};base64,${media.data}`}
             controls autoPlay loop playsInline
             style={{
               maxWidth:"100%", maxHeight:"100%", objectFit:"contain",
@@ -3683,7 +3700,7 @@ const MediaModal = ({ media, onClose }) => {
           />
         ) : (
           <img
-            src={`data:${media.mimeType};base64,${media.data}`}
+            src={`data:${mime};base64,${media.data}`}
             alt="artifact-preview"
             style={{
               maxWidth:"100%", maxHeight:"100%", objectFit:"contain",
@@ -4819,6 +4836,9 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     window.addEventListener("gh-pr-updated", h);
     return () => window.removeEventListener("gh-pr-updated", h);
   }, []);
+
+  const [copiedReviews, setCopiedReviews] = useState({});
+  const [copiedChat, setCopiedChat] = useState(false);
 
   const driftSessions = useMemo(() => {
     if (!session) return [];
@@ -5962,8 +5982,10 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                     if (a.progressUpdated) return `[SYSTEM] ${a.progressUpdated.title}: ${a.progressUpdated.description}`;
                     return `[SYSTEM] ${Object.keys(a)[0]}`;
                   }).join("\n\n");
-                  navigator.clipboard.writeText(text);
-                  alert("Copied filtered chat to clipboard");
+                  navigator.clipboard.writeText(text).then(() => {
+                    setCopiedChat(true);
+                    setTimeout(() => setCopiedChat(false), 2000);
+                  });
                 }}
                 style={{
                   background: "transparent", border: "none", color: T.brand,
@@ -5971,7 +5993,11 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                   cursor: "pointer", display: "flex", alignItems: "center", gap: 4
                 }}
               >
-                <Ic n="copy" s={10} c={T.brand}/> COPY ALL
+                {copiedChat ? (
+                  "COPIED ✓"
+                ) : (
+                  <><Ic n="copy" s={10} c={T.brand}/> COPY ALL</>
+                )}
               </button>
             </div>
             {showDriftWarning && (
@@ -6459,14 +6485,26 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                          {fmtChars(p.description?.length || 0)}
                        </div>
                        <button
-                         onClick={() => { navigator.clipboard.writeText(p.description); alert("Copied review text"); }}
+                         onClick={() => {
+                           navigator.clipboard.writeText(p.description).then(() => {
+                             const actKey = getActKey(act);
+                             setCopiedReviews(prev => ({ ...prev, [actKey]: true }));
+                             setTimeout(() => {
+                               setCopiedReviews(prev => ({ ...prev, [actKey]: false }));
+                             }, 2000);
+                           });
+                         }}
                          style={{
                            background:"transparent", border:"none", color:T.brand,
                            fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:700,
                            cursor:"pointer", display:"flex", alignItems:"center", gap:4
                          }}
                        >
-                         <Ic n="copy" s={12} c={T.brand}/> COPY
+                         {copiedReviews[getActKey(act)] ? (
+                           "COPIED ✓"
+                         ) : (
+                           <><Ic n="copy" s={12} c={T.brand}/> COPY</>
+                         )}
                        </button>
                     </div>
                   </div>
@@ -6564,11 +6602,12 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
           ?<div style={{textAlign:"center",padding:"40px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>No media artifacts</div>
           :<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:12}}>
             {mediaArtifacts.map((m,i)=>{
-              const isVideo = (m.mimeType || "").includes("video") || (m.mimeType || "").includes("webm");
+              const mime = safeMediaMimeType(m.mimeType);
+              const isVideo = mime.startsWith("video/");
               return (
                 <button
                   key={i}
-                  onClick={() => setActiveMedia(m)}
+                  onClick={() => setActiveMedia({ ...m, mimeType: mime })}
                   style={{
                     background:T.surface, border:`1px solid ${T.border}`, borderRadius:8,
                     overflow:"hidden", cursor:"pointer", padding:0, textAlign:"left",
@@ -6579,16 +6618,16 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                 >
                   <div style={{ width:"100%", height:120, background:"#040507", display:"flex", alignItems:"center", justifyContent:"center" }}>
                     {isVideo ? (
-                      <video src={`data:${m.mimeType};base64,${m.data}`} muted autoPlay loop playsInline
+                      <video src={`data:${mime};base64,${m.data}`} muted autoPlay loop playsInline
                         style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
                     ) : (
-                      <img src={`data:${m.mimeType};base64,${m.data}`} alt={`artifact-${i}`}
+                      <img src={`data:${mime};base64,${m.data}`} alt={`artifact-${i}`}
                         style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
                     )}
                   </div>
                   <div style={{ padding:"8px 10px" }}>
                     <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.text, fontWeight:700, marginBottom:2 }}>
-                      {m.mimeType.split("/")[1]?.toUpperCase() || "IMAGE"}
+                      {mime.split("/")[1]?.toUpperCase() || "IMAGE"}
                     </div>
                     <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.textDim, display:"flex", justifyContent:"space-between" }}>
                       <span>{fmtTime(parseDateMs(m.ts))}</span>
@@ -7246,6 +7285,11 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
                       borderRadius:6, maxHeight:180, overflowY:"auto",
                       boxShadow:"0 -10px 25px rgba(0,0,0,0.5)",
                     }}>
+                      {filteredSources.length === 0 && (
+                        <div style={{padding:"12px", textAlign:"center", fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.textDim}}>
+                          NO REPOSITORIES FOUND
+                        </div>
+                      )}
                       {filteredSources.map((s, idx) => {
                         const sName = s === null ? "" : s.name;
                         const isSelected = sName === source;
@@ -7330,6 +7374,11 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
                         borderRadius:6, maxHeight:150, overflowY:"auto",
                         boxShadow:"0 -10px 25px rgba(0,0,0,0.5)",
                       }}>
+                        {filteredBranches.length === 0 && (
+                          <div style={{padding:"12px", textAlign:"center", fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.textDim}}>
+                            NO BRANCHES FOUND
+                          </div>
+                        )}
                         {filteredBranches.map(b => (
                           <button
                             key={b}
@@ -7783,6 +7832,8 @@ const DraftsBox = ({ onBack, isDesktop, onResume, onCreate, allSessions, activit
 // state updates but the network log and totals remain reference-stable.
 const RecentActivityLog = memo(({ log, total }) => {
   const [mode, setMode] = useState("chrono"); // "chrono", "ranked-indiv", "ranked-group"
+  const [copiedAll, setCopiedAll] = useState(false);
+  const [copiedItems, setCopiedItems] = useState({});
 
   const groupedData = useMemo(() => {
     const groups = {};
@@ -7824,7 +7875,8 @@ const RecentActivityLog = memo(({ log, total }) => {
             onClick={() => {
               const data = JSON.stringify(log, null, 2);
               navigator.clipboard.writeText(data).then(() => {
-                alert("Activity log copied to clipboard");
+                setCopiedAll(true);
+                setTimeout(() => setCopiedAll(false), 2000);
               });
             }}
             aria-label="Copy all network activity to clipboard"
@@ -7833,7 +7885,7 @@ const RecentActivityLog = memo(({ log, total }) => {
               padding:"3px 8px", cursor:"pointer", color:T.brand,
               fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700
             }}
-          >COPY ALL</button>
+          >{copiedAll ? "COPIED ✓" : "COPY ALL"}</button>
         </div>
 
         <div style={{display:"flex", gap:4, background:T.surface, border:`1px solid ${T.border}`, borderRadius:6, padding:2, width:"fit-content"}}>
@@ -7889,12 +7941,18 @@ const RecentActivityLog = memo(({ log, total }) => {
               <div style={{display:"flex", alignItems:"center", gap:8}}>
                 <button
                   onClick={() => {
-                    navigator.clipboard.writeText(JSON.stringify(r, null, 2));
+                    navigator.clipboard.writeText(JSON.stringify(r, null, 2)).then(() => {
+                      setCopiedItems(prev => ({ ...prev, [r.id]: true }));
+                      setTimeout(() => {
+                        setCopiedItems(prev => ({ ...prev, [r.id]: false }));
+                      }, 2000);
+                    });
                   }}
                   aria-label="Copy request JSON"
-                  style={{background:T.surface, border:`1px solid ${T.border}`, borderRadius:4, cursor:"pointer", padding:6, display:"flex"}}
+                  title="Copy request JSON"
+                  style={{background:T.surface, border:`1px solid ${copiedItems[r.id] ? T.brand : T.border}`, borderRadius:4, cursor:"pointer", padding:6, display:"flex"}}
                 >
-                  <Ic n="copy" s={12} c={T.muted}/>
+                  <Ic n={copiedItems[r.id] ? "check" : "copy"} s={12} c={copiedItems[r.id] ? T.brand : T.muted}/>
                 </button>
               </div>
             </div>
@@ -9674,6 +9732,21 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
     return baseFiltered.filter(s => s.state === filter);
   }, [filter, baseFiltered, draftsMap]);
   const active = useMemo(() => sessions.filter(s=>ACTIVE_STATES.has(s.state)).length, [sessions]);
+
+  // Pre-aggregate filter counts in a single O(N) pass to avoid O(N * K) full array filters on every render tick
+  const filterCountsMap = useMemo(() => {
+    const counts = { ALL: sessions.length, HAS_DRAFT: 0 };
+    for (let i = 0; i < sessions.length; i++) {
+      const s = sessions[i];
+      if (draftsMap[s.id]) {
+        counts.HAS_DRAFT = (counts.HAS_DRAFT || 0) + 1;
+      }
+      if (s.state) {
+        counts[s.state] = (counts[s.state] || 0) + 1;
+      }
+    }
+    return counts;
+  }, [sessions, draftsMap]);
 
   const hasDrafts = useMemo(() => {
     return Object.keys(draftsMap).length > 0 || loadDraftsBox().length > 0;
