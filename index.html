@@ -1766,17 +1766,30 @@ const GitHubTracker = {
   },
 
   githubFetch(url, headers) {
-    return fetch(url, { headers }).then(res => {
-      if (!res.ok) {
-        if ((res.status === 403 || res.status === 429) && res.headers.get("x-ratelimit-remaining") === "0") {
-          const resetTime = res.headers.get("x-ratelimit-reset");
-          const resetDate = resetTime ? new Date(parseInt(resetTime, 10) * 1000).toLocaleTimeString() : "soon";
-          window.dispatchEvent(new CustomEvent("gh-rate-limited", { detail: { resetAt: resetDate } }));
+    const controller = new AbortController();
+    const timeoutMs = loadApiTimeout();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    return fetch(url, { headers, signal: controller.signal })
+      .then(res => {
+        clearTimeout(timeoutId);
+        if (!res.ok) {
+          if ((res.status === 403 || res.status === 429) && res.headers.get("x-ratelimit-remaining") === "0") {
+            const resetTime = res.headers.get("x-ratelimit-reset");
+            const resetDate = resetTime ? new Date(parseInt(resetTime, 10) * 1000).toLocaleTimeString() : "soon";
+            window.dispatchEvent(new CustomEvent("gh-rate-limited", { detail: { resetAt: resetDate } }));
+          }
+          throw new Error(`Status ${res.status}`);
         }
-        throw new Error(`Status ${res.status}`);
-      }
-      return res.json();
-    });
+        return res.json();
+      })
+      .catch(err => {
+        clearTimeout(timeoutId);
+        if (err.name === "AbortError") {
+          throw new Error(`GitHub API request timed out after ${timeoutMs}ms`);
+        }
+        throw err;
+      });
   },
 
   triggerGitHubFetch(url) {
@@ -10136,7 +10149,16 @@ const useQuotaTracker = (sessions, plan) => {
     });
 
     const windowIds = new Set(allKnown.map(s => s.id));
-    const prCreated = sessions.filter(s => windowIds.has(s.id) && !!getPR(s)).length;
+    // OPTIMIZATION (Bolt): Pre-index PR status for sessions in the 24h window in a single pass
+    // to avoid redundant getPR property scanning during quota filter evaluations.
+    let prCreated = 0;
+    for (let i = 0; i < sessions.length; i++) {
+      const s = sessions[i];
+      const sid = s.id || s.name;
+      if (sid && windowIds.has(sid) && getPR(s)) {
+        prCreated++;
+      }
+    }
 
     // Sort upcoming by ts
     upcomingResets.sort((a, b) => a.ts - b.ts);
