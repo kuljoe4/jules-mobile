@@ -10134,7 +10134,16 @@ const useQuotaTracker = (sessions, plan) => {
     });
 
     const windowIds = new Set(allKnown.map(s => s.id));
-    const prCreated = sessions.filter(s => windowIds.has(s.id) && !!getPR(s)).length;
+    // OPTIMIZATION (Bolt): Pre-index PR status for sessions in the 24h window in a single pass
+    // to avoid redundant getPR property scanning during quota filter evaluations.
+    let prCreated = 0;
+    for (let i = 0; i < sessions.length; i++) {
+      const s = sessions[i];
+      const sid = s.id || s.name;
+      if (sid && windowIds.has(sid) && getPR(s)) {
+        prCreated++;
+      }
+    }
 
     // Sort upcoming by ts
     upcomingResets.sort((a, b) => a.ts - b.ts);
