@@ -2909,6 +2909,7 @@ const SearchPicker = ({ value, search, onSearch, onSelect, onHide, options, plac
         onChange={e=>onSearch(e.target.value)}
         onFocus={()=>onSearch(search, true)}
         placeholder={placeholder}
+        aria-label={placeholder || "Search options"}
         maxLength={200}
         style={{...inputSt, paddingRight:36}}
       />
@@ -8957,6 +8958,7 @@ const SettingsView = ({ onBack, isDesktop, settings, personas, setPersonas, toda
                       type="number"
                       value={customDaily}
                       onChange={e=>{setCustomDaily(Math.max(1, parseInt(e.target.value)||1)); triggerSaveFeedback();}}
+                      aria-label="Custom daily session limit"
                       style={{...inputSt, width:80, padding:"6px 10px", fontSize:14}}
                     />
                   </div>
