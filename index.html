@@ -4532,9 +4532,17 @@ const areEqual = (prevProps, nextProps) => {
   );
 };
 
-const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], stats, lastReadTs, latestCompletedTime, hasFollowupDraft }) => {
+// OPTIMIZATION (Bolt): Support reference-stable `onSelect` callback in SessionCard alongside `onPress`.
+// Passing a stable `onSelect` prop directly from SessionList avoids creating inline closures on every
+// render pass (such as 1-second countdown ticks), allowing React.memo on SessionCard to successfully skip re-renders.
+const SessionCard = memo(({ s, onPress, onSelect, isSelected, index, activities = [], stats, lastReadTs, latestCompletedTime, hasFollowupDraft }) => {
   const cardRef = useRef(null);
   const [ghPrNonce, setGhPrNonce] = useState(0);
+
+  const handleClick = useCallback(() => {
+    if (onSelect) onSelect(s);
+    else if (onPress) onPress(s);
+  }, [onSelect, onPress, s]);
 
   const isActuallyDone = useMemo(() => {
     return getIsActuallyDone(s.state, activities);
@@ -4618,7 +4626,7 @@ const SessionCard = memo(({ s, onPress, isSelected, index, activities = [], stat
   const borderColor = isSelected ? `${T.brand}30` : isUnread ? `${T.indigo}20` : isWorking ? `${T.blue}20` : `${T.border}66`;
 
   return (
-    <button ref={cardRef} onClick={onPress}
+    <button ref={cardRef} onClick={handleClick}
       aria-label={`Session ${index}: ${s.title || s.prompt}. Status: ${m.label}. ${isUnread ? "New activity." : ""}`}
       style={{
         width:"100%", background:bg, textAlign:"left", cursor:"pointer",
@@ -7509,6 +7517,7 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
                 value={prompt}
                 onChange={e=>setPrompt(e.target.value)}
                 placeholder="Describe the coding task for Jules to execute…"
+                aria-label="Describe the coding task for Jules to execute"
                 aria-invalid={err ? "true" : "false"}
                 aria-describedby={err ? "new-session-error" : undefined}
                 rows={6} maxLength={20000} style={{
@@ -10046,7 +10055,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
             </div>
           );
         })()}
-        {filtered.map((s,i)=><SessionCard key={s.id||s.name} index={i+1} s={s} onPress={()=>onSelect(s)} isSelected={s.id===selectedId} activities={activitiesMap[s.id] || EMPTY_ARR} stats={activityStatsMap[s.id]} lastReadTs={readMap[s.id]} latestCompletedTime={latestCompletedTimeByRepo[s.sourceContext?.source]} hasFollowupDraft={!!draftsMap[s.id]}/>)}
+        {filtered.map((s,i)=><SessionCard key={s.id||s.name} index={i+1} s={s} onSelect={onSelect} isSelected={s.id===selectedId} activities={activitiesMap[s.id] || EMPTY_ARR} stats={activityStatsMap[s.id]} lastReadTs={readMap[s.id]} latestCompletedTime={latestCompletedTimeByRepo[s.sourceContext?.source]} hasFollowupDraft={!!draftsMap[s.id]}/>)}
       </div>
     </div>
   );
