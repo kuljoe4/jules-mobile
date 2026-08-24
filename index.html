@@ -820,6 +820,12 @@ const safeMediaMimeType = (mimeType) => {
   return "image/png";
 };
 
+// Security: Sanitizes base64 media payload strings by stripping invalid non-base64 characters.
+const safeMediaBase64 = (data) => {
+  if (typeof data !== "string") return "";
+  return data.replace(/[^A-Za-z0-9+/=]/g, "");
+};
+
 // ─── Performance Helpers ─────────────────────────────────────────────────────
 // Global WeakMap to cache byte size calculations for reference-stable, non-array objects.
 // This prevents redundant recursive traversal overhead, making repeat size checks O(1).
@@ -3244,11 +3250,12 @@ const MediaArtifacts = memo(({ artifacts, ts, onMediaClick }) => {
     <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginTop:8 }}>
       {mediaItems.map((a, i) => {
         const mime = safeMediaMimeType(a.media?.mimeType);
+        const base64Data = safeMediaBase64(a.media?.data);
         const isVideo = mime.startsWith("video/");
         return (
           <button
             key={i}
-            onClick={() => onMediaClick?.({ ...a.media, mimeType: mime, ts })}
+            onClick={() => onMediaClick?.({ ...a.media, data: base64Data, mimeType: mime, ts })}
             style={{
               padding:0, border:`1px solid ${T.border}`, borderRadius:6,
               background:T.surfaceHi, cursor:"pointer", overflow:"hidden",
@@ -3260,13 +3267,13 @@ const MediaArtifacts = memo(({ artifacts, ts, onMediaClick }) => {
           >
             {isVideo ? (
               <video
-                src={`data:${mime};base64,${a.media.data}`}
+                src={`data:${mime};base64,${base64Data}`}
                 muted autoPlay loop playsInline
                 style={{ width:"100%", height:"100%", objectFit:"cover" }}
               />
             ) : (
               <img
-                src={`data:${mime};base64,${a.media.data}`}
+                src={`data:${mime};base64,${base64Data}`}
                 alt="artifact-thumb"
                 style={{ width:"100%", height:"100%", objectFit:"cover" }}
               />
@@ -3632,11 +3639,12 @@ const MediaModal = ({ media, onClose }) => {
   if (!media) return null;
 
   const mime = safeMediaMimeType(media.mimeType);
+  const base64Data = safeMediaBase64(media.data);
 
   const handleDownload = (e) => {
     e.stopPropagation();
     const link = document.createElement("a");
-    link.href = `data:${mime};base64,${media.data}`;
+    link.href = `data:${mime};base64,${base64Data}`;
     link.download = `jules-artifact-${Date.now()}.${mime.split("/")[1] || "png"}`;
     document.body.appendChild(link);
     link.click();
@@ -3644,7 +3652,7 @@ const MediaModal = ({ media, onClose }) => {
   };
 
   const isVideo = mime.startsWith("video/");
-  const dataSize = media.data ? media.data.length * 0.75 : 0; // Approx base64 to bytes
+  const dataSize = base64Data ? base64Data.length * 0.75 : 0; // Approx base64 to bytes
 
   return (
     <div
@@ -3705,7 +3713,7 @@ const MediaModal = ({ media, onClose }) => {
       }}>
         {isVideo ? (
           <video
-            src={`data:${mime};base64,${media.data}`}
+            src={`data:${mime};base64,${base64Data}`}
             controls autoPlay loop playsInline
             style={{
               maxWidth:"100%", maxHeight:"100%", objectFit:"contain",
@@ -3716,7 +3724,7 @@ const MediaModal = ({ media, onClose }) => {
           />
         ) : (
           <img
-            src={`data:${mime};base64,${media.data}`}
+            src={`data:${mime};base64,${base64Data}`}
             alt="artifact-preview"
             style={{
               maxWidth:"100%", maxHeight:"100%", objectFit:"contain",
@@ -6637,11 +6645,12 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
           :<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:12}}>
             {mediaArtifacts.map((m,i)=>{
               const mime = safeMediaMimeType(m.mimeType);
+              const base64Data = safeMediaBase64(m.data);
               const isVideo = mime.startsWith("video/");
               return (
                 <button
                   key={i}
-                  onClick={() => setActiveMedia({ ...m, mimeType: mime })}
+                  onClick={() => setActiveMedia({ ...m, data: base64Data, mimeType: mime })}
                   style={{
                     background:T.surface, border:`1px solid ${T.border}`, borderRadius:8,
                     overflow:"hidden", cursor:"pointer", padding:0, textAlign:"left",
@@ -6652,10 +6661,10 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                 >
                   <div style={{ width:"100%", height:120, background:"#040507", display:"flex", alignItems:"center", justifyContent:"center" }}>
                     {isVideo ? (
-                      <video src={`data:${mime};base64,${m.data}`} muted autoPlay loop playsInline
+                      <video src={`data:${mime};base64,${base64Data}`} muted autoPlay loop playsInline
                         style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
                     ) : (
-                      <img src={`data:${mime};base64,${m.data}`} alt={`artifact-${i}`}
+                      <img src={`data:${mime};base64,${base64Data}`} alt={`artifact-${i}`}
                         style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
                     )}
                   </div>
