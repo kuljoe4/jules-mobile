@@ -7243,7 +7243,12 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
 
   const isBranchInvalid = branch ? !isValidGitBranchName(branch) : false;
 
-  const payloadEst = (JSON.stringify({prompt,source,branch}).length/1024).toFixed(1);
+  // OPTIMIZATION (Bolt): Memoize payloadEst calculation with useMemo to avoid allocating
+  // new objects and executing JSON.stringify on every single render pass of NewSession
+  // (e.g., during repository search typing, persona toggles, or confirmation modal updates).
+  const payloadEst = useMemo(() => {
+    return (JSON.stringify({ prompt, source, branch }).length / 1024).toFixed(1);
+  }, [prompt, source, branch]);
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%",minHeight:0,position:"relative"}}>
