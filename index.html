@@ -7509,6 +7509,7 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
                 value={prompt}
                 onChange={e=>setPrompt(e.target.value)}
                 placeholder="Describe the coding task for Jules to execute…"
+                aria-label="Describe the coding task for Jules to execute"
                 aria-invalid={err ? "true" : "false"}
                 aria-describedby={err ? "new-session-error" : undefined}
                 rows={6} maxLength={20000} style={{
