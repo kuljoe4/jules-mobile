@@ -3631,6 +3631,16 @@ const TimelineEvent = memo(({ act, onMediaClick, onReply }) => {
 const MediaModal = ({ media, onClose }) => {
   if (!media) return null;
 
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape" && onClose) {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
   const mime = safeMediaMimeType(media.mimeType);
 
   const handleDownload = (e) => {
@@ -3676,6 +3686,8 @@ const MediaModal = ({ media, onClose }) => {
         </div>
         <button
           onClick={handleDownload}
+          title="Save Artifact"
+          aria-label="Save Artifact"
           style={{
             background:T.surfaceHi, border:`1px solid ${T.borderHi}`, borderRadius:8,
             padding:"8px 14px", cursor:"pointer", display:"flex", alignItems:"center", gap:8,
