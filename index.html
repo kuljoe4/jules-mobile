@@ -3638,6 +3638,16 @@ const TimelineEvent = memo(({ act, onMediaClick, onReply }) => {
 const MediaModal = ({ media, onClose }) => {
   if (!media) return null;
 
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape" && onClose) {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
   const mime = safeMediaMimeType(media.mimeType);
   const base64Data = safeMediaBase64(media.data);
 
@@ -3684,6 +3694,8 @@ const MediaModal = ({ media, onClose }) => {
         </div>
         <button
           onClick={handleDownload}
+          title="Save Artifact"
+          aria-label="Save Artifact"
           style={{
             background:T.surfaceHi, border:`1px solid ${T.borderHi}`, borderRadius:8,
             padding:"8px 14px", cursor:"pointer", display:"flex", alignItems:"center", gap:8,
@@ -7240,7 +7252,12 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
 
   const isBranchInvalid = branch ? !isValidGitBranchName(branch) : false;
 
-  const payloadEst = (JSON.stringify({prompt,source,branch}).length/1024).toFixed(1);
+  // OPTIMIZATION (Bolt): Memoize payloadEst calculation with useMemo to avoid allocating
+  // new objects and executing JSON.stringify on every single render pass of NewSession
+  // (e.g., during repository search typing, persona toggles, or confirmation modal updates).
+  const payloadEst = useMemo(() => {
+    return (JSON.stringify({ prompt, source, branch }).length / 1024).toFixed(1);
+  }, [prompt, source, branch]);
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%",minHeight:0,position:"relative"}}>
