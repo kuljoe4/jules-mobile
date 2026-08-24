@@ -10391,11 +10391,11 @@ function JulesClient() {
   useEffect(() => {
     const handleStorage = (e) => {
       if (e.key === "jac_key") setApiKey(e.newValue || "");
-      if (e.key === "jac_archived") {
-        try { setArchivedIds(new Set(JSON.parse(e.newValue || "[]"))); } catch {}
+      if (e.key === SafeStorage.KEYS.ARCHIVED) {
+        setArchivedIds(new Set(SafeStorage.loadArchived()));
       }
       if (e.key === SafeStorage.KEYS.ACT_STATS) {
-        try { setActivityStatsMap(JSON.parse(e.newValue || "{}")); } catch {}
+        setActivityStatsMap(SafeStorage.loadActStats());
       }
     };
     const handleCustomStats = (e) => {
