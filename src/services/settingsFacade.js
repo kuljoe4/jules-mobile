@@ -33,3 +33,6 @@ function savePlan(id) { SafeStorage.savePlan(id); }
 
 function loadCustomDaily() { return SafeStorage.loadCustomDaily(); }
 function saveCustomDaily(v) { SafeStorage.saveCustomDaily(v); }
+
+function loadLeanDirective() { return SafeStorage.loadLeanDirective(); }
+function saveLeanDirective(v) { SafeStorage.saveLeanDirective(v); }

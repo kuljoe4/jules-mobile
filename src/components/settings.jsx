@@ -10,6 +10,7 @@ const SettingsView = ({ onBack, isDesktop, settings, personas, setPersonas, toda
     planId, setPlanId,
     customDaily, setCustomDaily,
     apiTimeout, setApiTimeout,
+    leanDirective, setLeanDirective,
     plan
   } = settings;
 
@@ -292,6 +293,54 @@ const SettingsView = ({ onBack, isDesktop, settings, personas, setPersonas, toda
                     <strong style={{fontSize:10, letterSpacing:"0.05em"}}>ROLLING 24H WINDOW</strong>
                   </div>
                   The session counter uses a sliding 24-hour window. Tasks expire exactly 24 hours after they were created.
+                </div>
+              </div>
+
+              <div style={{background:T.surfaceHi, padding:20, borderRadius:12, border:`1px solid ${T.border}`}}>
+                <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:16}}>
+                  <Ic n="zap" s={16} c={T.brand}/>
+                  <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:12, fontWeight:700, color:T.text}}>LEAN MODE SYSTEM DIRECTIVE</span>
+                </div>
+                <div>
+                  <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8}}>
+                    <label htmlFor="lean_directive_input" style={{fontSize:11, color:T.textDim, fontFamily:"'JetBrains Mono',monospace", fontWeight:700}}>PROMPT DIRECTIVE</label>
+                    <button
+                      onClick={() => {
+                        setLeanDirective(DEFAULT_LEAN_DIRECTIVE);
+                        triggerSaveFeedback();
+                      }}
+                      style={{background:"none", border:"none", cursor:"pointer", color:T.brand, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700}}
+                    >
+                      RESET DEFAULT
+                    </button>
+                  </div>
+                  <textarea
+                    id="lean_directive_input"
+                    value={leanDirective}
+                    onChange={(e) => {
+                      setLeanDirective(e.target.value);
+                      triggerSaveFeedback();
+                    }}
+                    placeholder="Enter system directive injected when Lean Payload Mode is enabled..."
+                    aria-label="Lean Mode System Directive"
+                    maxLength={1000}
+                    style={{
+                      width:"100%",
+                      height:80,
+                      background:T.surface,
+                      border:`1px solid ${T.border}`,
+                      borderRadius:8,
+                      padding:10,
+                      color:T.text,
+                      fontSize:12,
+                      fontFamily:"'IBM Plex Sans',sans-serif",
+                      resize:"vertical",
+                      boxSizing:"border-box"
+                    }}
+                  />
+                  <div style={{marginTop:6, fontSize:10, color:T.textDim, fontFamily:"'IBM Plex Sans',sans-serif"}}>
+                    This directive is automatically appended to session prompts when Lean Payload Mode is toggled ON for a repository.
+                  </div>
                 </div>
               </div>
 
