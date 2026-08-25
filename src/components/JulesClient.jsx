@@ -468,7 +468,7 @@ function JulesClient() {
             plan={plan} todayCount={todayCount}
             searchQuery={searchQuery} setSearchQuery={setSearchQuery}
             archivedIds={archivedIds} showArchived={showArchived} setShowArchived={setShowArchived}
-            activitiesMap={{...activitiesMap}}
+            activitiesMap={activitiesMap}
             activityStatsMap={activityStatsMap}
             sessions={allSessions}
             error={globalErr} clearError={() => setGlobalErr(null)}

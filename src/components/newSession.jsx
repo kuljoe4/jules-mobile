@@ -14,6 +14,7 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
     autoMode, setAutoMode,
     reqApproval, setReqApp,
     selectedPersonas,
+    leanMode, setLeanMode, toggleLeanMode,
     submitting,
     err, setErr,
     savedFlash,
@@ -360,12 +361,13 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
 
             <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
               {[
-                {label:"AUTO PR",    val:autoMode,   set:setAutoMode, hint:"Create PR when done", disabled:!source},
-                {label:"APPROVE PLAN",val:reqApproval,set:setReqApp,  hint:"Review plan first"},
+                {label:"LEAN PAYLOAD",val:leanMode,   toggle:toggleLeanMode, hint:"Skip screenshots/videos to reduce payload", disabled:false},
+                {label:"AUTO PR",     val:autoMode,   toggle:()=>setAutoMode(v=>!v), hint:"Create PR when done", disabled:!source},
+                {label:"APPROVE PLAN", val:reqApproval,toggle:()=>setReqApp(v=>!v),  hint:"Review plan first", disabled:false},
               ].map(opt=>(
                 <button
                   key={opt.label}
-                  onClick={()=>!opt.disabled&&opt.set(v=>!v)}
+                  onClick={()=>!opt.disabled&&(opt.toggle ? opt.toggle() : null)}
                   disabled={opt.disabled}
                   title={`${opt.label}: ${opt.hint}`}
                   aria-label={`${opt.label}: ${opt.hint}`}

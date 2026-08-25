@@ -50,6 +50,87 @@ const getApproxBytes = (val) => {
   return 0;
 };
 
+const PAYLOAD_BREAKDOWN_CACHE = new WeakMap();
+
+const getPayloadBreakdown = (activities = []) => {
+  if (!activities || !Array.isArray(activities)) {
+    return { mediaBytes: 0, patchBytes: 0, messageBytes: 0, planBytes: 0, otherBytes: 0, totalBytes: 0, mediaCount: 0, patchCount: 0, topPatches: [], topMedia: [] };
+  }
+  const cached = PAYLOAD_BREAKDOWN_CACHE.get(activities);
+  if (cached !== undefined) return cached;
+
+  let mediaBytes = 0;
+  let patchBytes = 0;
+  let messageBytes = 0;
+  let planBytes = 0;
+  let mediaCount = 0;
+  let patchCount = 0;
+  const topPatches = [];
+  const topMedia = [];
+
+  for (let i = 0; i < activities.length; i++) {
+    const act = activities[i];
+    if (!act) continue;
+
+    // Artifacts / Media
+    if (act.artifacts && Array.isArray(act.artifacts)) {
+      for (let j = 0; j < act.artifacts.length; j++) {
+        const art = act.artifacts[j];
+        if (art.media) {
+          const mSize = getApproxBytes(art.media);
+          mediaBytes += mSize;
+          if (art.media.data) {
+            mediaCount++;
+            topMedia.push({
+              mimeType: art.media.mimeType || "image/png",
+              bytes: mSize,
+              ts: act.createTime
+            });
+          }
+        }
+        if (art.changeSet) {
+          const pSize = getApproxBytes(art.changeSet);
+          patchBytes += pSize;
+          patchCount++;
+
+          const unidiff = art.changeSet.gitPatch?.unidiffPatch;
+          let fileCount = 0;
+          if (unidiff) {
+            fileCount = (unidiff.match(/\+\+\+\s+b\//g) || []).length;
+          }
+
+          topPatches.push({
+            id: act.id || `act-${i}`,
+            bytes: pSize,
+            ts: act.createTime,
+            fileCount,
+            unidiff
+          });
+        }
+      }
+    }
+
+    // Messages
+    if (act.userMessaged) messageBytes += getApproxBytes(act.userMessaged);
+    if (act.agentMessaged) messageBytes += getApproxBytes(act.agentMessaged);
+
+    // Plans & Progress
+    if (act.planGenerated) planBytes += getApproxBytes(act.planGenerated);
+    if (act.progressUpdated) planBytes += getApproxBytes(act.progressUpdated);
+  }
+
+  topPatches.sort((a, b) => b.bytes - a.bytes);
+  topMedia.sort((a, b) => b.bytes - a.bytes);
+
+  const totalBytes = getActivitiesSize(activities);
+  const accounted = mediaBytes + patchBytes + messageBytes + planBytes;
+  const otherBytes = Math.max(0, totalBytes - accounted);
+
+  const res = { mediaBytes, patchBytes, messageBytes, planBytes, otherBytes, totalBytes, mediaCount, patchCount, topPatches, topMedia };
+  PAYLOAD_BREAKDOWN_CACHE.set(activities, res);
+  return res;
+};
+
 // Fast deep equality check that avoids costly stringification (JSON.stringify)
 // and handles early exit on primitive or property mismatch.
 const fastDeepEqual = (a, b) => {

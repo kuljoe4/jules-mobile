@@ -14,6 +14,11 @@ const useNewSessionFlow = ({ apiKey, personas, onCreate, initialDraft, onDraftSa
   const [autoMode,setAutoMode]     = useState(draft?.autoMode ?? true);
   const [reqApproval,setReqApp]    = useState(draft?.reqApproval ?? false);
   const [selectedPersonas, setSelectedPersonas] = useState(new Set(draft?.selectedPersonas || []));
+  const [leanMode, setLeanMode]    = useState(() => {
+    if (!source) return true;
+    const repos = SafeStorage.loadLeanModeRepos();
+    return repos[source] !== undefined ? repos[source] : true;
+  });
   const [submitting,setSub]        = useState(false);
   const [err,setErr]               = useState(null);
   const [savedFlash,setSavedFlash] = useState(false);
@@ -32,7 +37,26 @@ const useNewSessionFlow = ({ apiKey, personas, onCreate, initialDraft, onDraftSa
   useEffect(() => {
     if (srcObj) setSourceSearch(getSourceDisplay(srcObj));
     else if (source === "") setSourceSearch("No repo (repoless)");
+
+    if (source) {
+      const repos = SafeStorage.loadLeanModeRepos();
+      if (repos[source] !== undefined) {
+        setLeanMode(repos[source]);
+      } else {
+        setLeanMode(true);
+      }
+    }
   }, [srcObj, source, getSourceDisplay]);
+
+  const toggleLeanMode = useCallback(() => {
+    setLeanMode(prev => {
+      const next = !prev;
+      if (source) {
+        SafeStorage.saveLeanModeRepo(source, next);
+      }
+      return next;
+    });
+  }, [source]);
 
   const filteredSources = useMemo(() => {
     const search = sourceSearch.toLowerCase();
@@ -189,6 +213,10 @@ const useNewSessionFlow = ({ apiKey, personas, onCreate, initialDraft, onDraftSa
       }
     }
 
+    if (leanMode) {
+      finalPrompt += "\n\n[System Directive: Do not capture or attach visual media artifacts (screenshots or videos) unless specifically requested for visual bug verification.]";
+    }
+
     const body = {
       prompt: finalPrompt,
       ...(source&&{
@@ -233,6 +261,7 @@ const useNewSessionFlow = ({ apiKey, personas, onCreate, initialDraft, onDraftSa
     autoMode, setAutoMode,
     reqApproval, setReqApp,
     selectedPersonas, setSelectedPersonas,
+    leanMode, setLeanMode, toggleLeanMode,
     submitting, setSub,
     err, setErr,
     savedFlash, setSavedFlash,

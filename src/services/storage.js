@@ -29,6 +29,7 @@ const SafeStorage = {
     API_KEY: "jac_key",
     API_TIMEOUT: "jac_api_timeout",
     GITHUB_TOKEN: "jac_github_token",
+    LEAN_MODE_REPOS: "jac_lean_mode_repos",
   },
 
   // ─── CORE GENERIC HELPERS ──────────────────────────────────────────────────
@@ -282,6 +283,17 @@ const SafeStorage = {
     this.setItem(this.KEYS.LAST_SOURCE, name || "");
   },
 
+  loadLeanModeRepos() {
+    return this.getJSON(this.KEYS.LEAN_MODE_REPOS, {});
+  },
+  saveLeanModeRepo(source, isLean) {
+    if (!source) return;
+    try {
+      const repos = this.loadLeanModeRepos();
+      repos[source] = !!isLean;
+      this.setJSON(this.KEYS.LEAN_MODE_REPOS, repos);
+    } catch {}
+  },
   loadLastBranches() {
     return this.getJSON(this.KEYS.LAST_BRANCHES, {});
   },
