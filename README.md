@@ -1,6 +1,6 @@
 # Jules Mobile Client
 
-A single-file React web app for monitoring and controlling Jules AI coding sessions. Pre-compiled and optimized for GitHub Pages.
+A React web application for monitoring and controlling Jules AI coding sessions.
 
 ## Development
 
@@ -10,7 +10,7 @@ npm install
 npm run dev
 ```
 
-This builds the app and opens it in your browser at `http://localhost:8080`.
+This builds the app and serves it on `http://localhost:8080`.
 
 ### Build for Production
 ```bash
@@ -31,73 +31,47 @@ The repository includes a GitHub Actions workflow that automatically builds and 
 
 2. **Push your changes:**
    ```bash
-   git add .
-   git commit -m "Update app"
    git push
    ```
 
-3. The workflow will automatically build and deploy. Your site will be live at:
-   ```
-   https://<your-username>.github.io/<repo-name>
-   ```
-
-### Manual Deployment
-If you prefer to deploy manually:
-
-1. Build locally:
-   ```bash
-   npm run build
-   ```
-
-2. Commit and push the `dist/` folder to your repository
-
-3. Configure GitHub Pages to deploy from the `dist/` folder
+3. The workflow will automatically build and deploy.
 
 ## Tech Stack
 
 - **React** 18 - UI framework
-- **Babel** - Robust JSX transpiler (pre-compiles UI for production)
+- **Babel** - Pre-compiles JSX for production performance
 - **GitHub Actions** - CI/CD for automatic deploys
 
 ## Build Architecture
 
-The application is designed as a single-file React app that is transpiled during the build process to optimize production performance.
+The application uses a custom `build.js` script to transform the source into a highly optimized, production-ready single-file application.
 
-1.  **Source File (`index.html`)**: Contains the React application logic within a `<script type="text/babel">` block. This allows for easy development as Babel can compile the JSX in-browser when opened directly.
-2.  **Build Script (`build.js`)**: When `npm run build` is executed, this script:
-    *   Extracts the JSX code from `index.html`.
-    *   Transpiles it using **Babel** (`@babel/core`) into standard JavaScript.
-    *   Replaces the original Babel script block with the transpiled code.
-    *   Removes development-only dependencies like the `@babel/standalone` CDN script.
-    *   Outputs a self-contained, optimized `dist/index.html`.
-3.  **Production Startup**: The `dist/index.html` file is served by GitHub Pages (or any static host). Upon loading, it fetches React and ReactDOM from CDNs and executes the pre-compiled JavaScript, mounting the application instantly without any runtime compilation overhead.
+1.  **Source Structure**: The application is organized in `src/` into components, services, hooks, and utilities.
+2.  **Build Process (`build.js`)**:
+    *   Reads the `source-manifest.json` to assemble modules.
+    *   Transpiles JSX to standard JavaScript using **Babel**.
+    *   Injects the compiled application code into `index.html` at the `%%APP_SCRIPT%%` placeholder.
+    *   Produces a self-contained, optimized `dist/index.html`.
+3.  **Production**: The `dist/index.html` file is served statically, providing instant startup with no runtime compilation overhead.
+
+## Key Components
+
+- **`Shell.jsx`**: The main application container and layout manager.
+- **`JulesClient.jsx`**: The core logic interface for interacting with the Jules agent.
+- **`ErrorBoundary.jsx`**: Global error handling to ensure app stability.
+- **Components (`activityFeed`, `quotaTimeline`, `sessionDetail`, etc.)**: Modular building blocks for the user interface.
 
 ## Features
 
-- ✅ Pre-compiled JSX (no Babel at runtime)
-- ✅ Single-file app compatible with GitHub Pages
+- ✅ Pre-compiled JSX (zero runtime transpilation)
 - ✅ PWA-ready with offline support
 - ✅ Mobile-responsive UI
-- ✅ High-density Quota Tracking with sliding 24h window
-- ✅ Unified Progress Architecture (Session + Sync synchronization)
-- ✅ Automatic deployments via GitHub Actions
-
-## Architecture Details
-
-### Transpilation & Build
-The application uses a custom `build.js` script to ensure maximum compatibility and performance:
-- **Classic JSX Runtime**: Uses `React.createElement` for maximum compatibility with CDN-delivered React.
-- **CommonJS-Free Output**: Prevents `ReferenceError: require is not defined` by ensuring Babel does not inject module imports.
-- **Automatic Cleanup**: Removes development-only scripts (like `@babel/standalone`) from the production build.
-
-### Quota Management
-Jules Mobile implements a sophisticated rolling 24-hour window for quota tracking:
-- **Real-time Recovery**: Displays exactly when next slots will be available.
-- **History Tracking**: Shows recently recovered slots for transparency.
-- **Efficiency**: Uses smart delta-polling to minimize bandwidth while maintaining up-to-date status.
+- ✅ High-density Quota Tracking
+- ✅ Unified Session/Sync management
+- ✅ Automated deployments via GitHub Actions
 
 ## Notes
 
-- The app uses localStorage for API key storage (browser-only, never sent to servers)
-- Works entirely client-side — no backend required
-- Compatible with GitHub Pages static hosting
+- The app uses `localStorage` for API key storage (browser-only, never sent to servers).
+- The application operates entirely client-side — no backend required.
+- Compatible with any static host (GitHub Pages, Vercel, Netlify).
