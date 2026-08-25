@@ -54,7 +54,7 @@ const PAYLOAD_BREAKDOWN_CACHE = new WeakMap();
 
 const getPayloadBreakdown = (activities = []) => {
   if (!activities || !Array.isArray(activities)) {
-    return { mediaBytes: 0, patchBytes: 0, messageBytes: 0, planBytes: 0, otherBytes: 0, totalBytes: 0, mediaCount: 0, patchCount: 0 };
+    return { mediaBytes: 0, patchBytes: 0, messageBytes: 0, planBytes: 0, otherBytes: 0, totalBytes: 0, mediaCount: 0, patchCount: 0, topPatches: [], topMedia: [] };
   }
   const cached = PAYLOAD_BREAKDOWN_CACHE.get(activities);
   if (cached !== undefined) return cached;
@@ -65,6 +65,8 @@ const getPayloadBreakdown = (activities = []) => {
   let planBytes = 0;
   let mediaCount = 0;
   let patchCount = 0;
+  const topPatches = [];
+  const topMedia = [];
 
   for (let i = 0; i < activities.length; i++) {
     const act = activities[i];
@@ -75,12 +77,35 @@ const getPayloadBreakdown = (activities = []) => {
       for (let j = 0; j < act.artifacts.length; j++) {
         const art = act.artifacts[j];
         if (art.media) {
-          mediaBytes += getApproxBytes(art.media);
-          if (art.media.data) mediaCount++;
+          const mSize = getApproxBytes(art.media);
+          mediaBytes += mSize;
+          if (art.media.data) {
+            mediaCount++;
+            topMedia.push({
+              mimeType: art.media.mimeType || "image/png",
+              bytes: mSize,
+              ts: act.createTime
+            });
+          }
         }
         if (art.changeSet) {
-          patchBytes += getApproxBytes(art.changeSet);
+          const pSize = getApproxBytes(art.changeSet);
+          patchBytes += pSize;
           patchCount++;
+
+          const unidiff = art.changeSet.gitPatch?.unidiffPatch;
+          let fileCount = 0;
+          if (unidiff) {
+            fileCount = (unidiff.match(/\+\+\+\s+b\//g) || []).length;
+          }
+
+          topPatches.push({
+            id: act.id || `act-${i}`,
+            bytes: pSize,
+            ts: act.createTime,
+            fileCount,
+            unidiff
+          });
         }
       }
     }
@@ -94,11 +119,14 @@ const getPayloadBreakdown = (activities = []) => {
     if (act.progressUpdated) planBytes += getApproxBytes(act.progressUpdated);
   }
 
+  topPatches.sort((a, b) => b.bytes - a.bytes);
+  topMedia.sort((a, b) => b.bytes - a.bytes);
+
   const totalBytes = getActivitiesSize(activities);
   const accounted = mediaBytes + patchBytes + messageBytes + planBytes;
   const otherBytes = Math.max(0, totalBytes - accounted);
 
-  const res = { mediaBytes, patchBytes, messageBytes, planBytes, otherBytes, totalBytes, mediaCount, patchCount };
+  const res = { mediaBytes, patchBytes, messageBytes, planBytes, otherBytes, totalBytes, mediaCount, patchCount, topPatches, topMedia };
   PAYLOAD_BREAKDOWN_CACHE.set(activities, res);
   return res;
 };
