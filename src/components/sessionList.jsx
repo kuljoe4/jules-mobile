@@ -1,0 +1,368 @@
+const FILTERS = ["ALL","QUEUED","PLANNING","AWAITING_PLAN_APPROVAL","IN_PROGRESS","COMPLETED","FAILED","HAS_DRAFT"];
+const FILTER_LABELS = { AWAITING_PLAN_APPROVAL:"APPROVE", ALL:"ALL", HAS_DRAFT:"HAS DRAFT" };
+
+const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed, selectedId, isDesktop, onNew, onDrafts, onSettings, pollInterval, sessionLimit, countdown, plan, todayCount, searchQuery, setSearchQuery, archivedIds, showArchived, setShowArchived, activitiesMap = {}, activityStatsMap = {}, error, clearError, isBoosted, readMap, draftsMap = {}, ignoredIds = new Set(), filterResetTrigger }) => {
+  const [filter,setFilter] = useState("ALL");
+  const [scrolled, handleScroll] = useScrollThreshold();
+
+  useEffect(() => {
+    if (filterResetTrigger) {
+      setFilter("ALL");
+    }
+  }, [filterResetTrigger]);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchInputRef = useRef(null);
+
+  const toggleSearch = () => {
+    if (searchOpen || searchQuery) {
+      setSearchOpen(false);
+      setSearchQuery("");
+    } else {
+      setSearchOpen(true);
+    }
+  };
+
+  useEffect(() => {
+    const handleGlobalKeyDown = (e) => {
+      const active = document.activeElement;
+      if (active && (
+        active.tagName === "INPUT" ||
+        active.tagName === "TEXTAREA" ||
+        active.tagName === "SELECT" ||
+        active.isContentEditable
+      )) {
+        return;
+      }
+      if (e.key === "/") {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+  }, []);
+
+  useEffect(() => {
+    if (searchOpen && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [searchOpen]);
+  const baseFiltered = useMemo(() => {
+    let list = sessions.filter(s => archivedIds.has(s.id) === showArchived && !ignoredIds.has(s.id));
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter(s => (s.title||"").toLowerCase().includes(q) || (s.prompt||"").toLowerCase().includes(q) || (s.id||"").toLowerCase().includes(q));
+    }
+    return list;
+  }, [sessions, archivedIds, showArchived, searchQuery, ignoredIds]);
+  const filtered = useMemo(() => {
+    if (filter === "ALL") return baseFiltered;
+    if (filter === "HAS_DRAFT") return baseFiltered.filter(s => draftsMap[s.id]);
+    return baseFiltered.filter(s => s.state === filter);
+  }, [filter, baseFiltered, draftsMap]);
+  const active = useMemo(() => sessions.filter(s=>ACTIVE_STATES.has(s.state)).length, [sessions]);
+
+  // Pre-aggregate filter counts in a single O(N) pass to avoid O(N * K) full array filters on every render tick
+  const filterCountsMap = useMemo(() => {
+    const counts = { ALL: sessions.length, HAS_DRAFT: 0 };
+    for (let i = 0; i < sessions.length; i++) {
+      const s = sessions[i];
+      if (draftsMap[s.id]) {
+        counts.HAS_DRAFT = (counts.HAS_DRAFT || 0) + 1;
+      }
+      if (s.state) {
+        counts[s.state] = (counts[s.state] || 0) + 1;
+      }
+    }
+    return counts;
+  }, [sessions, draftsMap]);
+
+  const hasDrafts = useMemo(() => {
+    return Object.keys(draftsMap).length > 0 || loadDraftsBox().length > 0;
+  }, [draftsMap]);
+
+  const latestCompletedTimeByRepo = useMemo(() => {
+    const map = {};
+    sessions.forEach(other => {
+      if (other.state === "COMPLETED") {
+        const repo = other.sourceContext?.source;
+        if (repo) {
+          const completionTime = parseDateMs(other.updateTime || other.createTime);
+          if (!map[repo] || completionTime > map[repo]) {
+            map[repo] = completionTime;
+          }
+        }
+      }
+    });
+    return map;
+  }, [sessions]);
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",height:"100%",minHeight:0}}>
+      <div style={{padding:scrolled?"8px 16px 8px":"12px 16px 0",background:T.surface,borderBottom:`1px solid ${T.border}33`,flexShrink:0,transition:"padding .2s cubic-bezier(0.4, 0, 0.2, 1), background .2s cubic-bezier(0.4, 0, 0.2, 1)",zIndex: 5, contain: "layout"}}>
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:scrolled?0:10}}>
+          <div style={{width:scrolled?20:32,height:scrolled?20:32,borderRadius:6,background:T.brand,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace",fontSize:scrolled?11:18,fontWeight:900,color:"#000",boxShadow:scrolled?"none":`0 0 12px ${T.brandDark}40`,flexShrink:0,transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)"}}>J</div>
+          <div style={{minWidth:0, transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)"}}>
+            <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:scrolled?12:14,fontWeight:700,color:T.text}}>JULES</div>
+            {!scrolled && <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:active>0?T.amber:T.muted}}>{active>0?`⚡ ${active} ACTIVE`:"AGENT CLIENT"}</div>}
+          </div>
+          <div style={{marginLeft:"auto",display:"flex",gap:6,alignItems:"center",flexShrink:0}}>
+            <button onClick={toggleSearch} title="Search sessions (Press /)" aria-label="Search sessions (Press forward slash to search)" style={{width:30,height:30,borderRadius:5,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="search" s={15} c={searchOpen||searchQuery?T.blue:T.muted}/></button>
+            {isDesktop&&<button onClick={onNew} title="New Session" aria-label="New Session" style={{width:30,height:30,borderRadius:5,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="plus" s={15} c={T.brand}/></button>}
+            <button
+              onClick={onDrafts}
+              title={hasDrafts ? "Drafts Box (Has saved drafts)" : "Drafts Box"}
+              aria-label={hasDrafts ? "Drafts Box (Has saved drafts)" : "Drafts Box"}
+              style={{
+                width:30,
+                height:30,
+                borderRadius:5,
+                background:"transparent",
+                border:"none",
+                display:"flex",
+                alignItems:"center",
+                justifyContent:"center",
+                cursor:"pointer",
+                position:"relative"
+              }}
+            >
+              <Ic n="layers" s={15} c={hasDrafts ? T.amber : T.muted}/>
+              {hasDrafts && (
+                <span
+                  style={{
+                    position: "absolute",
+                    top: 4,
+                    right: 4,
+                    width: 6,
+                    height: 6,
+                    borderRadius: "50%",
+                    background: T.amber,
+                    boxShadow: `0 0 4px ${T.amber}`
+                  }}
+                />
+              )}
+            </button>
+            <button onClick={onSettings} title="Settings" aria-label="Settings" style={{width:30,height:30,borderRadius:5,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="settings" s={15} c={T.muted}/></button>
+            <div style={{display:"flex", alignItems:"center", gap:4}}>
+              {countdown > 0 && !refreshing && (
+                <div style={{
+                  fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:900,
+                  color:isBoosted?T.amber:T.brand, opacity:0.6, animation:"fadeIn .3s ease",
+                  display:"flex", alignItems:"center", gap:3, marginRight:2
+                }}>
+                  {isBoosted && <span style={{width:3, height:3, borderRadius:"50%", background:T.amber, animation:"dot 1s infinite"}}/>}
+                  {countdown}S
+                </div>
+              )}
+              <button
+                onClick={onRefresh}
+                disabled={refreshing}
+                title={`Refresh now ${countdown > 0 ? `(Auto in ${countdown}s)` : ""}`}
+                aria-label="Refresh session list"
+                style={{
+                  background:"none", border:"none", cursor:refreshing?"default":"pointer",
+                  display:"flex", padding:4, borderRadius:20, transition:"all .15s cubic-bezier(0.4, 0, 0.2, 1)",
+                  background:refreshing?T.brandDim:"transparent",
+                  position:"relative",
+                  outline: countdown > 0 && !refreshing ? `1px solid ${T.brand}10` : "none",
+                }}
+                onMouseDown={e => e.currentTarget.style.transform = "scale(0.9)"}
+                onMouseUp={e => e.currentTarget.style.transform = "scale(1)"}
+              >
+                {countdown > 0 && !refreshing && (
+                  <svg style={{ position: "absolute", inset: 0, transform: "rotate(-90deg)", width: "100%", height: "100%", pointerEvents: "none" }}>
+                    <circle
+                      cx="50%" cy="50%" r="42%"
+                      fill="none" stroke={T.brand} strokeWidth="2"
+                      strokeDasharray="100%"
+                      strokeDashoffset={`${100 - (countdown / (pollInterval / 1000 || 1)) * 100}%`}
+                      style={{ transition: "stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1)", opacity: 0.35 }}
+                    />
+                  </svg>
+                )}
+                <div style={{ display: "flex", animation: refreshing ? "spin 1s linear infinite" : "none" }}>
+                  <Ic n={justRefreshed ? "check" : "refresh"} s={16} c={refreshing?T.brand:(justRefreshed?T.brandLight:T.textDim)}/>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+        {error && (
+          <div style={{
+            background:T.redDim, border:`1px solid ${T.red}40`, borderRadius:6,
+            padding:"8px 12px", marginBottom:12, display:"flex", alignItems:"center", gap:10,
+            animation:"fadeIn .2s ease"
+          }}>
+            <Ic n="x" s={14} c={T.red}/>
+            <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.red, flex:1}}>{error}</span>
+            <button onClick={clearError} title="Clear error" aria-label="Clear error" style={{background:"none", border:"none", cursor:"pointer", padding:2}}><Ic n="x" s={12} c={T.red}/></button>
+          </div>
+        )}
+        {(searchOpen || searchQuery) && (
+          <div style={{height:scrolled?0:42, overflow:"hidden", opacity:scrolled?0:1, transition:"all .25s cubic-bezier(0.4, 0, 0.2, 1)", marginBottom:scrolled?0:8, padding:scrolled?0:"4px 2px", pointerEvents:scrolled?"none":"auto"}}>
+            <div style={{position:"relative", display:"flex", alignItems:"center"}}>
+              <div style={{position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", pointerEvents:"none"}}><Ic n="search" s={14} c={T.blue}/></div>
+              <input
+                ref={searchInputRef}
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Search by title, prompt or ID..."
+                aria-label="Search by title, prompt or ID"
+                maxLength={200}
+                style={{...inputSt, paddingLeft:34, paddingRight: searchQuery ? 34 : 48, borderColor:T.blue+"40", background:T.surfaceHi}}
+                autoFocus
+                onKeyDown={e => {
+                  if (e.key === "Escape") {
+                    if (searchQuery) {
+                      setSearchQuery("");
+                    } else {
+                      setSearchOpen(false);
+                    }
+                  }
+                }}
+              />
+              {!searchQuery && (
+                <div style={{position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", pointerEvents:"none", display:"flex", alignItems:"center"}}>
+                  <kbd style={{
+                    fontFamily: "'JetBrains Mono',monospace",
+                    fontSize: "9px",
+                    fontWeight: 700,
+                    color: T.muted,
+                    background: T.surface,
+                    border: `1px solid ${T.border}`,
+                    borderRadius: "4px",
+                    padding: "2px 4px",
+                    lineHeight: 1,
+                  }}>ESC</kbd>
+                </div>
+              )}
+              {searchQuery && <button onClick={() => setSearchQuery("")} title="Clear search query" aria-label="Clear search query" style={{position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", padding:4}}><Ic n="x" s={14} c={T.muted}/></button>}
+            </div>
+          </div>
+        )}
+        {isDesktop && (
+          <div style={{display:"flex", gap:4, alignItems:"center", height:scrolled?0:22, overflow:"hidden", opacity:scrolled?0:1, marginBottom:scrolled?0:8, padding:scrolled?0:"4px 2px", transition:"all .25s cubic-bezier(0.4, 0, 0.2, 1)", pointerEvents:scrolled?"none":"auto"}}>
+            <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.textDim, letterSpacing:"0.08em", flexShrink:0, paddingRight:2}}>SESSIONS</span>
+            <button onClick={() => setShowArchived(false)} style={{flexShrink:0, minHeight:36, padding:"0 14px", display:"inline-flex", alignItems:"center", justifyContent:"center", borderRadius:20, border:"none", background:!showArchived ? T.brandDim : "transparent", border:`1px solid ${!showArchived ? T.brand+"60" : T.border}`, color:!showArchived ? T.brand : T.muted, fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:!showArchived?700:400, letterSpacing:"0.05em", cursor:"pointer", transition:"all .12s cubic-bezier(0.4, 0, 0.2, 1)"}}>ACTIVE</button>
+            <button onClick={() => setShowArchived(true)} style={{flexShrink:0, minHeight:36, padding:"0 14px", display:"inline-flex", alignItems:"center", justifyContent:"center", borderRadius:20, border:"none", background:showArchived ? T.purpleDim : "transparent", border:`1px solid ${showArchived ? T.purple+"60" : T.border}`, color:showArchived ? T.purple : T.muted, fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:showArchived?700:400, letterSpacing:"0.05em", cursor:"pointer", transition:"all .12s cubic-bezier(0.4, 0, 0.2, 1)"}}>ARCHIVED</button>
+          </div>
+        )}
+        <div style={{position: "relative", maxHeight:scrolled?0:60, opacity:scrolled?0:1, transition:"all .25s cubic-bezier(0.4, 0, 0.2, 1)", pointerEvents:scrolled?"none":"auto"}}>
+          {!scrolled && <div style={{position:"absolute", right:0, top:0, bottom:10, width:40, background:`linear-gradient(to left, ${T.bg}, transparent)`, pointerEvents:"none", zIndex:2}}/>}
+          <div style={{overflowX:"auto", padding:scrolled?0:"4px 2px 10px", scrollbarWidth:"none", WebkitOverflowScrolling:"touch"}}>
+            <div style={{display:"flex",gap:5,minWidth:"max-content",padding:"4px 0", alignItems:"center"}}>
+              <div
+                title={`QUOTA USAGE\nStarted: ${todayCount.total} of ${plan?.daily || 15}\nPRs Created: ${todayCount.done}\nIn Progress: ${todayCount.total - todayCount.done}\nNext Recovery: ${todayCount.nextResetTs ? fmtTime(todayCount.nextResetTs) : "N/A"} (${todayCount.resetIn})`}
+                style={{
+                  display:"flex", alignItems:"center", gap:9, padding:"6px 14px", borderRadius:22,
+                  background:`linear-gradient(135deg, ${T.surfaceHi}, ${T.bg})`,
+                  border:`1px solid ${T.borderHi}`, marginRight:10, flexShrink:0, cursor:"help",
+                  boxShadow:`0 4px 12px rgba(0,0,0,0.3), inset 0 0 10px ${T.brand}05`,
+                  transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)", position:"relative", overflow:"hidden"
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.transform = "translateY(-1px)";
+                  e.currentTarget.style.borderColor = T.brandDark;
+                  e.currentTarget.style.boxShadow = `0 6px 16px rgba(0,0,0,0.4), inset 0 0 15px ${T.brand}10`;
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.transform = "none";
+                  e.currentTarget.style.borderColor = T.borderHi;
+                  e.currentTarget.style.boxShadow = `0 4px 12px rgba(0,0,0,0.3), inset 0 0 10px ${T.brand}05`;
+                }}
+              >
+                {/* Visual indicator bar */}
+                <div style={{
+                  position:"absolute", bottom:0, left:0, height:2,
+                  width:`${Math.min(100, (todayCount.total / (plan?.daily || 15)) * 100)}%`,
+                  background:todayCount.total >= (plan?.daily||15) ? T.red : todayCount.total / (plan?.daily||15) > 0.8 ? T.amber : T.brand,
+                  opacity:0.6, transition:"width .5s cubic-bezier(0.4, 0, 0.2, 1)"
+                }}/>
+
+                <div style={{
+                  width:7, height:7, borderRadius:"50%",
+                  background:todayCount.total >= (plan?.daily||15) ? T.red : todayCount.total / (plan?.daily||15) > 0.8 ? T.amber : T.brandLight,
+                  boxShadow:`0 0 10px ${todayCount.total / (plan?.daily||15) > 0.8 ? T.amber : T.brandLight}80`,
+                  animation: todayCount.total >= (plan?.daily||15) ? "dot 1s infinite" : "none"
+                }}/>
+
+                <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 1 }}>
+                    <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:13, fontWeight:800, color:T.text, letterSpacing:"-0.03em"}}>
+                      {todayCount.total}
+                    </span>
+                    <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:T.dim, fontWeight:500}}>/</span>
+                    <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.dim, fontWeight:700}}>
+                      {plan?.daily || 15}
+                    </span>
+                  </div>
+
+                  <div style={{ width: 1, height: 12, background: T.border, margin: "0 4px" }} />
+
+                  <div style={{ display: "flex", alignItems: "center", gap: 3, background:T.brandDim, padding:"2px 6px", borderRadius:4, border:`1px solid ${T.brand}20` }}>
+                    <Ic n="git_pull" s={11} c={T.brandLight}/>
+                    <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:900, color:T.brandLight}}>
+                      {todayCount.done}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              {FILTERS.map(f => {
+                const cnt = filterCountsMap[f] || 0;
+                if (cnt===0 && f!=="ALL" && f!==filter) return null;
+                const isAct = f===filter;
+                const ac = STATUS_META[f]?.color || T.brand;
+                return (
+                  <button key={f} onClick={()=>setFilter(f)} style={{flexShrink:0, minHeight:36, padding:"0 14px", display:"inline-flex", alignItems:"center", justifyContent:"center", borderRadius:20,border:"none",background:isAct?`${ac}20`:"transparent",border:`1px solid ${isAct?`${ac}80`:T.border}`,color:isAct?ac:T.muted,fontFamily:"'JetBrains Mono',monospace",fontSize:11,fontWeight:700,letterSpacing:"0.06em",cursor:"pointer",transition:"background .12s cubic-bezier(0.4, 0, 0.2, 1), color .12s cubic-bezier(0.4, 0, 0.2, 1)"}}>{FILTER_LABELS[f]||f} {cnt>0?cnt:""}</button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+      <div onScroll={handleScroll} style={{flex:1,overflowY:"auto",padding:"10px 12px",WebkitOverflowScrolling:"touch",minHeight:200}}>
+        {refreshing&&sessions.length===0&&<div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>Loading sessions…</div>}
+        {!refreshing&&filtered.length===0&&(() => {
+          let icon = "tasks", color = T.brand, bg = T.brandDim, titleText = "NO SESSIONS", descText = "No sessions found.", ctaText = null, ctaAction = null;
+          if (sessions.length === 0) {
+            icon = "database"; color = T.brand; bg = T.brandDim; titleText = "GET STARTED"; descText = "Create your first coding session to begin working with Jules."; ctaText = "CREATE SESSION"; ctaAction = onNew;
+          } else if (searchQuery.trim() !== "") {
+            icon = "search"; color = T.blue; bg = T.blueDim; titleText = "NO MATCHES"; descText = `No results found for "${searchQuery}".`; ctaText = "CLEAR SEARCH"; ctaAction = () => setSearchQuery("");
+          } else if (filter !== "ALL") {
+            const meta = STATUS_META[filter] || {}; icon = meta.icon || "tasks"; color = meta.color || T.brand; bg = meta.bg || T.brandDim; titleText = `NO ${meta.label || filter}`; descText = `No sessions are currently in ${meta.label || filter} status.`; ctaText = "SHOW ALL SESSIONS"; ctaAction = () => setFilter("ALL");
+          } else if (showArchived) {
+            icon = "archive"; color = T.purple; bg = T.purpleDim; titleText = "ARCHIVE EMPTY"; descText = "You have no archived sessions."; ctaText = "VIEW ACTIVE"; ctaAction = () => setShowArchived(false);
+          } else {
+            icon = "tasks"; color = T.brand; bg = T.brandDim; titleText = "NO ACTIVE SESSIONS"; descText = "There are no active sessions to display."; ctaText = "CREATE SESSION"; ctaAction = onNew;
+          }
+          return (
+            <div role="status" style={{textAlign:"center", padding:"36px 16px", background:T.surface, border:`1px dashed ${T.border}`, borderRadius:12, margin:"12px 4px", display:"flex", flexDirection:"column", alignItems:"center", gap:14, animation:"fadeIn .3s ease"}}>
+              <div style={{width:44, height:44, borderRadius:"50%", background:bg, border:`1px solid ${color}30`, display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 6px 12px rgba(0,0,0,0.15)"}}><Ic n={icon} s={18} c={color}/></div>
+              <div>
+                <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:900, color, letterSpacing:"0.08em", marginBottom:4}}>{titleText}</div>
+                <div style={{fontFamily:"'IBM Plex Sans',sans-serif", fontSize:13, color:T.textDim, lineHeight:1.4, maxWidth:260, margin:"0 auto"}}>{descText}</div>
+              </div>
+              {ctaText && ctaAction && (
+                <button onClick={ctaAction} title={ctaText} aria-label={ctaText} style={{marginTop:4, padding:"8px 16px", borderRadius:6, border:"none", background:color, color:"#000", cursor:"pointer", fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:900, letterSpacing:"0.06em", transition:"all .15s ease", boxShadow:`0 4px 12px ${color}30`}} onMouseEnter={e=>e.currentTarget.style.transform="translateY(-1px)"} onMouseLeave={e=>e.currentTarget.style.transform="none"}>{ctaText}</button>
+              )}
+            </div>
+          );
+        })()}
+        {filtered.map((s,i)=><SessionCard key={s.id||s.name} index={i+1} s={s} onSelect={onSelect} isSelected={s.id===selectedId} activities={activitiesMap[s.id] || EMPTY_ARR} stats={activityStatsMap[s.id]} lastReadTs={readMap[s.id]} latestCompletedTime={latestCompletedTimeByRepo[s.sourceContext?.source]} hasFollowupDraft={!!draftsMap[s.id]}/>)}
+      </div>
+    </div>
+  );
+};
+
+// ─── Quota Tracker hook ────────────────────────────────────────────────────────
+/**
+ * useQuotaTracker
+ *
+ * Custom hook that encapsulates the daily quota tracking, session registry management,
+ * rolling 24-hour window computations, and upcoming/recent quota resets calculations.
+ *
+ * Exposes:
+ *  - todayCount: { total, done, resetIn, nextResetTs, upcomingResets, recentResets }
+ *  - registerSessions(sessionsList)
+ *  - registerSession(sessionObj)
+ */
