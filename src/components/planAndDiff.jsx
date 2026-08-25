@@ -245,6 +245,7 @@ const DiffViewer = memo(({ activities = [], isDesktop = false }) => {
   const [copiedPaths, setCopiedPaths] = useState({}); // gi -> boolean
   const [copiedDiffs, setCopiedDiffs] = useState({}); // gi -> boolean
   const [copiedPlains, setCopiedPlains] = useState({}); // gi -> boolean
+  const [copiedOverallDebug, setCopiedOverallDebug] = useState(false);
 
   const latestPatch = useMemo(() => {
     // Find only the most recent patch artifact
@@ -349,7 +350,40 @@ const DiffViewer = memo(({ activities = [], isDesktop = false }) => {
             <span style={{color:T.red}}>-{totalRems}</span>
           </div>
         </div>
-        <div style={{display:"flex", gap:6}}>
+        <div style={{display:"flex", gap:6, alignItems:"center"}}>
+          <button
+            onClick={() => {
+              const debugReport = {
+                fileCount: groups.length,
+                totalAdds,
+                totalRems,
+                timestamp: latestPatch?.ts,
+                files: groups.map(g => ({
+                  file: g.file,
+                  adds: g.adds,
+                  rems: g.rems,
+                  bytes: g.rawLines ? g.rawLines.join("\n").length : 0,
+                  formattedSize: fmtBytes((g.rawLines ? g.rawLines.join("\n").length : 0) / 1024),
+                  hunkCount: g.hunks.length
+                }))
+              };
+              navigator.clipboard.writeText(JSON.stringify(debugReport, null, 2)).then(() => {
+                setCopiedOverallDebug(true);
+                setTimeout(() => setCopiedOverallDebug(false), 2000);
+              });
+            }}
+            title="Copy overall diff debug report to clipboard"
+            aria-label="Copy overall diff debug report"
+            style={{
+              padding: "4px 8px", borderRadius: 12, border: `1px solid ${T.purple}40`,
+              background: `${T.purple}15`, color: T.purple, cursor: "pointer",
+              fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 800,
+              display: "inline-flex", alignItems: "center", gap: 4, transition: "all .15s ease"
+            }}
+          >
+            <Ic n="copy" s={10} c={T.purple} />
+            {copiedOverallDebug ? "LOG COPIED ✓" : "COPY DEBUG LOG"}
+          </button>
           <PickerBtn label="EXPAND" isAct={safeCollapsed.size === 0} onClick={() => toggleAll(false)} />
           <PickerBtn label="COLLAPSE" isAct={safeCollapsed.size === groups.length} onClick={() => toggleAll(true)} />
         </div>
