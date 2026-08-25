@@ -214,7 +214,8 @@ const useNewSessionFlow = ({ apiKey, personas, onCreate, initialDraft, onDraftSa
     }
 
     if (leanMode) {
-      finalPrompt += "\n\n[System Directive: Do not capture or attach visual media artifacts (screenshots or videos) unless specifically requested for visual bug verification.]";
+      const activeDirective = loadLeanDirective();
+      finalPrompt += "\n\n" + activeDirective;
     }
 
     const body = {

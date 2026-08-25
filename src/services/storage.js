@@ -30,6 +30,7 @@ const SafeStorage = {
     API_TIMEOUT: "jac_api_timeout",
     GITHUB_TOKEN: "jac_github_token",
     LEAN_MODE_REPOS: "jac_lean_mode_repos",
+    LEAN_DIRECTIVE: "jac_lean_directive",
   },
 
   // ─── CORE GENERIC HELPERS ──────────────────────────────────────────────────
@@ -293,6 +294,13 @@ const SafeStorage = {
       repos[source] = !!isLean;
       this.setJSON(this.KEYS.LEAN_MODE_REPOS, repos);
     } catch {}
+  },
+
+  loadLeanDirective() {
+    return this.getItem(this.KEYS.LEAN_DIRECTIVE, DEFAULT_LEAN_DIRECTIVE);
+  },
+  saveLeanDirective(val) {
+    this.setItem(this.KEYS.LEAN_DIRECTIVE, val);
   },
   loadLastBranches() {
     return this.getJSON(this.KEYS.LAST_BRANCHES, {});

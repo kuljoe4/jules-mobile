@@ -2155,6 +2155,7 @@ const PayloadBreakdownModal = ({ breakdown, onClose }) => {
   const { mediaBytes, patchBytes, messageBytes, planBytes, otherBytes, totalBytes, mediaCount, patchCount, topPatches = [], topMedia = [] } = breakdown;
   const total = totalBytes || 1;
   const [showPatchDetail, setShowPatchDetail] = useState(false);
+  const [copiedDebug, setCopiedDebug] = useState(false);
 
   const categories = [
     { label: "Media Artifacts", bytes: mediaBytes, color: T.red, icon: "layers", note: mediaCount > 0 ? `${mediaCount} images/videos` : "None" },
@@ -2164,6 +2165,41 @@ const PayloadBreakdownModal = ({ breakdown, onClose }) => {
     { label: "Metadata & Structure", bytes: otherBytes, color: T.muted, icon: "database", note: "Overhead" },
   ].filter(c => c.bytes > 0);
 
+  const handleCopyDebugLog = () => {
+    const logData = {
+      summary: {
+        totalBytes,
+        formattedTotal: fmtBytes(totalBytes / 1024),
+        mediaBytes,
+        patchBytes,
+        messageBytes,
+        planBytes,
+        otherBytes
+      },
+      codePatches: topPatches.map((p, i) => ({
+        index: i + 1,
+        id: p.id,
+        bytes: p.bytes,
+        formattedSize: fmtBytes(p.bytes / 1024),
+        percentageOfTotal: `${((p.bytes / total) * 100).toFixed(2)}%`,
+        fileCount: p.fileCount,
+        timestamp: p.ts
+      })),
+      mediaArtifacts: topMedia.map((m, i) => ({
+        index: i + 1,
+        mimeType: m.mimeType,
+        bytes: m.bytes,
+        formattedSize: fmtBytes(m.bytes / 1024),
+        timestamp: m.ts
+      }))
+    };
+
+    navigator.clipboard.writeText(JSON.stringify(logData, null, 2)).then(() => {
+      setCopiedDebug(true);
+      setTimeout(() => setCopiedDebug(false), 2000);
+    });
+  };
+
   return (
     <Modal
       onClose={onClose}
@@ -2172,16 +2208,31 @@ const PayloadBreakdownModal = ({ breakdown, onClose }) => {
       icon="layers"
       maxWidth={520}
       actions={
-        <button
-          onClick={onClose}
-          style={{
-            width: "100%", padding: "10px", borderRadius: 8, border: "none",
-            background: T.brand, color: "#000", fontFamily: "'JetBrains Mono',monospace",
-            fontSize: 12, fontWeight: 900, cursor: "pointer"
-          }}
-        >
-          CLOSE
-        </button>
+        <div style={{ display: "flex", gap: 10, width: "100%" }}>
+          <button
+            onClick={handleCopyDebugLog}
+            style={{
+              flex: 1, padding: "10px", borderRadius: 8,
+              border: `1px solid ${T.purple}40`, background: `${T.purple}15`,
+              color: T.purple, fontFamily: "'JetBrains Mono',monospace",
+              fontSize: 11, fontWeight: 800, cursor: "pointer",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 6
+            }}
+          >
+            <Ic n="copy" s={12} c={T.purple} />
+            {copiedDebug ? "LOG COPIED ✓" : "COPY DEBUG LOG"}
+          </button>
+          <button
+            onClick={onClose}
+            style={{
+              flex: 1, padding: "10px", borderRadius: 8, border: "none",
+              background: T.brand, color: "#000", fontFamily: "'JetBrains Mono',monospace",
+              fontSize: 12, fontWeight: 900, cursor: "pointer"
+            }}
+          >
+            CLOSE
+          </button>
+        </div>
       }
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -2262,7 +2313,7 @@ const PayloadBreakdownModal = ({ breakdown, onClose }) => {
             </button>
 
             {showPatchDetail && (
-              <div style={{ padding: "0 14px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ padding: "0 14px 12px", display: "flex", flexDirection: "column", gap: 8, maxHeight: 280, overflowY: "auto" }}>
                 {topPatches.map((p, idx) => {
                   const pPct = ((p.bytes / total) * 100).toFixed(1);
                   return (

@@ -9,6 +9,7 @@ const useAppSettings = ({ onSessionLimitChange } = {}) => {
   const [planId, setPlanIdRaw] = useState(loadPlan);
   const [customDaily, setCustomDailyRaw] = useState(loadCustomDaily);
   const [apiTimeout, setApiTimeoutRaw] = useState(loadApiTimeout);
+  const [leanDirective, setLeanDirectiveRaw] = useState(loadLeanDirective);
 
   const setPollInterval = useCallback(ms => {
     savePollMs(ms);
@@ -65,6 +66,11 @@ const useAppSettings = ({ onSessionLimitChange } = {}) => {
     setApiTimeoutRaw(ms);
   }, []);
 
+  const setLeanDirective = useCallback(val => {
+    saveLeanDirective(val);
+    setLeanDirectiveRaw(val);
+  }, []);
+
   const plan = useMemo(() => {
     const p = PLANS.find(p => p.id === planId) || PLANS[0];
     if (p.id === "custom") return { ...p, daily: customDaily };
@@ -82,6 +88,7 @@ const useAppSettings = ({ onSessionLimitChange } = {}) => {
     planId, setPlanId,
     customDaily, setCustomDaily,
     apiTimeout, setApiTimeout,
+    leanDirective, setLeanDirective,
     plan
   };
 };
