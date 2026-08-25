@@ -481,6 +481,9 @@ const DiffViewer = memo(({ activities = [], isDesktop = false }) => {
 
                 {/* Badges */}
                 <div style={{display:"flex", alignItems:"center", gap:6, fontFamily:"'JetBrains Mono',monospace", fontSize:9, fontWeight:800}}>
+                  <div title="File patch payload size" style={{padding:"2px 6px", borderRadius:4, background:`${T.purple}15`, color:T.purple, border:`1px solid ${T.purple}30`}}>
+                    {fmtBytes((g.rawLines ? g.rawLines.join("\n").length : 0) / 1024)}
+                  </div>
                   <div style={{padding:"2px 6px", borderRadius:4, background:`${T.brand}10`, color:T.brandLight, border:`1px solid ${T.brand}20`}}>+{g.adds}</div>
                   <div style={{padding:"2px 6px", borderRadius:4, background:`${T.red}10`, color:T.redLight, border:`1px solid ${T.red}20` }}>-{g.rems}</div>
                 </div>

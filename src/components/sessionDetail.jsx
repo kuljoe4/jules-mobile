@@ -2152,8 +2152,9 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
 
 // ─── Payload Breakdown Modal ─────────────────────────────────────────
 const PayloadBreakdownModal = ({ breakdown, onClose }) => {
-  const { mediaBytes, patchBytes, messageBytes, planBytes, otherBytes, totalBytes, mediaCount, patchCount } = breakdown;
+  const { mediaBytes, patchBytes, messageBytes, planBytes, otherBytes, totalBytes, mediaCount, patchCount, topPatches = [], topMedia = [] } = breakdown;
   const total = totalBytes || 1;
+  const [showPatchDetail, setShowPatchDetail] = useState(false);
 
   const categories = [
     { label: "Media Artifacts", bytes: mediaBytes, color: T.red, icon: "layers", note: mediaCount > 0 ? `${mediaCount} images/videos` : "None" },
@@ -2169,7 +2170,7 @@ const PayloadBreakdownModal = ({ breakdown, onClose }) => {
       title="PAYLOAD SIZE BREAKDOWN"
       subtitle={`Total Activity Size: ${fmtBytes(totalBytes / 1024)}`}
       icon="layers"
-      maxWidth={480}
+      maxWidth={520}
       actions={
         <button
           onClick={onClose}
@@ -2204,7 +2205,7 @@ const PayloadBreakdownModal = ({ breakdown, onClose }) => {
           })}
         </div>
 
-        {/* Detailed List */}
+        {/* Detailed Category List */}
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {categories.map((c, i) => {
             const pct = ((c.bytes / total) * 100).toFixed(1);
@@ -2237,6 +2238,61 @@ const PayloadBreakdownModal = ({ breakdown, onClose }) => {
             );
           })}
         </div>
+
+        {/* Detailed Code Patch Breakdown Toggle */}
+        {topPatches.length > 0 && (
+          <div style={{
+            background: `${T.purple}0d`, border: `1px solid ${T.purple}30`, borderRadius: 8,
+            overflow: "hidden"
+          }}>
+            <button
+              onClick={() => setShowPatchDetail(p => !p)}
+              style={{
+                width: "100%", padding: "10px 14px", background: "none", border: "none",
+                cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between",
+                fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 800, color: T.purple,
+                outline: "none"
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <Ic n="code" s={14} c={T.purple} />
+                <span>CODE PATCHES BREAKDOWN ({topPatches.length})</span>
+              </div>
+              <Ic n={showPatchDetail ? "chevron_up" : "chevron_down"} s={14} c={T.purple} />
+            </button>
+
+            {showPatchDetail && (
+              <div style={{ padding: "0 14px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
+                {topPatches.map((p, idx) => {
+                  const pPct = ((p.bytes / total) * 100).toFixed(1);
+                  return (
+                    <div
+                      key={idx}
+                      style={{
+                        background: T.surfaceHi, border: `1px solid ${T.border}`, borderRadius: 6,
+                        padding: "8px 12px", display: "flex", alignItems: "center", justifyContent: "space-between",
+                        fontFamily: "'JetBrains Mono',monospace", fontSize: 11
+                      }}
+                    >
+                      <div style={{ minWidth: 0, flex: 1, paddingRight: 8 }}>
+                        <div style={{ color: T.text, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          Patch #{idx + 1} ({p.fileCount} file{p.fileCount !== 1 ? "s" : ""})
+                        </div>
+                        <div style={{ color: T.dim, fontSize: 9, marginTop: 1 }}>
+                          {fmtTime(parseDateMs(p.ts))}
+                        </div>
+                      </div>
+                      <div style={{ textAlign: "right", flexShrink: 0 }}>
+                        <div style={{ color: T.purple, fontWeight: 800 }}>{fmtBytes(p.bytes / 1024)}</div>
+                        <div style={{ color: T.textDim, fontSize: 9 }}>{pPct}% of payload</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
         <div style={{
           padding: 12, borderRadius: 8, background: `${T.brand}0d`, border: `1px solid ${T.brand}20`,
