@@ -83,14 +83,31 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   const [copiedReviews, setCopiedReviews] = useState({});
   const [copiedChat, setCopiedChat] = useState(false);
 
+  const completedSessionsMap = useMemo(() => {
+    const map = new Map();
+    allSessions.forEach(s => {
+      if (s.state === "COMPLETED") {
+        const repo = s.sourceContext?.source;
+        if (repo) {
+          if (!map.has(repo)) map.set(repo, []);
+          map.get(repo).push(s);
+        }
+      }
+    });
+    return map;
+  }, [allSessions]);
+
   const driftSessions = useMemo(() => {
     if (!session) return [];
-    return allSessions.filter(s => {
-      if (s.id === session.id || s.state !== "COMPLETED") return false;
-      if (s.sourceContext?.source !== session.sourceContext?.source) return false;
-      return parseDateMs(s.updateTime || s.createTime) > parseDateMs(session.createTime);
+    const repo = session.sourceContext?.source;
+    if (!repo) return [];
+    const repoCompletions = completedSessionsMap.get(repo) || [];
+    const currentStart = parseDateMs(session.createTime);
+    return repoCompletions.filter(s => {
+      if (s.id === session.id) return false;
+      return parseDateMs(s.updateTime || s.createTime) > currentStart;
     });
-  }, [allSessions, session]);
+  }, [session, completedSessionsMap]);
 
   const filteredActivities = useMemo(() => {
     return activities.filter(a => {
@@ -168,20 +185,6 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
 
     lastScrollY.current = y;
   }, [scrolled]);
-
-  const completedSessionsMap = useMemo(() => {
-    const map = new Map();
-    allSessions.forEach(s => {
-      if (s.state === "COMPLETED") {
-        const repo = s.sourceContext?.source;
-        if (repo) {
-          if (!map.has(repo)) map.set(repo, []);
-          map.get(repo).push(s);
-        }
-      }
-    });
-    return map;
-  }, [allSessions]);
 
   const driftDetected = useMemo(() => {
     if (!session) return false;

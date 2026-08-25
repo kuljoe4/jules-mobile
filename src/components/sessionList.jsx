@@ -64,9 +64,9 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
 
   // Pre-aggregate filter counts in a single O(N) pass to avoid O(N * K) full array filters on every render tick
   const filterCountsMap = useMemo(() => {
-    const counts = { ALL: sessions.length, HAS_DRAFT: 0 };
-    for (let i = 0; i < sessions.length; i++) {
-      const s = sessions[i];
+    const counts = { ALL: baseFiltered.length, HAS_DRAFT: 0 };
+    for (let i = 0; i < baseFiltered.length; i++) {
+      const s = baseFiltered[i];
       if (draftsMap[s.id]) {
         counts.HAS_DRAFT = (counts.HAS_DRAFT || 0) + 1;
       }
@@ -75,7 +75,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
       }
     }
     return counts;
-  }, [sessions, draftsMap]);
+  }, [baseFiltered, draftsMap]);
 
   const hasDrafts = useMemo(() => {
     return Object.keys(draftsMap).length > 0 || loadDraftsBox().length > 0;
