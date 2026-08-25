@@ -82,15 +82,33 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
 
   const [copiedReviews, setCopiedReviews] = useState({});
   const [copiedChat, setCopiedChat] = useState(false);
+  const [showPayloadBreakdown, setShowPayloadBreakdown] = useState(false);
+
+  const completedSessionsMap = useMemo(() => {
+    const map = new Map();
+    allSessions.forEach(s => {
+      if (s.state === "COMPLETED") {
+        const repo = s.sourceContext?.source;
+        if (repo) {
+          if (!map.has(repo)) map.set(repo, []);
+          map.get(repo).push(s);
+        }
+      }
+    });
+    return map;
+  }, [allSessions]);
 
   const driftSessions = useMemo(() => {
     if (!session) return [];
-    return allSessions.filter(s => {
-      if (s.id === session.id || s.state !== "COMPLETED") return false;
-      if (s.sourceContext?.source !== session.sourceContext?.source) return false;
-      return parseDateMs(s.updateTime || s.createTime) > parseDateMs(session.createTime);
+    const repo = session.sourceContext?.source;
+    if (!repo) return [];
+    const repoCompletions = completedSessionsMap.get(repo) || [];
+    const currentStart = parseDateMs(session.createTime);
+    return repoCompletions.filter(s => {
+      if (s.id === session.id) return false;
+      return parseDateMs(s.updateTime || s.createTime) > currentStart;
     });
-  }, [allSessions, session]);
+  }, [session, completedSessionsMap]);
 
   const filteredActivities = useMemo(() => {
     return activities.filter(a => {
@@ -168,20 +186,6 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
 
     lastScrollY.current = y;
   }, [scrolled]);
-
-  const completedSessionsMap = useMemo(() => {
-    const map = new Map();
-    allSessions.forEach(s => {
-      if (s.state === "COMPLETED") {
-        const repo = s.sourceContext?.source;
-        if (repo) {
-          if (!map.has(repo)) map.set(repo, []);
-          map.get(repo).push(s);
-        }
-      }
-    });
-    return map;
-  }, [allSessions]);
 
   const driftDetected = useMemo(() => {
     if (!session) return false;
@@ -669,6 +673,10 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
       count: activities.length,
       size: getActivitiesSize(activities)
     };
+  }, [activities]);
+
+  const payloadBreakdown = useMemo(() => {
+    return getPayloadBreakdown(activities);
   }, [activities]);
 
   const b = useMemo(() => getBranchInfo(session, activities), [session, activities]);
@@ -1899,6 +1907,14 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
       {/* ── Media Lightbox ── */}
       <MediaModal media={activeMedia} onClose={() => setActiveMedia(null)}/>
 
+      {/* ── Payload Breakdown Modal ── */}
+      {showPayloadBreakdown && (
+        <PayloadBreakdownModal
+          breakdown={payloadBreakdown}
+          onClose={() => setShowPayloadBreakdown(false)}
+        />
+      )}
+
       {/* ── Composer ── */}
       {canSend&&(
         <div ref={composerRef} onBlur={e => {
@@ -2077,13 +2093,23 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                <div style={{whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis"}}>↵ SEND · SHIFT+↵ NEWLINE</div>
                <div style={{color: T.brand, fontWeight:700, opacity: 0.8 }}>{fmtChars(msg.length)}</div>
             </div>
-            <div style={{
-              display:"flex", alignItems:"center", gap:8, fontWeight:700, opacity:0.6, letterSpacing:"0.05em", whiteSpace:"nowrap"
-            }}>
+            <button
+              onClick={() => setShowPayloadBreakdown(true)}
+              title="View activity payload size breakdown"
+              aria-label="View activity payload size breakdown"
+              style={{
+                display:"flex", alignItems:"center", gap:6, fontWeight:700, opacity:0.9, letterSpacing:"0.05em", whiteSpace:"nowrap",
+                background:T.surfaceHi, border:`1px solid ${T.borderHi}`, padding:"2px 8px", borderRadius:4, cursor:"pointer",
+                color:T.textDim, transition:"all .15s cubic-bezier(0.4, 0, 0.2, 1)", outline:"none"
+              }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = T.brand; e.currentTarget.style.color = T.brandLight; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = T.borderHi; e.currentTarget.style.color = T.textDim; }}
+            >
               <span>{activityStats.count} ITEMS</span>
               <span style={{width:1, height:8, background:T.border}}/>
               <span>{fmtBytes(activityStats.size/1024)}</span>
-            </div>
+              <Ic n="layers" s={10} c={T.brand}/>
+            </button>
           </div>
         </div>
       )}
@@ -2121,6 +2147,105 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
         </button>
       </div>
     </div>
+  );
+};
+
+// ─── Payload Breakdown Modal ─────────────────────────────────────────
+const PayloadBreakdownModal = ({ breakdown, onClose }) => {
+  const { mediaBytes, patchBytes, messageBytes, planBytes, otherBytes, totalBytes, mediaCount, patchCount } = breakdown;
+  const total = totalBytes || 1;
+
+  const categories = [
+    { label: "Media Artifacts", bytes: mediaBytes, color: T.red, icon: "layers", note: mediaCount > 0 ? `${mediaCount} images/videos` : "None" },
+    { label: "Code Patches / Diffs", bytes: patchBytes, color: T.purple, icon: "code", note: patchCount > 0 ? `${patchCount} patch sets` : "None" },
+    { label: "User / Agent Messages", bytes: messageBytes, color: T.blue, icon: "tasks", note: "Chat text" },
+    { label: "Plans & Progress Events", bytes: planBytes, color: T.brandLight, icon: "plan", note: "Timeline events" },
+    { label: "Metadata & Structure", bytes: otherBytes, color: T.muted, icon: "database", note: "Overhead" },
+  ].filter(c => c.bytes > 0);
+
+  return (
+    <Modal
+      onClose={onClose}
+      title="PAYLOAD SIZE BREAKDOWN"
+      subtitle={`Total Activity Size: ${fmtBytes(totalBytes / 1024)}`}
+      icon="layers"
+      maxWidth={480}
+      actions={
+        <button
+          onClick={onClose}
+          style={{
+            width: "100%", padding: "10px", borderRadius: 8, border: "none",
+            background: T.brand, color: "#000", fontFamily: "'JetBrains Mono',monospace",
+            fontSize: 12, fontWeight: 900, cursor: "pointer"
+          }}
+        >
+          CLOSE
+        </button>
+      }
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        {/* Visual Stacked Bar */}
+        <div style={{
+          height: 12, borderRadius: 6, overflow: "hidden", background: T.surfaceHi,
+          display: "flex", border: `1px solid ${T.border}`
+        }}>
+          {categories.map((c, i) => {
+            const pct = Math.max(1, (c.bytes / total) * 100);
+            return (
+              <div
+                key={i}
+                title={`${c.label}: ${fmtBytes(c.bytes / 1024)} (${((c.bytes / total) * 100).toFixed(1)}%)`}
+                style={{
+                  width: `${pct}%`, background: c.color, height: "100%",
+                  transition: "width .3s ease"
+                }}
+              />
+            );
+          })}
+        </div>
+
+        {/* Detailed List */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {categories.map((c, i) => {
+            const pct = ((c.bytes / total) * 100).toFixed(1);
+            return (
+              <div
+                key={i}
+                style={{
+                  background: T.surfaceHi, border: `1px solid ${T.borderHi}`, borderRadius: 8,
+                  padding: "10px 14px", display: "flex", alignItems: "center", gap: 12
+                }}
+              >
+                <div style={{
+                  width: 28, height: 28, borderRadius: 6, background: `${c.color}15`,
+                  border: `1px solid ${c.color}40`, display: "flex", alignItems: "center",
+                  justifyContent: "center", flexShrink: 0
+                }}>
+                  <Ic n={c.icon} s={14} c={c.color} />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontFamily: "'IBM Plex Sans',sans-serif", fontSize: 13, fontWeight: 700, color: T.text, display: "flex", justifyContent: "space-between" }}>
+                    <span>{c.label}</span>
+                    <span style={{ fontFamily: "'JetBrains Mono',monospace", color: c.color }}>{fmtBytes(c.bytes / 1024)}</span>
+                  </div>
+                  <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: T.textDim, display: "flex", justifyContent: "space-between", marginTop: 2 }}>
+                    <span>{c.note}</span>
+                    <span>{pct}%</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div style={{
+          padding: 12, borderRadius: 8, background: `${T.brand}0d`, border: `1px solid ${T.brand}20`,
+          fontFamily: "'IBM Plex Sans',sans-serif", fontSize: 12, color: T.textDim, lineHeight: 1.45
+        }}>
+          💡 <strong style={{ color: T.brandLight }}>Payload Tip:</strong> Base64 media artifacts and long unidiff patch histories dominate fetch sizes. To keep sessions lightweight, enable <strong>Lean Payload Mode</strong> in repository settings.
+        </div>
+      </div>
+    </Modal>
   );
 };
 
