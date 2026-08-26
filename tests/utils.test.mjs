@@ -22,6 +22,13 @@ assert.equal(isValidGitBranchName('-danger'), false);
 assert.equal(isValidGitBranchName('feature//double'), false);
 assert.equal(isValidGitBranchName('bad lock.lock'), false);
 assert.equal(isValidGitBranchName('release.lock'), false);
+assert.equal(isValidGitBranchName('branch?query=1'), false);
+assert.equal(isValidGitBranchName('branch#fragment'), false);
+
+const ghPrRe = /https:\/\/github\.com\/[a-zA-Z0-9\-_.]+\/[a-zA-Z0-9\-_.]+\/pull\/(\d+)/;
+assert.equal(ghPrRe.test('https://github.com/owner/repo/pull/123'), true);
+assert.equal(ghPrRe.test('https://github.com/owner?inject=1/repo/pull/123'), false);
+assert.equal(ghPrRe.test('https://github.com/owner/repo#frag/pull/123'), false);
 
 assert.equal(safeUrl('https://github.com/example/repo'), 'https://github.com/example/repo');
 assert.equal(safeUrl('javascript:alert(1)'), '#');
