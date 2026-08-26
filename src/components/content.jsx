@@ -143,11 +143,109 @@ const Markdown = memo(({ text }) => {
           const isNumItem = /^\d+\.\s/.test(trimmed);
           const isHeader = trimmed.endsWith(":") && !isListItem && !isNumItem && trimmed.length < 80;
 
-          // Support for **bold** text
-          const processBold = (txt) => {
-            if (typeof txt !== 'string' || !txt.includes("**")) return txt;
-            const segments = txt.split("**");
-            return segments.map((seg, si) => si % 2 === 1 ? <strong key={si} style={{color:T.textHi, fontWeight:700}}>{seg}</strong> : seg);
+          // Support for math formulas, inline code, and **bold** text
+          const formatInlineText = (txt) => {
+            if (typeof txt !== "string" || !txt) return txt;
+
+            if (txt.includes("$$")) {
+              const parts = txt.split("$$");
+              return parts.map((part, idx) => {
+                if (idx % 2 === 1) {
+                  return (
+                    <span
+                      key={`math-block-${idx}`}
+                      style={{
+                        display: "block",
+                        margin: "8px 0",
+                        padding: "8px 12px",
+                        background: "#040507",
+                        border: `1px solid ${T.brand}40`,
+                        borderRadius: 6,
+                        color: T.brandLight,
+                        fontFamily: "'JetBrains Mono', monospace",
+                        fontSize: 13,
+                        fontWeight: 700,
+                        letterSpacing: "0.02em"
+                      }}
+                    >
+                      {part.trim()}
+                    </span>
+                  );
+                }
+                return formatInlineText(part);
+              });
+            }
+
+            if (txt.includes("`")) {
+              const parts = txt.split("`");
+              return parts.map((part, idx) => {
+                if (idx % 2 === 1) {
+                  return (
+                    <code
+                      key={`code-${idx}`}
+                      style={{
+                        fontFamily: "'JetBrains Mono', monospace",
+                        color: T.brandLight,
+                        background: `${T.brand}15`,
+                        border: `1px solid ${T.brand}30`,
+                        padding: "1px 6px",
+                        borderRadius: 4,
+                        fontSize: 12,
+                        fontWeight: 700
+                      }}
+                    >
+                      {part}
+                    </code>
+                  );
+                }
+                return formatInlineText(part);
+              });
+            }
+
+            if (txt.includes("$")) {
+              const parts = txt.split("$");
+              if (parts.length > 1 && parts.length % 2 === 1) {
+                return parts.map((part, idx) => {
+                  if (idx % 2 === 1) {
+                    return (
+                      <span
+                        key={`math-inline-${idx}`}
+                        style={{
+                          fontFamily: "'JetBrains Mono', monospace",
+                          color: T.brandLight,
+                          background: `${T.brand}18`,
+                          border: `1px solid ${T.brand}40`,
+                          padding: "1px 5px",
+                          borderRadius: 4,
+                          fontSize: 12,
+                          fontWeight: 800,
+                          letterSpacing: "0.03em"
+                        }}
+                        title="Mathematical Formula"
+                      >
+                        {part}
+                      </span>
+                    );
+                  }
+                  return formatInlineText(part);
+                });
+              }
+            }
+
+            if (txt.includes("**")) {
+              const segments = txt.split("**");
+              return segments.map((seg, si) =>
+                si % 2 === 1 ? (
+                  <strong key={`bold-${si}`} style={{ color: T.textHi, fontWeight: 700 }}>
+                    {seg}
+                  </strong>
+                ) : (
+                  seg
+                )
+              );
+            }
+
+            return txt;
           };
 
           let content = line;
@@ -158,7 +256,7 @@ const Markdown = memo(({ text }) => {
             content = (
               <div style={{display:"flex", gap:12, marginBottom:8, paddingLeft:4, alignItems:"flex-start"}}>
                 <div style={{width:6, height:6, borderRadius:"50%", background:T.brand, marginTop:7, flexShrink:0, boxShadow:`0 0 10px ${T.brand}60`}}/>
-                <span style={{flex:1, color:T.text, lineHeight:1.6}}>{processBold(rest)}</span>
+                <span style={{flex:1, color:T.text, lineHeight:1.6}}>{formatInlineText(rest)}</span>
               </div>
             );
           } else if (isNumItem) {
@@ -168,7 +266,7 @@ const Markdown = memo(({ text }) => {
             content = (
               <div style={{display:"flex", gap:8, marginBottom:8, paddingLeft:2, alignItems:"flex-start"}}>
                 <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:900, color:T.brandLight, flexShrink:0, width:22}}>{num}</span>
-                <span style={{flex:1, color:T.text, lineHeight:1.6}}>{processBold(rest)}</span>
+                <span style={{flex:1, color:T.text, lineHeight:1.6}}>{formatInlineText(rest)}</span>
               </div>
             );
           } else if (isHeader) {
@@ -178,10 +276,10 @@ const Markdown = memo(({ text }) => {
                 color:T.brandLight, letterSpacing:"0.08em", marginTop:li===0?0:22, marginBottom:12,
                 textTransform:"uppercase", borderBottom:`2px solid ${T.brand}25`,
                 display:"inline-block", paddingBottom:4
-              }}>{processBold(trimmed)}</div>
+              }}>{formatInlineText(trimmed)}</div>
             );
           } else {
-            content = <div style={{lineHeight:1.6, color:T.textDim, marginBottom:4}}>{processBold(line)}</div>;
+            content = <div style={{lineHeight:1.6, color:T.textDim, marginBottom:4}}>{formatInlineText(line)}</div>;
           }
 
           return <div key={li}>{content}</div>;
