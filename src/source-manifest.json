@@ -27,6 +27,8 @@
   "src/hooks/useAutoPoll.js",
   "src/components/content.jsx",
   "src/components/activityFeed.jsx",
+  "src/components/planView.jsx",
+  "src/components/diffViewer.jsx",
   "src/components/planAndDiff.jsx",
   "src/components/setup.jsx",
   "src/components/sessionCard.jsx",
