@@ -303,16 +303,21 @@ const SettingsView = ({ onBack, isDesktop, settings, personas, setPersonas, toda
                 </div>
                 <div>
                   <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8}}>
-                    <label htmlFor="lean_directive_input" style={{fontSize:11, color:T.textDim, fontFamily:"'JetBrains Mono',monospace", fontWeight:700}}>PROMPT DIRECTIVE</label>
-                    <button
-                      onClick={() => {
-                        setLeanDirective(DEFAULT_LEAN_DIRECTIVE);
-                        triggerSaveFeedback();
-                      }}
-                      style={{background:"none", border:"none", cursor:"pointer", color:T.brand, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700}}
-                    >
-                      RESET DEFAULT
-                    </button>
+                    <label htmlFor="lean_directive_input" style={{fontSize:11, color:T.textDim, fontFamily:"'JetBrains Mono',monospace", fontWeight:700, cursor:"pointer"}}>PROMPT DIRECTIVE</label>
+                    <div style={{display:"flex", alignItems:"center", gap:12}}>
+                      <span style={{fontSize:10, color:T.muted, fontFamily:"'JetBrains Mono',monospace"}}>{fmtChars(leanDirective.length)}/1kc</span>
+                      <button
+                        onClick={() => {
+                          setLeanDirective(DEFAULT_LEAN_DIRECTIVE);
+                          triggerSaveFeedback();
+                        }}
+                        style={{background:"none", border:"none", cursor:"pointer", color:T.brand, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700}}
+                        title="Reset system directive to default"
+                        aria-label="Reset system directive to default"
+                      >
+                        RESET DEFAULT
+                      </button>
+                    </div>
                   </div>
                   <textarea
                     id="lean_directive_input"
@@ -326,19 +331,23 @@ const SettingsView = ({ onBack, isDesktop, settings, personas, setPersonas, toda
                     maxLength={1000}
                     style={{
                       width:"100%",
-                      height:80,
+                      height:90,
                       background:T.surface,
                       border:`1px solid ${T.border}`,
                       borderRadius:8,
-                      padding:10,
+                      padding:12,
                       color:T.text,
                       fontSize:12,
                       fontFamily:"'IBM Plex Sans',sans-serif",
                       resize:"vertical",
-                      boxSizing:"border-box"
+                      boxSizing:"border-box",
+                      outline:"none",
+                      lineHeight:1.5
                     }}
+                    onFocus={e => e.currentTarget.style.borderColor = T.brand}
+                    onBlur={e => e.currentTarget.style.borderColor = T.border}
                   />
-                  <div style={{marginTop:6, fontSize:10, color:T.textDim, fontFamily:"'IBM Plex Sans',sans-serif"}}>
+                  <div style={{marginTop:6, fontSize:10, color:T.textDim, fontFamily:"'IBM Plex Sans',sans-serif", lineHeight:1.4}}>
                     This directive is automatically appended to session prompts when Lean Payload Mode is toggled ON for a repository.
                   </div>
                 </div>

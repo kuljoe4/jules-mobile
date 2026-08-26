@@ -560,6 +560,42 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     }
   };
 
+  const handlePublishPR = async () => {
+    if (busy) return;
+    const promptText = "Please publish a Pull Request for the changes made in this session.";
+    setBusy(true); setErr(null);
+
+    const tempKey = `_temp_${Date.now()}`;
+    const tempAct = {
+      id: tempKey,
+      createTime: new Date().toISOString(),
+      userMessaged: { userMessage: promptText },
+      _temp: true
+    };
+    actMapRef.current.set(tempKey, tempAct);
+    setActivities(prev => [...prev, tempAct]);
+
+    try {
+      await apiCall(apiKey, `/sessions/${session.id}:sendMessage`, {
+        method: "POST",
+        body: { prompt: promptText },
+        _label: `Publish PR -> ${session.id?.slice(0,6)}`
+      });
+      setTab("activity");
+      actMapRef.current.delete(tempKey);
+      setTimeout(() => {
+        loadActivities(lastTsRef.current);
+        loadSession();
+      }, 1200);
+    } catch (err) {
+      setErr(err.message);
+      actMapRef.current.delete(tempKey);
+      setActivities(prev => prev.filter(a => a.id !== tempKey));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleApprove = async () => {
     if (busy) return;
     let planTs = null;
@@ -911,6 +947,28 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                       <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:800, color:T.dim}}>ACTIONS</div>
                       {busy && <div style={{animation:"spin 1s linear infinite"}}><Ic n="refresh" s={10} c={T.brand}/></div>}
                     </div>
+                    {session.sourceContext?.source && !pr && (
+                      <button
+                        onClick={() => { handlePublishPR(); setShowMenu(false); }}
+                        disabled={busy}
+                        onMouseEnter={e => e.currentTarget.style.background = T.border}
+                        onMouseLeave={e => e.currentTarget.style.background = "none"}
+                        onMouseDown={e => e.currentTarget.style.transform = "scale(0.96)"}
+                        onMouseUp={e => e.currentTarget.style.transform = "scale(1)"}
+                        style={{
+                          width:"100%", padding:"12px 14px", background:"none", border:"none",
+                          color:T.brand, textAlign:"left", fontFamily:"'JetBrains Mono',monospace",
+                          fontSize:11, fontWeight:700, cursor: busy ? "not-allowed" : "pointer",
+                          display:"flex", alignItems:"center", gap:10,
+                          borderBottom:`1px solid ${T.border}33`, opacity: busy ? 0.5 : 1,
+                          transition: "all .1s cubic-bezier(0.4, 0, 0.2, 1)"
+                        }}
+                        aria-label="Publish Pull Request for session"
+                        title="Publish Pull Request for this session"
+                      >
+                        <Ic n="git_pull" s={14} c={T.brand}/> PUBLISH PR
+                      </button>
+                    )}
                     <button
                       onClick={() => {
                         setMsg("The repository has been updated. Please pull the latest changes from the base branch and rebase your current work to avoid conflicts.");
@@ -1039,6 +1097,35 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
               </a>
             )}
 
+            {session.sourceContext?.source && !pr && (
+              <button
+                onClick={handlePublishPR}
+                disabled={busy}
+                title="Publish Pull Request for this session"
+                aria-label="Publish Pull Request for this session"
+                style={{
+                  background: T.brandDim,
+                  border: `1px solid ${T.brand}40`,
+                  borderRadius: 4,
+                  padding: "3px 8px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                  color: T.brandLight,
+                  cursor: busy ? "not-allowed" : "pointer",
+                  fontFamily: "'JetBrains Mono',monospace",
+                  fontSize: 10,
+                  fontWeight: 900,
+                  flexShrink: 0,
+                  opacity: busy ? 0.6 : 1,
+                  transition: "all 0.15s ease"
+                }}
+              >
+                <Ic n="git_pull" s={11} c={T.brandLight}/>
+                + PUBLISH PR
+              </button>
+            )}
+
             {session.sourceContext?.source && (
               <a href={safeUrl(b?.repoUrl ? `${b.repoUrl}/branches` : "#")} target="_blank" rel="noopener noreferrer" aria-label={`Branch ${b?.working || "main"}. ${b?.ahead || ahead || 0} commits ahead, ${b?.behind || 0} commits behind.`} style={{
                 background:T.blueDim, border:`1px solid ${T.blue}30`, borderRadius:4, padding:"3px 8px",
@@ -1140,8 +1227,16 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                 }}>
                   BRANCHES
                 </a>
+                <button onClick={handlePublishPR} disabled={busy} style={{
+                  background:T.brand, color:"#000", border:"none", borderRadius:6,
+                  padding:"6px 12px", fontFamily:"'JetBrains Mono',monospace",
+                  fontSize:11, fontWeight:800, cursor: busy ? "not-allowed" : "pointer", flexShrink:0,
+                  opacity: busy ? 0.6 : 1
+                }} aria-label="Publish Pull Request" title="Publish Pull Request">
+                  PUBLISH PR
+                </button>
                 <a href={safeUrl(`${b.repoUrl}/compare/${b.base}...${b.working}`)} target="_blank" rel="noopener noreferrer" style={{
-                  background:T.blue, color:"#000", border:"none", borderRadius:6,
+                  background:T.surfaceHi, color:T.blue, border:`1px solid ${T.blue}40`, borderRadius:6,
                   padding:"6px 12px", fontFamily:"'JetBrains Mono',monospace",
                   fontSize:11, fontWeight:800, textDecoration:"none", flexShrink:0
                 }}>
