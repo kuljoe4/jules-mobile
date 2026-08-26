@@ -6,3 +6,8 @@ export const safeSlice = (str, limit) => {
   if (chars.length <= limit) return str;
   return chars.slice(0, limit).join("");
 };
+
+export const cleanMathText = (mathStr) => {
+  if (typeof mathStr !== "string") return mathStr;
+  return mathStr.replace(/\\text\{([^{}]+)\}/g, "$1");
+};

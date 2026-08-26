@@ -8,7 +8,7 @@ import {
   safeMediaMimeType,
   safeUrl,
 } from '../src/utils/validation.js';
-import { fmtBytes, fmtChars, safeSlice } from '../src/utils/format.js';
+import { cleanMathText, fmtBytes, fmtChars, safeSlice } from '../src/utils/format.js';
 import { fmtDuration, parseDateMs } from '../src/utils/date.js';
 
 assert.equal(isValidGoogleApiKey('AIzaSyFakeKeyFormVerificationTesting123'), true);
@@ -49,5 +49,8 @@ assert.equal(fmtChars(1200), '1.2kc');
 assert.equal(safeSlice('a😊b', 2), 'a😊');
 assert.equal(parseDateMs('2026-08-25T00:00:00.000Z'), Date.parse('2026-08-25T00:00:00.000Z'));
 assert.equal(fmtDuration(90_000), '1m');
+
+assert.equal(cleanMathText('\\text{Entry/Exit Authorized} = (\\text{Required}_1 \\text{ AND } \\text{Required}_2)'), 'Entry/Exit Authorized = (Required_1  AND  Required_2)');
+assert.equal(cleanMathText('plain text'), 'plain text');
 
 console.log('Utility tests passed');
