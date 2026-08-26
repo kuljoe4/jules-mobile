@@ -1,3 +1,5 @@
+import { isValidGitBranchName } from '../utils/validation.js';
+
 /**
  * GitHubTracker encapsulating all GitHub integrations, caches, background fetches,
  * and text-scraping to prevent "God Mode" and separate background external integrations
@@ -17,15 +19,15 @@ const GitHubTracker = {
   BRANCH_ACTIVITY_CACHE: new WeakMap(),
 
   // Regex Configurations
-  GH_PR_RE: /https:\/\/github\.com\/[^\/]+\/[^\/]+\/pull\/(\d+)/,
-  CHECK_URL_RE: /https:\/\/github\.com\/[^\/]+\/[^\/]+\/(?:actions\/runs|deployments|actions)\/\d*/,
+  GH_PR_RE: /https:\/\/github\.com\/[a-zA-Z0-9\-_.]+\/[a-zA-Z0-9\-_.]+\/pull\/(\d+)/,
+  CHECK_URL_RE: /https:\/\/github\.com\/[a-zA-Z0-9\-_.]+\/[a-zA-Z0-9\-_.]+\/(?:actions\/runs|deployments|actions)\/\d*/,
   PUSH_RE: /push(?:ing|ed).* to (?:the |a )?([^\s\.\(\)\`]+)/i,
   BRANCH_RE: /branch (?:named )?([^\s\.\(\)\`]+)/i,
   CREATE_BRANCH_RE: /created.* branch ([^\s\.\(\)\`]+)/i,
-  TREE_LINK_RE: /https:\/\/github\.com\/[^\/]+\/[^\/]+\/tree\/([a-zA-Z0-9\-_]+)/,
-  BRANCH_LINK_RE: /https:\/\/github\.com\/[^\/]+\/[^\/]+\/branches\/([a-zA-Z0-9\-_]+)/,
-  COMPARE_LINK_RE: /https:\/\/github\.com\/[^\/]+\/[^\/]+\/compare\/[^\.]+\.\.\.([a-zA-Z0-9\-_]+)/,
-  PR_REPO_RE: /https:\/\/github\.com\/([^\/]+\/[^\/]+)\/pull/,
+  TREE_LINK_RE: /https:\/\/github\.com\/[a-zA-Z0-9\-_.]+\/[a-zA-Z0-9\-_.]+\/tree\/([a-zA-Z0-9\-_.]+)/,
+  BRANCH_LINK_RE: /https:\/\/github\.com\/[a-zA-Z0-9\-_.]+\/[a-zA-Z0-9\-_.]+\/branches\/([a-zA-Z0-9\-_.]+)/,
+  COMPARE_LINK_RE: /https:\/\/github\.com\/[a-zA-Z0-9\-_.]+\/[a-zA-Z0-9\-_.]+\/compare\/[^\.]+\.\.\.([a-zA-Z0-9\-_.]+)/,
+  PR_REPO_RE: /https:\/\/github\.com\/([a-zA-Z0-9\-_.]+\/[a-zA-Z0-9\-_.]+)\/pull/,
 
   // Internal Helpers
   getPrUrlAndNumber(pr) {
@@ -147,7 +149,7 @@ const GitHubTracker = {
   triggerGitHubFetch(url) {
     if (this.GH_IN_FLIGHT.has(url)) return;
 
-    const match = url.match(/https:\/\/github\.com\/([^\/]+)\/([^\/]+)\/pull\/(\d+)/);
+    const match = url.match(/https:\/\/github\.com\/([a-zA-Z0-9\-_.]+)\/([a-zA-Z0-9\-_.]+)\/pull\/(\d+)/);
     if (!match) return;
 
     const [_, owner, repo, number] = match;
@@ -309,6 +311,10 @@ const GitHubTracker = {
 
   triggerGitHubBranchFetch(repo, base, working) {
     if (!repo || !base || !working) return;
+    if (!/^[a-zA-Z0-9\-_.]+\/[a-zA-Z0-9\-_.]+$/.test(repo)) return;
+    if (!isValidGitBranchName(base) || !isValidGitBranchName(working)) return;
+    const encBase = encodeURIComponent(base);
+    const encWorking = encodeURIComponent(working);
     const key = `${repo}:${base}:${working}`;
     if (this.GH_BRANCH_IN_FLIGHT.has(key)) return;
 
@@ -322,9 +328,9 @@ const GitHubTracker = {
       headers["Authorization"] = `token ${token}`;
     }
 
-    const compareUrl = `https://api.github.com/repos/${repo}/compare/${base}...${working}`;
-    const statusUrl = `https://api.github.com/repos/${repo}/commits/${working}/status`;
-    const checkRunsUrl = `https://api.github.com/repos/${repo}/commits/${working}/check-runs`;
+    const compareUrl = `https://api.github.com/repos/${repo}/compare/${encBase}...${encWorking}`;
+    const statusUrl = `https://api.github.com/repos/${repo}/commits/${encWorking}/status`;
+    const checkRunsUrl = `https://api.github.com/repos/${repo}/commits/${encWorking}/check-runs`;
 
     const fetchCompare = this.githubFetch(compareUrl, headers).catch(() => null);
     const fetchStatus = this.githubFetch(statusUrl, headers).catch(() => null);

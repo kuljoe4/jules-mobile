@@ -21,7 +21,7 @@ export const isValidGitBranchName = (name) => {
   if (name.startsWith("-") || name.startsWith(".") || name.endsWith(".")) return false;
   if (name.startsWith("/") || name.endsWith("/") || name.includes("//") || /\s/.test(name)) return false;
   if (name.includes("..")) return false;
-  const invalidChars = /[~^:\?\*\[\\]|@\{/;
+  const invalidChars = /[~^:\?\*\[\\\#\%]|@\{/;
   if (invalidChars.test(name)) return false;
   if (name.endsWith(".lock")) return false;
   if (name === "@") return false;
