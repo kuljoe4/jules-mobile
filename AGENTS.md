@@ -1,7 +1,7 @@
 # AGENTS.md — Agent Directives & Repository Architecture
 
-## Lean Payload Directive
-- **Skip Media Artifacts**: Do not capture, record, or attach visual media artifacts (such as Playwright screenshots or WebM videos) during task execution unless explicitly requested by the user for visual bug auditing. This drastically reduces activity payload sizes.
+## Repository Hygiene & Git Directives
+- **Ignore & Untrack Unnecessary Files**: Always ignore and untrack build artifacts, test run results (e.g. `test-results/`), logs, and temporary files from Git history to prevent unnecessary patch and diff payload bloat.
 
 ## Build & Test Architecture
 - **Package Manager**: Use `pnpm` (`pnpm install`, `pnpm test`, `pnpm run build`).
