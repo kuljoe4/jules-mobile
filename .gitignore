@@ -9,3 +9,4 @@ verification/
 __pycache__/
 *.pyc
 dist/index.html
+test-results/
