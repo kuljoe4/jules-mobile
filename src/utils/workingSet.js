@@ -5,6 +5,11 @@ const FILE_MENTION_RE = /`([^`\s]+\.[a-z0-9]+)`/gi;
 // This turns repetitive string splitting, hunk iteration, and multi-pass line scanning into flat O(1) lookups on re-renders.
 const PARSED_PATCH_CACHE = new WeakMap();
 
+// Global WeakMap to cache extracted working set file lists for individual reference-stable activity objects.
+// OPTIMIZATION (Bolt): Caching per-activity file mentions and unidiff patch extractions avoids redundant regex matches
+// and patch traversals across sessions when evaluating file overlaps in ConflictRadar and NewSession.
+const WORKING_SET_ACTIVITY_CACHE = new WeakMap();
+
 /**
  * Parses a git unidiff patch text into a structured list of file groups, each containing
  * filename, hunks (header, lines), additions (adds), removals (rems), and rawLines.
@@ -77,36 +82,46 @@ const getWorkingSet = (s, activities = []) => {
 
   const files = new Set();
 
-  // 1. Scan activities for patches
+  // 1. Scan activities for patches and plan file mentions, using WeakMap per-activity caching
   for (let i = 0; i < activities.length; i++) {
     const a = activities[i];
-    if (a.artifacts) {
-      for (let j = 0; j < a.artifacts.length; j++) {
-        const art = a.artifacts[j];
-        const patch = art.changeSet?.gitPatch?.unidiffPatch;
-        if (patch) {
-          const parsedGroups = parseUnidiffPatch(art.changeSet?.gitPatch || patch);
-          for (let k = 0; k < parsedGroups.length; k++) {
-            const file = parsedGroups[k].file;
-            if (file && file !== "/dev/null") files.add(file);
+    if (!a) continue;
+
+    let actFiles = WORKING_SET_ACTIVITY_CACHE.get(a);
+    if (!actFiles) {
+      actFiles = new Set();
+      if (a.artifacts && Array.isArray(a.artifacts)) {
+        for (let j = 0; j < a.artifacts.length; j++) {
+          const art = a.artifacts[j];
+          const patch = art.changeSet?.gitPatch?.unidiffPatch;
+          if (patch) {
+            const parsedGroups = parseUnidiffPatch(art.changeSet?.gitPatch || patch);
+            for (let k = 0; k < parsedGroups.length; k++) {
+              const file = parsedGroups[k].file;
+              if (file && file !== "/dev/null") actFiles.add(file);
+            }
           }
         }
       }
-    }
 
-    // 2. Scan planGenerated for file mentions
-    if (a.planGenerated?.plan?.steps) {
-      const steps = a.planGenerated.plan.steps;
-      for (let j = 0; j < steps.length; j++) {
-        const st = steps[j];
-        const text = st.title + " " + (st.description || "");
-        let match;
-        FILE_MENTION_RE.lastIndex = 0;
-        while ((match = FILE_MENTION_RE.exec(text)) !== null) {
-          const f = match[1];
-          if (f.includes("/") || f.includes(".")) files.add(f);
+      if (a.planGenerated?.plan?.steps && Array.isArray(a.planGenerated.plan.steps)) {
+        const steps = a.planGenerated.plan.steps;
+        for (let j = 0; j < steps.length; j++) {
+          const st = steps[j];
+          const text = st.title + " " + (st.description || "");
+          let match;
+          FILE_MENTION_RE.lastIndex = 0;
+          while ((match = FILE_MENTION_RE.exec(text)) !== null) {
+            const f = match[1];
+            if (f.includes("/") || f.includes(".")) actFiles.add(f);
+          }
         }
       }
+      WORKING_SET_ACTIVITY_CACHE.set(a, actFiles);
+    }
+
+    for (const f of actFiles) {
+      files.add(f);
     }
   }
 
