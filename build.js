@@ -17,7 +17,8 @@ function readAppSource(files) {
       const sourcePath = path.join(__dirname, file);
       const source = fs.readFileSync(sourcePath, 'utf-8')
         .replace(/^\s*import\s+[^;]+;\s*$/gm, '')
-        .replace(/^\s*export\s+\{[^}]+\};?\s*$/gm, '')
+        .replace(/^\s*export\s+\{[^}]+\}(?:\s*from\s*['"][^'"]+['"])?;?\s*$/gm, '')
+        .replace(/\bexport\s+default\s+/g, '')
         .replace(/\bexport\s+(?=(const|let|var|function|class)\b)/g, '');
       return `\n/* ---- ${file} ---- */\n${source}`;
     })
