@@ -168,7 +168,7 @@ const Markdown = memo(({ text }) => {
                         letterSpacing: "0.02em"
                       }}
                     >
-                      {part.trim()}
+                      {cleanMathText(part.trim())}
                     </span>
                   );
                 }
@@ -204,7 +204,7 @@ const Markdown = memo(({ text }) => {
 
             if (txt.includes("$")) {
               const parts = txt.split("$");
-              if (parts.length > 1 && parts.length % 2 === 1) {
+              if (parts.length > 1) {
                 return parts.map((part, idx) => {
                   if (idx % 2 === 1) {
                     return (
@@ -223,7 +223,7 @@ const Markdown = memo(({ text }) => {
                         }}
                         title="Mathematical Formula"
                       >
-                        {part}
+                        {cleanMathText(part)}
                       </span>
                     );
                   }
@@ -245,7 +245,7 @@ const Markdown = memo(({ text }) => {
               );
             }
 
-            return txt;
+            return cleanMathText(txt);
           };
 
           let content = line;
