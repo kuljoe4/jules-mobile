@@ -69,6 +69,10 @@ const ConflictRadar = memo(({ currentSource, currentBranch, currentPrompt, allSe
     }}>
       <button
         onClick={() => setExpanded(p => !p)}
+        aria-expanded={expanded ? "true" : "false"}
+        aria-controls="conflict-radar-detail"
+        aria-label={expanded ? "Collapse Conflict Radar risk details" : "Expand Conflict Radar risk details"}
+        title={expanded ? "Collapse details" : "Expand details"}
         style={{
           width: "100%", background: "none", border: "none", cursor: "pointer",
           display: "flex", alignItems: "center", gap: 8, padding: 16,
