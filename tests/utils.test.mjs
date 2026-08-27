@@ -9,7 +9,7 @@ import {
   safeUrl,
 } from '../src/utils/validation.js';
 import { cleanMathText, fmtBytes, fmtChars, safeSlice } from '../src/utils/format.js';
-import { fmtDuration, parseDateMs } from '../src/utils/date.js';
+import { fmtAgo, fmtDuration, fmtTime, parseDateMs } from '../src/utils/date.js';
 import { GitHubTracker, getPR } from '../src/services/githubTracker.js';
 
 assert.equal(isValidGoogleApiKey('AIzaSyFakeKeyFormVerificationTesting123'), true);
@@ -54,6 +54,8 @@ assert.equal(fmtChars(1200), '1.2kc');
 assert.equal(safeSlice('a😊b', 2), 'a😊');
 assert.equal(parseDateMs('2026-08-25T00:00:00.000Z'), Date.parse('2026-08-25T00:00:00.000Z'));
 assert.equal(fmtDuration(90_000), '1m');
+assert.equal(typeof fmtAgo(Date.now() - 5000), 'string');
+assert.equal(typeof fmtTime(Date.now()), 'string');
 
 assert.equal(cleanMathText('\\text{Entry/Exit Authorized} = (\\text{Required}_1 \\text{ AND } \\dots)'), 'Entry/Exit Authorized = (Required_1  AND  …)');
 assert.equal(cleanMathText('/quad \nOpportunity Score = (Momentum Score \\times w_{momentum})'), 'Opportunity Score = (Momentum Score × w_momentum)');
