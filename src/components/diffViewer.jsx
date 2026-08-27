@@ -10,7 +10,7 @@ export const DiffViewer = memo(({ activities = [], isDesktop = false }) => {
   const [copiedPlains, setCopiedPlains] = useState({}); // key -> boolean
   const [copiedOverallDebug, setCopiedOverallDebug] = useState(false);
 
-  // Collect up to the last 3 patch artifacts from activities (newest to oldest)
+  // Collect up to the last 2 patch artifacts from activities (newest to oldest)
   const recentPatches = useMemo(() => {
     const patchList = [];
     for (let i = activities.length - 1; i >= 0; i--) {
@@ -24,11 +24,11 @@ export const DiffViewer = memo(({ activities = [], isDesktop = false }) => {
               ts: a.createTime,
               id: a.id || `act-${i}`
             });
-            if (patchList.length >= 3) break;
+            if (patchList.length >= 2) break;
           }
         }
       }
-      if (patchList.length >= 3) break;
+      if (patchList.length >= 2) break;
     }
     return patchList;
   }, [activities]);
