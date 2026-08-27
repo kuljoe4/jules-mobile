@@ -1,3 +1,4 @@
+import { LRUCache } from '../utils/cache.js';
 import { isValidGitBranchName } from '../utils/validation.js';
 
 /**
@@ -67,18 +68,25 @@ const GitHubTracker = {
     return null;
   },
 
+  // OPTIMIZATION (Bolt): Cache PR lookups including negative (null) hits using a composite key
+  // combining session ID, update/create timestamp, and outputs length (`${sid}:${ts}:${outLen}`).
+  // This avoids redundant object property traversals and regex scans on every render pass
+  // for sessions without pull requests, converting O(K) string scans into instant O(1) cache hits.
   getPR(s) {
     if (!s) return null;
     const sid = s.id || s.name || "temp";
-    if (this.PR_CACHE.has(sid)) {
-      const cached = this.PR_CACHE.get(sid);
-      if (cached) return cached;
+    const ts = s.updateTime || s.createTime || "";
+    const outLen = Array.isArray(s.outputs) ? s.outputs.length : 0;
+    const cacheKey = `${sid}:${ts}:${outLen}`;
+
+    if (sid !== "temp" && this.PR_CACHE.has(cacheKey)) {
+      return this.PR_CACHE.get(cacheKey);
     }
 
     let rawPr = this.findInOutputs(s.outputs) || s.githubPullRequest || s.pullRequest || s.sourceContext?.githubRepoContext?.pullRequest || s.github_pull_request || s.pr || s.prUrl || s.pullRequestUrl || s.htmlUrl || s.html_url;
     const pr = this.getPrUrlAndNumber(rawPr);
     if (pr) {
-      if (sid !== "temp") this.PR_CACHE.set(sid, pr);
+      if (sid !== "temp") this.PR_CACHE.set(cacheKey, pr);
       return pr;
     }
 
@@ -92,10 +100,13 @@ const GitHubTracker = {
 
     if (m) {
       const res = { url: m[0], number: m[1] };
-      if (sid !== "temp") this.PR_CACHE.set(sid, res);
+      if (sid !== "temp") this.PR_CACHE.set(cacheKey, res);
       return res;
     }
 
+    if (sid !== "temp") {
+      this.PR_CACHE.set(cacheKey, null);
+    }
     return null;
   },
 
@@ -746,3 +757,5 @@ const getPRInfo = (s, activities = []) => GitHubTracker.getPRInfo(s, activities)
 const getBranchInfo = (s, activities = []) => GitHubTracker.getBranchInfo(s, activities);
 const getCheckStatus = (activities = []) => GitHubTracker.getCheckStatus(activities);
 const getPrUrlAndNumber = (pr) => GitHubTracker.getPrUrlAndNumber(pr);
+
+export { GitHubTracker, getPR, getPRInfo, getBranchInfo, getCheckStatus, getPrUrlAndNumber };
