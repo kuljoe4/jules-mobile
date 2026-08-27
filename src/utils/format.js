@@ -9,5 +9,21 @@ export const safeSlice = (str, limit) => {
 
 export const cleanMathText = (mathStr) => {
   if (typeof mathStr !== "string") return mathStr;
-  return mathStr.replace(/\\text\{([^{}]+)\}/g, "$1");
+  let str = mathStr;
+  str = str.replace(/\\text\{([^{}]+)\}/g, "$1");
+  str = str
+    .replace(/\\(?:quad|qquad)\b|\/quad\b/g, " ")
+    .replace(/\\(?:dots|ldots|cdots)\b/g, "…")
+    .replace(/\\times\b/g, "×")
+    .replace(/\\cdot\b/g, "·")
+    .replace(/\\le(?:q)?\b/g, "≤")
+    .replace(/\\ge(?:q)?\b/g, "≥")
+    .replace(/\\neq\b/g, "≠")
+    .replace(/\\approx\b/g, "≈")
+    .replace(/\\pm\b/g, "±")
+    .replace(/\\infty\b/g, "∞")
+    .replace(/\\div\b/g, "÷")
+    .replace(/_\{([^{}]+)\}/g, "_$1")
+    .replace(/\^\{([^{}]+)\}/g, "^$1");
+  return str.trim();
 };

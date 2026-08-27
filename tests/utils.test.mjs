@@ -55,8 +55,10 @@ assert.equal(safeSlice('a😊b', 2), 'a😊');
 assert.equal(parseDateMs('2026-08-25T00:00:00.000Z'), Date.parse('2026-08-25T00:00:00.000Z'));
 assert.equal(fmtDuration(90_000), '1m');
 
-assert.equal(cleanMathText('\\text{Entry/Exit Authorized} = (\\text{Required}_1 \\text{ AND } \\text{Required}_2)'), 'Entry/Exit Authorized = (Required_1  AND  Required_2)');
-assert.equal(cleanMathText('plain text'), 'plain text');
+assert.equal(cleanMathText('\\text{Entry/Exit Authorized} = (\\text{Required}_1 \\text{ AND } \\dots)'), 'Entry/Exit Authorized = (Required_1  AND  …)');
+assert.equal(cleanMathText('/quad \nOpportunity Score = (Momentum Score \\times w_{momentum})'), 'Opportunity Score = (Momentum Score × w_momentum)');
+assert.equal(cleanMathText('Completed Close > Fast EMA \\quad AND \\quad Completed Close > Slow EMA'), 'Completed Close > Fast EMA   AND   Completed Close > Slow EMA');
+assert.equal(cleanMathText('squad quadratic'), 'squad quadratic');
 
 // Test GitHubTracker PR Caching (positive and negative hits)
 const sessNoPR = { id: 'sess-no-pr-1', createTime: '2026-08-25T10:00:00Z', outputs: [] };
