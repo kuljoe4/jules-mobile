@@ -10,21 +10,28 @@ export const DiffViewer = memo(({ activities = [], isDesktop = false }) => {
   const [copiedPlains, setCopiedPlains] = useState({}); // key -> boolean
   const [copiedOverallDebug, setCopiedOverallDebug] = useState(false);
 
-  // Collect up to the last 3 patch artifacts from activities (newest to oldest)
+  // Collect up to the last 3 distinct patch artifacts from activities (newest to oldest)
   const recentPatches = useMemo(() => {
     const patchList = [];
+    const seenPatches = new Set();
+
     for (let i = activities.length - 1; i >= 0; i--) {
       const a = activities[i];
       if (a.artifacts) {
         for (const art of a.artifacts) {
-          if (art.changeSet?.gitPatch?.unidiffPatch) {
-            patchList.push({
-              patch: art.changeSet.gitPatch.unidiffPatch,
-              gitPatch: art.changeSet.gitPatch,
-              ts: a.createTime,
-              id: a.id || `act-${i}`
-            });
-            if (patchList.length >= 3) break;
+          const rawPatch = art.changeSet?.gitPatch?.unidiffPatch;
+          if (rawPatch) {
+            const patchKey = rawPatch.trim();
+            if (!seenPatches.has(patchKey)) {
+              seenPatches.add(patchKey);
+              patchList.push({
+                patch: rawPatch,
+                gitPatch: art.changeSet.gitPatch,
+                ts: a.createTime,
+                id: a.id || `act-${i}`
+              });
+              if (patchList.length >= 3) break;
+            }
           }
         }
       }
