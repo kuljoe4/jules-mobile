@@ -10,6 +10,7 @@ import {
 } from '../src/utils/validation.js';
 import { cleanMathText, fmtBytes, fmtChars, safeSlice } from '../src/utils/format.js';
 import { fmtDuration, parseDateMs } from '../src/utils/date.js';
+import { GitHubTracker, getPR } from '../src/services/githubTracker.js';
 
 assert.equal(isValidGoogleApiKey('AIzaSyFakeKeyFormVerificationTesting123'), true);
 assert.equal(isValidGoogleApiKey('bad key with spaces'), false);
@@ -52,5 +53,25 @@ assert.equal(fmtDuration(90_000), '1m');
 
 assert.equal(cleanMathText('\\text{Entry/Exit Authorized} = (\\text{Required}_1 \\text{ AND } \\text{Required}_2)'), 'Entry/Exit Authorized = (Required_1  AND  Required_2)');
 assert.equal(cleanMathText('plain text'), 'plain text');
+
+// Test GitHubTracker PR Caching (positive and negative hits)
+const sessNoPR = { id: 'sess-no-pr-1', createTime: '2026-08-25T10:00:00Z', outputs: [] };
+assert.equal(getPR(sessNoPR), null);
+// Verify negative hit is stored in PR_CACHE
+const keyNoPR = 'sess-no-pr-1:2026-08-25T10:00:00Z:0';
+assert.equal(GitHubTracker.PR_CACHE.has(keyNoPR), true);
+assert.equal(GitHubTracker.PR_CACHE.get(keyNoPR), null);
+
+const sessWithPR = { id: 'sess-pr-1', createTime: '2026-08-25T10:00:00Z', outputs: [{ githubPullRequest: 'https://github.com/owner/repo/pull/42' }] };
+const prRes = getPR(sessWithPR);
+assert.deepEqual(prRes, { url: 'https://github.com/owner/repo/pull/42', number: '42' });
+const keyWithPR = 'sess-pr-1:2026-08-25T10:00:00Z:1';
+assert.equal(GitHubTracker.PR_CACHE.has(keyWithPR), true);
+
+// Cache invalidation on updateTime change
+const sessUpdated = { ...sessNoPR, updateTime: '2026-08-25T11:00:00Z' };
+assert.equal(getPR(sessUpdated), null);
+const keyUpdated = 'sess-no-pr-1:2026-08-25T11:00:00Z:0';
+assert.equal(GitHubTracker.PR_CACHE.has(keyUpdated), true);
 
 console.log('Utility tests passed');
