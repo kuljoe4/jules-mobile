@@ -32,7 +32,7 @@ const DraftsBox = ({ onBack, isDesktop, onResume, onCreate, allSessions, activit
         {!isDesktop&&<button onClick={onBack} title="Go back" aria-label="Go back" style={{background:"none",border:"none",cursor:"pointer",display:"flex"}}><Ic n="back" s={18} c={T.text}/></button>}
         <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.text,letterSpacing:"0.05em",fontWeight:700,flex:1}}>DRAFTS BOX</div>
         {activeTab === "templates" && drafts.length > 0 && (
-          <button onClick={handleClearAll} style={{background:"none", border:"none", cursor:"pointer", color:T.red, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700}}>CLEAR ALL</button>
+          <button onClick={handleClearAll} title="Clear all saved session setups" aria-label="Clear all saved session setups" style={{background:"none", border:"none", cursor:"pointer", color:T.red, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700}}>CLEAR ALL</button>
         )}
         {isDesktop && (
           <button onClick={onBack} title="Close" aria-label="Close" style={{background:"none",border:"none",cursor:"pointer",display:"flex",padding:4,opacity:0.8}}>
@@ -44,8 +44,8 @@ const DraftsBox = ({ onBack, isDesktop, onResume, onCreate, allSessions, activit
       <div style={{flex:1,overflowY:"auto",padding:"20px 24px",WebkitOverflowScrolling:"touch",minHeight:0}}>
         <div style={{maxWidth:560,margin:"0 auto"}}>
           {/* Segment Tab Controls */}
-          <div style={{display:"flex", gap:6, marginBottom:20, padding: "2px 2px", borderBottom: `1px solid ${T.border}`}}>
-            <button onClick={() => setActiveTab("templates")} style={{
+          <div role="tablist" aria-label="Draft categories" style={{display:"flex", gap:6, marginBottom:20, padding: "2px 2px", borderBottom: `1px solid ${T.border}`}}>
+            <button role="tab" aria-selected={activeTab==="templates"?"true":"false"} aria-label={`Session setups tab, ${drafts.length} drafts`} onClick={() => setActiveTab("templates")} style={{
               flex: 1, padding: "8px 12px", background: "none", border: "none", cursor: "pointer",
               borderBottom: `2px solid ${activeTab==="templates"?T.brand:"transparent"}`,
               color: activeTab==="templates"?T.text:T.muted, fontFamily: "'JetBrains Mono',monospace",
@@ -56,7 +56,7 @@ const DraftsBox = ({ onBack, isDesktop, onResume, onCreate, allSessions, activit
               <Ic n="archive" s={12} c={activeTab==="templates"?T.brand:T.muted}/>
               SESSION SETUPS ({drafts.length})
             </button>
-            <button onClick={() => setActiveTab("followups")} style={{
+            <button role="tab" aria-selected={activeTab==="followups"?"true":"false"} aria-label={`Follow-up chats tab, ${followupSessions.length} drafts`} onClick={() => setActiveTab("followups")} style={{
               flex: 1, padding: "8px 12px", background: "none", border: "none", cursor: "pointer",
               borderBottom: `2px solid ${activeTab==="followups"?T.brand:"transparent"}`,
               color: activeTab==="followups"?T.text:T.muted, fontFamily: "'JetBrains Mono',monospace",
