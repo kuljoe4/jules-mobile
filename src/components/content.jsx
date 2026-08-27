@@ -204,7 +204,8 @@ const Markdown = memo(({ text }) => {
 
             if (txt.includes("$")) {
               const parts = txt.split("$");
-              if (parts.length > 1) {
+              // Only treat as inline math if there are paired $ delimiters (odd number of split parts)
+              if (parts.length > 1 && parts.length % 2 === 1) {
                 return parts.map((part, idx) => {
                   if (idx % 2 === 1) {
                     return (
