@@ -1,5 +1,5 @@
 import { LRUCache } from '../utils/cache.js';
-import { isValidGitBranchName } from '../utils/validation.js';
+import { isValidGitBranchName, isValidGithubRepoName } from '../utils/validation.js';
 
 /**
  * GitHubTracker encapsulating all GitHub integrations, caches, background fetches,
@@ -322,7 +322,7 @@ const GitHubTracker = {
 
   triggerGitHubBranchFetch(repo, base, working) {
     if (!repo || !base || !working) return;
-    if (!/^[a-zA-Z0-9\-_.]+\/[a-zA-Z0-9\-_.]+$/.test(repo)) return;
+    if (!isValidGithubRepoName(repo)) return;
     if (!isValidGitBranchName(base) || !isValidGitBranchName(working)) return;
     const encBase = encodeURIComponent(base);
     const encWorking = encodeURIComponent(working);
@@ -705,7 +705,7 @@ const GitHubTracker = {
       }
     }
 
-    const repoUrl = repo && !repo.startsWith("sources/") ? `https://github.com/${repo}` : null;
+    const repoUrl = repo && !repo.startsWith("sources/") && isValidGithubRepoName(repo) ? `https://github.com/${repo}` : null;
 
     let ahead = 0;
     let behind = 0;
