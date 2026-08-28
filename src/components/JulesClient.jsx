@@ -11,7 +11,7 @@ function JulesClient() {
     return () => window.removeEventListener("gh-rate-limited", handleGhRateLimit);
   }, []);
 
-  const [sessions,setSessions] = useState([]);
+  const [sessions,setSessions] = useState(() => SafeStorage.loadSessionsList());
   const lastStates = useRef(new Map()); // id -> state
   const lastCreatedSessionIdRef = useRef(null);
   const [activitiesMap, setActivitiesMap] = useState(() => SafeStorage.loadActivitiesMap());
@@ -121,6 +121,10 @@ function JulesClient() {
   const { todayCount, registerSession, registerSessions } = useQuotaTracker(sessions, plan);
 
   useEffect(() => {
+    SafeStorage.saveSessionsList(sessions);
+  }, [sessions]);
+
+  useEffect(() => {
     const handleStorage = (e) => {
       if (e.key === "jac_key") setApiKey(e.newValue || "");
       if (e.key === SafeStorage.KEYS.ARCHIVED) {
@@ -128,6 +132,9 @@ function JulesClient() {
       }
       if (e.key === SafeStorage.KEYS.ACT_STATS) {
         setActivityStatsMap(SafeStorage.loadActStats());
+      }
+      if (e.key === SafeStorage.KEYS.SESSIONS_LIST) {
+        setSessions(SafeStorage.loadSessionsList());
       }
     };
     const handleCustomStats = (e) => {
