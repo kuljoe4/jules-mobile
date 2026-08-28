@@ -13,6 +13,18 @@ import { cleanMathText, fmtBytes, fmtChars, safeSlice } from '../src/utils/forma
 import { fmtAgo, fmtDuration, fmtTime, parseDateMs } from '../src/utils/date.js';
 import { GitHubTracker, getPR } from '../src/services/githubTracker.js';
 
+if (typeof globalThis.localStorage === 'undefined') {
+  const storageMap = new Map();
+  globalThis.localStorage = {
+    getItem: (key) => storageMap.has(key) ? storageMap.get(key) : null,
+    setItem: (key, val) => storageMap.set(key, String(val)),
+    removeItem: (key) => storageMap.delete(key),
+    clear: () => storageMap.clear(),
+  };
+}
+
+import { SafeStorage } from '../src/services/storage.js';
+
 assert.equal(isValidGoogleApiKey('AIzaSyFakeKeyFormVerificationTesting123'), true);
 assert.equal(isValidGoogleApiKey('bad key with spaces'), false);
 assert.equal(isValidGithubToken(''), true);
@@ -91,5 +103,11 @@ const sessUpdated = { ...sessNoPR, updateTime: '2026-08-25T11:00:00Z' };
 assert.equal(getPR(sessUpdated), null);
 const keyUpdated = 'sess-no-pr-1:2026-08-25T11:00:00Z:0';
 assert.equal(GitHubTracker.PR_CACHE.has(keyUpdated), true);
+
+// Test SafeStorage session list caching
+assert.deepEqual(SafeStorage.loadSessionsList(), []);
+const testSessions = [{ id: 's1', title: 'Test Session 1', state: 'COMPLETED' }];
+SafeStorage.saveSessionsList(testSessions);
+assert.deepEqual(SafeStorage.loadSessionsList(), testSessions);
 
 console.log('Utility tests passed');

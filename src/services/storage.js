@@ -31,6 +31,7 @@ const SafeStorage = {
     GITHUB_TOKEN: "jac_github_token",
     LEAN_MODE_REPOS: "jac_lean_mode_repos",
     LEAN_DIRECTIVE: "jac_lean_directive",
+    SESSIONS_LIST: "jac_sessions_list",
   },
 
   // ─── CORE GENERIC HELPERS ──────────────────────────────────────────────────
@@ -400,6 +401,13 @@ const SafeStorage = {
     this.setJSON(this.KEYS.SESSION_CACHE, cache);
   },
 
+  loadSessionsList() {
+    return this.getJSON(this.KEYS.SESSIONS_LIST, []);
+  },
+  saveSessionsList(sessions) {
+    this.setJSON(this.KEYS.SESSIONS_LIST, sessions);
+  },
+
   loadApiKey() {
     return this.getItem(this.KEYS.API_KEY, "");
   },
@@ -424,3 +432,5 @@ const SafeStorage = {
     this.removeItem(`jac_draft_${sessionId}`);
   },
 };
+
+export { SafeStorage };
