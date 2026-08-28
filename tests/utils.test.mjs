@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { LRUCache } from '../src/utils/cache.js';
 import {
   isValidGitBranchName,
+  isValidGithubRepoName,
   isValidGithubToken,
   isValidGoogleApiKey,
   safeMediaBase64,
@@ -17,6 +18,15 @@ assert.equal(isValidGoogleApiKey('bad key with spaces'), false);
 assert.equal(isValidGithubToken(''), true);
 assert.equal(isValidGithubToken('ghp_validAsciiToken123'), true);
 assert.equal(isValidGithubToken('bad token'), false);
+
+assert.equal(isValidGithubRepoName('owner/repo'), true);
+assert.equal(isValidGithubRepoName('org-name/my.repo_123'), true);
+assert.equal(isValidGithubRepoName(''), false);
+assert.equal(isValidGithubRepoName(null), false);
+assert.equal(isValidGithubRepoName('owner/repo?inject=1'), false);
+assert.equal(isValidGithubRepoName('owner/repo#frag'), false);
+assert.equal(isValidGithubRepoName('invalid-repo-without-slash'), false);
+assert.equal(isValidGithubRepoName('a/'.repeat(150)), false);
 
 assert.equal(isValidGitBranchName('feature/mobile-refactor'), true);
 assert.equal(isValidGitBranchName('-danger'), false);

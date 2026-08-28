@@ -12,6 +12,13 @@ export const isValidGithubToken = (token) => {
   return regex.test(token);
 };
 
+export const isValidGithubRepoName = (repo) => {
+  if (!repo) return false;
+  if (typeof repo !== "string") return false;
+  if (repo.length > 200) return false;
+  return /^[a-zA-Z0-9\-_.]+\/[a-zA-Z0-9\-_.]+$/.test(repo);
+};
+
 export const isValidGitBranchName = (name) => {
   if (!name) return true;
   if (typeof name !== "string") return false;
