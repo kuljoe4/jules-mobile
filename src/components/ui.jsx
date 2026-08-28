@@ -132,16 +132,25 @@ const Field = ({label,htmlFor,children,style:s={}}) => (
   </div>
 );
 
-const PickerBtn = ({ label, isAct, onClick, activeColor=T.brand, activeBg=null }) => (
-  <button onClick={onClick} style={{
-    flexShrink:0, minHeight:36, padding:"0 14px", borderRadius:20, border:"none",
-    display:"inline-flex", alignItems:"center", justifyContent:"center",
-    background:isAct ? (activeBg || `${activeColor}15`) : "transparent",
-    border:`1px solid ${isAct ? `${activeColor}60` : T.border}`,
-    color:isAct ? activeColor : T.muted,
-    fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:isAct?700:400,
-    letterSpacing:"0.05em", cursor:"pointer", transition:"all .12s cubic-bezier(0.4, 0, 0.2, 1)",
-  }}>{label}</button>
+const PickerBtn = ({ label, isAct, onClick, activeColor=T.brand, activeBg=null, title, style:s={}, ...props }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    aria-pressed={isAct ? "true" : "false"}
+    aria-label={typeof label === "string" ? label : undefined}
+    title={title || (typeof label === "string" ? label : undefined)}
+    {...props}
+    style={{
+      flexShrink:0, minHeight:36, padding:"0 14px", borderRadius:20, border:"none",
+      display:"inline-flex", alignItems:"center", justifyContent:"center",
+      background:isAct ? (activeBg || `${activeColor}15`) : "transparent",
+      border:`1px solid ${isAct ? `${activeColor}60` : T.border}`,
+      color:isAct ? activeColor : T.muted,
+      fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:isAct?700:400,
+      letterSpacing:"0.05em", cursor:"pointer", transition:"all .12s cubic-bezier(0.4, 0, 0.2, 1)",
+      ...s,
+    }}
+  >{label}</button>
 );
 
 const Backdrop = ({ onClick, zIndex=100 }) => (
