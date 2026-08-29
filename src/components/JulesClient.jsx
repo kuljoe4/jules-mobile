@@ -1,3 +1,5 @@
+import { isValidSessionId } from "../utils/validation.js";
+
 function JulesClient() {
   const [apiKey,setApiKey]     = useState(() => SafeStorage.loadApiKey());
   const [githubToken,setGithubToken] = useState(() => SafeStorage.loadGithubToken());
@@ -195,7 +197,8 @@ function JulesClient() {
   const fetchSupplemental = useCallback(async (ids) => {
     if (!apiKey || ids.length === 0) return;
     try {
-      const missing = ids.filter(id => !sessions.some(s => s.id === id) && !supplementalSessions.some(s => s.id === id));
+      // Security: Validate candidate session IDs to prevent REST API Endpoint Parameter Pollution, URL Path Manipulation, or Control Character Injection.
+      const missing = ids.filter(id => isValidSessionId(id) && !sessions.some(s => s.id === id) && !supplementalSessions.some(s => s.id === id));
       if (missing.length === 0) return;
 
       const batchSize = 5;
