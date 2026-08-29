@@ -41,18 +41,15 @@ export const formatSmartDashItems = (text) => {
 
     let formatted = line;
 
-    // 1. Break sublist prefixes ending with colons/semicolons followed by dashes
-    // e.g., "The plan includes: - Item A - Item B" or "Steps i.e.: - First - Second"
+    // 1. Break sublist prefixes ending with colons (or sentence ending punctuation) followed by dashes
+    // e.g., "The plan includes: - Item A - Item B" or "Steps: - First - Second"
     formatted = formatted.replace(/([.:;!\]\)])\s*-\s+(?=[A-Za-z*`"'\\[{(])/g, "$1\n- ");
 
-    // 2. Break inline prefix phrases that introduce sublists (e.g. "including:", "such as:", "i.e.", "e.g.") followed by a dash
-    formatted = formatted.replace(/\b(including|such as|i\.e\.|e\.g\.|following|details|steps|overall|notes|summary)[:;]?\s*-\s+(?=[A-Za-z*`"'\\[{(])/gi, "$1:\n- ");
-
-    // 3. Break bullet dashes between clause words and capitalized/formatted item titles
+    // 2. Break bullet dashes between clause words and capitalized/formatted item titles
     // e.g. "Step title - Sub item title" or "First point - Second point"
     formatted = formatted.replace(/([a-zA-Z0-9_>)]+)\s+-\s+([A-Z*`"'\\[{(]|\d+\.)/g, "$1\n- $2");
 
-    // 4. Break bullet dashes where a dash is preceded by space and followed by space + bullet item start
+    // 3. Break bullet dashes where a dash is preceded by space and followed by space + bullet item start
     formatted = formatted.replace(/(\S)\s+-\s+([a-zA-Z*`"'\\[{(][^-\n]{3,})/g, (match, prev, next) => {
       // Avoid splitting math range (2024 - 2026), single letter variables (x = y - 5), equations, or operators
       if (/^\d+$/.test(prev) && /^\d+/.test(next)) return match;
