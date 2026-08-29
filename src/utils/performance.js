@@ -51,6 +51,21 @@ const getApproxBytes = (val) => {
 };
 
 const PAYLOAD_BREAKDOWN_CACHE = new WeakMap();
+const PATCH_FILE_COUNT_CACHE = new WeakMap();
+
+const getPatchFileCount = (changeSet) => {
+  if (!changeSet) return 0;
+  if (PATCH_FILE_COUNT_CACHE.has(changeSet)) return PATCH_FILE_COUNT_CACHE.get(changeSet);
+
+  let count = 0;
+  const unidiff = changeSet.gitPatch?.unidiffPatch;
+  if (unidiff) {
+    const matches = unidiff.match(/\+\+\+\s+b\//g);
+    count = matches ? matches.length : 0;
+  }
+  PATCH_FILE_COUNT_CACHE.set(changeSet, count);
+  return count;
+};
 
 const getPayloadBreakdown = (activities = []) => {
   if (!activities || !Array.isArray(activities)) {
@@ -93,18 +108,14 @@ const getPayloadBreakdown = (activities = []) => {
           patchBytes += pSize;
           patchCount++;
 
-          const unidiff = art.changeSet.gitPatch?.unidiffPatch;
-          let fileCount = 0;
-          if (unidiff) {
-            fileCount = (unidiff.match(/\+\+\+\s+b\//g) || []).length;
-          }
+          const fileCount = getPatchFileCount(art.changeSet);
 
           topPatches.push({
             id: act.id || `act-${i}`,
             bytes: pSize,
             ts: act.createTime,
             fileCount,
-            unidiff
+            unidiff: art.changeSet.gitPatch?.unidiffPatch
           });
         }
       }
