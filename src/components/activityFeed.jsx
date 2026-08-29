@@ -1,3 +1,24 @@
+const ACTIVITY_LINKS_CACHE = new WeakMap();
+
+const getExtractedLinks = (pu) => {
+  if (!pu) return null;
+  if (ACTIVITY_LINKS_CACHE.has(pu)) return ACTIVITY_LINKS_CACHE.get(pu);
+
+  const desc = pu.description;
+  if (!desc) {
+    ACTIVITY_LINKS_CACHE.set(pu, null);
+    return null;
+  }
+
+  const prMatch = desc.match(/https:\/\/github\.com\/[^\/]+\/[^\/]+\/pull\/(\d+)/);
+  const commitMatch = desc.match(/https:\/\/github\.com\/[^\/]+\/[^\/]+\/commit\/([a-f0-9]{7,40})/);
+  const branchMatch = desc.match(/https:\/\/github\.com\/[^\/]+\/[^\/]+\/tree\/([a-zA-Z0-9\-_]+)/);
+
+  const res = prMatch || commitMatch || branchMatch ? { prMatch, commitMatch, branchMatch } : null;
+  ACTIVITY_LINKS_CACHE.set(pu, res);
+  return res;
+};
+
 const inputSt = {
   width:"100%",background:T.surfaceHi,border:`1px solid ${T.border}`,borderRadius:6,
   padding:"10px 12px",color:T.text,fontFamily:"'IBM Plex Sans',sans-serif",fontSize:15,
@@ -251,48 +272,47 @@ const TimelineEvent = memo(({ act, onMediaClick, onReply }) => {
           )}
           <Markdown text={act.progressUpdated.description}/>
           {(() => {
-            const prMatch = act.progressUpdated.description?.match(/https:\/\/github\.com\/[^\/]+\/[^\/]+\/pull\/(\d+)/);
-            const commitMatch = act.progressUpdated.description?.match(/https:\/\/github\.com\/[^\/]+\/[^\/]+\/commit\/([a-f0-9]{7,40})/);
-            const branchMatch = act.progressUpdated.description?.match(/https:\/\/github\.com\/[^\/]+\/[^\/]+\/tree\/([a-zA-Z0-9\-_]+)/);
+            const links = getExtractedLinks(act.progressUpdated);
+            if (!links) return null;
 
-            if (prMatch) return (
+            if (links.prMatch) return (
               <div style={{marginTop:12}}>
-                <a href={safeUrl(prMatch[0])} target="_blank" rel="noopener noreferrer" style={{
+                <a href={safeUrl(links.prMatch[0])} target="_blank" rel="noopener noreferrer" style={{
                   display:"inline-flex", alignItems:"center", gap:6, padding:"6px 12px",
                   background:T.brandDim, border:`1px solid ${T.brand}40`, borderRadius:6,
                   color:T.brand, textDecoration:"none", fontFamily:"'JetBrains Mono',monospace",
                   fontSize:12, fontWeight:800
                 }}>
                   <Ic n="git_pull" s={14} c={T.brand}/>
-                  OPEN PULL REQUEST #{prMatch[1]} ↗
+                  OPEN PULL REQUEST #{links.prMatch[1]} ↗
                 </a>
               </div>
             );
 
-            if (commitMatch) return (
+            if (links.commitMatch) return (
               <div style={{marginTop:12}}>
-                <a href={safeUrl(commitMatch[0])} target="_blank" rel="noopener noreferrer" style={{
+                <a href={safeUrl(links.commitMatch[0])} target="_blank" rel="noopener noreferrer" style={{
                   display:"inline-flex", alignItems:"center", gap:6, padding:"6px 12px",
                   background:T.blueDim, border:`1px solid ${T.blue}40`, borderRadius:6,
                   color:T.blue, textDecoration:"none", fontFamily:"'JetBrains Mono',monospace",
                   fontSize:12, fontWeight:800
                 }}>
                   <Ic n="code" s={14} c={T.blue}/>
-                  VIEW COMMIT {commitMatch[1].slice(0,7)} ↗
+                  VIEW COMMIT {links.commitMatch[1].slice(0,7)} ↗
                 </a>
               </div>
             );
 
-            if (branchMatch) return (
+            if (links.branchMatch) return (
               <div style={{marginTop:12}}>
-                <a href={safeUrl(branchMatch[0])} target="_blank" rel="noopener noreferrer" style={{
+                <a href={safeUrl(links.branchMatch[0])} target="_blank" rel="noopener noreferrer" style={{
                   display:"inline-flex", alignItems:"center", gap:6, padding:"6px 12px",
                   background:T.blueDim, border:`1px solid ${T.blue}40`, borderRadius:6,
                   color:T.blue, textDecoration:"none", fontFamily:"'JetBrains Mono',monospace",
                   fontSize:12, fontWeight:800
                 }}>
                   <Ic n="branch" s={14} c={T.blue}/>
-                  BROWSE BRANCH {branchMatch[1]} ↗
+                  BROWSE BRANCH {links.branchMatch[1]} ↗
                 </a>
               </div>
             );
