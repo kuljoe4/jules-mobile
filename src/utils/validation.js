@@ -19,6 +19,18 @@ export const isValidGithubRepoName = (repo) => {
   return /^[a-zA-Z0-9\-_.]+\/[a-zA-Z0-9\-_.]+$/.test(repo);
 };
 
+// Security: Validates session identifier strings to prevent REST API Endpoint Parameter Pollution,
+// URL Path Manipulation, and Control Character / Null-Byte Injection.
+export const isValidSessionId = (id) => {
+  if (!id || typeof id !== "string") return false;
+  if (id.length > 250) return false;
+  if (/[\x00-\x1F\x7F]/.test(id)) return false;
+  if (/\s/.test(id) || id.includes("..") || id.includes("//")) return false;
+  if (id.includes("?") || id.includes("#")) return false;
+  if (id.startsWith("/") || id.endsWith("/")) return false;
+  return /^[a-zA-Z0-9\-_./:]+$/.test(id);
+};
+
 export const isValidGitBranchName = (name) => {
   if (!name) return true;
   if (typeof name !== "string") return false;

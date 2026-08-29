@@ -5,6 +5,7 @@ import {
   isValidGithubRepoName,
   isValidGithubToken,
   isValidGoogleApiKey,
+  isValidSessionId,
   safeMediaBase64,
   safeMediaMimeType,
   safeUrl,
@@ -39,6 +40,22 @@ assert.equal(isValidGithubRepoName('owner/repo?inject=1'), false);
 assert.equal(isValidGithubRepoName('owner/repo#frag'), false);
 assert.equal(isValidGithubRepoName('invalid-repo-without-slash'), false);
 assert.equal(isValidGithubRepoName('a/'.repeat(150)), false);
+
+assert.equal(isValidSessionId('123456789'), true);
+assert.equal(isValidSessionId('sessions/123456789'), true);
+assert.equal(isValidSessionId('sess-123-abc_def'), true);
+assert.equal(isValidSessionId('123e4567-e89b-12d3-a456-426614174000'), true);
+assert.equal(isValidSessionId(''), false);
+assert.equal(isValidSessionId(null), false);
+assert.equal(isValidSessionId('sess?inject=1'), false);
+assert.equal(isValidSessionId('sess#frag'), false);
+assert.equal(isValidSessionId('../path/traversal'), false);
+assert.equal(isValidSessionId('sess//double'), false);
+assert.equal(isValidSessionId('/leading/slash'), false);
+assert.equal(isValidSessionId('trailing/slash/'), false);
+assert.equal(isValidSessionId('sess\x00nullbyte'), false);
+assert.equal(isValidSessionId('sess\nnewline'), false);
+assert.equal(isValidSessionId('a'.repeat(300)), false);
 
 assert.equal(isValidGitBranchName('feature/mobile-refactor'), true);
 assert.equal(isValidGitBranchName('-danger'), false);
