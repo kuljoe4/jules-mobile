@@ -1280,7 +1280,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
         )}
 
 
-        <div role="tablist" style={{display:"flex", paddingBottom:scrolled?4:0, transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)"}}>
+        <div role="tablist" aria-label="Session detail tabs" style={{display:"flex", paddingBottom:scrolled?4:0, transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)"}}>
           {TABS.map(t=>(
             <button key={t.id} role="tab" aria-selected={tab===t.id?"true":"false"} onClick={()=>setTab(t.id)} style={{
               flex:1,padding:"6px 0",background:"none",border:"none",

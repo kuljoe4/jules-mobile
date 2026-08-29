@@ -27,3 +27,38 @@ export const cleanMathText = (mathStr) => {
     .replace(/\^\{([^{}]+)\}/g, "^$1");
   return str.trim();
 };
+
+export const formatSmartDashItems = (text) => {
+  if (typeof text !== "string" || !text) return text;
+  const lines = text.split("\n");
+  const processedLines = [];
+
+  for (let line of lines) {
+    if (!line.trim() || line.trim().startsWith("```")) {
+      processedLines.push(line);
+      continue;
+    }
+
+    let formatted = line;
+
+    // 1. Break bullet dashes after sentence enders or punctuation (. ! ? : ; ] ) )
+    formatted = formatted.replace(/([.:;!\]\)])\s*-\s+(?=[A-Za-z*`"'\\[{(])/g, "$1\n- ");
+
+    // 2. Break bullet dashes between clause words and capitalized/formatted item titles
+    // e.g. "Step title - Sub item title" or "First point - Second point"
+    formatted = formatted.replace(/([a-zA-Z0-9_>)]+)\s+-\s+([A-Z*`"'\\[{(]|\d+\.)/g, "$1\n- $2");
+
+    // 3. Break bullet dashes where a dash is preceded by space and followed by space + bullet item start
+    formatted = formatted.replace(/(\S)\s+-\s+([a-zA-Z*`"'\\[{(][^-\n]{3,})/g, (match, prev, next) => {
+      // Avoid splitting math range (2024 - 2026), single letter variables (x = y - 5), equations, or operators
+      if (/^\d+$/.test(prev) && /^\d+/.test(next)) return match;
+      if (prev.length === 1 && /^[a-zA-Z]$/.test(prev)) return match;
+      if (prev === "-" || prev === "+" || prev === "=" || prev === "<" || prev === ">") return match;
+      return prev + "\n- " + next;
+    });
+
+    processedLines.push(formatted);
+  }
+
+  return processedLines.join("\n");
+};
