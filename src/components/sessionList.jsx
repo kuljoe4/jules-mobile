@@ -243,8 +243,8 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
         {isDesktop && (
           <div style={{display:"flex", gap:4, alignItems:"center", height:scrolled?0:22, overflow:"hidden", opacity:scrolled?0:1, marginBottom:scrolled?0:8, padding:scrolled?0:"4px 2px", transition:"all .25s cubic-bezier(0.4, 0, 0.2, 1)", pointerEvents:scrolled?"none":"auto"}}>
             <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.textDim, letterSpacing:"0.08em", flexShrink:0, paddingRight:2}}>SESSIONS</span>
-            <button onClick={() => setShowArchived(false)} style={{flexShrink:0, minHeight:36, padding:"0 14px", display:"inline-flex", alignItems:"center", justifyContent:"center", borderRadius:20, border:"none", background:!showArchived ? T.brandDim : "transparent", border:`1px solid ${!showArchived ? T.brand+"60" : T.border}`, color:!showArchived ? T.brand : T.muted, fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:!showArchived?700:400, letterSpacing:"0.05em", cursor:"pointer", transition:"all .12s cubic-bezier(0.4, 0, 0.2, 1)"}}>ACTIVE</button>
-            <button onClick={() => setShowArchived(true)} style={{flexShrink:0, minHeight:36, padding:"0 14px", display:"inline-flex", alignItems:"center", justifyContent:"center", borderRadius:20, border:"none", background:showArchived ? T.purpleDim : "transparent", border:`1px solid ${showArchived ? T.purple+"60" : T.border}`, color:showArchived ? T.purple : T.muted, fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:showArchived?700:400, letterSpacing:"0.05em", cursor:"pointer", transition:"all .12s cubic-bezier(0.4, 0, 0.2, 1)"}}>ARCHIVED</button>
+            <button onClick={() => setShowArchived(false)} aria-pressed={!showArchived ? "true" : "false"} aria-label="Show active sessions" title="Show active sessions" style={{flexShrink:0, minHeight:36, padding:"0 14px", display:"inline-flex", alignItems:"center", justifyContent:"center", borderRadius:20, border:"none", background:!showArchived ? T.brandDim : "transparent", border:`1px solid ${!showArchived ? T.brand+"60" : T.border}`, color:!showArchived ? T.brand : T.muted, fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:!showArchived?700:400, letterSpacing:"0.05em", cursor:"pointer", transition:"all .12s cubic-bezier(0.4, 0, 0.2, 1)"}}>ACTIVE</button>
+            <button onClick={() => setShowArchived(true)} aria-pressed={showArchived ? "true" : "false"} aria-label="Show archived sessions" title="Show archived sessions" style={{flexShrink:0, minHeight:36, padding:"0 14px", display:"inline-flex", alignItems:"center", justifyContent:"center", borderRadius:20, border:"none", background:showArchived ? T.purpleDim : "transparent", border:`1px solid ${showArchived ? T.purple+"60" : T.border}`, color:showArchived ? T.purple : T.muted, fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:showArchived?700:400, letterSpacing:"0.05em", cursor:"pointer", transition:"all .12s cubic-bezier(0.4, 0, 0.2, 1)"}}>ARCHIVED</button>
           </div>
         )}
         <div style={{position: "relative", maxHeight:scrolled?0:60, opacity:scrolled?0:1, transition:"all .25s cubic-bezier(0.4, 0, 0.2, 1)", pointerEvents:scrolled?"none":"auto"}}>
@@ -252,6 +252,8 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
           <div style={{overflowX:"auto", padding:scrolled?0:"4px 2px 10px", scrollbarWidth:"none", WebkitOverflowScrolling:"touch"}}>
             <div style={{display:"flex",gap:5,minWidth:"max-content",padding:"4px 0", alignItems:"center"}}>
               <div
+                role="region"
+                aria-label={`Quota usage: ${todayCount.total} of ${plan?.daily || 15} tasks started, ${todayCount.done} PRs created`}
                 title={`QUOTA USAGE\nStarted: ${todayCount.total} of ${plan?.daily || 15}\nPRs Created: ${todayCount.done}\nIn Progress: ${todayCount.total - todayCount.done}\nNext Recovery: ${todayCount.nextResetTs ? fmtTime(todayCount.nextResetTs) : "N/A"} (${todayCount.resetIn})`}
                 style={{
                   display:"flex", alignItems:"center", gap:9, padding:"6px 14px", borderRadius:22,
@@ -312,8 +314,16 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
                 if (cnt===0 && f!=="ALL" && f!==filter) return null;
                 const isAct = f===filter;
                 const ac = STATUS_META[f]?.color || T.brand;
+                const labelText = FILTER_LABELS[f]||f;
                 return (
-                  <button key={f} onClick={()=>setFilter(f)} style={{flexShrink:0, minHeight:36, padding:"0 14px", display:"inline-flex", alignItems:"center", justifyContent:"center", borderRadius:20,border:"none",background:isAct?`${ac}20`:"transparent",border:`1px solid ${isAct?`${ac}80`:T.border}`,color:isAct?ac:T.muted,fontFamily:"'JetBrains Mono',monospace",fontSize:11,fontWeight:700,letterSpacing:"0.06em",cursor:"pointer",transition:"background .12s cubic-bezier(0.4, 0, 0.2, 1), color .12s cubic-bezier(0.4, 0, 0.2, 1)"}}>{FILTER_LABELS[f]||f} {cnt>0?cnt:""}</button>
+                  <button
+                    key={f}
+                    onClick={()=>setFilter(f)}
+                    aria-pressed={isAct ? "true" : "false"}
+                    aria-label={`Filter by ${labelText}${cnt > 0 ? `, ${cnt} sessions` : ""}`}
+                    title={`Filter by ${labelText}${cnt > 0 ? ` (${cnt})` : ""}`}
+                    style={{flexShrink:0, minHeight:36, padding:"0 14px", display:"inline-flex", alignItems:"center", justifyContent:"center", borderRadius:20,border:"none",background:isAct?`${ac}20`:"transparent",border:`1px solid ${isAct?`${ac}80`:T.border}`,color:isAct?ac:T.muted,fontFamily:"'JetBrains Mono',monospace",fontSize:11,fontWeight:700,letterSpacing:"0.06em",cursor:"pointer",transition:"background .12s cubic-bezier(0.4, 0, 0.2, 1), color .12s cubic-bezier(0.4, 0, 0.2, 1)"}}
+                  >{labelText} {cnt>0?cnt:""}</button>
                 );
               })}
             </div>
