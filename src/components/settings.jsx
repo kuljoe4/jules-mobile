@@ -64,7 +64,7 @@ const SettingsView = ({ onBack, isDesktop, settings, personas, setPersonas, toda
             </button>
           )}
         </div>
-          <div role="tablist" style={{display:"flex", gap:16, position:"relative", borderBottom:`1px solid ${T.border}33`, overflowX: "auto", scrollbarWidth: "none", WebkitOverflowScrolling: "touch"}}>
+          <div role="tablist" aria-label="Settings tabs" style={{display:"flex", gap:16, position:"relative", borderBottom:`1px solid ${T.border}33`, overflowX: "auto", scrollbarWidth: "none", WebkitOverflowScrolling: "touch"}}>
           {TABS.map(t => (
             <button key={t.id} role="tab" aria-selected={tab===t.id?"true":"false"} onClick={() => setTab(t.id)} style={{
               padding:"8px 4px", background:"none", border:"none", cursor:"pointer",

@@ -10,7 +10,7 @@ import {
   safeMediaMimeType,
   safeUrl,
 } from '../src/utils/validation.js';
-import { cleanMathText, fmtBytes, fmtChars, safeSlice } from '../src/utils/format.js';
+import { cleanMathText, fmtBytes, fmtChars, formatSmartDashItems, safeSlice } from '../src/utils/format.js';
 import { fmtAgo, fmtDuration, fmtTime, parseDateMs } from '../src/utils/date.js';
 import { GitHubTracker, getPR } from '../src/services/githubTracker.js';
 
@@ -100,6 +100,15 @@ assert.equal(cleanMathText('\\text{Entry/Exit Authorized} = (\\text{Required}_1 
 assert.equal(cleanMathText('/quad \nOpportunity Score = (Momentum Score \\times w_{momentum})'), 'Opportunity Score = (Momentum Score × w_momentum)');
 assert.equal(cleanMathText('Completed Close > Fast EMA \\quad AND \\quad Completed Close > Slow EMA'), 'Completed Close > Fast EMA   AND   Completed Close > Slow EMA');
 assert.equal(cleanMathText('squad quadratic'), 'squad quadratic');
+
+// Test formatSmartDashItems smart dash itemization
+const dashInput1 = "Fix bugs and improve UI - Mobile-first layout adjustments - Pre-commit check verification (range 1-10).";
+const dashExpected1 = "Fix bugs and improve UI\n- Mobile-first layout adjustments\n- Pre-commit check verification (range 1-10).";
+assert.equal(formatSmartDashItems(dashInput1), dashExpected1);
+
+const dashInput2 = "1. *Audit and enhance UI/UX.* - Inspect components - Ensure 100% WCAG 2.1 compliance.";
+const dashExpected2 = "1. *Audit and enhance UI/UX.*\n- Inspect components\n- Ensure 100% WCAG 2.1 compliance.";
+assert.equal(formatSmartDashItems(dashInput2), dashExpected2);
 
 // Test GitHubTracker PR Caching (positive and negative hits)
 const sessNoPR = { id: 'sess-no-pr-1', createTime: '2026-08-25T10:00:00Z', outputs: [] };

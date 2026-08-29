@@ -122,11 +122,11 @@ export const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFe
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:15,fontWeight:500,
                     color:T.text,lineHeight:1.35,marginBottom:st.description?10:0}}>
-                    {st.title}
+                    <Markdown text={st.title} />
                   </div>
                   {st.description&&(
                     <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:13,color:T.textDim,lineHeight:1.45}}>
-                      {st.description}
+                      <Markdown text={st.description} />
                     </div>
                   )}
                   {hasNote&&!isOpen&&(

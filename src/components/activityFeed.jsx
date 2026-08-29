@@ -230,8 +230,12 @@ const TimelineEvent = memo(({ act, onMediaClick, onReply }) => {
                 marginTop: 1,
               }}>{i+1}</div>
               <div style={{flex: 1, minWidth: 0}}>
-                <div style={{fontSize:14,color:T.text,fontWeight:700,lineHeight:1.5,wordBreak:"break-word",marginBottom:4}}>{st.title}</div>
-                {st.description&&<div style={{fontSize:13,color:T.textDim,lineHeight:1.6,wordBreak:"break-word"}}>{st.description}</div>}
+                <div style={{fontSize:14,color:T.text,fontWeight:700,lineHeight:1.5,wordBreak:"break-word",marginBottom:4}}>
+                  <Markdown text={st.title}/>
+                </div>
+                {st.description&&<div style={{fontSize:13,color:T.textDim,lineHeight:1.6,wordBreak:"break-word"}}>
+                  <Markdown text={st.description}/>
+                </div>}
               </div>
             </div>
           ))}
