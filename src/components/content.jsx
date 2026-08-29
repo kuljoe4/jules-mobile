@@ -105,8 +105,8 @@ const ExpandableContent = memo(({ text, limit = 300, showCopy = false, forceExpa
 
 const Markdown = memo(({ text }) => {
   if (!text) return null;
-  const formattedText = formatSmartDashItems(text);
-  const parts = formattedText.split(/```/g);
+  const rawParts = text.split(/```/g);
+  const parts = rawParts.map((part, i) => i % 2 === 0 ? formatSmartDashItems(part) : part);
   return parts.map((part, i) => {
     if (i % 2 === 1) { // Code block
       const lines = part.split("\n");

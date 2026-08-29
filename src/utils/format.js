@@ -41,7 +41,8 @@ export const formatSmartDashItems = (text) => {
 
     let formatted = line;
 
-    // 1. Break bullet dashes after sentence enders or punctuation (. ! ? : ; ] ) )
+    // 1. Break sublist prefixes ending with colons (or sentence ending punctuation) followed by dashes
+    // e.g., "The plan includes: - Item A - Item B" or "Steps: - First - Second"
     formatted = formatted.replace(/([.:;!\]\)])\s*-\s+(?=[A-Za-z*`"'\\[{(])/g, "$1\n- ");
 
     // 2. Break bullet dashes between clause words and capitalized/formatted item titles
