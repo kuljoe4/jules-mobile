@@ -110,6 +110,10 @@ const dashInput2 = "1. *Audit and enhance UI/UX.* - Inspect components - Ensure 
 const dashExpected2 = "1. *Audit and enhance UI/UX.*\n- Inspect components\n- Ensure 100% WCAG 2.1 compliance.";
 assert.equal(formatSmartDashItems(dashInput2), dashExpected2);
 
+const dashInput3 = "Overall details: - First sub item - Second sub item; i.e.: - Third sub item";
+const dashExpected3 = "Overall details:\n- First sub item\n- Second sub item; i.e.:\n- Third sub item";
+assert.equal(formatSmartDashItems(dashInput3), dashExpected3);
+
 // Test GitHubTracker PR Caching (positive and negative hits)
 const sessNoPR = { id: 'sess-no-pr-1', createTime: '2026-08-25T10:00:00Z', outputs: [] };
 assert.equal(getPR(sessNoPR), null);
