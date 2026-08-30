@@ -1,7 +1,7 @@
 const FILTERS = ["ALL","QUEUED","PLANNING","AWAITING_PLAN_APPROVAL","IN_PROGRESS","COMPLETED","FAILED","HAS_DRAFT"];
 const FILTER_LABELS = { AWAITING_PLAN_APPROVAL:"APPROVE", ALL:"ALL", HAS_DRAFT:"HAS DRAFT" };
 
-const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed, selectedId, isDesktop, onNew, onDrafts, onSettings, pollInterval, sessionLimit, countdown, plan, todayCount, searchQuery, setSearchQuery, archivedIds, showArchived, setShowArchived, activitiesMap = {}, activityStatsMap = {}, error, clearError, isBoosted, readMap, draftsMap = {}, ignoredIds = new Set(), filterResetTrigger, sidebarCollapsed, setSidebarCollapsed }) => {
+const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed, selectedId, isDesktop, onNew, onDrafts, onSettings, pollInterval, sessionLimit, countdown, plan, todayCount, searchQuery, setSearchQuery, archivedIds, showArchived, setShowArchived, activitiesMap = {}, activityStatsMap = {}, error, clearError, isBoosted, readMap, draftsMap = {}, ignoredIds = new Set(), filterResetTrigger, sidebarCollapsed, setSidebarCollapsed, onCloseMobileDrawer, onToggleMobileDrawer }) => {
   const [filter,setFilter] = useState("ALL");
   const [repoFilter, setRepoFilter] = useState("ALL");
   const [repoPickerOpen, setRepoPickerOpen] = useState(false);
@@ -158,6 +158,26 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
             </div>
           )}
           <div style={{marginLeft:"auto",display:"flex",gap:4,alignItems:"center",flexShrink:0}}>
+            {onCloseMobileDrawer && (
+              <button
+                onClick={onCloseMobileDrawer}
+                title="Close Drawer"
+                aria-label="Close Drawer"
+                style={{width:28,height:28,borderRadius:5,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}
+              >
+                <Ic n="x" s={14} c={T.muted}/>
+              </button>
+            )}
+            {!isDesktop && onToggleMobileDrawer && !onCloseMobileDrawer && (
+              <button
+                onClick={onToggleMobileDrawer}
+                title="Open Sidebar Drawer"
+                aria-label="Open Sidebar Drawer"
+                style={{width:28,height:28,borderRadius:5,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}
+              >
+                <Ic n="layout_toggle" s={14} c={T.brand}/>
+              </button>
+            )}
             {isDesktop && setSidebarCollapsed && (
               <button
                 onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
