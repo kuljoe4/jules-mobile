@@ -21,6 +21,8 @@ def run_cuj(page):
             "updateTime": "2026-08-25T12:05:00Z"
         }
     ]
+    # Valid 1x1 transparent PNG base64 string for mock media artifact
+    mock_png_base64 = "iVBORw0KGgoAAAANSUEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
     mock_activities = {
         "sess-mock-1": [
             {
@@ -32,6 +34,12 @@ def run_cuj(page):
                             "gitPatch": {
                                 "unidiffPatch": "--- a/src/components/diffViewer.jsx\n+++ b/src/components/diffViewer.jsx\n@@ -1,3 +1,5 @@\n+// Patch 1 addition\n const x = 1;\n"
                             }
+                        }
+                    },
+                    {
+                        "media": {
+                            "mimeType": "image/png",
+                            "data": mock_png_base64
                         }
                     }
                 ]
