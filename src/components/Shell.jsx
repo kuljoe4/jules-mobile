@@ -33,6 +33,7 @@ function Shell({ children, desktop=false }) {
         @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
         @keyframes zoomIn{from{transform:scale(0.95);opacity:0;}to{transform:scale(1);opacity:1;}}
         @keyframes slideUp{from{transform:translateY(20px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+        @keyframes slideRight{from{transform:translateX(-100%);opacity:0;}to{transform:translateX(0);opacity:1;}}
         @keyframes shimmerPulse {
           0% { opacity: 0.7; transform: translateY(4px); }
           50% { opacity: 1; transform: translateY(-2px); }

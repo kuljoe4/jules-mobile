@@ -1,5 +1,5 @@
 // ─── Session Detail ───────────────────────────────────────────────────────────
-const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete, onSessionUpdate, onStatsUpdate, isDesktop, pollInterval, setPollInterval, isArchived, onArchive, onUnarchive, onIgnore, cacheLimit, activityLimit, allSessions = [], activitiesMap = {}, onDraftChange }) => {
+const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete, onSessionUpdate, onStatsUpdate, isDesktop, pollInterval, setPollInterval, isArchived, onArchive, onUnarchive, onIgnore, cacheLimit, activityLimit, allSessions = [], activitiesMap = {}, onDraftChange, onToggleMobileDrawer }) => {
   const [session,setSession]     = useState(initSession);
 
   useEffect(() => {
@@ -793,9 +793,16 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
       }}>
         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:scrolled?0:6, minHeight:scrolled?24:44}}>
           {!isDesktop&&(
-            <button onClick={onBack} aria-label="Go back" style={{background:"none",border:"none",cursor:"pointer",padding:3,display:"flex",flexShrink:0}}>
-              <Ic n="back" s={18} c={T.text}/>
-            </button>
+            <div style={{display:"flex", alignItems:"center", gap:4}}>
+              <button onClick={onBack} aria-label="Go back" style={{background:"none",border:"none",cursor:"pointer",padding:3,display:"flex",flexShrink:0}}>
+                <Ic n="back" s={18} c={T.text}/>
+              </button>
+              {onToggleMobileDrawer && (
+                <button onClick={onToggleMobileDrawer} title="Open Sessions Sidebar" aria-label="Open Sessions Sidebar" style={{background:"none",border:"none",cursor:"pointer",padding:3,display:"flex",flexShrink:0}}>
+                  <Ic n="layout_toggle" s={18} c={T.brand}/>
+                </button>
+              )}
+            </div>
           )}
           <div style={{flex:1,minWidth:0, position:"relative"}}>
             {/* Session Title and Metadata */}

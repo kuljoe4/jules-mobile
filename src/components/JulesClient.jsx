@@ -20,6 +20,7 @@ function JulesClient() {
   const [activityStatsMap, setActivityStatsMap] = useState(() => SafeStorage.loadActStats());
   const [selected,setSelected] = useState(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [mobileScreen,setMobileRaw] = useState("list");
   const [lastSessionScreen, setLastSessionScreen] = useState("list");
   const [justRefreshed, setJustRefreshed] = useState(false);
@@ -426,6 +427,7 @@ function JulesClient() {
     // If selected from supplemental, ensure it doesn't duplicate if primary list updates
     const ts = s.updateTime || s.createTime;
     setReadMap(prev => ({ ...prev, [s.id || s.name]: ts }));
+    setMobileDrawerOpen(false);
     if (isDesktop) setDesktop("detail"); else setMobile("detail");
   }, [isDesktop]);
 
@@ -574,10 +576,61 @@ function JulesClient() {
     );
   }
 
-  // ── Mobile layout: single panel + bottom nav ──────────────────────────────
+  // ── Mobile layout: single panel + bottom nav + slide-over drawer ────────────
   return (
     <Shell>
-      <div style={{flex:1,overflow:"hidden",display:"flex",flexDirection:"column",minHeight:0}}>
+      <div style={{flex:1,overflow:"hidden",display:"flex",flexDirection:"column",minHeight:0,position:"relative"}}>
+        {/* Mobile Slide-Over Sidebar Drawer */}
+        {mobileDrawerOpen && (
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Sessions sidebar drawer"
+            style={{
+              position:"absolute", inset:0, zIndex:1000, display:"flex",
+              animation:"fadeIn .2s ease"
+            }}
+          >
+            {/* Dark Backdrop */}
+            <div
+              onClick={() => setMobileDrawerOpen(false)}
+              style={{
+                position:"absolute", inset:0, background:"rgba(0,0,0,0.65)",
+                backdropFilter:"blur(3px)", WebkitBackdropFilter:"blur(3px)"
+              }}
+            />
+            {/* Drawer Container */}
+            <div style={{
+              position:"relative", width:"85%", maxWidth:320, height:"100%",
+              background:T.surface, borderRight:`1px solid ${T.borderHi}`,
+              boxShadow:"0 0 30px rgba(0,0,0,0.8)", zIndex:1001, display:"flex",
+              flexDirection:"column", animation:"slideRight .25s cubic-bezier(0.4, 0, 0.2, 1)"
+            }}>
+              <SessionList sessions={allSessions} onSelect={handleSelect} onRefresh={()=>fetchSessions(false)}
+                refreshing={refreshing} justRefreshed={justRefreshed} selectedId={selected?.id} isDesktop={false}
+                onNew={() => { setSelectedDraft(null); setMobileDrawerOpen(false); setMobile("new"); }}
+                onDrafts={() => { setMobileDrawerOpen(false); setMobile("drafts"); }}
+                onSettings={() => { setMobileDrawerOpen(false); setMobile("settings"); }}
+                pollInterval={effectivePollInterval}
+                sessionLimit={sessionLimit}
+                countdown={countdown}
+                plan={plan} todayCount={todayCount}
+                searchQuery={searchQuery} setSearchQuery={setSearchQuery}
+                archivedIds={archivedIds} showArchived={showArchived} setShowArchived={setShowArchived}
+                activitiesMap={activitiesMap}
+                activityStatsMap={activityStatsMap}
+                error={globalErr} clearError={() => setGlobalErr(null)}
+                isBoosted={isBoosted}
+                readMap={readMap}
+                draftsMap={draftsMap}
+                ignoredIds={ignoredIds}
+                filterResetTrigger={filterResetTrigger}
+                onCloseMobileDrawer={() => setMobileDrawerOpen(false)}
+              />
+            </div>
+          </div>
+        )}
+
         {mobileScreen==="list"&&(
           <SessionList sessions={allSessions} onSelect={handleSelect} onRefresh={()=>fetchSessions(false)}
             refreshing={refreshing} justRefreshed={justRefreshed} selectedId={selected?.id} isDesktop={false}
@@ -598,7 +651,9 @@ function JulesClient() {
             readMap={readMap}
             draftsMap={draftsMap}
             ignoredIds={ignoredIds}
-            filterResetTrigger={filterResetTrigger} />
+            filterResetTrigger={filterResetTrigger}
+            onToggleMobileDrawer={() => setMobileDrawerOpen(!mobileDrawerOpen)}
+          />
         )}
         {mobileScreen==="detail"&&selected&&(
           <SessionDetail key={selected.id} session={selected} apiKey={apiKey}
@@ -614,7 +669,8 @@ function JulesClient() {
             isArchived={archivedIds.has(selected.id)}
             onArchive={handleArchive} onUnarchive={handleUnarchive}
             onIgnore={handleIgnore}
-            onDraftChange={handleDraftChange}/>
+            onDraftChange={handleDraftChange}
+            onToggleMobileDrawer={() => setMobileDrawerOpen(!mobileDrawerOpen)}/>
         )}
         {mobileScreen==="new"&&(
           <NewSession
