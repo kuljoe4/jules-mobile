@@ -158,85 +158,49 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
             </div>
           )}
           <div style={{marginLeft:"auto",display:"flex",gap:4,alignItems:"center",flexShrink:0}}>
-            {onCloseMobileDrawer && (
-              <button
-                onClick={onCloseMobileDrawer}
-                title="Close Drawer"
-                aria-label="Close Drawer"
-                style={{width:28,height:28,borderRadius:5,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}
-              >
-                <Ic n="x" s={14} c={T.muted}/>
-              </button>
-            )}
-            {!isDesktop && onToggleMobileDrawer && !onCloseMobileDrawer && (
-              <button
-                onClick={onToggleMobileDrawer}
-                title="Open Sidebar Drawer"
-                aria-label="Open Sidebar Drawer"
-                style={{width:28,height:28,borderRadius:5,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}
-              >
-                <Ic n="layout_toggle" s={14} c={T.brand}/>
-              </button>
-            )}
-            {isDesktop && setSidebarCollapsed && (
-              <button
-                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
-                aria-label={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
-                style={{width:28,height:28,borderRadius:5,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}
-              >
-                <Ic n={sidebarCollapsed ? "chevron_right" : "layout_toggle"} s={14} c={T.muted}/>
-              </button>
-            )}
             {!sidebarCollapsed && (
               <>
                 <button onClick={toggleSearch} title="Search sessions (Press /)" aria-label="Search sessions (Press forward slash to search)" style={{width:28,height:28,borderRadius:5,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="search" s={14} c={searchOpen||searchQuery?T.blue:T.muted}/></button>
-                {isDesktop&&<button onClick={onNew} title="New Session" aria-label="New Session" style={{width:28,height:28,borderRadius:5,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="plus" s={14} c={T.brand}/></button>}
-                <button
-                  onClick={onDrafts}
-                  title={hasDrafts ? "Drafts Box (Has saved drafts)" : "Drafts Box"}
-                  aria-label={hasDrafts ? "Drafts Box (Has saved drafts)" : "Drafts Box"}
-                  style={{
-                    width:28,
-                    height:28,
-                    borderRadius:5,
-                    background:"transparent",
-                    border:"none",
-                    display:"flex",
-                    alignItems:"center",
-                    justifyContent:"center",
-                    cursor:"pointer",
-                    position:"relative"
-                  }}
-                >
-                  <Ic n="layers" s={14} c={hasDrafts ? T.amber : T.muted}/>
-                  {hasDrafts && (
-                    <span
-                      style={{
-                        position: "absolute",
-                        top: 4,
-                        right: 4,
-                        width: 5,
-                        height: 5,
-                        borderRadius: "50%",
-                        background: T.amber,
-                        boxShadow: `0 0 4px ${T.amber}`
-                      }}
-                    />
-                  )}
-                </button>
-                <button onClick={onSettings} title="Settings" aria-label="Settings" style={{width:28,height:28,borderRadius:5,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="settings" s={14} c={T.muted}/></button>
+                {isDesktop && <button onClick={onNew} title="New Session" aria-label="New Session" style={{width:28,height:28,borderRadius:5,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="plus" s={14} c={T.brand}/></button>}
+                {isDesktop && (
+                  <button
+                    onClick={onDrafts}
+                    title={hasDrafts ? "Drafts Box (Has saved drafts)" : "Drafts Box"}
+                    aria-label={hasDrafts ? "Drafts Box (Has saved drafts)" : "Drafts Box"}
+                    style={{
+                      width:28,
+                      height:28,
+                      borderRadius:5,
+                      background:"transparent",
+                      border:"none",
+                      display:"flex",
+                      alignItems:"center",
+                      justifyContent:"center",
+                      cursor:"pointer",
+                      position:"relative"
+                    }}
+                  >
+                    <Ic n="layers" s={14} c={hasDrafts ? T.amber : T.muted}/>
+                    {hasDrafts && (
+                      <span
+                        style={{
+                          position: "absolute",
+                          top: 4,
+                          right: 4,
+                          width: 5,
+                          height: 5,
+                          borderRadius: "50%",
+                          background: T.amber,
+                          boxShadow: `0 0 4px ${T.amber}`
+                        }}
+                      />
+                    )}
+                  </button>
+                )}
+                {isDesktop && (
+                  <button onClick={onSettings} title="Settings" aria-label="Settings" style={{width:28,height:28,borderRadius:5,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="settings" s={14} c={T.muted}/></button>
+                )}
                 <div style={{display:"flex", alignItems:"center", gap:4}}>
-                  {countdown > 0 && !refreshing && (
-                    <div style={{
-                      fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:900,
-                      color:isBoosted?T.amber:T.brand, opacity:0.6, animation:"fadeIn .3s ease",
-                      display:"flex", alignItems:"center", gap:3, marginRight:2
-                    }}>
-                      {isBoosted && <span style={{width:3, height:3, borderRadius:"50%", background:T.amber, animation:"dot 1s infinite"}}/>}
-                      {countdown}S
-                    </div>
-                  )}
                   <button
                     onClick={onRefresh}
                     disabled={refreshing}
@@ -269,6 +233,36 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
                   </button>
                 </div>
               </>
+            )}
+            {onCloseMobileDrawer && (
+              <button
+                onClick={onCloseMobileDrawer}
+                title="Close Drawer"
+                aria-label="Close Drawer"
+                style={{width:28,height:28,borderRadius:5,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}
+              >
+                <Ic n="x" s={14} c={T.muted}/>
+              </button>
+            )}
+            {!isDesktop && onToggleMobileDrawer && !onCloseMobileDrawer && (
+              <button
+                onClick={onToggleMobileDrawer}
+                title="Open Sidebar Drawer"
+                aria-label="Open Sidebar Drawer"
+                style={{width:28,height:28,borderRadius:5,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}
+              >
+                <Ic n="layout_toggle" s={14} c={T.brand}/>
+              </button>
+            )}
+            {isDesktop && setSidebarCollapsed && (
+              <button
+                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+                aria-label={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+                style={{width:28,height:28,borderRadius:5,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}
+              >
+                <Ic n={sidebarCollapsed ? "chevron_right" : "layout_toggle"} s={14} c={T.muted}/>
+              </button>
             )}
           </div>
         </div>
