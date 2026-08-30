@@ -134,6 +134,8 @@ function JulesClient() {
     catch { return new Set(); }
   });
   const [showArchived, setShowArchived] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [repoFilter, setRepoFilter] = useState("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [globalErr, setGlobalErr] = useState(null);
   const sessionsAbortRef = useRef(null);
@@ -467,6 +469,8 @@ function JulesClient() {
     // Reset filters to guarantee the newly created session is visible
     setShowArchived(false);
     setSearchQuery("");
+    setStatusFilter("ALL");
+    setRepoFilter("ALL");
     setFilterResetTrigger(prev => prev + 1);
 
     if (isDesktop) setDesktop("detail"); else setMobile("detail");
@@ -515,6 +519,8 @@ function JulesClient() {
             plan={plan} todayCount={todayCount}
             searchQuery={searchQuery} setSearchQuery={setSearchQuery}
             archivedIds={archivedIds} showArchived={showArchived} setShowArchived={setShowArchived}
+            statusFilter={statusFilter} setStatusFilter={setStatusFilter}
+            repoFilter={repoFilter} setRepoFilter={setRepoFilter}
             activitiesMap={activitiesMap}
             activityStatsMap={activityStatsMap}
             sessions={allSessions}
@@ -642,6 +648,8 @@ function JulesClient() {
                 plan={plan} todayCount={todayCount}
                 searchQuery={searchQuery} setSearchQuery={setSearchQuery}
                 archivedIds={archivedIds} showArchived={showArchived} setShowArchived={setShowArchived}
+                statusFilter={statusFilter} setStatusFilter={setStatusFilter}
+                repoFilter={repoFilter} setRepoFilter={setRepoFilter}
                 activitiesMap={activitiesMap}
                 activityStatsMap={activityStatsMap}
                 error={globalErr} clearError={() => setGlobalErr(null)}
