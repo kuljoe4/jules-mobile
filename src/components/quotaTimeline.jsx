@@ -166,14 +166,26 @@ const QuotaTimeline = ({ todayCount, plan }) => {
 
         {/* Zoom Control */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, background: T.surfaceHi, padding: "4px 8px", borderRadius: 20, border: `1px solid ${T.border}` }}>
-          <button onClick={() => setZoomHours(h => Math.min(24, h + 2))} title="Zoom out" aria-label="Zoom out" style={{ background: "none", border: "none", color: T.muted, cursor: "pointer", display: "flex" }}>
-             <Ic n="plus" s={10} c={T.muted} style={{ transform: "rotate(45deg)" }} />
+          <button
+            onClick={() => setZoomHours(h => Math.min(24, h + 2))}
+            disabled={zoomHours >= 24}
+            title={zoomHours >= 24 ? "Maximum zoom range reached (24H)" : "Zoom out"}
+            aria-label={zoomHours >= 24 ? "Maximum zoom range reached (24H)" : "Zoom out"}
+            style={{ background: "none", border: "none", color: zoomHours >= 24 ? T.dim : T.muted, cursor: zoomHours >= 24 ? "not-allowed" : "pointer", display: "flex", opacity: zoomHours >= 24 ? 0.4 : 1 }}
+          >
+             <Ic n="plus" s={10} c={zoomHours >= 24 ? T.dim : T.muted} style={{ transform: "rotate(45deg)" }} />
           </button>
           <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: T.brand, fontWeight: 800, minWidth: 24, textAlign: "center" }}>
             {Math.round(zoomHours)}H
           </span>
-          <button onClick={() => setZoomHours(h => Math.max(1, h - 2))} title="Zoom in" aria-label="Zoom in" style={{ background: "none", border: "none", color: T.muted, cursor: "pointer", display: "flex" }}>
-             <Ic n="plus" s={10} c={T.muted} />
+          <button
+            onClick={() => setZoomHours(h => Math.max(1, h - 2))}
+            disabled={zoomHours <= 1}
+            title={zoomHours <= 1 ? "Minimum zoom range reached (1H)" : "Zoom in"}
+            aria-label={zoomHours <= 1 ? "Minimum zoom range reached (1H)" : "Zoom in"}
+            style={{ background: "none", border: "none", color: zoomHours <= 1 ? T.dim : T.muted, cursor: zoomHours <= 1 ? "not-allowed" : "pointer", display: "flex", opacity: zoomHours <= 1 ? 0.4 : 1 }}
+          >
+             <Ic n="plus" s={10} c={zoomHours <= 1 ? T.dim : T.muted} />
           </button>
         </div>
       </div>
