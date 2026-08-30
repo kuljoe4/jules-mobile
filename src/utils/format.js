@@ -28,13 +28,18 @@ export const cleanMathText = (mathStr) => {
   return str.trim();
 };
 
+// OPTIMIZATION (Bolt): Early-exit guard `!text.includes("-")` and line-level hyphen checks
+// completely bypass text splitting, line iterations, regex evaluations, and string allocations
+// for non-bullet text. Returns original string reference if unchanged to save memory and CPU cycles.
 export const formatSmartDashItems = (text) => {
-  if (typeof text !== "string" || !text) return text;
+  if (typeof text !== "string" || !text || !text.includes("-")) return text;
   const lines = text.split("\n");
+  let hasChanged = false;
   const processedLines = [];
 
-  for (let line of lines) {
-    if (!line.trim() || line.trim().startsWith("```")) {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line.includes("-") || !line.trim() || line.trim().startsWith("```")) {
       processedLines.push(line);
       continue;
     }
@@ -58,8 +63,12 @@ export const formatSmartDashItems = (text) => {
       return prev + "\n- " + next;
     });
 
+    if (formatted !== line) {
+      hasChanged = true;
+    }
+
     processedLines.push(formatted);
   }
 
-  return processedLines.join("\n");
+  return hasChanged ? processedLines.join("\n") : text;
 };
