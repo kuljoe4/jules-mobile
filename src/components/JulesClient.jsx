@@ -22,7 +22,6 @@ function JulesClient() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [mobileScreen,setMobileRaw] = useState("detail");
-  const [lastSessionScreen, setLastSessionScreen] = useState("detail");
   const [justRefreshed, setJustRefreshed] = useState(false);
   const [supplementalSessions, setSupplementalSessions] = useState([]);
   const allSessions = useMemo(() => {
@@ -71,7 +70,6 @@ function JulesClient() {
 
   const setMobile = useCallback(s => {
     setMobileRaw(s);
-    if (s === "list" || s === "detail") setLastSessionScreen(s);
   }, []);
   const [refreshing,setRefreshing] = useState(false);
   // OPTIMIZATION (Bolt): Removed global root-level `netSnap` state and subscription from JulesClient.
