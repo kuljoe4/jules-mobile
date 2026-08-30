@@ -717,7 +717,6 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
 
   const b = useMemo(() => getBranchInfo(session, activities), [session, activities]);
   const ahead = useMemo(() => getAheadCount(activities), [activities]);
-  const checks = useMemo(() => getCheckStatus(activities), [activities]);
 
   const summary = session.outputs?.find(o=>o.sessionSummary)?.sessionSummary;
   const pri = useMemo(() => getPRInfo(session, activities), [session, activities, ghPrNonce]);
@@ -852,30 +851,6 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                           #{pr.number}
                         </a>
                       )}
-                      {(() => {
-                        const ck = pri?.checks || b?.checks || checks;
-                        if (!ck) return null;
-                        const isGitHub = !!ck.url;
-                        const Component = isGitHub ? "a" : "div";
-                        return (
-                          <Component
-                            href={isGitHub ? safeUrl(ck.url) : undefined}
-                            target={isGitHub ? "_blank" : undefined}
-                            rel={isGitHub ? "noopener noreferrer" : undefined}
-                            title={ck.label}
-                            style={{
-                              background:ck.state==="success"?T.brandDim:ck.state==="failure"?T.redDim:T.amberDim,
-                              border:`1px solid ${ck.state==="success"?T.brand:ck.state==="failure"?T.red:T.amber}40`,
-                              borderRadius:3, padding:"1px 4px", display:"flex", alignItems:"center", gap:3,
-                              color:ck.state==="success"?T.brandLight:ck.state==="failure"?T.red:T.amber,
-                              textDecoration:"none", fontFamily:"'JetBrains Mono',monospace", fontSize:8, fontWeight:900, flexShrink:0,
-                              cursor: isGitHub ? "pointer" : "default"
-                            }}
-                          >
-                            <Ic n={ck.state==="success"?"check":ck.state==="failure"?"x":"refresh"} s={10} c={ck.state==="success"?T.brandLight:ck.state==="failure"?T.red:T.amber}/>
-                          </Component>
-                        );
-                      })()}
                     </>
                  )}
               </div>
@@ -1148,23 +1123,6 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
               </a>
             )}
 
-            {(pri?.checks || b?.checks || checks) && (
-              (() => {
-                const ck = pri?.checks || b?.checks || checks;
-                return (
-                  <a href={safeUrl(ck.url || "#")} target="_blank" rel="noopener noreferrer" aria-label={`Build Checks status: ${ck.label}.`} style={{
-                    background:ck.state==="success"?T.brandDim:ck.state==="failure"?T.redDim:T.amberDim,
-                    border:`1px solid ${ck.state==="success"?T.brand:ck.state==="failure"?T.red:T.amber}40`,
-                    borderRadius:4, padding:"3px 8px", display:"flex", alignItems:"center", gap:4,
-                    color:ck.state==="success"?T.brandLight:ck.state==="failure"?T.red:T.amber,
-                    textDecoration:"none", fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:900, flexShrink:0
-                  }}>
-                    <Ic n={ck.state==="success"?"check":ck.state==="failure"?"x":"refresh"} s={11} c={ck.state==="success"?T.brandLight:ck.state==="failure"?T.red:T.amber}/>
-                    {ck.label}
-                  </a>
-                );
-              })()
-            )}
 
             {session.url && (
               <a href={safeUrl(session.url)} target="_blank" rel="noopener noreferrer" style={{
@@ -1562,22 +1520,6 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                       </div>
                     </div>
 
-                    {/* CI/CD Status */}
-                    {pr.checks && (
-                      <div>
-                        <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 800, color: T.blue, letterSpacing: "0.05em", marginBottom: 4 }}>
-                          CI/CD CHECKS
-                        </div>
-                        <a href={safeUrl(pr.checks.url)} target="_blank" rel="noopener noreferrer" style={{
-                          display: "inline-flex", alignItems: "center", gap: 6, textDecoration: "none",
-                          fontSize: 12, color: pr.checks.state === "success" ? T.brandLight : pr.checks.state === "failure" ? T.red : T.amber,
-                          fontWeight: 700, transition: "opacity .15s ease"
-                        }} onMouseEnter={e => e.currentTarget.style.opacity = 0.8} onMouseLeave={e => e.currentTarget.style.opacity = 1}>
-                          <Ic n={pr.checks.state === "success" ? "check" : pr.checks.state === "failure" ? "x" : "refresh"} s={12} c={pr.checks.state === "success" ? T.brandLight : pr.checks.state === "failure" ? T.red : T.amber}/>
-                          {pr.checks.label} ↗
-                        </a>
-                      </div>
-                    )}
                   </div>
 
                   {/* High Density Commits list */}
@@ -1679,22 +1621,6 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                       </div>
                     </div>
 
-                    {/* CI/CD Status */}
-                    {b.checks && (
-                      <div>
-                        <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 800, color: T.blue, letterSpacing: "0.05em", marginBottom: 4 }}>
-                          CI/CD CHECKS
-                        </div>
-                        <a href={safeUrl(b.checks.url)} target="_blank" rel="noopener noreferrer" style={{
-                          display: "inline-flex", alignItems: "center", gap: 6, textDecoration: "none",
-                          fontSize: 12, color: b.checks.state === "success" ? T.brandLight : b.checks.state === "failure" ? T.red : T.amber,
-                          fontWeight: 700, transition: "opacity .15s ease"
-                        }} onMouseEnter={e => e.currentTarget.style.opacity = 0.8} onMouseLeave={e => e.currentTarget.style.opacity = 1}>
-                          <Ic n={b.checks.state === "success" ? "check" : b.checks.state === "failure" ? "x" : "refresh"} s={12} c={b.checks.state === "success" ? T.brandLight : b.checks.state === "failure" ? T.red : T.amber}/>
-                          {b.checks.label} ↗
-                        </a>
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>
