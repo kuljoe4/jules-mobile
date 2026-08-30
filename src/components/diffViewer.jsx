@@ -169,8 +169,8 @@ export const DiffViewer = memo(({ activities = [], isDesktop = false }) => {
                 setTimeout(() => setCopiedOverallDebug(false), 2000);
               });
             }}
-            title="Copy overall diff debug report to clipboard"
-            aria-label="Copy overall diff debug report"
+            title={copiedOverallDebug ? "Overall diff debug report copied to clipboard" : "Copy overall diff debug report to clipboard"}
+            aria-label={copiedOverallDebug ? "Overall diff debug report copied to clipboard" : "Copy overall diff debug report"}
             style={{
               padding: "4px 8px", borderRadius: 12, border: `1px solid ${T.purple}40`,
               background: `${T.purple}15`, color: T.purple, cursor: "pointer",
@@ -301,8 +301,8 @@ export const DiffViewer = memo(({ activities = [], isDesktop = false }) => {
                       <div style={{display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap"}}>
                         <button
                           onClick={(e) => handleCopyPath(e, g.file, fileKey)}
-                          title="Copy file path"
-                          aria-label={`Copy file path for ${g.file}`}
+                          title={copiedPaths[fileKey] ? `File path for ${g.file} copied to clipboard` : "Copy file path"}
+                          aria-label={copiedPaths[fileKey] ? `File path for ${g.file} copied to clipboard` : `Copy file path for ${g.file}`}
                           style={{
                             background: "none", border: "none", padding: "4px 8px", cursor: "pointer",
                             borderRadius: 4, display: "flex", alignItems: "center", gap: 4,
@@ -320,8 +320,8 @@ export const DiffViewer = memo(({ activities = [], isDesktop = false }) => {
 
                         <button
                           onClick={(e) => handleCopyDiff(e, g.rawLines, fileKey)}
-                          title="Copy git diff/patch"
-                          aria-label={`Copy git diff for ${g.file}`}
+                          title={copiedDiffs[fileKey] ? `Git diff for ${g.file} copied to clipboard` : "Copy git diff/patch"}
+                          aria-label={copiedDiffs[fileKey] ? `Git diff for ${g.file} copied to clipboard` : `Copy git diff for ${g.file}`}
                           style={{
                             background: "none", border: "none", padding: "4px 8px", cursor: "pointer",
                             borderRadius: 4, display: "flex", alignItems: "center", gap: 4,
@@ -339,8 +339,8 @@ export const DiffViewer = memo(({ activities = [], isDesktop = false }) => {
 
                         <button
                           onClick={(e) => handleCopyPlain(e, g.hunks, fileKey)}
-                          title="Copy plain text code (added lines)"
-                          aria-label={`Copy plain code for ${g.file}`}
+                          title={copiedPlains[fileKey] ? `Plain code for ${g.file} copied to clipboard` : "Copy plain text code (added lines)"}
+                          aria-label={copiedPlains[fileKey] ? `Plain code for ${g.file} copied to clipboard` : `Copy plain code for ${g.file}`}
                           style={{
                             background: "none", border: "none", padding: "4px 8px", cursor: "pointer",
                             borderRadius: 4, display: "flex", alignItems: "center", gap: 4,
