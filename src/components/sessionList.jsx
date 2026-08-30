@@ -1,9 +1,16 @@
 const FILTERS = ["ALL","QUEUED","PLANNING","AWAITING_PLAN_APPROVAL","IN_PROGRESS","COMPLETED","FAILED","HAS_DRAFT"];
 const FILTER_LABELS = { AWAITING_PLAN_APPROVAL:"APPROVE", ALL:"ALL", HAS_DRAFT:"HAS DRAFT" };
 
-const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed, selectedId, isDesktop, onNew, onDrafts, onSettings, pollInterval, sessionLimit, countdown, plan, todayCount, searchQuery, setSearchQuery, archivedIds, showArchived, setShowArchived, activitiesMap = {}, activityStatsMap = {}, error, clearError, isBoosted, readMap, draftsMap = {}, ignoredIds = new Set(), filterResetTrigger, sidebarCollapsed, setSidebarCollapsed, onCloseMobileDrawer, onToggleMobileDrawer }) => {
-  const [filter,setFilter] = useState("ALL");
-  const [repoFilter, setRepoFilter] = useState("ALL");
+const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed, selectedId, isDesktop, onNew, onDrafts, onSettings, pollInterval, sessionLimit, countdown, plan, todayCount, searchQuery, setSearchQuery, archivedIds, showArchived, setShowArchived, activitiesMap = {}, activityStatsMap = {}, error, clearError, isBoosted, readMap, draftsMap = {}, ignoredIds = new Set(), filterResetTrigger, sidebarCollapsed, setSidebarCollapsed, onCloseMobileDrawer, onToggleMobileDrawer, statusFilter: propStatusFilter, setStatusFilter: propSetStatusFilter, repoFilter: propRepoFilter, setRepoFilter: propSetRepoFilter }) => {
+  const [localFilter, setLocalFilter] = useState("ALL");
+  const [localRepoFilter, setLocalRepoFilter] = useState("ALL");
+
+  const filter = propStatusFilter !== undefined ? propStatusFilter : localFilter;
+  const setFilter = propSetStatusFilter || setLocalFilter;
+
+  const repoFilter = propRepoFilter !== undefined ? propRepoFilter : localRepoFilter;
+  const setRepoFilter = propSetRepoFilter || setLocalRepoFilter;
+
   const [repoPickerOpen, setRepoPickerOpen] = useState(false);
   const [scrolled, handleScroll] = useScrollThreshold();
 
@@ -12,7 +19,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
       setFilter("ALL");
       setRepoFilter("ALL");
     }
-  }, [filterResetTrigger]);
+  }, [filterResetTrigger, setFilter, setRepoFilter]);
   const [searchOpen, setSearchOpen] = useState(false);
   const searchInputRef = useRef(null);
 
