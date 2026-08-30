@@ -21,8 +21,8 @@ def run_cuj(page):
             "updateTime": "2026-08-25T12:05:00Z"
         }
     ]
-    # Valid 1x1 transparent PNG base64 string for mock media artifact
-    mock_png_base64 = "iVBORw0KGgoAAAANSUEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+    # Valid 160x100 cyan PNG base64 string for mock media artifact
+    mock_png_base64 = "iVBORw0KGgoAAAANSUEUgAAAKAAAABkCAIAAACO1KzYAAABAklEQVR4nO3RUQkAIBTAwPdl/zQmMZApRBgHF2CwWfsQNt8LeMrgOIPjDI4zOM7gOIPjDI4zOM7gOIPjDI4zOM7gOIPjDI4zOM7gOIPjDI4zOM7gOIPjDI4zOM7gOIPjDI4zOM7gOIPjDI4zOM7gOIPjDI4zOM7gOIPjDI4zOM7gOIPjDI4zOM7gOIPjDI4zOM7gOIPjDI4zOM7gOIPjDI4zOM7gOIPjDI4zOM7gOIPjDI4zOM7gOIPjDI4zOM7gOIPjDI4zOM7gOIPjDI4zOM7gOIPjDI4zOM7gOIPjDI4zOM7gOIPjDI4zOM7gOIPjDI4zOM7gOIPjLuykrbBr5q3SAAAAAElFTkSuQmCC"
     mock_activities = {
         "sess-mock-1": [
             {
@@ -60,16 +60,44 @@ def run_cuj(page):
         ]
     }
 
+    mock_session_cache = {
+        "sess-mock-1": {
+            "activities": mock_activities["sess-mock-1"],
+            "ts": 1756123200000
+        }
+    }
+
     page.evaluate(f"localStorage.setItem('jac_key', 'AIzaSyFakeKeyFormVerificationTesting123')")
-    page.evaluate(f"localStorage.setItem('jac_session_cache', JSON.stringify({json.dumps(mock_sessions)}))")
+    page.evaluate(f"localStorage.setItem('jac_sessions_list', JSON.stringify({json.dumps(mock_sessions)}))")
+    page.evaluate(f"localStorage.setItem('jac_session_cache', JSON.stringify({json.dumps(mock_session_cache)}))")
     page.evaluate(f"localStorage.setItem('jac_act_map', JSON.stringify({json.dumps(mock_activities)}))")
 
     page.goto("http://localhost:8080")
     page.wait_for_timeout(1500)
 
+    # Click on mock session in sidebar to open SessionDetail view
+    session_card = page.get_by_text("Refactor DiffViewer for Multi-Patch Support")
+    if session_card.is_visible():
+        print("Clicking mock session card...")
+        session_card.click()
+        page.wait_for_timeout(1000)
+
+        # Click MEDIA tab in session detail view
+        media_tab = page.get_by_role("tab", name="MEDIA")
+        if media_tab.is_visible():
+            print("Clicking MEDIA tab...")
+            media_tab.click()
+            page.wait_for_timeout(800)
+
+            media_btn = page.locator("button:has(img[alt^='artifact-'])").first
+            if media_btn.is_visible():
+                print("Clicking media artifact thumbnail to open lightbox...")
+                media_btn.click()
+                page.wait_for_timeout(800)
+
     os.makedirs("/home/jules/verification/screenshots", exist_ok=True)
 
-    print("Taking dashboard screenshot...")
+    print("Taking dashboard media artifact screenshot...")
     page.screenshot(path="/home/jules/verification/screenshots/dashboard.png")
     page.wait_for_timeout(300)
 
