@@ -34,6 +34,7 @@ const SafeStorage = {
     LEAN_MODE_REPOS: "jac_lean_mode_repos",
     LEAN_DIRECTIVE: "jac_lean_directive",
     SESSIONS_LIST: "jac_sessions_list",
+    REPO_FILTER: "jac_repo_filter",
   },
 
   // ─── CORE GENERIC HELPERS ──────────────────────────────────────────────────
@@ -408,6 +409,13 @@ const SafeStorage = {
   },
   saveSessionsList(sessions) {
     this.setJSON(this.KEYS.SESSIONS_LIST, sessions);
+  },
+
+  loadRepoFilter() {
+    return this.getItem(this.KEYS.REPO_FILTER, "ALL");
+  },
+  saveRepoFilter(val) {
+    this.setItem(this.KEYS.REPO_FILTER, val || "ALL");
   },
 
   loadApiKey() {

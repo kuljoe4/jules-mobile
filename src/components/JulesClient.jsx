@@ -20,7 +20,8 @@ function JulesClient() {
   const [activityStatsMap, setActivityStatsMap] = useState(() => SafeStorage.loadActStats());
   const [selected,setSelected] = useState(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+  const isDesktop = useIsDesktop();
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(() => typeof window !== "undefined" && window.innerWidth < 768);
   const [drawerClosing, setDrawerClosing] = useState(false);
   const [mobileScreen,setMobileRaw] = useState("detail");
 
@@ -135,7 +136,11 @@ function JulesClient() {
   });
   const [showArchived, setShowArchived] = useState(false);
   const [statusFilter, setStatusFilter] = useState("ALL");
-  const [repoFilter, setRepoFilter] = useState("ALL");
+  const [repoFilter, setRepoFilterState] = useState(() => SafeStorage.loadRepoFilter());
+  const setRepoFilter = useCallback((val) => {
+    setRepoFilterState(val);
+    SafeStorage.saveRepoFilter(val);
+  }, []);
   const [searchQuery, setSearchQuery] = useState("");
   const [globalErr, setGlobalErr] = useState(null);
   const sessionsAbortRef = useRef(null);
@@ -145,7 +150,6 @@ function JulesClient() {
     catch { return {}; }
   });
 
-  const isDesktop = useIsDesktop();
 
   const { todayCount, registerSession, registerSessions } = useQuotaTracker(sessions, plan);
 
