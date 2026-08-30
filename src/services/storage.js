@@ -1,3 +1,5 @@
+import { isValidSessionId } from "../utils/validation.js";
+
 // ─── Safe Storage Service ────────────────────────────────────────────────────
 const SafeStorage = {
   // ─── KEYS ──────────────────────────────────────────────────────────────────
@@ -422,14 +424,18 @@ const SafeStorage = {
     this.setItem(this.KEYS.GITHUB_TOKEN, val);
   },
 
+  // Security: Validates session identifier before accessing LocalStorage keys to prevent parameter pollution or key injection.
   loadFollowupDraft(sessionId) {
+    if (!isValidSessionId(sessionId)) return "";
     return this.getItem(`jac_draft_${sessionId}`, "");
   },
   saveFollowupDraft(sessionId, val) {
-    this.setItem(`jac_draft_${sessionId}`, val);
+    if (!isValidSessionId(sessionId)) return false;
+    return this.setItem(`jac_draft_${sessionId}`, val);
   },
   clearFollowupDraft(sessionId) {
-    this.removeItem(`jac_draft_${sessionId}`);
+    if (!isValidSessionId(sessionId)) return false;
+    return this.removeItem(`jac_draft_${sessionId}`);
   },
 };
 

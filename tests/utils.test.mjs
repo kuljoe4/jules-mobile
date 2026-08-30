@@ -140,4 +140,22 @@ const testSessions = [{ id: 's1', title: 'Test Session 1', state: 'COMPLETED' }]
 SafeStorage.saveSessionsList(testSessions);
 assert.deepEqual(SafeStorage.loadSessionsList(), testSessions);
 
+// Test SafeStorage followup draft session ID validation
+assert.equal(SafeStorage.saveFollowupDraft('valid-sess-123', 'draft text'), true);
+assert.equal(SafeStorage.loadFollowupDraft('valid-sess-123'), 'draft text');
+assert.equal(SafeStorage.clearFollowupDraft('valid-sess-123'), true);
+assert.equal(SafeStorage.loadFollowupDraft('valid-sess-123'), '');
+
+// Test rejection of invalid session IDs in SafeStorage followup draft helpers
+assert.equal(SafeStorage.saveFollowupDraft('../path/traversal', 'invalid'), false);
+assert.equal(SafeStorage.loadFollowupDraft('../path/traversal'), '');
+assert.equal(SafeStorage.clearFollowupDraft('../path/traversal'), false);
+assert.equal(SafeStorage.saveFollowupDraft('sess\x00nullbyte', 'invalid'), false);
+assert.equal(SafeStorage.loadFollowupDraft('sess\x00nullbyte'), '');
+
+// Test GitHubTracker.triggerGitHubFetch validation for invalid repo names
+const invalidRepoPrUrl = `https://github.com/${'a/'.repeat(150)}/pull/1`;
+GitHubTracker.triggerGitHubFetch(invalidRepoPrUrl);
+assert.equal(GitHubTracker.GH_IN_FLIGHT.has(invalidRepoPrUrl), false);
+
 console.log('Utility tests passed');
