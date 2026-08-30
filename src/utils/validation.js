@@ -12,10 +12,20 @@ export const isValidGithubToken = (token) => {
   return regex.test(token);
 };
 
+// Security: Validates GitHub repository identifiers to prevent path traversal (..), REST API endpoint
+// manipulation, null-byte/control-character injection, downstream command flag injection, and .git suffix manipulation.
 export const isValidGithubRepoName = (repo) => {
-  if (!repo) return false;
-  if (typeof repo !== "string") return false;
+  if (!repo || typeof repo !== "string") return false;
   if (repo.length > 200) return false;
+  if (/[\x00-\x1F\x7F]/.test(repo) || /\s/.test(repo)) return false;
+  if (repo.includes("..") || repo.includes("//")) return false;
+  const parts = repo.split("/");
+  if (parts.length !== 2) return false;
+  const [owner, name] = parts;
+  if (!owner || !name) return false;
+  if (owner.startsWith(".") || owner.startsWith("-") || owner.endsWith(".") || owner.endsWith("-")) return false;
+  if (name.startsWith(".") || name.startsWith("-") || name.endsWith(".") || name.endsWith("-")) return false;
+  if (name.endsWith(".git")) return false;
   return /^[a-zA-Z0-9\-_.]+\/[a-zA-Z0-9\-_.]+$/.test(repo);
 };
 
