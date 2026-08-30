@@ -21,7 +21,32 @@ function JulesClient() {
   const [selected,setSelected] = useState(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+  const [drawerClosing, setDrawerClosing] = useState(false);
   const [mobileScreen,setMobileRaw] = useState("detail");
+
+  const closeMobileDrawer = useCallback(() => {
+    if (!mobileDrawerOpen || drawerClosing) return;
+    setDrawerClosing(true);
+    setTimeout(() => {
+      setMobileDrawerOpen(false);
+      setDrawerClosing(false);
+    }, 220);
+  }, [mobileDrawerOpen, drawerClosing]);
+
+  const openMobileDrawer = useCallback(() => {
+    setDrawerClosing(false);
+    setMobileDrawerOpen(true);
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape" && mobileDrawerOpen) {
+        closeMobileDrawer();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [mobileDrawerOpen, closeMobileDrawer]);
   const [justRefreshed, setJustRefreshed] = useState(false);
   const [supplementalSessions, setSupplementalSessions] = useState([]);
   const allSessions = useMemo(() => {
@@ -425,9 +450,9 @@ function JulesClient() {
     // If selected from supplemental, ensure it doesn't duplicate if primary list updates
     const ts = s.updateTime || s.createTime;
     setReadMap(prev => ({ ...prev, [s.id || s.name]: ts }));
-    setMobileDrawerOpen(false);
+    if (mobileDrawerOpen) closeMobileDrawer();
     if (isDesktop) setDesktop("detail"); else setMobile("detail");
-  }, [isDesktop]);
+  }, [isDesktop, mobileDrawerOpen, closeMobileDrawer]);
 
   const handleCreate = useCallback(s => {
     if (!s.createTime) s.createTime = new Date().toISOString();
@@ -584,17 +609,18 @@ function JulesClient() {
             role="dialog"
             aria-modal="true"
             aria-label="Sessions sidebar drawer"
+            aria-expanded={!drawerClosing}
             style={{
-              position:"absolute", inset:0, zIndex:1000, display:"flex",
-              animation:"fadeIn .2s ease"
+              position:"absolute", inset:0, zIndex:1000, display:"flex"
             }}
           >
             {/* Dark Backdrop */}
             <div
-              onClick={() => setMobileDrawerOpen(false)}
+              onClick={closeMobileDrawer}
               style={{
                 position:"absolute", inset:0, background:"rgba(0,0,0,0.65)",
-                backdropFilter:"blur(3px)", WebkitBackdropFilter:"blur(3px)"
+                backdropFilter:"blur(3px)", WebkitBackdropFilter:"blur(3px)",
+                animation: drawerClosing ? "fadeOut .22s cubic-bezier(0.4, 0, 0.2, 1) forwards" : "fadeIn .2s ease"
               }}
             />
             {/* Drawer Container */}
@@ -602,13 +628,14 @@ function JulesClient() {
               position:"relative", width:"100%", maxWidth:"100%", height:"100%",
               background:T.surface, borderRight:`1px solid ${T.borderHi}`,
               boxShadow:"0 0 30px rgba(0,0,0,0.8)", zIndex:1001, display:"flex",
-              flexDirection:"column", animation:"slideRight .25s cubic-bezier(0.4, 0, 0.2, 1)"
+              flexDirection:"column",
+              animation: drawerClosing ? "slideLeft .22s cubic-bezier(0.4, 0, 0.2, 1) forwards" : "slideRight .25s cubic-bezier(0.4, 0, 0.2, 1)"
             }}>
               <SessionList sessions={allSessions} onSelect={handleSelect} onRefresh={()=>fetchSessions(false)}
                 refreshing={refreshing} justRefreshed={justRefreshed} selectedId={selected?.id} isDesktop={false}
-                onNew={() => { setSelectedDraft(null); setMobileDrawerOpen(false); setMobile("new"); }}
-                onDrafts={() => { setMobileDrawerOpen(false); setMobile("drafts"); }}
-                onSettings={() => { setMobileDrawerOpen(false); setMobile("settings"); }}
+                onNew={() => { setSelectedDraft(null); closeMobileDrawer(); setMobile("new"); }}
+                onDrafts={() => { closeMobileDrawer(); setMobile("drafts"); }}
+                onSettings={() => { closeMobileDrawer(); setMobile("settings"); }}
                 pollInterval={effectivePollInterval}
                 sessionLimit={sessionLimit}
                 countdown={countdown}
@@ -636,7 +663,7 @@ function JulesClient() {
               SELECT A SESSION
             </div>
             <button
-              onClick={() => setMobileDrawerOpen(true)}
+              onClick={openMobileDrawer}
               style={{
                 marginTop:8, padding:"10px 18px", borderRadius:8, border:"none",
                 background:T.brand, color:"#000", fontFamily:"'JetBrains Mono',monospace",
@@ -651,7 +678,7 @@ function JulesClient() {
             personas={personas}
             allSessions={allSessions}
             activitiesMap={activitiesMap}
-            onBack={() => setMobileDrawerOpen(true)}
+            onBack={openMobileDrawer}
             onDelete={handleDelete} onSessionUpdate={handleSessionUpdate}
             onStatsUpdate={handleStatsUpdate}
             isDesktop={false}
@@ -661,7 +688,7 @@ function JulesClient() {
             onArchive={handleArchive} onUnarchive={handleUnarchive}
             onIgnore={handleIgnore}
             onDraftChange={handleDraftChange}
-            onToggleMobileDrawer={() => setMobileDrawerOpen(!mobileDrawerOpen)}/>
+            onToggleMobileDrawer={mobileDrawerOpen ? closeMobileDrawer : openMobileDrawer}/>
         ))}
         {mobileScreen==="new"&&(
           <NewSession
@@ -706,15 +733,17 @@ function JulesClient() {
         {[
           {id:"list",    n:"tasks", label:"SESSIONS", onClick:() => {
             setShowArchived(false);
-            setMobileDrawerOpen(true);
+            if (mobileDrawerOpen && !showArchived) closeMobileDrawer();
+            else openMobileDrawer();
           }},
           {id:"archive", n:"archive", label:"ARCHIVE", onClick:() => {
             setShowArchived(true);
-            setMobileDrawerOpen(true);
+            if (mobileDrawerOpen && showArchived) closeMobileDrawer();
+            else openMobileDrawer();
           }},
-          {id:"new",     n:"plus",  label:"NEW", onClick:() => { setSelectedDraft(null); setMobile("new"); }},
-          {id:"drafts",  n:"layers", label:"DRAFTS", onClick:() => setMobile("drafts")},
-          {id:"settings",n:"settings", label:"SETTINGS", onClick:() => setMobile("settings")},
+          {id:"new",     n:"plus",  label:"NEW", onClick:() => { if (mobileDrawerOpen) closeMobileDrawer(); setSelectedDraft(null); setMobile("new"); }},
+          {id:"drafts",  n:"layers", label:"DRAFTS", onClick:() => { if (mobileDrawerOpen) closeMobileDrawer(); setMobile("drafts"); }},
+          {id:"settings",n:"settings", label:"SETTINGS", onClick:() => { if (mobileDrawerOpen) closeMobileDrawer(); setMobile("settings"); }},
         ].map(({id,n,label,onClick})=>{
           const isAct = (id === "list" && mobileDrawerOpen && !showArchived) ||
                         (id === "archive" && mobileDrawerOpen && showArchived) ||
