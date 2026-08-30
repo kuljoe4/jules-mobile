@@ -40,6 +40,14 @@ assert.equal(isValidGithubRepoName('owner/repo?inject=1'), false);
 assert.equal(isValidGithubRepoName('owner/repo#frag'), false);
 assert.equal(isValidGithubRepoName('invalid-repo-without-slash'), false);
 assert.equal(isValidGithubRepoName('a/'.repeat(150)), false);
+assert.equal(isValidGithubRepoName('../repo'), false);
+assert.equal(isValidGithubRepoName('owner/..'), false);
+assert.equal(isValidGithubRepoName('owner\x00/repo'), false);
+assert.equal(isValidGithubRepoName('owner /repo'), false);
+assert.equal(isValidGithubRepoName('-owner/repo'), false);
+assert.equal(isValidGithubRepoName('owner/-repo'), false);
+assert.equal(isValidGithubRepoName('owner./repo'), false);
+assert.equal(isValidGithubRepoName('owner/repo.git'), false);
 
 assert.equal(isValidSessionId('123456789'), true);
 assert.equal(isValidSessionId('sessions/123456789'), true);
