@@ -359,7 +359,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
             </button>
             {repoPickerOpen && (
               <>
-                <Backdrop onClick={() => setRepoPickerOpen(false)}/>
+                <div style={{ position: "fixed", inset: 0, zIndex: 100 }} onClick={() => setRepoPickerOpen(false)}/>
                 <div style={{
                   position:"absolute", top:"100%", left:2, right:2, zIndex:101, marginTop:4,
                   background:T.surfaceHi, border:`1px solid ${T.borderHi}`, borderRadius:6,

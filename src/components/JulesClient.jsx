@@ -599,7 +599,7 @@ function JulesClient() {
             />
             {/* Drawer Container */}
             <div style={{
-          position:"relative", width:"88%", maxWidth:350, height:"100%",
+              position:"relative", width:"100%", maxWidth:"100%", height:"100%",
               background:T.surface, borderRight:`1px solid ${T.borderHi}`,
               boxShadow:"0 0 30px rgba(0,0,0,0.8)", zIndex:1001, display:"flex",
               flexDirection:"column", animation:"slideRight .25s cubic-bezier(0.4, 0, 0.2, 1)"
