@@ -21,8 +21,7 @@ function JulesClient() {
   const [selected,setSelected] = useState(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
-  const [mobileScreen,setMobileRaw] = useState("list");
-  const [lastSessionScreen, setLastSessionScreen] = useState("list");
+  const [mobileScreen,setMobileRaw] = useState("detail");
   const [justRefreshed, setJustRefreshed] = useState(false);
   const [supplementalSessions, setSupplementalSessions] = useState([]);
   const allSessions = useMemo(() => {
@@ -71,7 +70,6 @@ function JulesClient() {
 
   const setMobile = useCallback(s => {
     setMobileRaw(s);
-    if (s === "list" || s === "detail") setLastSessionScreen(s);
   }, []);
   const [refreshing,setRefreshing] = useState(false);
   // OPTIMIZATION (Bolt): Removed global root-level `netSnap` state and subscription from JulesClient.
@@ -193,7 +191,7 @@ function JulesClient() {
     });
     setSelected(null);
     setDesktop("empty");
-    setMobile("list");
+    setMobile("detail");
   }, []);
 
   const fetchSupplemental = useCallback(async (ids) => {
@@ -419,7 +417,7 @@ function JulesClient() {
     });
     setSelected(null);
     setDesktop("empty");
-    setMobile("list");
+    setMobile("detail");
   }, []);
 
   const handleSelect = useCallback(s => {
@@ -446,7 +444,7 @@ function JulesClient() {
     setSearchQuery("");
     setFilterResetTrigger(prev => prev + 1);
 
-    if (isDesktop) setDesktop("detail"); else setMobile("list");
+    if (isDesktop) setDesktop("detail"); else setMobile("detail");
   }, [isDesktop, registerSession]);
 
   const saveKey = k => {
@@ -601,7 +599,7 @@ function JulesClient() {
             />
             {/* Drawer Container */}
             <div style={{
-              position:"relative", width:"85%", maxWidth:320, height:"100%",
+          position:"relative", width:"88%", maxWidth:350, height:"100%",
               background:T.surface, borderRight:`1px solid ${T.borderHi}`,
               boxShadow:"0 0 30px rgba(0,0,0,0.8)", zIndex:1001, display:"flex",
               flexDirection:"column", animation:"slideRight .25s cubic-bezier(0.4, 0, 0.2, 1)"
@@ -631,36 +629,29 @@ function JulesClient() {
           </div>
         )}
 
-        {mobileScreen==="list"&&(
-          <SessionList sessions={allSessions} onSelect={handleSelect} onRefresh={()=>fetchSessions(false)}
-            refreshing={refreshing} justRefreshed={justRefreshed} selectedId={selected?.id} isDesktop={false}
-            onNew={() => { setSelectedDraft(null); setMobile("new"); }}
-            onDrafts={()=>setMobile("drafts")}
-            onSettings={()=>setMobile("settings")}
-            pollInterval={effectivePollInterval}
-            sessionLimit={sessionLimit}
-            countdown={countdown}
-            plan={plan} todayCount={todayCount}
-            searchQuery={searchQuery} setSearchQuery={setSearchQuery}
-            archivedIds={archivedIds} showArchived={showArchived} setShowArchived={setShowArchived}
-            activitiesMap={activitiesMap}
-            activityStatsMap={activityStatsMap}
-            error={globalErr} clearError={() => setGlobalErr(null)}
-
-            isBoosted={isBoosted}
-            readMap={readMap}
-            draftsMap={draftsMap}
-            ignoredIds={ignoredIds}
-            filterResetTrigger={filterResetTrigger}
-            onToggleMobileDrawer={() => setMobileDrawerOpen(!mobileDrawerOpen)}
-          />
-        )}
-        {mobileScreen==="detail"&&selected&&(
+        {mobileScreen==="detail"&&(!selected ? (
+          <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:14,padding:32}}>
+            <div style={{width:48,height:48,borderRadius:11,background:T.brandDim,border:`1px solid ${T.brand}25`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace",fontSize:26,fontWeight:900,color:T.brand}}>J</div>
+            <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim,textAlign:"center",lineHeight:2}}>
+              SELECT A SESSION
+            </div>
+            <button
+              onClick={() => setMobileDrawerOpen(true)}
+              style={{
+                marginTop:8, padding:"10px 18px", borderRadius:8, border:"none",
+                background:T.brand, color:"#000", fontFamily:"'JetBrains Mono',monospace",
+                fontSize:12, fontWeight:900, cursor:"pointer", display:"flex", alignItems:"center", gap:8
+              }}
+            >
+              <Ic n="layout_toggle" s={16} c="#000"/> OPEN SESSIONS SIDEBAR
+            </button>
+          </div>
+        ) : (
           <SessionDetail key={selected.id} session={selected} apiKey={apiKey}
             personas={personas}
             allSessions={allSessions}
             activitiesMap={activitiesMap}
-            onBack={()=>{ setMobile("list"); fetchSessions(true); }}
+            onBack={() => setMobileDrawerOpen(true)}
             onDelete={handleDelete} onSessionUpdate={handleSessionUpdate}
             onStatsUpdate={handleStatsUpdate}
             isDesktop={false}
@@ -671,11 +662,11 @@ function JulesClient() {
             onIgnore={handleIgnore}
             onDraftChange={handleDraftChange}
             onToggleMobileDrawer={() => setMobileDrawerOpen(!mobileDrawerOpen)}/>
-        )}
+        ))}
         {mobileScreen==="new"&&(
           <NewSession
             apiKey={apiKey} personas={personas}
-            onBack={()=>setMobile("list")}
+            onBack={()=>setMobile("detail")}
             onCreate={handleCreate}
             isDesktop={false} plan={plan} todayCount={todayCount}
             allSessions={allSessions} activitiesMap={activitiesMap}
@@ -686,7 +677,7 @@ function JulesClient() {
 
         {mobileScreen==="drafts"&&(
           <DraftsBox
-            onBack={()=>setMobile("list")}
+            onBack={()=>setMobile("detail")}
             isDesktop={false}
             allSessions={allSessions}
             activitiesMap={activitiesMap}
@@ -701,8 +692,8 @@ function JulesClient() {
           />
         )}
 
-        {mobileScreen==="network"&&( <NetworkMonitor onBack={()=>setMobile("list")} isDesktop={false}/> )} {mobileScreen==="settings"&&(
-          <SettingsView onBack={()=>setMobile("list")} isDesktop={false}
+        {mobileScreen==="network"&&( <NetworkMonitor onBack={()=>setMobile("detail")} isDesktop={false}/> )} {mobileScreen==="settings"&&(
+          <SettingsView onBack={()=>setMobile("detail")} isDesktop={false}
             apiKey={apiKey} setApiKey={setApiKey}
             githubToken={githubToken} setGithubToken={setGithubToken}
             ghRateLimitedReset={ghRateLimitedReset}
@@ -714,24 +705,22 @@ function JulesClient() {
       <nav style={{display:"flex",borderTop:`1px solid ${T.border}`,background:T.surface,transform:"translateZ(0)",flexShrink:0}}>
         {[
           {id:"list",    n:"tasks", label:"SESSIONS", onClick:() => {
-            const wasDetail = lastSessionScreen === "detail" && selected && !archivedIds.has(selected.id);
             setShowArchived(false);
-            setMobile(wasDetail ? "detail" : "list");
+            setMobileDrawerOpen(true);
           }},
           {id:"archive", n:"archive", label:"ARCHIVE", onClick:() => {
-            const wasDetail = lastSessionScreen === "detail" && selected && archivedIds.has(selected.id);
             setShowArchived(true);
-            setMobile(wasDetail ? "detail" : "list");
+            setMobileDrawerOpen(true);
           }},
           {id:"new",     n:"plus",  label:"NEW", onClick:() => { setSelectedDraft(null); setMobile("new"); }},
           {id:"drafts",  n:"layers", label:"DRAFTS", onClick:() => setMobile("drafts")},
           {id:"settings",n:"settings", label:"SETTINGS", onClick:() => setMobile("settings")},
         ].map(({id,n,label,onClick})=>{
-          const isAct = (id === "list" && !showArchived && (mobileScreen === "list" || mobileScreen === "detail")) ||
-                        (id === "archive" && showArchived && (mobileScreen === "list" || mobileScreen === "detail")) ||
-                        (mobileScreen === id && id !== "list" && id !== "archive");
+          const isAct = (id === "list" && mobileDrawerOpen && !showArchived) ||
+                        (id === "archive" && mobileDrawerOpen && showArchived) ||
+                        (!mobileDrawerOpen && mobileScreen === id && id !== "list" && id !== "archive");
 
-          const hasAlert = id==="list"&&sessions.some(s=>["AWAITING_PLAN_APPROVAL","AWAITING_USER_FEEDBACK"].includes(s.state));
+          const hasAlert = sessions.some(s=>["AWAITING_PLAN_APPROVAL","AWAITING_USER_FEEDBACK"].includes(s.state));
           return (
             <button key={id} onClick={onClick} style={{flex:1,padding:"11px 0 13px",background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
               <div style={{position:"relative"}}>
