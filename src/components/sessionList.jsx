@@ -3,11 +3,14 @@ const FILTER_LABELS = { AWAITING_PLAN_APPROVAL:"APPROVE", ALL:"ALL", HAS_DRAFT:"
 
 const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed, selectedId, isDesktop, onNew, onDrafts, onSettings, pollInterval, sessionLimit, countdown, plan, todayCount, searchQuery, setSearchQuery, archivedIds, showArchived, setShowArchived, activitiesMap = {}, activityStatsMap = {}, error, clearError, isBoosted, readMap, draftsMap = {}, ignoredIds = new Set(), filterResetTrigger, sidebarCollapsed, setSidebarCollapsed }) => {
   const [filter,setFilter] = useState("ALL");
+  const [repoFilter, setRepoFilter] = useState("ALL");
+  const [repoPickerOpen, setRepoPickerOpen] = useState(false);
   const [scrolled, handleScroll] = useScrollThreshold();
 
   useEffect(() => {
     if (filterResetTrigger) {
       setFilter("ALL");
+      setRepoFilter("ALL");
     }
   }, [filterResetTrigger]);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -47,14 +50,29 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
       searchInputRef.current.focus();
     }
   }, [searchOpen]);
+  const availableRepos = useMemo(() => {
+    const repos = new Set();
+    sessions.forEach(s => {
+      const repo = s.sourceContext?.githubRepoContext ? s.sourceContext.source?.replace("sources/github/", "") : (s.sourceContext?.source || null);
+      if (repo) repos.add(repo);
+    });
+    return Array.from(repos).sort();
+  }, [sessions]);
+
   const baseFiltered = useMemo(() => {
     let list = sessions.filter(s => archivedIds.has(s.id) === showArchived && !ignoredIds.has(s.id));
+    if (repoFilter !== "ALL") {
+      list = list.filter(s => {
+        const repo = s.sourceContext?.githubRepoContext ? s.sourceContext.source?.replace("sources/github/", "") : (s.sourceContext?.source || null);
+        return repo === repoFilter;
+      });
+    }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       list = list.filter(s => (s.title||"").toLowerCase().includes(q) || (s.prompt||"").toLowerCase().includes(q) || (s.id||"").toLowerCase().includes(q));
     }
     return list;
-  }, [sessions, archivedIds, showArchived, searchQuery, ignoredIds]);
+  }, [sessions, archivedIds, showArchived, searchQuery, ignoredIds, repoFilter]);
   const filtered = useMemo(() => {
     if (filter === "ALL") return baseFiltered;
     if (filter === "HAS_DRAFT") return baseFiltered.filter(s => draftsMap[s.id]);
@@ -292,6 +310,84 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
             <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.textDim, letterSpacing:"0.08em", flexShrink:0, paddingRight:2}}>SESSIONS</span>
             <button onClick={() => setShowArchived(false)} aria-pressed={!showArchived ? "true" : "false"} aria-label="Show active sessions" title="Show active sessions" style={{flexShrink:0, minHeight:36, padding:"0 14px", display:"inline-flex", alignItems:"center", justifyContent:"center", borderRadius:20, border:"none", background:!showArchived ? T.brandDim : "transparent", border:`1px solid ${!showArchived ? T.brand+"60" : T.border}`, color:!showArchived ? T.brand : T.muted, fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:!showArchived?700:400, letterSpacing:"0.05em", cursor:"pointer", transition:"all .12s cubic-bezier(0.4, 0, 0.2, 1)"}}>ACTIVE</button>
             <button onClick={() => setShowArchived(true)} aria-pressed={showArchived ? "true" : "false"} aria-label="Show archived sessions" title="Show archived sessions" style={{flexShrink:0, minHeight:36, padding:"0 14px", display:"inline-flex", alignItems:"center", justifyContent:"center", borderRadius:20, border:"none", background:showArchived ? T.purpleDim : "transparent", border:`1px solid ${showArchived ? T.purple+"60" : T.border}`, color:showArchived ? T.purple : T.muted, fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:showArchived?700:400, letterSpacing:"0.05em", cursor:"pointer", transition:"all .12s cubic-bezier(0.4, 0, 0.2, 1)"}}>ARCHIVED</button>
+          </div>
+        )}
+        {availableRepos.length > 0 && !sidebarCollapsed && (
+          <div style={{position:"relative", marginBottom:scrolled?0:6, padding:"0 2px"}}>
+            <button
+              onClick={() => setRepoPickerOpen(!repoPickerOpen)}
+              aria-expanded={repoPickerOpen}
+              aria-label={`Filter sessions by repository. Currently selected: ${repoFilter}`}
+              title={`Filter by repository (${repoFilter})`}
+              style={{
+                width:"100%", padding:"5px 10px", borderRadius:6,
+                background: repoFilter !== "ALL" ? `${T.brand}15` : T.surfaceHi,
+                border: `1px solid ${repoFilter !== "ALL" ? T.brand : T.border}`,
+                color: repoFilter !== "ALL" ? T.brandLight : T.textDim,
+                fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 700,
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                cursor: "pointer", transition: "all .12s cubic-bezier(0.4, 0, 0.2, 1)"
+              }}
+            >
+              <div style={{display:"flex", alignItems:"center", gap:6, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>
+                <Ic n="code" s={12} c={repoFilter !== "ALL" ? T.brandLight : T.muted}/>
+                <span style={{overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>
+                  {repoFilter === "ALL" ? "ALL REPOSITORIES" : repoFilter}
+                </span>
+              </div>
+              <Ic n="chevron_down" s={12} c={T.muted}/>
+            </button>
+            {repoPickerOpen && (
+              <>
+                <Backdrop onClick={() => setRepoPickerOpen(false)}/>
+                <div style={{
+                  position:"absolute", top:"100%", left:2, right:2, zIndex:101, marginTop:4,
+                  background:T.surfaceHi, border:`1px solid ${T.borderHi}`, borderRadius:6,
+                  maxHeight:180, overflowY:"auto", boxShadow:"0 10px 25px rgba(0,0,0,0.5)", padding:4
+                }}>
+                  <button
+                    onClick={() => { setRepoFilter("ALL"); setRepoPickerOpen(false); }}
+                    style={{
+                      width:"100%", padding:"8px 10px", background: repoFilter === "ALL" ? `${T.brand}20` : "none",
+                      border: "none", borderRadius: 4, textAlign: "left", cursor: "pointer",
+                      fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: repoFilter === "ALL" ? 800 : 500,
+                      color: repoFilter === "ALL" ? T.brandLight : T.text, display: "flex", alignItems: "center", gap: 6
+                    }}
+                  >
+                    <Ic n="code" s={12} c={repoFilter === "ALL" ? T.brandLight : T.muted}/>
+                    ALL REPOSITORIES ({sessions.length})
+                  </button>
+                  {availableRepos.map(repo => {
+                    const isSel = repoFilter === repo;
+                    const count = sessions.filter(s => {
+                      const r = s.sourceContext?.githubRepoContext ? s.sourceContext.source?.replace("sources/github/", "") : (s.sourceContext?.source || null);
+                      return r === repo;
+                    }).length;
+                    return (
+                      <button
+                        key={repo}
+                        onClick={() => { setRepoFilter(repo); setRepoPickerOpen(false); }}
+                        style={{
+                          width:"100%", padding:"8px 10px", background: isSel ? `${T.brand}20` : "none",
+                          border: "none", borderRadius: 4, textAlign: "left", cursor: "pointer",
+                          fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: isSel ? 800 : 500,
+                          color: isSel ? T.brandLight : T.text, display: "flex", alignItems: "center", justifyContent: "space-between",
+                          transition: "background .1s ease"
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.background = isSel ? `${T.brand}25` : T.dim}
+                        onMouseLeave={e => e.currentTarget.style.background = isSel ? `${T.brand}20` : "none"}
+                      >
+                        <div style={{display:"flex", alignItems:"center", gap:6, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", flex:1, marginRight:8}}>
+                          <Ic n="code" s={12} c={isSel ? T.brandLight : T.muted}/>
+                          <span style={{overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>{repo}</span>
+                        </div>
+                        <span style={{color:T.muted, fontSize:9, fontWeight:700}}>{count}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
           </div>
         )}
         {!sidebarCollapsed && (
