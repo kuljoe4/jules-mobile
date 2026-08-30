@@ -19,6 +19,7 @@ function JulesClient() {
   const [activitiesMap, setActivitiesMap] = useState(() => SafeStorage.loadActivitiesMap());
   const [activityStatsMap, setActivityStatsMap] = useState(() => SafeStorage.loadActStats());
   const [selected,setSelected] = useState(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileScreen,setMobileRaw] = useState("list");
   const [lastSessionScreen, setLastSessionScreen] = useState("list");
   const [justRefreshed, setJustRefreshed] = useState(false);
@@ -465,7 +466,18 @@ function JulesClient() {
     return (
       <Shell desktop>
         {/* Sidebar */}
-        <div style={{width:320,flexShrink:0,borderRight:`1px solid ${T.border}`,display:"flex",flexDirection:"column",height:"100vh",overflow:"hidden"}}>
+        <div style={{
+          width: sidebarCollapsed ? 68 : 320,
+          flexShrink: 0,
+          borderRight: `1px solid ${T.border}`,
+          display: "flex",
+          flexDirection: "column",
+          height: "100vh",
+          overflow: "hidden",
+          transition: "width 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+          background: T.surface,
+          zIndex: 10
+        }}>
           <SessionList
             onSelect={handleSelect} onRefresh={()=>fetchSessions(false)}
             refreshing={refreshing} justRefreshed={justRefreshed} selectedId={selected?.id}
@@ -487,6 +499,8 @@ function JulesClient() {
             draftsMap={draftsMap}
             ignoredIds={ignoredIds}
             filterResetTrigger={filterResetTrigger}
+            sidebarCollapsed={sidebarCollapsed}
+            setSidebarCollapsed={setSidebarCollapsed}
           />
         </div>
         {/* Main panel */}
