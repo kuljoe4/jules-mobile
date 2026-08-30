@@ -164,6 +164,9 @@ const GitHubTracker = {
     if (!match) return;
 
     const [_, owner, repo, number] = match;
+    const repoFull = `${owner}/${repo}`;
+    if (!isValidGithubRepoName(repoFull)) return;
+
     this.GH_IN_FLIGHT.add(url);
 
     const token = SafeStorage.loadGithubToken();
