@@ -24,6 +24,11 @@ export const safeSlice = (str, limit) => {
 
 export const cleanMathText = (mathStr) => {
   if (typeof mathStr !== "string") return mathStr;
+  // Fast early-exit guard: if string contains no LaTeX syntax indicators, return trimmed string directly
+  // OPTIMIZATION (Bolt): Bypasses 14 sequential regex replacement iterations and string allocations for plain text.
+  if (!mathStr.includes("\\") && !mathStr.includes("_") && !mathStr.includes("^") && !mathStr.includes("/quad")) {
+    return mathStr.trim();
+  }
   let str = mathStr;
   str = str.replace(/\\text\{([^{}]+)\}/g, "$1");
   str = str
