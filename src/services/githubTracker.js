@@ -649,7 +649,7 @@ const GitHubTracker = {
     return status;
   },
 
-  getBranchInfo(s, activities = []) {
+  getBranchInfo(s, activities = [], force = false) {
     if (!s) return null;
     const sid = s.id || s.name || "temp";
     const actLen = activities.length;
@@ -803,7 +803,7 @@ const GitHubTracker = {
  */
 const getPR = (s) => GitHubTracker.getPR(s);
 const getPRInfo = (s, activities = []) => GitHubTracker.getPRInfo(s, activities);
-const getBranchInfo = (s, activities = []) => GitHubTracker.getBranchInfo(s, activities);
+const getBranchInfo = (s, activities = [], force = false) => GitHubTracker.getBranchInfo(s, activities, force);
 const getCheckStatus = (activities = []) => GitHubTracker.getCheckStatus(activities);
 const getPrUrlAndNumber = (pr) => GitHubTracker.getPrUrlAndNumber(pr);
 const mergePullRequest = (url, mergeMethod) => GitHubTracker.mergePullRequest(url, mergeMethod);
