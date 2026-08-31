@@ -56,6 +56,8 @@ const SessionCard = memo(({ s, onPress, onSelect, isSelected, index, activities 
   }, [rawRepo]);
   const pri  = useMemo(() => getPRInfo(s, activities), [s, activities, ghPrNonce]);
   const b    = useMemo(() => getBranchInfo(s, activities), [s, activities, ghPrNonce]);
+  const checkStatus = useMemo(() => getCheckStatus(activities), [activities]);
+  const activeCheck = pri?.checks || b?.checks || checkStatus;
   const ahead = useMemo(() => getAheadCount(activities), [activities]);
 
   const pr = useMemo(() => getPR(s), [s]);
@@ -165,6 +167,18 @@ const SessionCard = memo(({ s, onPress, onSelect, isSelected, index, activities 
               {pri.ahead > 0 && <span aria-label={`${pri.ahead} commits ahead`} style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900,color:T.brandLight,background:T.brandDim,padding:"1px 3px",borderRadius:2}}>↑{pri.ahead}</span>}
               {pri.behind > 0 && <span aria-label={`${pri.behind} commits behind`} style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900,color:T.amber,background:T.amberDim,padding:"1px 3px",borderRadius:2}}>↓{pri.behind}</span>}
             </div>
+          )}
+          {activeCheck && (
+            <div
+              title={`Checks: ${activeCheck.label || activeCheck.state}`}
+              aria-label={`Checks: ${activeCheck.label || activeCheck.state}`}
+              style={{
+                width: 5, height: 5, borderRadius: "50%", flexShrink: 0,
+                background: activeCheck.state === "success" ? "#34d399" : activeCheck.state === "failure" ? T.red : T.amber,
+                boxShadow: activeCheck.state === "success" ? "0 0 6px #34d399" : activeCheck.state === "failure" ? `0 0 6px ${T.red}` : `0 0 6px ${T.amber}`,
+                animation: activeCheck.state === "pending" ? "dot 1s infinite" : "none"
+              }}
+            />
           )}
           {(!pri || pri.state === "closed") && b?.isNew && (
             <div style={{display:"flex", alignItems:"center", gap:4, color:T.blue, opacity:0.95}}>

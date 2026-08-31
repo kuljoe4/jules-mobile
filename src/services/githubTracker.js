@@ -157,8 +157,8 @@ const GitHubTracker = {
       });
   },
 
-  triggerGitHubFetch(url) {
-    if (this.GH_IN_FLIGHT.has(url)) return;
+  triggerGitHubFetch(url, force = false) {
+    if (!force && this.GH_IN_FLIGHT.has(url)) return;
 
     const match = url.match(/https:\/\/github\.com\/([a-zA-Z0-9\-_.]+)\/([a-zA-Z0-9\-_.]+)\/pull\/(\d+)/);
     if (!match) return;
@@ -323,14 +323,14 @@ const GitHubTracker = {
       });
   },
 
-  triggerGitHubBranchFetch(repo, base, working) {
+  triggerGitHubBranchFetch(repo, base, working, force = false) {
     if (!repo || !base || !working) return;
     if (!isValidGithubRepoName(repo)) return;
     if (!isValidGitBranchName(base) || !isValidGitBranchName(working)) return;
     const encBase = encodeURIComponent(base);
     const encWorking = encodeURIComponent(working);
     const key = `${repo}:${base}:${working}`;
-    if (this.GH_BRANCH_IN_FLIGHT.has(key)) return;
+    if (!force && this.GH_BRANCH_IN_FLIGHT.has(key)) return;
 
     this.GH_BRANCH_IN_FLIGHT.add(key);
 
@@ -445,7 +445,7 @@ const GitHubTracker = {
       });
   },
 
-  getPRInfo(s, activities = []) {
+  getPRInfo(s, activities = [], force = false) {
     if (!s) return null;
 
     const sid = s.id || s.name || "temp";
@@ -453,7 +453,7 @@ const GitHubTracker = {
     const size = getActivitiesSize(activities);
     const cacheKey = `${sid}:${actLen}:${size}:${s.updateTime || s.createTime || ""}`;
 
-    if (sid !== "temp" && this.PR_INFO_CACHE.has(cacheKey)) {
+    if (!force && sid !== "temp" && this.PR_INFO_CACHE.has(cacheKey)) {
       const cached = this.PR_INFO_CACHE.get(cacheKey);
       if (cached && cached.expiresAt && Date.now() < cached.expiresAt) {
         return cached;
@@ -515,7 +515,8 @@ const GitHubTracker = {
     let failed = false;
 
     const ghCached = this.GH_STATE_CACHE.get(pr.url);
-    if (ghCached && (Date.now() - ghCached.fetchedAt < 5 * 60 * 1000)) {
+    const ttl = (ghCached && ghCached.state === "open") ? 30 * 1000 : 5 * 60 * 1000;
+    if (!force && ghCached && (Date.now() - ghCached.fetchedAt < ttl)) {
       state = ghCached.state;
       additions = ghCached.additions;
       deletions = ghCached.deletions;
@@ -530,7 +531,7 @@ const GitHubTracker = {
       checks = ghCached.checks || null;
       failed = ghCached.failed || false;
     } else {
-      this.triggerGitHubFetch(pr.url);
+      this.triggerGitHubFetch(pr.url, force);
     }
 
     const result = {
@@ -720,14 +721,15 @@ const GitHubTracker = {
     if (sid !== "temp" && repo && base && activeWorking && activeWorking !== base) {
       const bKey = `${repo}:${base}:${activeWorking}`;
       const bCached = this.GH_BRANCH_STATE_CACHE.get(bKey);
-      if (bCached && (Date.now() - bCached.fetchedAt < 5 * 60 * 1000)) {
+      const bTtl = 30 * 1000;
+      if (!force && bCached && (Date.now() - bCached.fetchedAt < bTtl)) {
         ahead = bCached.ahead || 0;
         behind = bCached.behind || 0;
         statusState = bCached.statusState || "identical";
         checks = bCached.checks || null;
         failed = bCached.failed || false;
       } else {
-        this.triggerGitHubBranchFetch(repo, base, activeWorking);
+        this.triggerGitHubBranchFetch(repo, base, activeWorking, force);
       }
     }
 

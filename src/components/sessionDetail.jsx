@@ -793,12 +793,13 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:scrolled?0:6, minHeight:scrolled?24:44}}>
           {!isDesktop&&(
             <div style={{display:"flex", alignItems:"center", gap:4}}>
-              <button onClick={onBack} aria-label="Go back" style={{background:"none",border:"none",cursor:"pointer",padding:3,display:"flex",flexShrink:0}}>
-                <Ic n="back" s={18} c={T.text}/>
-              </button>
-              {onToggleMobileDrawer && (
-                <button onClick={onToggleMobileDrawer} title="Open Sessions Sidebar" aria-label="Open Sessions Sidebar" style={{background:"none",border:"none",cursor:"pointer",padding:3,display:"flex",flexShrink:0}}>
+              {onToggleMobileDrawer ? (
+                <button onClick={onToggleMobileDrawer} title="Open Sessions Drawer" aria-label="Open Sessions Drawer" style={{background:"none",border:"none",cursor:"pointer",padding:3,display:"flex",flexShrink:0}}>
                   <Ic n="layout_toggle" s={18} c={T.brand}/>
+                </button>
+              ) : (
+                <button onClick={onBack} aria-label="Go back" style={{background:"none",border:"none",cursor:"pointer",padding:3,display:"flex",flexShrink:0}}>
+                  <Ic n="back" s={18} c={T.text}/>
                 </button>
               )}
             </div>
@@ -1076,6 +1077,14 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                 #{pr.number} <span style={{fontSize:8, opacity:0.8}}>{pr.state.toUpperCase()}</span>
                 {pr.ahead > 0 && <span style={{fontSize:9, background:`${T.brand}22`, color:T.brandLight, borderRadius:3, padding:"0px 4px", marginLeft:2, border:`1px solid ${T.brand}40`}}>↑{pr.ahead}</span>}
                 {pr.behind > 0 && <span style={{fontSize:9, background:`${T.amber}22`, color:T.amber, borderRadius:3, padding:"0px 4px", marginLeft:2, border:`1px solid ${T.amber}40`}}>↓{pr.behind}</span>}
+                {pr.checks && (
+                  <span title={`Checks: ${pr.checks.label || pr.checks.state}`} aria-label={`Checks: ${pr.checks.label || pr.checks.state}`} style={{
+                    width:5, height:5, borderRadius:"50%", flexShrink:0, marginLeft:2,
+                    background: pr.checks.state === "success" ? "#34d399" : pr.checks.state === "failure" ? T.red : T.amber,
+                    boxShadow: pr.checks.state === "success" ? "0 0 6px #34d399" : pr.checks.state === "failure" ? `0 0 6px ${T.red}` : `0 0 6px ${T.amber}`,
+                    animation: pr.checks.state === "pending" ? "dot 1s infinite" : "none"
+                  }}/>
+                )}
               </a>
             )}
 
@@ -1120,6 +1129,14 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                 {b?.ahead > 0 && <span style={{fontSize:9, background:`${T.brand}22`, color:T.brandLight, borderRadius:3, padding:"0px 4px", border:`1px solid ${T.brand}40`}}>↑{b.ahead}</span>}
                 {b?.behind > 0 && <span style={{fontSize:9, background:`${T.amber}22`, color:T.amber, borderRadius:3, padding:"0px 4px", border:`1px solid ${T.amber}40`}}>↓{b.behind}</span>}
                 {!(b?.ahead > 0 || b?.behind > 0) && ahead > 0 && <span style={{fontSize:9}}>+{ahead}</span>}
+                {b?.checks && (
+                  <span title={`Checks: ${b.checks.label || b.checks.state}`} aria-label={`Checks: ${b.checks.label || b.checks.state}`} style={{
+                    width:5, height:5, borderRadius:"50%", flexShrink:0, marginLeft:2,
+                    background: b.checks.state === "success" ? "#34d399" : b.checks.state === "failure" ? T.red : T.amber,
+                    boxShadow: b.checks.state === "success" ? "0 0 6px #34d399" : b.checks.state === "failure" ? `0 0 6px ${T.red}` : `0 0 6px ${T.amber}`,
+                    animation: b.checks.state === "pending" ? "dot 1s infinite" : "none"
+                  }}/>
+                )}
               </a>
             )}
 
