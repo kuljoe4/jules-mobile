@@ -546,7 +546,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
                   style={{
                     width: 36, height: 36, borderRadius: 8,
                     background: isSelected ? `${T.brand}25` : T.surfaceHi,
-                    border: `1px solid ${isSelected ? T.brand : T.border}`,
+                    border: isSelected ? "none" : `1px solid ${T.border}`,
                     display: "flex", alignItems: "center", justifyContent:"center",
                     cursor: "pointer", position: "relative",
                     transition: "all .15s ease"
