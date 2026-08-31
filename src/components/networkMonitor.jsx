@@ -48,6 +48,7 @@ const RecentActivityLog = memo(({ log, total }) => {
               });
             }}
             aria-label="Copy all network activity to clipboard"
+            title="Copy all network activity to clipboard"
             style={{
               background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:4,
               padding:"3px 8px", cursor:"pointer", color:T.brand,
@@ -56,7 +57,7 @@ const RecentActivityLog = memo(({ log, total }) => {
           >{copiedAll ? "COPIED ✓" : "COPY ALL"}</button>
         </div>
 
-        <div style={{display:"flex", gap:4, background:T.surface, border:`1px solid ${T.border}`, borderRadius:6, padding:2, width:"fit-content"}}>
+        <div role="group" aria-label="Activity log view mode" style={{display:"flex", gap:4, background:T.surface, border:`1px solid ${T.border}`, borderRadius:6, padding:2, width:"fit-content"}}>
           {[
             { id: "chrono", label: "CHRONO (RECENT)" },
             { id: "ranked-indiv", label: "RANKED (INDIV)" },
@@ -65,6 +66,9 @@ const RecentActivityLog = memo(({ log, total }) => {
             <button
               key={opt.id}
               onClick={() => setMode(opt.id)}
+              aria-pressed={mode === opt.id ? "true" : "false"}
+              aria-label={`View log as ${opt.label}`}
+              title={`View log as ${opt.label}`}
               style={{
                 background: mode === opt.id ? T.brandDim : "none",
                 border: "none",
@@ -215,11 +219,14 @@ const BucketBreakdown = ({ snap, timeframe, setTimeframe }) => {
     <div style={{background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:12, padding:18, marginTop:4}}>
       <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14}}>
         <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:700, color:T.textDim}}>DATA INGESTION BY BUCKET</div>
-        <div style={{display:"flex", gap:4}}>
+        <div role="group" aria-label="Ingestion timeframe" style={{display:"flex", gap:4}}>
           {["today", "month", "overall"].map(tf => (
             <button
               key={tf}
               onClick={() => setTimeframe(tf)}
+              aria-pressed={timeframe === tf ? "true" : "false"}
+              aria-label={`View ingestion breakdown for ${tf}`}
+              title={`View ingestion breakdown for ${tf}`}
               style={{
                 background: timeframe === tf ? T.brandDim : "none",
                 border: `1px solid ${timeframe === tf ? T.brand : T.border}`,
@@ -333,7 +340,7 @@ const NetworkMonitor = ({ onBack, isDesktop }) => {
                   <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:700, color:T.textDim}}>APP DATA</span>
                 </div>
                 <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:24, fontWeight:900, color:T.text, marginBottom:16}}>{storage ? fmtBytes((storage.local||0)/1024) : "..."}<span style={{fontSize:10, color:T.textDim, marginLeft:4, fontWeight:500}}>USED</span></div>
-                <button onClick={clearDataOnly} style={{
+                <button onClick={clearDataOnly} aria-label="Clear application data" title="Clear application data" style={{
                   width:"100%", padding:"10px", borderRadius:8, background:`${T.purple}15`, border:`1px solid ${T.purple}30`,
                   color:T.purple, fontSize:10, fontWeight:800, fontFamily:"'JetBrains Mono',monospace", cursor:"pointer",
                   transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)"
@@ -346,7 +353,7 @@ const NetworkMonitor = ({ onBack, isDesktop }) => {
                   <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:700, color:T.textDim}}>CACHE</span>
                 </div>
                 <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:24, fontWeight:900, color:T.text, marginBottom:16}}>{storage ? fmtBytes((storage.cache||0)/1024) : "..."}<span style={{fontSize:10, color:T.textDim, marginLeft:4, fontWeight:500}}>TOTAL</span></div>
-                <button onClick={clearCacheOnly} style={{
+                <button onClick={clearCacheOnly} aria-label="Clear cached network responses" title="Clear cached network responses" style={{
                   width:"100%", padding:"10px", borderRadius:8, background:`${T.blue}15`, border:`1px solid ${T.blue}30`,
                   color:T.blue, fontSize:10, fontWeight:800, fontFamily:"'JetBrains Mono',monospace", cursor:"pointer",
                   transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)"
