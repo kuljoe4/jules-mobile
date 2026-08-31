@@ -133,7 +133,7 @@ const SessionCard = memo(({ s, onPress, onSelect, isSelected, index, activities 
       onFocus={e => e.currentTarget.style.borderColor = T.brand}
       onBlur={e => e.currentTarget.style.borderColor = borderColor}
     >
-      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}>
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6,flexWrap:"nowrap",width:"100%",overflow:"hidden"}}>
         <div style={{width:16,fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.muted,fontWeight:800,opacity:0.35,flexShrink:0}}>{index}</div>
         <div
           title={m.label}
@@ -147,46 +147,49 @@ const SessionCard = memo(({ s, onPress, onSelect, isSelected, index, activities 
         <div style={{flex:1,minWidth:0,fontFamily:"'IBM Plex Sans',sans-serif",fontSize:13,fontWeight:600,color:isSelected?T.textHi:T.textDim,lineHeight:1.3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
           {s.title||s.prompt}
         </div>
-        <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.muted,fontWeight:500,opacity:0.45,flexShrink:0,marginLeft:"auto"}}>
+        {activeCheck && (
+          <div
+            title={`Checks: ${activeCheck.label || activeCheck.state}`}
+            aria-label={`Checks: ${activeCheck.label || activeCheck.state}`}
+            style={{display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0}}
+          >
+            {activeCheck.state === "success" && <Ic n="check" s={11} c="#34d399"/>}
+            {activeCheck.state === "failure" && <Ic n="x" s={11} c={T.red}/>}
+            {(activeCheck.state === "pending" || (activeCheck.state !== "success" && activeCheck.state !== "failure")) && (
+              <div style={{display:"flex", animation:"spin 2s linear infinite"}}>
+                <Ic n="refresh" s={10} c={T.amber}/>
+              </div>
+            )}
+          </div>
+        )}
+        <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.muted,fontWeight:500,opacity:0.45,flexShrink:0,marginLeft:activeCheck ? 2 : "auto"}}>
           {fmtAgo(parseDateMs(s.updateTime||s.createTime))}
         </div>
       </div>
 
-      <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", gap:"6px 10px", marginLeft:26, flexWrap:"wrap"}}>
-        <div style={{display:"flex", alignItems:"center", gap:8, flexWrap:"wrap", minWidth:0, flex:"1 1 auto"}}>
+      <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", gap:"6px 10px", marginLeft:26, flexWrap:"nowrap", overflow:"hidden"}}>
+        <div style={{display:"flex", alignItems:"center", gap:8, flexWrap:"nowrap", minWidth:0, flex:"1 1 auto", overflow:"hidden"}}>
           {repo && (
-            <div title={rawRepo} style={{display:"flex", alignItems:"center", gap:4, opacity:0.45}}>
+            <div title={rawRepo} style={{display:"flex", alignItems:"center", gap:4, opacity:0.45, flexShrink:1, minWidth:0, overflow:"hidden"}}>
               <Ic n="code" s={10} c={T.muted}/>
-              <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.muted,fontWeight:700}}>{repo}</span>
+              <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.muted,fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{repo}</span>
             </div>
           )}
           {pri && (
-            <div style={{display:"flex", alignItems:"center", gap:4, color:pri.state==="merged"?T.purple:T.brand, opacity:0.95}}>
+            <div style={{display:"flex", alignItems:"center", gap:4, color:pri.state==="merged"?T.purple:T.brand, opacity:0.95, flexShrink:0}}>
               <Ic n={pri.state==="merged"?"git_merge":"git_pull"} s={10} c={pri.state==="merged"?T.purple:T.brand}/>
               <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:900}}>#{pri.number}</span>
               {pri.ahead > 0 && <span aria-label={`${pri.ahead} commits ahead`} style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900,color:T.brandLight,background:T.brandDim,padding:"1px 3px",borderRadius:2}}>↑{pri.ahead}</span>}
               {pri.behind > 0 && <span aria-label={`${pri.behind} commits behind`} style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900,color:T.amber,background:T.amberDim,padding:"1px 3px",borderRadius:2}}>↓{pri.behind}</span>}
             </div>
           )}
-          {activeCheck && (
-            <div
-              title={`Checks: ${activeCheck.label || activeCheck.state}`}
-              aria-label={`Checks: ${activeCheck.label || activeCheck.state}`}
-              style={{
-                width: 5, height: 5, borderRadius: "50%", flexShrink: 0,
-                background: activeCheck.state === "success" ? "#34d399" : activeCheck.state === "failure" ? T.red : T.amber,
-                boxShadow: activeCheck.state === "success" ? "0 0 6px #34d399" : activeCheck.state === "failure" ? `0 0 6px ${T.red}` : `0 0 6px ${T.amber}`,
-                animation: activeCheck.state === "pending" ? "dot 1s infinite" : "none"
-              }}
-            />
-          )}
           {(!pri || pri.state === "closed") && b?.isNew && (
-            <div style={{display:"flex", alignItems:"center", gap:4, color:T.blue, opacity:0.95}}>
+            <div style={{display:"flex", alignItems:"center", gap:4, color:T.blue, opacity:0.95, flexShrink:1, minWidth:0, overflow:"hidden"}}>
               <Ic n="branch" s={10} c={T.blue}/>
-              <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:900}}>{b.working}</span>
-              {b.ahead > 0 && <span aria-label={`${b.ahead} commits ahead`} style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900,color:T.brandLight,background:T.brandDim,padding:"1px 3px",borderRadius:2}}>↑{b.ahead}</span>}
-              {b.behind > 0 && <span aria-label={`${b.behind} commits behind`} style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900,color:T.amber,background:T.amberDim,padding:"1px 3px",borderRadius:2}}>↓{b.behind}</span>}
-              {!(b.ahead > 0 || b.behind > 0) && ahead > 0 && <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900,color:T.blue}}>+{ahead}</span>}
+              <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:900,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{b.working}</span>
+              {b.ahead > 0 && <span aria-label={`${b.ahead} commits ahead`} style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900,color:T.brandLight,background:T.brandDim,padding:"1px 3px",borderRadius:2,flexShrink:0}}>↑{b.ahead}</span>}
+              {b.behind > 0 && <span aria-label={`${b.behind} commits behind`} style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900,color:T.amber,background:T.amberDim,padding:"1px 3px",borderRadius:2,flexShrink:0}}>↓{b.behind}</span>}
+              {!(b.ahead > 0 || b.behind > 0) && ahead > 0 && <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900,color:T.blue,flexShrink:0}}>+{ahead}</span>}
             </div>
           )}
           {driftDetected && (
@@ -217,7 +220,7 @@ const SessionCard = memo(({ s, onPress, onSelect, isSelected, index, activities 
               <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900}}>D</span>
             </div>
           )}
-          {isUnread && <div style={{width:4,height:4,borderRadius:"50%",background:T.indigo,animation:"dot 1s infinite"}}/>}
+          {isUnread && <div style={{width:4,height:4,borderRadius:"50%",background:T.indigo,animation:"dot 1s infinite",flexShrink:0}}/>}
         </div>
 
         <div style={{
