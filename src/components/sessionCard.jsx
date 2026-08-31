@@ -100,18 +100,21 @@ const SessionCard = memo(({ s, onPress, onSelect, isSelected, index, activities 
 
   const isVHighActivity = activityStats.count >= 300 || activityStats.size >= 5 * 1024 * 1024;
   const isHighActivity = activityStats.count >= 200 || activityStats.size >= 1 * 1024 * 1024;
-  const highActivityStyle = isVHighActivity ? { color: T.red, fontWeight: 900 } : isHighActivity ? { color: T.amber, fontWeight: 900 } : {};
+  const highActivityStyle = isVHighActivity
+    ? { color: T.red, fontWeight: 800, background: `${T.red}20`, padding: "1px 4px", borderRadius: 3, opacity: 1 }
+    : isHighActivity
+    ? { color: T.amber, fontWeight: 800, background: `${T.amber}20`, padding: "1px 4px", borderRadius: 3, opacity: 1 }
+    : {};
 
   const bg = isSelected ? `${T.brand}15` : T.surface;
-  const borderColor = isSelected ? `${T.brand}40` : `${T.border}44`;
+  const borderColor = isSelected ? "transparent" : `${T.border}44`;
 
   return (
     <button ref={cardRef} onClick={handleClick}
       aria-label={`Session ${index}: ${s.title || s.prompt}. Status: ${m.label}. ${isUnread ? "New activity." : ""}`}
       style={{
         width:"100%", background:bg, textAlign:"left", cursor:"pointer",
-        border:`1px solid ${borderColor}`,
-        borderLeft:`2px solid ${isSelected ? T.brand : "transparent"}`,
+        border: isSelected ? "none" : `1px solid ${borderColor}`,
         borderRadius:6, padding:"8px 12px", marginBottom:4, transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)",
         position:"relative",
         transform:isSelected?"translateX(4px) scale(1.005)":"none",
@@ -123,7 +126,7 @@ const SessionCard = memo(({ s, onPress, onSelect, isSelected, index, activities 
       onBlur={e => e.currentTarget.style.borderColor = borderColor}
     >
       <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}>
-        <div style={{width:16,fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.muted,fontWeight:800,opacity:0.35}}>{index}</div>
+        <div style={{width:16,fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.muted,fontWeight:800,opacity:0.35,flexShrink:0}}>{index}</div>
         <div
           title={m.label}
           aria-label={`Status: ${m.label}`}
@@ -136,69 +139,71 @@ const SessionCard = memo(({ s, onPress, onSelect, isSelected, index, activities 
         <div style={{flex:1,minWidth:0,fontFamily:"'IBM Plex Sans',sans-serif",fontSize:13,fontWeight:600,color:isSelected?T.textHi:T.textDim,lineHeight:1.3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
           {s.title||s.prompt}
         </div>
-        <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.muted,fontWeight:500,opacity:0.45,flexShrink:0}}>
+        <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.muted,fontWeight:500,opacity:0.45,flexShrink:0,marginLeft:"auto"}}>
           {fmtAgo(parseDateMs(s.updateTime||s.createTime))}
         </div>
       </div>
 
-      <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:4, marginLeft:26, flexWrap:"wrap"}}>
-        {repo && (
-          <div style={{display:"flex", alignItems:"center", gap:4, opacity:0.4}}>
-            <Ic n="code" s={10} c={T.muted}/>
-            <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.muted,fontWeight:700}}>{repo}</span>
-          </div>
-        )}
-        {pri && (
-          <div style={{display:"flex", alignItems:"center", gap:4, color:pri.state==="merged"?T.purple:T.brand, opacity:0.95}}>
-            <Ic n={pri.state==="merged"?"git_merge":"git_pull"} s={10} c={pri.state==="merged"?T.purple:T.brand}/>
-            <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:900}}>#{pri.number}</span>
-            {pri.ahead > 0 && <span aria-label={`${pri.ahead} commits ahead`} style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900,color:T.brandLight,background:T.brandDim,padding:"1px 3px",borderRadius:2}}>↑{pri.ahead}</span>}
-            {pri.behind > 0 && <span aria-label={`${pri.behind} commits behind`} style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900,color:T.amber,background:T.amberDim,padding:"1px 3px",borderRadius:2}}>↓{pri.behind}</span>}
-          </div>
-        )}
-        {(!pri || pri.state === "closed") && b?.isNew && (
-          <div style={{display:"flex", alignItems:"center", gap:4, color:T.blue, opacity:0.95}}>
-            <Ic n="branch" s={10} c={T.blue}/>
-            <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:900}}>{b.working}</span>
-            {b.ahead > 0 && <span aria-label={`${b.ahead} commits ahead`} style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900,color:T.brandLight,background:T.brandDim,padding:"1px 3px",borderRadius:2}}>↑{b.ahead}</span>}
-            {b.behind > 0 && <span aria-label={`${b.behind} commits behind`} style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900,color:T.amber,background:T.amberDim,padding:"1px 3px",borderRadius:2}}>↓{b.behind}</span>}
-            {!(b.ahead > 0 || b.behind > 0) && ahead > 0 && <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900,color:T.blue}}>+{ahead}</span>}
-          </div>
-        )}
-        {driftDetected && (
-          <div style={{display:"flex", alignItems:"center", gap:3, color:T.amber, opacity:0.8}}>
-            <Ic n="wifi" s={9} c={T.amber}/>
-            <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900}}>STALE</span>
-          </div>
-        )}
-        {hasFollowupDraft && (
-          <div style={{
-            display:"flex", alignItems:"center", gap:3, color:T.amberLight, opacity:0.95,
-            background:`${T.amber}15`, padding:"1px 6px", borderRadius:4, border:`1px solid ${T.amber}30`
-          }}>
-            <Ic n="layers" s={9} c={T.amberLight}/>
-            <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900}}>DRAFT MSG</span>
-          </div>
-        )}
-        {isUnread && <div style={{width:4,height:4,borderRadius:"50%",background:T.indigo,animation:"dot 1s infinite"}}/>}
-      </div>
-
-      <div style={{display:"flex",alignItems:"center",gap:10,marginTop:0,marginLeft:26,fontFamily:"'JetBrains Mono',monospace",fontSize:9}}>
-        <div style={{
-          display:"flex", alignItems:"center", gap:6,
-          background: flash ? `${T.brand}25` : "transparent",
-          padding: "2px 6px", margin: "-2px -6px", borderRadius: 4,
-          transition: flash ? "none" : "background 5s cubic-bezier(0.4, 0, 0.2, 1)",
-          color: flash ? T.brandLight : T.textDim,
-          fontWeight: 600,
-          opacity: 1,
-        }}>
-          <span style={highActivityStyle}>{activityStats.count} ITEMS</span>
-          <span>·</span>
-          <span style={highActivityStyle}>{fmtBytes(activityStats.size/1024)}</span>
+      <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", gap:"6px 10px", marginLeft:26, flexWrap:"wrap"}}>
+        <div style={{display:"flex", alignItems:"center", gap:8, flexWrap:"wrap", minWidth:0, flex:"1 1 auto"}}>
+          {repo && (
+            <div style={{display:"flex", alignItems:"center", gap:4, opacity:0.45}}>
+              <Ic n="code" s={10} c={T.muted}/>
+              <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.muted,fontWeight:700}}>{repo}</span>
+            </div>
+          )}
+          {pri && (
+            <div style={{display:"flex", alignItems:"center", gap:4, color:pri.state==="merged"?T.purple:T.brand, opacity:0.95}}>
+              <Ic n={pri.state==="merged"?"git_merge":"git_pull"} s={10} c={pri.state==="merged"?T.purple:T.brand}/>
+              <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:900}}>#{pri.number}</span>
+              {pri.ahead > 0 && <span aria-label={`${pri.ahead} commits ahead`} style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900,color:T.brandLight,background:T.brandDim,padding:"1px 3px",borderRadius:2}}>↑{pri.ahead}</span>}
+              {pri.behind > 0 && <span aria-label={`${pri.behind} commits behind`} style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900,color:T.amber,background:T.amberDim,padding:"1px 3px",borderRadius:2}}>↓{pri.behind}</span>}
+            </div>
+          )}
+          {(!pri || pri.state === "closed") && b?.isNew && (
+            <div style={{display:"flex", alignItems:"center", gap:4, color:T.blue, opacity:0.95}}>
+              <Ic n="branch" s={10} c={T.blue}/>
+              <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:900}}>{b.working}</span>
+              {b.ahead > 0 && <span aria-label={`${b.ahead} commits ahead`} style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900,color:T.brandLight,background:T.brandDim,padding:"1px 3px",borderRadius:2}}>↑{b.ahead}</span>}
+              {b.behind > 0 && <span aria-label={`${b.behind} commits behind`} style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900,color:T.amber,background:T.amberDim,padding:"1px 3px",borderRadius:2}}>↓{b.behind}</span>}
+              {!(b.ahead > 0 || b.behind > 0) && ahead > 0 && <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900,color:T.blue}}>+{ahead}</span>}
+            </div>
+          )}
+          {driftDetected && (
+            <div style={{display:"flex", alignItems:"center", gap:3, color:T.amber, opacity:0.8}}>
+              <Ic n="wifi" s={9} c={T.amber}/>
+              <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900}}>STALE</span>
+            </div>
+          )}
+          {hasFollowupDraft && (
+            <div style={{
+              display:"flex", alignItems:"center", gap:3, color:T.amberLight, opacity:0.95,
+              background:`${T.amber}15`, padding:"1px 6px", borderRadius:4, border:`1px solid ${T.amber}30`
+            }}>
+              <Ic n="layers" s={9} c={T.amberLight}/>
+              <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900}}>DRAFT MSG</span>
+            </div>
+          )}
+          {isUnread && <div style={{width:4,height:4,borderRadius:"50%",background:T.indigo,animation:"dot 1s infinite"}}/>}
         </div>
-        <div style={{marginLeft:"auto", color:T.dim, opacity:0.35}}>
-          {s.id?.slice(0,8)}
+
+        <div style={{display:"flex", alignItems:"center", gap:8, flexShrink:0, marginLeft:"auto", fontFamily:"'JetBrains Mono',monospace", fontSize:9}}>
+          <div style={{
+            display:"flex", alignItems:"center", gap:4,
+            background: flash ? `${T.brand}20` : "transparent",
+            padding: "1px 4px", borderRadius: 4,
+            transition: flash ? "none" : "background 5s cubic-bezier(0.4, 0, 0.2, 1)",
+            color: T.dim,
+            fontWeight: 500,
+            opacity: 0.65,
+          }}>
+            <span style={highActivityStyle}>{activityStats.count} ITEMS</span>
+            <span>·</span>
+            <span style={highActivityStyle}>{fmtBytes(activityStats.size/1024)}</span>
+          </div>
+          <div style={{color:T.dim, opacity:0.35}}>
+            {s.id?.slice(0,8)}
+          </div>
         </div>
       </div>
     </button>
