@@ -166,4 +166,12 @@ const invalidRepoPrUrl = `https://github.com/${'a/'.repeat(150)}/pull/1`;
 GitHubTracker.triggerGitHubFetch(invalidRepoPrUrl);
 assert.equal(GitHubTracker.GH_IN_FLIGHT.has(invalidRepoPrUrl), false);
 
+// Test GitHubTracker.mergePullRequest validation for invalid repo names and token
+await assert.rejects(
+  async () => {
+    await GitHubTracker.mergePullRequest('https://github.com/../invalid/pull/1');
+  },
+  { message: 'Invalid GitHub repository format in URL' }
+);
+
 console.log('Utility tests passed');
