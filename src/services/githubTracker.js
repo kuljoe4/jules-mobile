@@ -445,12 +445,17 @@ const GitHubTracker = {
       });
   },
 
-  async createPullRequest({ repo, head, base = "main", title, body }) {
+  async createPullRequest({ repo: rawRepo, head: rawHead, base: rawBase = "main", title, body }) {
+    // Sanitize repo string (strip sources/github/ prefix, .git suffix, whitespace)
+    let repo = (rawRepo || "").trim().replace(/^sources\/github\//, "").replace(/\.git$/, "").replace(/\/$/, "");
+    let head = (rawHead || "").trim().replace(/^refs\/heads\//, "");
+    let base = (rawBase || "main").trim().replace(/^refs\/heads\//, "");
+
     if (!repo || !isValidGithubRepoName(repo)) {
-      throw new Error("Valid GitHub repository (owner/repo) required to create Pull Request");
+      throw new Error(`Invalid GitHub repository format ("${rawRepo || repo}"). Expected "owner/repo".`);
     }
     if (!head || !isValidGitBranchName(head)) {
-      throw new Error("Valid head branch name required to create Pull Request");
+      throw new Error(`Invalid head branch name ("${rawHead || head}").`);
     }
     const token = SafeStorage.loadGithubToken();
     if (!token || !isValidGithubToken(token)) {
