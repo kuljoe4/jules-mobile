@@ -542,6 +542,57 @@ const GitHubTracker = {
     }
   },
 
+  async createPullRequest(repoFull, head, base = "main", title = "", body = "") {
+    if (!isValidGithubRepoName(repoFull)) throw new Error("Invalid repository name");
+    if (!isValidGitBranchName(head) || !isValidGitBranchName(base)) throw new Error("Invalid branch name");
+
+    const [owner, repo] = repoFull.split("/");
+    const token = SafeStorage.loadGithubToken();
+    if (!token || !isValidGithubToken(token)) {
+      throw new Error("GitHub Token required to create PR. Please set your token in Settings.");
+    }
+
+    const headers = {
+      "Accept": "application/vnd.github.v3+json",
+      "Content-Type": "application/json",
+      "Authorization": `token ${token}`
+    };
+
+    const apiUrl = `https://api.github.com/repos/${owner}/${repo}/pulls`;
+    const controller = new AbortController();
+    const timeoutMs = loadApiTimeout();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const res = await fetch(apiUrl, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          title: title || `Merge ${head} into ${base}`,
+          head,
+          base,
+          body: body || `Automated Pull Request created from Jules Mobile session.`
+        }),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || `Failed to create PR (Status ${res.status})`);
+      }
+
+      const prUrl = data.html_url || data.url;
+      if (prUrl) {
+        this.triggerGitHubFetch(prUrl, true);
+      }
+      return data;
+    } catch (err) {
+      clearTimeout(timeoutId);
+      throw err;
+    }
+  },
+
   getPRInfo(s, activities = [], force = false) {
     if (!s) return null;
 
@@ -875,5 +926,6 @@ const getCheckStatus = (activities = []) => GitHubTracker.getCheckStatus(activit
 const getPrUrlAndNumber = (pr) => GitHubTracker.getPrUrlAndNumber(pr);
 const createPullRequest = (params) => GitHubTracker.createPullRequest(params);
 const mergePullRequest = (url, mergeMethod) => GitHubTracker.mergePullRequest(url, mergeMethod);
+const createPullRequest = (repoFull, head, base, title, body) => GitHubTracker.createPullRequest(repoFull, head, base, title, body);
 
 export { GitHubTracker, getPR, getPRInfo, getBranchInfo, getCheckStatus, getPrUrlAndNumber, createPullRequest, mergePullRequest };

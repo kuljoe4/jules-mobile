@@ -1,4 +1,4 @@
-const DraftsBox = ({ onBack, isDesktop, onResume, onCreate, allSessions, activitiesMap, draftsMap = {}, onDraftChange, onSelectSession }) => {
+export const DraftsBox = memo(({ onBack, isDesktop, onResume, onCreate, allSessions, activitiesMap, draftsMap = {}, onDraftChange, onSelectSession }) => {
   const [activeTab, setActiveTab] = useState("templates"); // "templates" or "followups"
   const [drafts, setDrafts] = useState(loadDraftsBox());
 
@@ -81,35 +81,37 @@ const DraftsBox = ({ onBack, isDesktop, onResume, onCreate, allSessions, activit
               <div style={{display:"flex", flexDirection:"column", gap:16}}>
                 {drafts.map(d => (
                   <div key={d.id} style={{
-                    background:T.surface, border:`1px solid ${T.border}`, borderRadius:12, padding:20,
-                    transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)", position:"relative",
-                    animation:"slideUp .3s ease"
+                    background: T.surface,
+                    border: "none",
+                    borderRadius: 10,
+                    padding: "14px 16px",
+                    transition: "all .2s cubic-bezier(0.4, 0, 0.2, 1)",
+                    position: "relative",
+                    animation: "slideUp .3s ease"
                   }}>
-                    <div style={{display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:12}}>
-                      <div style={{flex:1, minWidth:0}}>
-                        <div style={{fontFamily:"'IBM Plex Sans',sans-serif", fontSize:15, fontWeight:600, color:T.text, marginBottom:4, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>
-                          {d.title || d.prompt}
-                        </div>
-                        <div style={{display:"flex", alignItems:"center", gap:8}}>
-                          <div style={{display:"flex", alignItems:"center", gap:4, opacity:0.7}}>
-                            <Ic n="code" s={11} c={T.muted}/>
-                            <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.muted, fontWeight:700}}>{d.source ? d.source.replace("sources/github/","") : "REPOLESS"}</span>
-                          </div>
-                          <div style={{display:"flex", alignItems:"center", gap:4, opacity:0.7}}>
-                            <Ic n="branch" s={11} c={T.muted}/>
-                            <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.muted, fontWeight:700}}>{d.branch}</span>
-                          </div>
-                          {(d.updatedAt || d.createdAt) && (
-                            <div style={{display:"flex", alignItems:"center", gap:4, opacity:0.7}}>
-                              <Ic n="clock" s={11} c={T.muted}/>
-                              <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.muted, fontWeight:700}}>{fmtAgo(d.updatedAt || d.createdAt)}</span>
-                            </div>
-                          )}
-                        </div>
+                    <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", gap:8, marginBottom:8}}>
+                      <div style={{flex:1, minWidth:0, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:14, fontWeight:600, color:T.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>
+                        {d.title || d.prompt}
                       </div>
-                      <button onClick={() => handleDelete(d.id)} style={{background:"none", border:"none", cursor:"pointer", padding:4, opacity:0.6}} title="Delete Draft" aria-label="Delete Draft">
-                        <Ic n="trash" s={14} c={T.red}/>
-                      </button>
+                      <div style={{display:"flex", alignItems:"center", gap:10, flexShrink:0}}>
+                        {(d.updatedAt || d.createdAt) && (
+                          <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.dim, opacity:0.65}}>{fmtAgo(d.updatedAt || d.createdAt)}</span>
+                        )}
+                        <button onClick={() => handleDelete(d.id)} style={{background:"none", border:"none", cursor:"pointer", padding:2, opacity:0.65}} title="Delete Draft" aria-label="Delete Draft">
+                          <Ic n="trash" s={13} c={T.red}/>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div style={{display:"flex", alignItems:"center", gap:10, marginBottom:10, fontSize:11, fontFamily:"'JetBrains Mono',monospace", color:T.dim, opacity:0.65}}>
+                      <div style={{display:"flex", alignItems:"center", gap:4, minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>
+                        <Ic n="code" s={11} c={T.muted}/>
+                        <span>{d.source ? d.source.replace("sources/github/","") : "REPOLESS"}</span>
+                      </div>
+                      <div style={{display:"flex", alignItems:"center", gap:4, flexShrink:0}}>
+                        <Ic n="branch" s={11} c={T.muted}/>
+                        <span>{d.branch}</span>
+                      </div>
                     </div>
 
                     <div style={{fontFamily:"'IBM Plex Sans',sans-serif", fontSize:13, color:T.textDim, lineHeight:1.5, marginBottom:16, display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden"}}>
@@ -212,8 +214,6 @@ const DraftsBox = ({ onBack, isDesktop, onResume, onCreate, allSessions, activit
       </div>
     </div>
   );
-};
-
-// ─── Settings View ────────────────────────────────────────────────────────────
+});
 // OPTIMIZATION: Wrap RecentActivityLog in React.memo to prevent unnecessary re-renders when parent
 // state updates but the network log and totals remain reference-stable.
