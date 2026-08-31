@@ -560,6 +560,34 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     }
   };
 
+  const handleCreateAndMergePR = async () => {
+    if (!b || !b.working || !b.repo || busy) return;
+    if (!confirm(`Create and MERGE Pull Request for branch '${b.working}' into '${b.base || "main"}'?`)) return;
+
+    setBusy(true); setErr(null);
+    try {
+      const prData = await createPullRequest(
+        b.repo,
+        b.working,
+        b.base || "main",
+        session.title || `Merge ${b.working}`,
+        session.prompt || "Created via Jules Mobile"
+      );
+      const prUrl = prData.html_url || prData.url;
+      if (prUrl) {
+        await mergePullRequest(prUrl, "merge");
+      }
+      setJustUpdated(true);
+      setTimeout(() => setJustUpdated(false), 3000);
+      loadActivities(lastTsRef.current);
+      loadSession();
+    } catch (e) {
+      setErr(e.message || "Failed to create and merge Pull Request");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleMergePR = async (mergeMethod = "merge") => {
     if (!pr || !pr.url || busy) return;
     if (!confirm(`Are you sure you want to MERGE Pull Request #${pr.number}?`)) return;
@@ -1255,6 +1283,16 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
               }} aria-label="View diff tab" title="View diff tab to inspect code changes">
                 <Ic n="code" s={12} c={T.brand}/> VIEW DIFF
               </button>
+              {b.repo && (
+                <button onClick={handleCreateAndMergePR} disabled={busy} style={{
+                  background:T.purple, color:"#000", border:"none", borderRadius:6,
+                  padding:"6px 12px", fontFamily:"'JetBrains Mono',monospace",
+                  fontSize:11, fontWeight:800, cursor: busy ? "not-allowed" : "pointer", flexShrink:0,
+                  opacity: busy ? 0.6 : 1, display:"inline-flex", alignItems:"center", gap:4
+                }} aria-label="Create and Merge Pull Request in app" title="Create and Merge Pull Request in app">
+                  <Ic n="git_merge" s={12} c="#000"/> CREATE & MERGE PR
+                </button>
+              )}
               <button onClick={handlePublishPR} disabled={busy} style={{
                 background:T.brand, color:"#000", border:"none", borderRadius:6,
                 padding:"6px 14px", fontFamily:"'JetBrains Mono',monospace",
