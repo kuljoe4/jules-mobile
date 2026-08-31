@@ -1230,42 +1230,40 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
 
         {(pr?.state === "closed" || !pr) && b?.isNew && (b.ahead > 0 || ahead > 0) && (
           <div style={{
-            marginBottom:10, padding:"10px 14px", background:T.blueDim,
+            marginBottom:10, padding:"12px 16px", background:T.blueDim,
             border:`1px solid ${T.blue}40`, borderRadius:8, display:"flex",
-            alignItems:"center", gap:12, boxShadow:`0 4px 12px ${T.blue}10`
+            alignItems:"center", justifyContent:"space-between", gap:12, boxShadow:`0 4px 12px ${T.blue}10`, flexWrap:"wrap"
           }}>
-            <div style={{flex:1}}>
-              <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.blue, fontWeight:800, letterSpacing:"0.05em", marginBottom:2}}>BRANCH AHEAD</div>
-              <div style={{fontFamily:"'IBM Plex Sans',sans-serif", fontSize:13, color:T.textDim}}>
-                {b.ahead || ahead} commit{(b.ahead || ahead)!==1?'s':''} pushed to <span style={{color:T.blue, fontWeight:600}}>{b.working}</span>. No PR created yet.
+            <div style={{flex:1, minWidth:200}}>
+              <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.blue, fontWeight:800, letterSpacing:"0.05em", marginBottom:4, display:"flex", alignItems:"center", gap:6}}>
+                <Ic n="branch" s={14} c={T.blue}/> BRANCH AHEAD ({b.ahead || ahead} COMMITS)
+              </div>
+              <div style={{fontFamily:"'IBM Plex Sans',sans-serif", fontSize:13, color:T.textDim, lineHeight:1.4}}>
+                Pushed to <span style={{color:T.blue, fontWeight:600}}>{b.working}</span>.
+                {payloadBreakdown.patchCount > 0 && (
+                  <span style={{marginLeft:6, color:T.text, fontWeight:600}}>
+                    ({payloadBreakdown.patchCount} patch set{payloadBreakdown.patchCount!==1?'s':''})
+                  </span>
+                )}
               </div>
             </div>
-            {b.repoUrl && (
-              <div style={{display:"flex", gap:8}}>
-                <a href={safeUrl(`${b.repoUrl}/branches`)} target="_blank" rel="noopener noreferrer" style={{
-                  background:"transparent", color:T.blue, border:`1px solid ${T.blue}40`, borderRadius:6,
-                  padding:"6px 10px", fontFamily:"'JetBrains Mono',monospace",
-                  fontSize:10, fontWeight:700, textDecoration:"none", flexShrink:0
-                }}>
-                  BRANCHES
-                </a>
-                <button onClick={handlePublishPR} disabled={busy} style={{
-                  background:T.brand, color:"#000", border:"none", borderRadius:6,
-                  padding:"6px 12px", fontFamily:"'JetBrains Mono',monospace",
-                  fontSize:11, fontWeight:800, cursor: busy ? "not-allowed" : "pointer", flexShrink:0,
-                  opacity: busy ? 0.6 : 1
-                }} aria-label="Publish Pull Request" title="Publish Pull Request">
-                  PUBLISH PR
-                </button>
-                <a href={safeUrl(`${b.repoUrl}/compare/${b.base}...${b.working}`)} target="_blank" rel="noopener noreferrer" style={{
-                  background:T.surfaceHi, color:T.blue, border:`1px solid ${T.blue}40`, borderRadius:6,
-                  padding:"6px 12px", fontFamily:"'JetBrains Mono',monospace",
-                  fontSize:11, fontWeight:800, textDecoration:"none", flexShrink:0
-                }}>
-                  CREATE PR ↗
-                </a>
-              </div>
-            )}
+            <div style={{display:"flex", gap:8, alignItems:"center", flexWrap:"wrap"}}>
+              <button onClick={() => setTab("diff")} style={{
+                background:T.surfaceHi, color:T.brand, border:`1px solid ${T.brand}40`, borderRadius:6,
+                padding:"6px 12px", fontFamily:"'JetBrains Mono',monospace",
+                fontSize:11, fontWeight:800, cursor:"pointer", display:"inline-flex", alignItems:"center", gap:4
+              }} aria-label="View diff tab" title="View diff tab to inspect code changes">
+                <Ic n="code" s={12} c={T.brand}/> VIEW DIFF
+              </button>
+              <button onClick={handlePublishPR} disabled={busy} style={{
+                background:T.brand, color:"#000", border:"none", borderRadius:6,
+                padding:"6px 14px", fontFamily:"'JetBrains Mono',monospace",
+                fontSize:11, fontWeight:800, cursor: busy ? "not-allowed" : "pointer", flexShrink:0,
+                opacity: busy ? 0.6 : 1
+              }} aria-label="Publish Pull Request" title="Publish Pull Request">
+                PUBLISH PR
+              </button>
+            </div>
           </div>
         )}
 
@@ -1580,7 +1578,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                   </div>
 
                   {pr.state === "open" && (
-                    <div style={{ marginTop: 12, display: "flex", gap: 10 }}>
+                    <div style={{ marginTop: 12, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
                       <button
                         onClick={() => handleMergePR("merge")}
                         disabled={busy}
@@ -1596,6 +1594,20 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                         title={`Merge Pull Request #${pr.number}`}
                       >
                         <Ic n="git_merge" s={13} c="#000"/> MERGE PULL REQUEST
+                      </button>
+                      <button
+                        onClick={() => setTab("diff")}
+                        style={{
+                          background: T.surfaceHi, color: T.brand, border: `1px solid ${T.brand}40`, borderRadius: 6,
+                          padding: "8px 14px", fontFamily: "'JetBrains Mono',monospace",
+                          fontSize: 11, fontWeight: 800, cursor: "pointer",
+                          display: "inline-flex", alignItems: "center", gap: 6,
+                          transition: "all .15s ease"
+                        }}
+                        aria-label="View diff tab to inspect changes"
+                        title="View diff tab to inspect changes"
+                      >
+                        <Ic n="code" s={13} c={T.brand}/> VIEW DIFF
                       </button>
                     </div>
                   )}
