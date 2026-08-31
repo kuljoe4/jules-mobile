@@ -47,9 +47,17 @@ const SessionCard = memo(({ s, onPress, onSelect, isSelected, index, activities 
 
   const pct  = pctFromState(currentState);
   const m    = STATUS_META[currentState] || STATUS_META.QUEUED;
-  const repo = s.sourceContext?.githubRepoContext ? s.sourceContext.source?.replace("sources/github/","") : null;
+  const rawRepo = s.sourceContext?.githubRepoContext ? s.sourceContext.source?.replace("sources/github/","") : null;
+  const repo = useMemo(() => {
+    if (!rawRepo) return null;
+    const name = rawRepo.includes("/") ? rawRepo.split("/")[1] : rawRepo;
+    if (!name) return rawRepo;
+    return name.length > 16 ? `${name.slice(0, 7)}…${name.slice(-6)}` : name;
+  }, [rawRepo]);
   const pri  = useMemo(() => getPRInfo(s, activities), [s, activities, ghPrNonce]);
   const b    = useMemo(() => getBranchInfo(s, activities), [s, activities, ghPrNonce]);
+  const checkStatus = useMemo(() => getCheckStatus(activities), [activities]);
+  const activeCheck = pri?.checks || b?.checks || checkStatus;
   const ahead = useMemo(() => getAheadCount(activities), [activities]);
 
   const pr = useMemo(() => getPR(s), [s]);
@@ -147,7 +155,7 @@ const SessionCard = memo(({ s, onPress, onSelect, isSelected, index, activities 
       <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", gap:"6px 10px", marginLeft:26, flexWrap:"wrap"}}>
         <div style={{display:"flex", alignItems:"center", gap:8, flexWrap:"wrap", minWidth:0, flex:"1 1 auto"}}>
           {repo && (
-            <div style={{display:"flex", alignItems:"center", gap:4, opacity:0.45}}>
+            <div title={rawRepo} style={{display:"flex", alignItems:"center", gap:4, opacity:0.45}}>
               <Ic n="code" s={10} c={T.muted}/>
               <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.muted,fontWeight:700}}>{repo}</span>
             </div>
@@ -160,6 +168,18 @@ const SessionCard = memo(({ s, onPress, onSelect, isSelected, index, activities 
               {pri.behind > 0 && <span aria-label={`${pri.behind} commits behind`} style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900,color:T.amber,background:T.amberDim,padding:"1px 3px",borderRadius:2}}>↓{pri.behind}</span>}
             </div>
           )}
+          {activeCheck && (
+            <div
+              title={`Checks: ${activeCheck.label || activeCheck.state}`}
+              aria-label={`Checks: ${activeCheck.label || activeCheck.state}`}
+              style={{
+                width: 5, height: 5, borderRadius: "50%", flexShrink: 0,
+                background: activeCheck.state === "success" ? "#34d399" : activeCheck.state === "failure" ? T.red : T.amber,
+                boxShadow: activeCheck.state === "success" ? "0 0 6px #34d399" : activeCheck.state === "failure" ? `0 0 6px ${T.red}` : `0 0 6px ${T.amber}`,
+                animation: activeCheck.state === "pending" ? "dot 1s infinite" : "none"
+              }}
+            />
+          )}
           {(!pri || pri.state === "closed") && b?.isNew && (
             <div style={{display:"flex", alignItems:"center", gap:4, color:T.blue, opacity:0.95}}>
               <Ic n="branch" s={10} c={T.blue}/>
@@ -170,40 +190,52 @@ const SessionCard = memo(({ s, onPress, onSelect, isSelected, index, activities 
             </div>
           )}
           {driftDetected && (
-            <div style={{display:"flex", alignItems:"center", gap:3, color:T.amber, opacity:0.8}}>
+            <div
+              title="Repository base branch has updated (STALE)"
+              aria-label="Repository base branch has updated (STALE)"
+              style={{
+                display:"flex", alignItems:"center", gap:3, color:T.amber, opacity:0.85,
+                background:`${T.amber}15`, padding:"1px 5px", borderRadius:4, border:`1px solid ${T.amber}30`,
+                flexShrink: 0
+              }}
+            >
               <Ic n="wifi" s={9} c={T.amber}/>
-              <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900}}>STALE</span>
+              <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900}}>S</span>
             </div>
           )}
           {hasFollowupDraft && (
-            <div style={{
-              display:"flex", alignItems:"center", gap:3, color:T.amberLight, opacity:0.95,
-              background:`${T.amber}15`, padding:"1px 6px", borderRadius:4, border:`1px solid ${T.amber}30`
-            }}>
+            <div
+              title="Has unsent follow-up message draft"
+              aria-label="Has unsent follow-up message draft"
+              style={{
+                display:"flex", alignItems:"center", gap:3, color:T.amberLight, opacity:0.95,
+                background:`${T.amber}15`, padding:"1px 5px", borderRadius:4, border:`1px solid ${T.amber}30`,
+                flexShrink: 0
+              }}
+            >
               <Ic n="layers" s={9} c={T.amberLight}/>
-              <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900}}>DRAFT MSG</span>
+              <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900}}>D</span>
             </div>
           )}
           {isUnread && <div style={{width:4,height:4,borderRadius:"50%",background:T.indigo,animation:"dot 1s infinite"}}/>}
         </div>
 
-        <div style={{display:"flex", alignItems:"center", gap:8, flexShrink:0, marginLeft:"auto", fontFamily:"'JetBrains Mono',monospace", fontSize:9}}>
-          <div style={{
-            display:"flex", alignItems:"center", gap:4,
-            background: flash ? `${T.brand}20` : "transparent",
-            padding: "1px 4px", borderRadius: 4,
-            transition: flash ? "none" : "background 5s cubic-bezier(0.4, 0, 0.2, 1)",
-            color: T.dim,
-            fontWeight: 500,
-            opacity: 0.65,
-          }}>
-            <span style={highActivityStyle}>{activityStats.count} ITEMS</span>
-            <span>·</span>
-            <span style={highActivityStyle}>{fmtBytes(activityStats.size/1024)}</span>
-          </div>
-          <div style={{color:T.dim, opacity:0.35}}>
-            {s.id?.slice(0,8)}
-          </div>
+        <div style={{
+          display:"flex", alignItems:"center", gap:4,
+          background: flash ? `${T.brand}20` : "transparent",
+          padding: "1px 4px", borderRadius: 4,
+          transition: flash ? "none" : "background 5s cubic-bezier(0.4, 0, 0.2, 1)",
+          color: T.dim,
+          fontWeight: 500,
+          opacity: 0.65,
+          flexShrink: 0,
+          marginLeft: "auto",
+          fontFamily: "'JetBrains Mono',monospace",
+          fontSize: 9
+        }}>
+          <span style={highActivityStyle}>{activityStats.count}</span>
+          <span>·</span>
+          <span style={highActivityStyle}>{fmtBytes(activityStats.size/1024)}</span>
         </div>
       </div>
     </button>

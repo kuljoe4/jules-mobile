@@ -157,8 +157,8 @@ const GitHubTracker = {
       });
   },
 
-  triggerGitHubFetch(url) {
-    if (this.GH_IN_FLIGHT.has(url)) return;
+  triggerGitHubFetch(url, force = false) {
+    if (!force && this.GH_IN_FLIGHT.has(url)) return;
 
     const match = url.match(/https:\/\/github\.com\/([a-zA-Z0-9\-_.]+)\/([a-zA-Z0-9\-_.]+)\/pull\/(\d+)/);
     if (!match) return;
@@ -323,14 +323,14 @@ const GitHubTracker = {
       });
   },
 
-  triggerGitHubBranchFetch(repo, base, working) {
+  triggerGitHubBranchFetch(repo, base, working, force = false) {
     if (!repo || !base || !working) return;
     if (!isValidGithubRepoName(repo)) return;
     if (!isValidGitBranchName(base) || !isValidGitBranchName(working)) return;
     const encBase = encodeURIComponent(base);
     const encWorking = encodeURIComponent(working);
     const key = `${repo}:${base}:${working}`;
-    if (this.GH_BRANCH_IN_FLIGHT.has(key)) return;
+    if (!force && this.GH_BRANCH_IN_FLIGHT.has(key)) return;
 
     this.GH_BRANCH_IN_FLIGHT.add(key);
 
@@ -445,7 +445,51 @@ const GitHubTracker = {
       });
   },
 
-  getPRInfo(s, activities = []) {
+  async mergePullRequest(url, mergeMethod = "merge") {
+    const match = url.match(/https:\/\/github\.com\/([a-zA-Z0-9\-_.]+)\/([a-zA-Z0-9\-_.]+)\/pull\/(\d+)/);
+    if (!match) throw new Error("Invalid GitHub Pull Request URL");
+
+    const [_, owner, repo, number] = match;
+    const token = SafeStorage.loadGithubToken();
+    if (!token || !isValidGithubToken(token)) {
+      throw new Error("GitHub Token required to merge PR. Please set your token in Settings.");
+    }
+
+    const headers = {
+      "Accept": "application/vnd.github.v3+json",
+      "Content-Type": "application/json",
+      "Authorization": `token ${token}`
+    };
+
+    const apiUrl = `https://api.github.com/repos/${owner}/${repo}/pulls/${number}/merge`;
+    const controller = new AbortController();
+    const timeoutMs = loadApiTimeout();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const res = await fetch(apiUrl, {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({ merge_method: mergeMethod }),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || `Failed to merge PR (Status ${res.status})`);
+      }
+
+      this.GH_STATE_CACHE.delete(url);
+      this.triggerGitHubFetch(url, true);
+      return data;
+    } catch (err) {
+      clearTimeout(timeoutId);
+      throw err;
+    }
+  },
+
+  getPRInfo(s, activities = [], force = false) {
     if (!s) return null;
 
     const sid = s.id || s.name || "temp";
@@ -453,7 +497,7 @@ const GitHubTracker = {
     const size = getActivitiesSize(activities);
     const cacheKey = `${sid}:${actLen}:${size}:${s.updateTime || s.createTime || ""}`;
 
-    if (sid !== "temp" && this.PR_INFO_CACHE.has(cacheKey)) {
+    if (!force && sid !== "temp" && this.PR_INFO_CACHE.has(cacheKey)) {
       const cached = this.PR_INFO_CACHE.get(cacheKey);
       if (cached && cached.expiresAt && Date.now() < cached.expiresAt) {
         return cached;
@@ -515,7 +559,8 @@ const GitHubTracker = {
     let failed = false;
 
     const ghCached = this.GH_STATE_CACHE.get(pr.url);
-    if (ghCached && (Date.now() - ghCached.fetchedAt < 5 * 60 * 1000)) {
+    const ttl = (ghCached && ghCached.state === "open") ? 30 * 1000 : 5 * 60 * 1000;
+    if (!force && ghCached && (Date.now() - ghCached.fetchedAt < ttl)) {
       state = ghCached.state;
       additions = ghCached.additions;
       deletions = ghCached.deletions;
@@ -530,7 +575,7 @@ const GitHubTracker = {
       checks = ghCached.checks || null;
       failed = ghCached.failed || false;
     } else {
-      this.triggerGitHubFetch(pr.url);
+      this.triggerGitHubFetch(pr.url, force);
     }
 
     const result = {
@@ -720,14 +765,15 @@ const GitHubTracker = {
     if (sid !== "temp" && repo && base && activeWorking && activeWorking !== base) {
       const bKey = `${repo}:${base}:${activeWorking}`;
       const bCached = this.GH_BRANCH_STATE_CACHE.get(bKey);
-      if (bCached && (Date.now() - bCached.fetchedAt < 5 * 60 * 1000)) {
+      const bTtl = 30 * 1000;
+      if (!force && bCached && (Date.now() - bCached.fetchedAt < bTtl)) {
         ahead = bCached.ahead || 0;
         behind = bCached.behind || 0;
         statusState = bCached.statusState || "identical";
         checks = bCached.checks || null;
         failed = bCached.failed || false;
       } else {
-        this.triggerGitHubBranchFetch(repo, base, activeWorking);
+        this.triggerGitHubBranchFetch(repo, base, activeWorking, force);
       }
     }
 
@@ -760,5 +806,6 @@ const getPRInfo = (s, activities = []) => GitHubTracker.getPRInfo(s, activities)
 const getBranchInfo = (s, activities = []) => GitHubTracker.getBranchInfo(s, activities);
 const getCheckStatus = (activities = []) => GitHubTracker.getCheckStatus(activities);
 const getPrUrlAndNumber = (pr) => GitHubTracker.getPrUrlAndNumber(pr);
+const mergePullRequest = (url, mergeMethod) => GitHubTracker.mergePullRequest(url, mergeMethod);
 
-export { GitHubTracker, getPR, getPRInfo, getBranchInfo, getCheckStatus, getPrUrlAndNumber };
+export { GitHubTracker, getPR, getPRInfo, getBranchInfo, getCheckStatus, getPrUrlAndNumber, mergePullRequest };
