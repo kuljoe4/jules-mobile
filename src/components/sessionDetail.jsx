@@ -83,6 +83,37 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   const [copiedReviews, setCopiedReviews] = useState({});
   const [copiedChat, setCopiedChat] = useState(false);
   const [showPayloadBreakdown, setShowPayloadBreakdown] = useState(false);
+  const [showCreatePRModal, setShowCreatePRModal] = useState(false);
+  const [createPRErr, setCreatePRErr] = useState(null);
+
+  const handleOpenCreatePRModal = () => {
+    setCreatePRErr(null);
+    setShowCreatePRModal(true);
+  };
+
+  const handleConfirmCreatePR = async ({ title, body }) => {
+    if (!repo || !b?.working) return;
+    setBusy(true);
+    setCreatePRErr(null);
+    try {
+      await createPullRequest({
+        repo,
+        head: b.working,
+        base: b.base || "main",
+        title,
+        body
+      });
+      setShowCreatePRModal(false);
+      setJustUpdated(true);
+      setTimeout(() => setJustUpdated(false), 3000);
+      loadActivities(lastTsRef.current);
+      loadSession();
+    } catch (e) {
+      setCreatePRErr(e.message || "Failed to create Pull Request");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const completedSessionsMap = useMemo(() => {
     const map = new Map();
@@ -959,9 +990,9 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                       <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:800, color:T.dim}}>ACTIONS</div>
                       {busy && <div style={{animation:"spin 1s linear infinite"}}><Ic n="refresh" s={10} c={T.brand}/></div>}
                     </div>
-                    {session.sourceContext?.source && !pr && (
+                    {session.sourceContext?.source && (!pr || pr.state === "closed" || pr.state === "merged") && (
                       <button
-                        onClick={() => { handlePublishPR(); setShowMenu(false); }}
+                        onClick={() => { handleOpenCreatePRModal(); setShowMenu(false); }}
                         disabled={busy}
                         onMouseEnter={e => e.currentTarget.style.background = T.border}
                         onMouseLeave={e => e.currentTarget.style.background = "none"}
@@ -975,10 +1006,10 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                           borderBottom:`1px solid ${T.border}33`, opacity: busy ? 0.5 : 1,
                           transition: "all .1s cubic-bezier(0.4, 0, 0.2, 1)"
                         }}
-                        aria-label="Publish Pull Request for session"
-                        title="Publish Pull Request for this session"
+                        aria-label="Create new Pull Request via GitHub API"
+                        title="Create new Pull Request via GitHub API"
                       >
-                        <Ic n="git_pull" s={14} c={T.brand}/> PUBLISH PR
+                        <Ic n="git_pull" s={14} c={T.brand}/> {pr?.state === "merged" ? "+ CREATE NEW PR" : "+ PUBLISH PR"}
                       </button>
                     )}
                     {pr && pr.state === "open" && (
@@ -1139,12 +1170,12 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
               </a>
             )}
 
-            {session.sourceContext?.source && !pr && (
+            {session.sourceContext?.source && (!pr || pr.state === "closed" || pr.state === "merged") && (
               <button
-                onClick={handlePublishPR}
+                onClick={handleOpenCreatePRModal}
                 disabled={busy}
-                title="Publish Pull Request for this session"
-                aria-label="Publish Pull Request for this session"
+                title="Create Pull Request via GitHub API"
+                aria-label="Create Pull Request via GitHub API"
                 style={{
                   background: T.brandDim,
                   border: `1px solid ${T.brand}40`,
@@ -1164,7 +1195,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                 }}
               >
                 <Ic n="git_pull" s={11} c={T.brandLight}/>
-                + PUBLISH PR
+                {pr?.state === "merged" ? "+ CREATE NEW PR" : "+ PUBLISH PR"}
               </button>
             )}
 
@@ -1239,7 +1270,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
           )}
         </div>
 
-        {(pr?.state === "closed" || !pr) && b?.isNew && (b.ahead > 0 || ahead > 0) && (
+        {(pr?.state === "closed" || pr?.state === "merged" || !pr) && b?.isNew && (b.ahead > 0 || ahead > 0) && (
           <div style={{
             marginBottom:10, padding:"12px 16px", background:T.blueDim,
             border:`1px solid ${T.blue}40`, borderRadius:8, display:"flex",
@@ -1247,10 +1278,10 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
           }}>
             <div style={{flex:1, minWidth:200}}>
               <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.blue, fontWeight:800, letterSpacing:"0.05em", marginBottom:4, display:"flex", alignItems:"center", gap:6}}>
-                <Ic n="branch" s={14} c={T.blue}/> BRANCH AHEAD ({b.ahead || ahead} COMMITS)
+                <Ic n="branch" s={14} c={T.blue}/> BRANCH AHEAD ({b.ahead || ahead} COMMITS) {pr?.state === "merged" && "· PREVIOUS PR MERGED"}
               </div>
               <div style={{fontFamily:"'IBM Plex Sans',sans-serif", fontSize:13, color:T.textDim, lineHeight:1.4}}>
-                Pushed to <span style={{color:T.blue, fontWeight:600}}>{b.working}</span>.
+                New commits pushed to <span style={{color:T.blue, fontWeight:600}}>{b.working}</span>. Create a new PR to merge into <span style={{color:T.blue, fontWeight:600}}>{b.base || "main"}</span>.
                 {payloadBreakdown.patchCount > 0 && (
                   <span style={{marginLeft:6, color:T.text, fontWeight:600}}>
                     ({payloadBreakdown.patchCount} patch set{payloadBreakdown.patchCount!==1?'s':''})
@@ -1266,13 +1297,13 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
               }} aria-label="View diff tab" title="View diff tab to inspect code changes">
                 <Ic n="code" s={12} c={T.brand}/> VIEW DIFF
               </button>
-              <button onClick={handlePublishPR} disabled={busy} style={{
+              <button onClick={handleOpenCreatePRModal} disabled={busy} style={{
                 background:T.brand, color:"#000", border:"none", borderRadius:6,
                 padding:"6px 14px", fontFamily:"'JetBrains Mono',monospace",
                 fontSize:11, fontWeight:800, cursor: busy ? "not-allowed" : "pointer", flexShrink:0,
                 opacity: busy ? 0.6 : 1
-              }} aria-label="Publish Pull Request" title="Publish Pull Request">
-                PUBLISH PR
+              }} aria-label="Create Pull Request via GitHub API" title="Create Pull Request via GitHub API">
+                + CREATE PR
               </button>
             </div>
           </div>
@@ -1586,6 +1617,30 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                       </div>
                     </div>
 
+                    {/* CI/CD Build Status */}
+                    <div>
+                      <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 800, color: T.purple, letterSpacing: "0.05em", marginBottom: 4 }}>
+                        CI/CD CHECKS
+                      </div>
+                      {pr.checks ? (
+                        <a href={safeUrl(pr.checks.url || "#")} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
+                          <span style={{
+                            width: 8, height: 8, borderRadius: "50%", flexShrink: 0,
+                            background: pr.checks.state === "success" ? "#34d399" : pr.checks.state === "failure" ? T.red : T.amber,
+                            boxShadow: pr.checks.state === "success" ? "0 0 8px #34d399" : pr.checks.state === "failure" ? `0 0 8px ${T.red}` : `0 0 8px ${T.amber}`,
+                            animation: pr.checks.state === "pending" ? "dot 1s infinite" : "none"
+                          }} />
+                          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, fontWeight: 800, color: pr.checks.state === "success" ? "#34d399" : pr.checks.state === "failure" ? T.red : T.amber }}>
+                            {pr.checks.label || pr.checks.state.toUpperCase()}
+                          </span>
+                        </a>
+                      ) : (
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <span style={{ width: 8, height: 8, borderRadius: "50%", background: T.dim }} />
+                          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, color: T.dim }}>NO CHECKS REPORTED</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {pr.state === "open" && (
@@ -1722,6 +1777,30 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                       </div>
                     </div>
 
+                    {/* CI/CD Build Status */}
+                    <div>
+                      <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 800, color: T.purple, letterSpacing: "0.05em", marginBottom: 4 }}>
+                        CI/CD CHECKS
+                      </div>
+                      {b.checks ? (
+                        <a href={safeUrl(b.checks.url || "#")} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
+                          <span style={{
+                            width: 8, height: 8, borderRadius: "50%", flexShrink: 0,
+                            background: b.checks.state === "success" ? "#34d399" : b.checks.state === "failure" ? T.red : T.amber,
+                            boxShadow: b.checks.state === "success" ? "0 0 8px #34d399" : b.checks.state === "failure" ? `0 0 8px ${T.red}` : `0 0 8px ${T.amber}`,
+                            animation: b.checks.state === "pending" ? "dot 1s infinite" : "none"
+                          }} />
+                          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, fontWeight: 800, color: b.checks.state === "success" ? "#34d399" : b.checks.state === "failure" ? T.red : T.amber }}>
+                            {b.checks.label || b.checks.state.toUpperCase()}
+                          </span>
+                        </a>
+                      ) : (
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <span style={{ width: 8, height: 8, borderRadius: "50%", background: T.dim }} />
+                          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, color: T.dim }}>NO CHECKS REPORTED</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -2044,6 +2123,20 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
         />
       )}
 
+      {/* ── Create PR Modal ── */}
+      {showCreatePRModal && (
+        <CreatePRModal
+          defaultTitle={session.title || session.prompt}
+          repo={repo}
+          headBranch={b?.working || "feature"}
+          baseBranch={b?.base || "main"}
+          onClose={() => setShowCreatePRModal(false)}
+          onSubmit={handleConfirmCreatePR}
+          busy={busy}
+          error={createPRErr}
+        />
+      )}
+
       {/* ── Composer ── */}
       {canSend&&(
         <div ref={composerRef} onBlur={e => {
@@ -2276,6 +2369,111 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
         </button>
       </div>
     </div>
+  );
+};
+
+// ─── Create PR Modal ──────────────────────────────────────────────────
+const CreatePRModal = ({ defaultTitle, repo, headBranch, baseBranch, onClose, onSubmit, busy, error }) => {
+  const [prTitle, setPrTitle] = useState(defaultTitle || "");
+  const [prBody, setPrBody] = useState("");
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!prTitle.trim() || busy) return;
+    onSubmit({ title: prTitle.trim(), body: prBody.trim() });
+  };
+
+  return (
+    <Modal
+      onClose={onClose}
+      title="CREATE PULL REQUEST"
+      subtitle={`Target: ${repo || "repository"} (${headBranch} → ${baseBranch})`}
+      icon="git_pull"
+      maxWidth={520}
+      actions={
+        <div style={{ display: "flex", gap: 10, width: "100%" }}>
+          <button
+            onClick={onClose}
+            disabled={busy}
+            style={{
+              flex: 1, padding: "10px", borderRadius: 8,
+              border: `1px solid ${T.border}`, background: "transparent",
+              color: T.muted, fontFamily: "'JetBrains Mono',monospace",
+              fontSize: 11, fontWeight: 700, cursor: busy ? "not-allowed" : "pointer"
+            }}
+          >
+            CANCEL
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={!prTitle.trim() || busy}
+            style={{
+              flex: 1, padding: "10px", borderRadius: 8, border: "none",
+              background: T.brand, color: "#000", fontFamily: "'JetBrains Mono',monospace",
+              fontSize: 12, fontWeight: 900, cursor: (!prTitle.trim() || busy) ? "not-allowed" : "pointer",
+              opacity: (!prTitle.trim() || busy) ? 0.6 : 1,
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 6
+            }}
+          >
+            {busy ? "CREATING PR..." : "CREATE PULL REQUEST"}
+          </button>
+        </div>
+      }
+    >
+      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        {error && (
+          <div style={{ padding: "8px 12px", background: `${T.red}15`, border: `1px solid ${T.red}40`, borderRadius: 6, color: T.red, fontFamily: "'JetBrains Mono',monospace", fontSize: 11 }}>
+            {error}
+          </div>
+        )}
+
+        <div>
+          <label style={{ display: "block", marginBottom: 6, fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: T.textDim, fontWeight: 700, letterSpacing: "0.08em" }}>
+            PULL REQUEST TITLE
+          </label>
+          <input
+            type="text"
+            value={prTitle}
+            onChange={e => setPrTitle(e.target.value)}
+            placeholder="e.g. Add multi-patch diff support"
+            aria-label="Pull request title"
+            maxLength={200}
+            required
+            style={{
+              width: "100%", background: T.surfaceHi, border: `1px solid ${T.borderHi}`,
+              borderRadius: 6, padding: "10px 12px", color: T.text,
+              fontFamily: "'IBM Plex Sans',sans-serif", fontSize: 14, outline: "none"
+            }}
+          />
+        </div>
+
+        <div>
+          <label style={{ display: "block", marginBottom: 6, fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: T.textDim, fontWeight: 700, letterSpacing: "0.08em" }}>
+            PR DESCRIPTION (OPTIONAL)
+          </label>
+          <textarea
+            value={prBody}
+            onChange={e => setPrBody(e.target.value)}
+            placeholder="Describe the changes made in this session..."
+            aria-label="Pull request description"
+            rows={4}
+            maxLength={2000}
+            style={{
+              width: "100%", background: T.surfaceHi, border: `1px solid ${T.borderHi}`,
+              borderRadius: 6, padding: "10px 12px", color: T.text,
+              fontFamily: "'IBM Plex Sans',sans-serif", fontSize: 13, outline: "none", resize: "none"
+            }}
+          />
+        </div>
+
+        <div style={{
+          padding: 12, borderRadius: 8, background: `${T.blue}0d`, border: `1px solid ${T.blue}20`,
+          fontFamily: "'IBM Plex Sans',sans-serif", fontSize: 12, color: T.textDim, lineHeight: 1.4
+        }}>
+          ℹ️ Pull Request will be created directly on GitHub via API from <strong>{headBranch}</strong> into <strong>{baseBranch}</strong>.
+        </div>
+      </form>
+    </Modal>
   );
 };
 
