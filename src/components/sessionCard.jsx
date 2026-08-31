@@ -180,7 +180,6 @@ const SessionCard = memo(({ s, onPress, onSelect, isSelected, index, activities 
               <Ic n={pri.state==="merged"?"git_merge":"git_pull"} s={10} c={pri.state==="merged"?T.purple:T.brand}/>
               <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:900}}>#{pri.number}</span>
               {pri.ahead > 0 && <span aria-label={`${pri.ahead} commits ahead`} style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900,color:T.brandLight,background:T.brandDim,padding:"1px 3px",borderRadius:2}}>↑{pri.ahead}</span>}
-              {pri.behind > 0 && <span aria-label={`${pri.behind} commits behind`} style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900,color:T.amber,background:T.amberDim,padding:"1px 3px",borderRadius:2}}>↓{pri.behind}</span>}
             </div>
           )}
           {(!pri || pri.state === "closed") && b?.isNew && (
@@ -188,8 +187,7 @@ const SessionCard = memo(({ s, onPress, onSelect, isSelected, index, activities 
               <Ic n="branch" s={10} c={T.blue}/>
               <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:900,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{b.working}</span>
               {b.ahead > 0 && <span aria-label={`${b.ahead} commits ahead`} style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900,color:T.brandLight,background:T.brandDim,padding:"1px 3px",borderRadius:2,flexShrink:0}}>↑{b.ahead}</span>}
-              {b.behind > 0 && <span aria-label={`${b.behind} commits behind`} style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900,color:T.amber,background:T.amberDim,padding:"1px 3px",borderRadius:2,flexShrink:0}}>↓{b.behind}</span>}
-              {!(b.ahead > 0 || b.behind > 0) && ahead > 0 && <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900,color:T.blue,flexShrink:0}}>+{ahead}</span>}
+              {!b.ahead && ahead > 0 && <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900,color:T.blue,flexShrink:0}}>+{ahead}</span>}
             </div>
           )}
           {driftDetected && (
