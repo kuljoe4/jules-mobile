@@ -602,34 +602,6 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     }
   };
 
-  const handleCreateAndMergePR = async () => {
-    if (!b || !b.working || !b.repo || busy) return;
-    if (!confirm(`Create and MERGE Pull Request for branch '${b.working}' into '${b.base || "main"}'?`)) return;
-
-    setBusy(true); setErr(null);
-    try {
-      const prData = await createPullRequest(
-        b.repo,
-        b.working,
-        b.base || "main",
-        session.title || `Merge ${b.working}`,
-        session.prompt || "Created via Jules Mobile"
-      );
-      const prUrl = prData.html_url || prData.url;
-      if (prUrl) {
-        await mergePullRequest(prUrl, "merge");
-      }
-      setJustUpdated(true);
-      setTimeout(() => setJustUpdated(false), 3000);
-      loadActivities(lastTsRef.current);
-      loadSession();
-    } catch (e) {
-      setErr(e.message || "Failed to create and merge Pull Request");
-    } finally {
-      setBusy(false);
-    }
-  };
-
   const handleMergePR = async (mergeMethod = "merge") => {
     if (!pr || !pr.url || busy) return;
     if (!confirm(`Are you sure you want to MERGE Pull Request #${pr.number}?`)) return;
