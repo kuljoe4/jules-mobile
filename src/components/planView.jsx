@@ -77,8 +77,8 @@ export const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFe
       {/* Plan header */}
       <div style={{
         marginBottom:14,padding:"10px 14px",borderRadius:7,
-        background:approved?T.brandDim:pendingApproval?T.purpleDim:T.surfaceHi,
-        border:`1px solid ${approved?T.brand+"40":pendingApproval?T.purple+"40":T.border}`,
+        background:approved?`${T.brand}15`:pendingApproval?`${T.purple}15`:T.surfaceHi,
+        border:"none",
       }}>
         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:approved||!pendingApproval?0:8}}>
           <div style={{flex:1,fontFamily:"'JetBrains Mono',monospace",fontSize:12,fontWeight:700,
@@ -105,9 +105,10 @@ export const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFe
 
           return (
             <div key={st.id||i} style={{
-              background:T.surface,border:`1px solid ${hasNote?T.amber+"50":T.border}`,
-              borderLeft:`2px solid ${hasNote?T.amber:T.purple+"60"}`,
-              borderRadius:6,overflow:"hidden",transition:"border-color .15s cubic-bezier(0.4, 0, 0.2, 1)",
+              background:hasNote?`${T.amber}12`:T.surface,
+              border:"none",
+              borderLeft:`3px solid ${hasNote?T.amber:T.purple}`,
+              borderRadius:6,overflow:"hidden",transition:"all .15s cubic-bezier(0.4, 0, 0.2, 1)",
             }}>
               {/* Step row */}
               <div style={{display:"flex",gap:10,alignItems:"flex-start",padding:"10px 12px"}}>
