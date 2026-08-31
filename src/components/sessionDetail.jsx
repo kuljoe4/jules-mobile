@@ -2126,7 +2126,18 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
       {/* ── Create PR Modal ── */}
       {showCreatePRModal && (
         <CreatePRModal
-          defaultTitle={session.title || session.prompt}
+          defaultTitle={(() => {
+            const summary = session.outputs?.find(o => o.sessionSummary)?.sessionSummary?.summary;
+            if (summary) {
+              const line = summary.split("\n")[0].trim().replace(/^#+\s*/, "").replace(/^Session Summary:\s*/i, "");
+              if (line.length >= 5) return line.length > 90 ? safeSlice(line, 87) + "..." : line;
+            }
+            const cleanTitle = (session.title || session.prompt || "").trim().replace(/\n/g, " ");
+            if (cleanTitle && cleanTitle.length >= 5) {
+              return cleanTitle.length > 90 ? safeSlice(cleanTitle, 87) + "..." : cleanTitle;
+            }
+            return "Update repository changes";
+          })()}
           repo={repo}
           headBranch={b?.working || "feature"}
           baseBranch={b?.base || "main"}
