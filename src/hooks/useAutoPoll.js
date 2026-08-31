@@ -37,10 +37,20 @@ const useAutoPoll = (interval, fn) => {
       }
     }, 1000);
 
+    const handleResume = () => {
+      if (active && document.visibilityState === "visible") {
+        try { fnRef.current(); } catch (err) { console.error("Poll on resume failed", err); }
+      }
+    };
+    window.addEventListener("visibilitychange", handleResume);
+    window.addEventListener("focus", handleResume);
+
     return () => {
       active = false;
       clearTimeout(timer);
       clearInterval(intv);
+      window.removeEventListener("visibilitychange", handleResume);
+      window.removeEventListener("focus", handleResume);
     };
   }, [interval]);
 

@@ -405,10 +405,20 @@ function JulesClient() {
   useEffect(() => { if (apiKey) fetchSessions(); }, [apiKey, fetchSessions]);
 
   useEffect(() => {
+    const handleResume = () => {
+      if (document.visibilityState === "visible") {
+        fetchSessions(true);
+      }
+    };
+    window.addEventListener("visibilitychange", handleResume);
+    window.addEventListener("focus", handleResume);
+
     return () => {
       if (sessionsAbortRef.current) sessionsAbortRef.current.abort();
+      window.removeEventListener("visibilitychange", handleResume);
+      window.removeEventListener("focus", handleResume);
     };
-  }, []);
+  }, [fetchSessions]);
 
   // Combined polling: use activePollInterval if any session is in progress, else pollInterval
   const isBoosted = useMemo(() => sessions.some(s => ACTIVE_STATES.has(s.state)) && activePollInterval > 0, [sessions, activePollInterval]);

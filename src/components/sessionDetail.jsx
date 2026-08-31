@@ -418,8 +418,19 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     loadActivities(null); // full load on first open
     loadSession();
 
+    const handleResume = () => {
+      if (document.visibilityState === "visible") {
+        loadActivities(lastTsRef.current);
+        loadSession();
+      }
+    };
+    window.addEventListener("visibilitychange", handleResume);
+    window.addEventListener("focus", handleResume);
+
     return () => {
       if (activitiesAbortRef.current) activitiesAbortRef.current.abort();
+      window.removeEventListener("visibilitychange", handleResume);
+      window.removeEventListener("focus", handleResume);
     };
   }, []); // intentional: component is keyed by session.id
 
