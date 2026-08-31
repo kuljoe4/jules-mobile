@@ -103,6 +103,114 @@ const ExpandableContent = memo(({ text, limit = 300, showCopy = false, forceExpa
   );
 });
 
+// Support for math formulas, inline code, and **bold** text
+// OPTIMIZATION (Bolt): Hoisted module-level helper function avoids allocating a new `formatInlineText` function closure
+// per line on every render pass of the `Markdown` component.
+const formatInlineText = (txt) => {
+  if (typeof txt !== "string" || !txt) return txt;
+
+  if (txt.includes("$$")) {
+    const parts = txt.split("$$");
+    return parts.map((part, idx) => {
+      if (idx % 2 === 1) {
+        return (
+          <span
+            key={`math-block-${idx}`}
+            style={{
+              display: "block",
+              margin: "8px 0",
+              padding: "8px 12px",
+              background: "#040507",
+              border: `1px solid ${T.brand}40`,
+              borderRadius: 6,
+              color: T.brandLight,
+              fontFamily: "'JetBrains Mono', monospace",
+              fontSize: 13,
+              fontWeight: 700,
+              letterSpacing: "0.02em"
+            }}
+          >
+            {cleanMathText(part.trim())}
+          </span>
+        );
+      }
+      return formatInlineText(part);
+    });
+  }
+
+  if (txt.includes("`")) {
+    const parts = txt.split("`");
+    return parts.map((part, idx) => {
+      if (idx % 2 === 1) {
+        return (
+          <code
+            key={`code-${idx}`}
+            style={{
+              fontFamily: "'JetBrains Mono', monospace",
+              color: T.brandLight,
+              background: `${T.brand}15`,
+              border: `1px solid ${T.brand}30`,
+              padding: "1px 6px",
+              borderRadius: 4,
+              fontSize: 12,
+              fontWeight: 700
+            }}
+          >
+            {part}
+          </code>
+        );
+      }
+      return formatInlineText(part);
+    });
+  }
+
+  if (txt.includes("$")) {
+    const parts = txt.split("$");
+    // Only treat as inline math if there are paired $ delimiters (odd number of split parts)
+    if (parts.length > 1 && parts.length % 2 === 1) {
+      return parts.map((part, idx) => {
+        if (idx % 2 === 1) {
+          return (
+            <span
+              key={`math-inline-${idx}`}
+              style={{
+                fontFamily: "'JetBrains Mono', monospace",
+                color: T.brandLight,
+                background: `${T.brand}18`,
+                border: `1px solid ${T.brand}40`,
+                padding: "1px 5px",
+                borderRadius: 4,
+                fontSize: 12,
+                fontWeight: 800,
+                letterSpacing: "0.03em"
+              }}
+              title="Mathematical Formula"
+            >
+              {cleanMathText(part)}
+            </span>
+          );
+        }
+        return formatInlineText(part);
+      });
+    }
+  }
+
+  if (txt.includes("**")) {
+    const segments = txt.split("**");
+    return segments.map((seg, si) =>
+      si % 2 === 1 ? (
+        <strong key={`bold-${si}`} style={{ color: T.textHi, fontWeight: 700 }}>
+          {seg}
+        </strong>
+      ) : (
+        seg
+      )
+    );
+  }
+
+  return cleanMathText(txt);
+};
+
 const Markdown = memo(({ text }) => {
   if (!text) return null;
   const rawParts = text.split(/```/g);
@@ -143,112 +251,6 @@ const Markdown = memo(({ text }) => {
           const isListItem = trimmed.startsWith("- ") || trimmed.startsWith("* ");
           const isNumItem = /^\d+\.\s/.test(trimmed);
           const isHeader = trimmed.endsWith(":") && !isListItem && !isNumItem && trimmed.length < 80;
-
-          // Support for math formulas, inline code, and **bold** text
-          const formatInlineText = (txt) => {
-            if (typeof txt !== "string" || !txt) return txt;
-
-            if (txt.includes("$$")) {
-              const parts = txt.split("$$");
-              return parts.map((part, idx) => {
-                if (idx % 2 === 1) {
-                  return (
-                    <span
-                      key={`math-block-${idx}`}
-                      style={{
-                        display: "block",
-                        margin: "8px 0",
-                        padding: "8px 12px",
-                        background: "#040507",
-                        border: `1px solid ${T.brand}40`,
-                        borderRadius: 6,
-                        color: T.brandLight,
-                        fontFamily: "'JetBrains Mono', monospace",
-                        fontSize: 13,
-                        fontWeight: 700,
-                        letterSpacing: "0.02em"
-                      }}
-                    >
-                      {cleanMathText(part.trim())}
-                    </span>
-                  );
-                }
-                return formatInlineText(part);
-              });
-            }
-
-            if (txt.includes("`")) {
-              const parts = txt.split("`");
-              return parts.map((part, idx) => {
-                if (idx % 2 === 1) {
-                  return (
-                    <code
-                      key={`code-${idx}`}
-                      style={{
-                        fontFamily: "'JetBrains Mono', monospace",
-                        color: T.brandLight,
-                        background: `${T.brand}15`,
-                        border: `1px solid ${T.brand}30`,
-                        padding: "1px 6px",
-                        borderRadius: 4,
-                        fontSize: 12,
-                        fontWeight: 700
-                      }}
-                    >
-                      {part}
-                    </code>
-                  );
-                }
-                return formatInlineText(part);
-              });
-            }
-
-            if (txt.includes("$")) {
-              const parts = txt.split("$");
-              // Only treat as inline math if there are paired $ delimiters (odd number of split parts)
-              if (parts.length > 1 && parts.length % 2 === 1) {
-                return parts.map((part, idx) => {
-                  if (idx % 2 === 1) {
-                    return (
-                      <span
-                        key={`math-inline-${idx}`}
-                        style={{
-                          fontFamily: "'JetBrains Mono', monospace",
-                          color: T.brandLight,
-                          background: `${T.brand}18`,
-                          border: `1px solid ${T.brand}40`,
-                          padding: "1px 5px",
-                          borderRadius: 4,
-                          fontSize: 12,
-                          fontWeight: 800,
-                          letterSpacing: "0.03em"
-                        }}
-                        title="Mathematical Formula"
-                      >
-                        {cleanMathText(part)}
-                      </span>
-                    );
-                  }
-                  return formatInlineText(part);
-                });
-              }
-            }
-
-            if (txt.includes("**")) {
-              const segments = txt.split("**");
-              return segments.map((seg, si) =>
-                si % 2 === 1 ? (
-                  <strong key={`bold-${si}`} style={{ color: T.textHi, fontWeight: 700 }}>
-                    {seg}
-                  </strong>
-                ) : (
-                  seg
-                )
-              );
-            }
-
-            return cleanMathText(txt);
-          };
 
           let content = line;
 
