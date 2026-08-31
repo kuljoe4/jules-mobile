@@ -445,6 +445,59 @@ const GitHubTracker = {
       });
   },
 
+  async createPullRequest({ repo, head, base = "main", title, body }) {
+    if (!repo || !isValidGithubRepoName(repo)) {
+      throw new Error("Valid GitHub repository (owner/repo) required to create Pull Request");
+    }
+    if (!head || !isValidGitBranchName(head)) {
+      throw new Error("Valid head branch name required to create Pull Request");
+    }
+    const token = SafeStorage.loadGithubToken();
+    if (!token || !isValidGithubToken(token)) {
+      throw new Error("GitHub Token required to create PR. Please set your token in Settings.");
+    }
+
+    const headers = {
+      "Accept": "application/vnd.github.v3+json",
+      "Content-Type": "application/json",
+      "Authorization": `token ${token}`
+    };
+
+    const apiUrl = `https://api.github.com/repos/${repo}/pulls`;
+    const controller = new AbortController();
+    const timeoutMs = loadApiTimeout();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const res = await fetch(apiUrl, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          title: title || `Merge changes from ${head}`,
+          head,
+          base: base || "main",
+          body: body || "Created via Jules Mobile Client"
+        }),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || `Failed to create PR (Status ${res.status})`);
+      }
+
+      if (data.html_url) {
+        this.GH_STATE_CACHE.delete(data.html_url);
+        this.triggerGitHubFetch(data.html_url, true);
+      }
+      return data;
+    } catch (err) {
+      clearTimeout(timeoutId);
+      throw err;
+    }
+  },
+
   async mergePullRequest(url, mergeMethod = "merge") {
     const match = url.match(/https:\/\/github\.com\/([a-zA-Z0-9\-_.]+)\/([a-zA-Z0-9\-_.]+)\/pull\/(\d+)/);
     if (!match) throw new Error("Invalid GitHub Pull Request URL");
@@ -813,18 +866,32 @@ const GitHubTracker = {
     let failed = false;
 
     const activeWorking = working || base;
-    if (sid !== "temp" && repo && base && activeWorking && activeWorking !== base) {
-      const bKey = `${repo}:${base}:${activeWorking}`;
-      const bCached = this.GH_BRANCH_STATE_CACHE.get(bKey);
-      const bTtl = 30 * 1000;
-      if (!force && bCached && (Date.now() - bCached.fetchedAt < bTtl)) {
-        ahead = bCached.ahead || 0;
-        behind = bCached.behind || 0;
-        statusState = bCached.statusState || "identical";
-        checks = bCached.checks || null;
-        failed = bCached.failed || false;
-      } else {
-        this.triggerGitHubBranchFetch(repo, base, activeWorking, force);
+    if (sid !== "temp" && repo && base) {
+      if (activeWorking && activeWorking !== base) {
+        const bKey = `${repo}:${base}:${activeWorking}`;
+        const bCached = this.GH_BRANCH_STATE_CACHE.get(bKey);
+        const bTtl = 30 * 1000;
+        if (!force && bCached && (Date.now() - bCached.fetchedAt < bTtl)) {
+          ahead = bCached.ahead || 0;
+          behind = bCached.behind || 0;
+          statusState = bCached.statusState || "identical";
+          checks = bCached.checks || null;
+          failed = bCached.failed || false;
+        } else {
+          this.triggerGitHubBranchFetch(repo, base, activeWorking, force);
+        }
+      }
+
+      // Fallback: If working branch has no checks available, check base (default) branch checks
+      if (!checks && base) {
+        const defaultKey = `${repo}:${base}:${base}`;
+        const defaultCached = this.GH_BRANCH_STATE_CACHE.get(defaultKey);
+        const defaultTtl = 30 * 1000;
+        if (defaultCached && (Date.now() - defaultCached.fetchedAt < defaultTtl)) {
+          checks = defaultCached.checks || null;
+        } else {
+          this.triggerGitHubBranchFetch(repo, base, base, force);
+        }
       }
     }
 
@@ -857,7 +924,8 @@ const getPRInfo = (s, activities = []) => GitHubTracker.getPRInfo(s, activities)
 const getBranchInfo = (s, activities = [], force = false) => GitHubTracker.getBranchInfo(s, activities, force);
 const getCheckStatus = (activities = []) => GitHubTracker.getCheckStatus(activities);
 const getPrUrlAndNumber = (pr) => GitHubTracker.getPrUrlAndNumber(pr);
+const createPullRequest = (params) => GitHubTracker.createPullRequest(params);
 const mergePullRequest = (url, mergeMethod) => GitHubTracker.mergePullRequest(url, mergeMethod);
 const createPullRequest = (repoFull, head, base, title, body) => GitHubTracker.createPullRequest(repoFull, head, base, title, body);
 
-export { GitHubTracker, getPR, getPRInfo, getBranchInfo, getCheckStatus, getPrUrlAndNumber, mergePullRequest, createPullRequest };
+export { GitHubTracker, getPR, getPRInfo, getBranchInfo, getCheckStatus, getPrUrlAndNumber, createPullRequest, mergePullRequest };
