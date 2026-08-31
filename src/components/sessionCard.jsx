@@ -47,7 +47,13 @@ const SessionCard = memo(({ s, onPress, onSelect, isSelected, index, activities 
 
   const pct  = pctFromState(currentState);
   const m    = STATUS_META[currentState] || STATUS_META.QUEUED;
-  const repo = s.sourceContext?.githubRepoContext ? s.sourceContext.source?.replace("sources/github/","") : null;
+  const rawRepo = s.sourceContext?.githubRepoContext ? s.sourceContext.source?.replace("sources/github/","") : null;
+  const repo = useMemo(() => {
+    if (!rawRepo) return null;
+    const name = rawRepo.includes("/") ? rawRepo.split("/")[1] : rawRepo;
+    if (!name) return rawRepo;
+    return name.length > 16 ? `${name.slice(0, 7)}…${name.slice(-6)}` : name;
+  }, [rawRepo]);
   const pri  = useMemo(() => getPRInfo(s, activities), [s, activities, ghPrNonce]);
   const b    = useMemo(() => getBranchInfo(s, activities), [s, activities, ghPrNonce]);
   const ahead = useMemo(() => getAheadCount(activities), [activities]);
@@ -147,7 +153,7 @@ const SessionCard = memo(({ s, onPress, onSelect, isSelected, index, activities 
       <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", gap:"6px 10px", marginLeft:26, flexWrap:"wrap"}}>
         <div style={{display:"flex", alignItems:"center", gap:8, flexWrap:"wrap", minWidth:0, flex:"1 1 auto"}}>
           {repo && (
-            <div style={{display:"flex", alignItems:"center", gap:4, opacity:0.45}}>
+            <div title={rawRepo} style={{display:"flex", alignItems:"center", gap:4, opacity:0.45}}>
               <Ic n="code" s={10} c={T.muted}/>
               <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.muted,fontWeight:700}}>{repo}</span>
             </div>
@@ -187,23 +193,22 @@ const SessionCard = memo(({ s, onPress, onSelect, isSelected, index, activities 
           {isUnread && <div style={{width:4,height:4,borderRadius:"50%",background:T.indigo,animation:"dot 1s infinite"}}/>}
         </div>
 
-        <div style={{display:"flex", alignItems:"center", gap:8, flexShrink:0, marginLeft:"auto", fontFamily:"'JetBrains Mono',monospace", fontSize:9}}>
-          <div style={{
-            display:"flex", alignItems:"center", gap:4,
-            background: flash ? `${T.brand}20` : "transparent",
-            padding: "1px 4px", borderRadius: 4,
-            transition: flash ? "none" : "background 5s cubic-bezier(0.4, 0, 0.2, 1)",
-            color: T.dim,
-            fontWeight: 500,
-            opacity: 0.65,
-          }}>
-            <span style={highActivityStyle}>{activityStats.count} ITEMS</span>
-            <span>·</span>
-            <span style={highActivityStyle}>{fmtBytes(activityStats.size/1024)}</span>
-          </div>
-          <div style={{color:T.dim, opacity:0.35}}>
-            {s.id?.slice(0,8)}
-          </div>
+        <div style={{
+          display:"flex", alignItems:"center", gap:4,
+          background: flash ? `${T.brand}20` : "transparent",
+          padding: "1px 4px", borderRadius: 4,
+          transition: flash ? "none" : "background 5s cubic-bezier(0.4, 0, 0.2, 1)",
+          color: T.dim,
+          fontWeight: 500,
+          opacity: 0.65,
+          flexShrink: 0,
+          marginLeft: "auto",
+          fontFamily: "'JetBrains Mono',monospace",
+          fontSize: 9
+        }}>
+          <span style={highActivityStyle}>{activityStats.count} ITEMS</span>
+          <span>·</span>
+          <span style={highActivityStyle}>{fmtBytes(activityStats.size/1024)}</span>
         </div>
       </div>
     </button>
