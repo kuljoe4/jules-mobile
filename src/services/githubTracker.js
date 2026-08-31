@@ -445,6 +445,50 @@ const GitHubTracker = {
       });
   },
 
+  async mergePullRequest(url, mergeMethod = "merge") {
+    const match = url.match(/https:\/\/github\.com\/([a-zA-Z0-9\-_.]+)\/([a-zA-Z0-9\-_.]+)\/pull\/(\d+)/);
+    if (!match) throw new Error("Invalid GitHub Pull Request URL");
+
+    const [_, owner, repo, number] = match;
+    const token = SafeStorage.loadGithubToken();
+    if (!token || !isValidGithubToken(token)) {
+      throw new Error("GitHub Token required to merge PR. Please set your token in Settings.");
+    }
+
+    const headers = {
+      "Accept": "application/vnd.github.v3+json",
+      "Content-Type": "application/json",
+      "Authorization": `token ${token}`
+    };
+
+    const apiUrl = `https://api.github.com/repos/${owner}/${repo}/pulls/${number}/merge`;
+    const controller = new AbortController();
+    const timeoutMs = loadApiTimeout();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const res = await fetch(apiUrl, {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({ merge_method: mergeMethod }),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || `Failed to merge PR (Status ${res.status})`);
+      }
+
+      this.GH_STATE_CACHE.delete(url);
+      this.triggerGitHubFetch(url, true);
+      return data;
+    } catch (err) {
+      clearTimeout(timeoutId);
+      throw err;
+    }
+  },
+
   getPRInfo(s, activities = [], force = false) {
     if (!s) return null;
 
@@ -762,5 +806,6 @@ const getPRInfo = (s, activities = []) => GitHubTracker.getPRInfo(s, activities)
 const getBranchInfo = (s, activities = []) => GitHubTracker.getBranchInfo(s, activities);
 const getCheckStatus = (activities = []) => GitHubTracker.getCheckStatus(activities);
 const getPrUrlAndNumber = (pr) => GitHubTracker.getPrUrlAndNumber(pr);
+const mergePullRequest = (url, mergeMethod) => GitHubTracker.mergePullRequest(url, mergeMethod);
 
-export { GitHubTracker, getPR, getPRInfo, getBranchInfo, getCheckStatus, getPrUrlAndNumber };
+export { GitHubTracker, getPR, getPRInfo, getBranchInfo, getCheckStatus, getPrUrlAndNumber, mergePullRequest };

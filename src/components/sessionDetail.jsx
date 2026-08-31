@@ -560,6 +560,24 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     }
   };
 
+  const handleMergePR = async (mergeMethod = "merge") => {
+    if (!pr || !pr.url || busy) return;
+    if (!confirm(`Are you sure you want to MERGE Pull Request #${pr.number}?`)) return;
+
+    setBusy(true); setErr(null);
+    try {
+      await mergePullRequest(pr.url, mergeMethod);
+      setJustUpdated(true);
+      setTimeout(() => setJustUpdated(false), 3000);
+      loadActivities(lastTsRef.current);
+      loadSession();
+    } catch (e) {
+      setErr(e.message || "Failed to merge Pull Request");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handlePublishPR = async () => {
     if (busy) return;
     const promptText = "Please publish a Pull Request for the changes made in this session.";
@@ -950,6 +968,28 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                         title="Publish Pull Request for this session"
                       >
                         <Ic n="git_pull" s={14} c={T.brand}/> PUBLISH PR
+                      </button>
+                    )}
+                    {pr && pr.state === "open" && (
+                      <button
+                        onClick={() => { handleMergePR(); setShowMenu(false); }}
+                        disabled={busy}
+                        onMouseEnter={e => e.currentTarget.style.background = T.border}
+                        onMouseLeave={e => e.currentTarget.style.background = "none"}
+                        onMouseDown={e => e.currentTarget.style.transform = "scale(0.96)"}
+                        onMouseUp={e => e.currentTarget.style.transform = "scale(1)"}
+                        style={{
+                          width:"100%", padding:"12px 14px", background:"none", border:"none",
+                          color:T.purple, textAlign:"left", fontFamily:"'JetBrains Mono',monospace",
+                          fontSize:11, fontWeight:700, cursor: busy ? "not-allowed" : "pointer",
+                          display:"flex", alignItems:"center", gap:10,
+                          borderBottom:`1px solid ${T.border}33`, opacity: busy ? 0.5 : 1,
+                          transition: "all .1s cubic-bezier(0.4, 0, 0.2, 1)"
+                        }}
+                        aria-label={`Merge Pull Request #${pr.number}`}
+                        title={`Merge Pull Request #${pr.number}`}
+                      >
+                        <Ic n="git_merge" s={14} c={T.purple}/> MERGE PR
                       </button>
                     )}
                     <button
@@ -1538,6 +1578,27 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                     </div>
 
                   </div>
+
+                  {pr.state === "open" && (
+                    <div style={{ marginTop: 12, display: "flex", gap: 10 }}>
+                      <button
+                        onClick={() => handleMergePR("merge")}
+                        disabled={busy}
+                        style={{
+                          background: T.purple, color: "#000", border: "none", borderRadius: 6,
+                          padding: "8px 16px", fontFamily: "'JetBrains Mono',monospace",
+                          fontSize: 11, fontWeight: 900, cursor: busy ? "not-allowed" : "pointer",
+                          display: "inline-flex", alignItems: "center", gap: 6,
+                          opacity: busy ? 0.6 : 1, transition: "all .15s ease",
+                          boxShadow: `0 4px 12px ${T.purple}30`
+                        }}
+                        aria-label={`Merge Pull Request #${pr.number}`}
+                        title={`Merge Pull Request #${pr.number}`}
+                      >
+                        <Ic n="git_merge" s={13} c="#000"/> MERGE PULL REQUEST
+                      </button>
+                    </div>
+                  )}
 
                   {/* High Density Commits list */}
                   {pr.commitsList && pr.commitsList.length > 0 && (

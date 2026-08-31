@@ -190,18 +190,31 @@ const SessionCard = memo(({ s, onPress, onSelect, isSelected, index, activities 
             </div>
           )}
           {driftDetected && (
-            <div style={{display:"flex", alignItems:"center", gap:3, color:T.amber, opacity:0.8}}>
+            <div
+              title="Repository base branch has updated (STALE)"
+              aria-label="Repository base branch has updated (STALE)"
+              style={{
+                display:"flex", alignItems:"center", gap:3, color:T.amber, opacity:0.85,
+                background:`${T.amber}15`, padding:"1px 5px", borderRadius:4, border:`1px solid ${T.amber}30`,
+                flexShrink: 0
+              }}
+            >
               <Ic n="wifi" s={9} c={T.amber}/>
-              <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900}}>STALE</span>
+              <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900}}>S</span>
             </div>
           )}
           {hasFollowupDraft && (
-            <div style={{
-              display:"flex", alignItems:"center", gap:3, color:T.amberLight, opacity:0.95,
-              background:`${T.amber}15`, padding:"1px 6px", borderRadius:4, border:`1px solid ${T.amber}30`
-            }}>
+            <div
+              title="Has unsent follow-up message draft"
+              aria-label="Has unsent follow-up message draft"
+              style={{
+                display:"flex", alignItems:"center", gap:3, color:T.amberLight, opacity:0.95,
+                background:`${T.amber}15`, padding:"1px 5px", borderRadius:4, border:`1px solid ${T.amber}30`,
+                flexShrink: 0
+              }}
+            >
               <Ic n="layers" s={9} c={T.amberLight}/>
-              <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900}}>DRAFT MSG</span>
+              <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900}}>D</span>
             </div>
           )}
           {isUnread && <div style={{width:4,height:4,borderRadius:"50%",background:T.indigo,animation:"dot 1s infinite"}}/>}
@@ -220,7 +233,7 @@ const SessionCard = memo(({ s, onPress, onSelect, isSelected, index, activities 
           fontFamily: "'JetBrains Mono',monospace",
           fontSize: 9
         }}>
-          <span style={highActivityStyle}>{activityStats.count} ITEMS</span>
+          <span style={highActivityStyle}>{activityStats.count}</span>
           <span>·</span>
           <span style={highActivityStyle}>{fmtBytes(activityStats.size/1024)}</span>
         </div>
