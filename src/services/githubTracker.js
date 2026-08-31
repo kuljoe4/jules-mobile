@@ -1,5 +1,5 @@
 import { LRUCache } from '../utils/cache.js';
-import { isValidGitBranchName, isValidGithubRepoName } from '../utils/validation.js';
+import { isValidGitBranchName, isValidGithubRepoName, isValidGithubToken } from '../utils/validation.js';
 
 /**
  * GitHubTracker encapsulating all GitHub integrations, caches, background fetches,
@@ -508,6 +508,14 @@ const GitHubTracker = {
     if (!match) throw new Error("Invalid GitHub Pull Request URL");
 
     const [_, owner, repo, number] = match;
+    const repoFull = `${owner}/${repo}`;
+    if (!isValidGithubRepoName(repoFull)) {
+      throw new Error("Invalid GitHub repository format in URL");
+    }
+
+    const validMethods = new Set(["merge", "squash", "rebase"]);
+    const safeMergeMethod = validMethods.has(mergeMethod) ? mergeMethod : "merge";
+
     const token = SafeStorage.loadGithubToken();
     if (!token || !isValidGithubToken(token)) {
       throw new Error("GitHub Token required to merge PR. Please set your token in Settings.");
@@ -528,7 +536,7 @@ const GitHubTracker = {
       const res = await fetch(apiUrl, {
         method: "PUT",
         headers,
-        body: JSON.stringify({ merge_method: mergeMethod }),
+        body: JSON.stringify({ merge_method: safeMergeMethod }),
         signal: controller.signal
       });
       clearTimeout(timeoutId);
