@@ -87,6 +87,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   const [showPayloadBreakdown, setShowPayloadBreakdown] = useState(false);
   const [showCreatePRModal, setShowCreatePRModal] = useState(false);
   const [createPRErr, setCreatePRErr] = useState(null);
+  const [ghActionFeedback, setGhActionFeedback] = useState(null); // { type, message, url }
+  const [mergeMethod, setMergeMethod] = useState("merge"); // "merge", "squash", "rebase"
 
   const handleOpenCreatePRModal = () => {
     setCreatePRErr(null);
@@ -98,7 +100,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     setBusy(true);
     setCreatePRErr(null);
     try {
-      await createPullRequest({
+      const res = await createPullRequest({
         repo,
         head: b.working,
         base: b.base || "main",
@@ -107,6 +109,13 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
       });
       setShowCreatePRModal(false);
       setJustUpdated(true);
+      if (res && res.html_url) {
+        setGhActionFeedback({
+          type: "success",
+          message: `Pull Request #${res.number || ""} created successfully!`,
+          url: res.html_url
+        });
+      }
       setTimeout(() => setJustUpdated(false), 3000);
       loadActivities(lastTsRef.current);
       loadSession();
@@ -604,19 +613,58 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     }
   };
 
-  const handleMergePR = async (mergeMethod = "merge") => {
+  const handleMergePR = async (selectedMethod = mergeMethod) => {
     if (!pr || !pr.url || busy) return;
-    if (!confirm(`Are you sure you want to MERGE Pull Request #${pr.number}?`)) return;
+    if (pr.checks?.state === "failure") {
+      if (!confirm(`⚠️ WARNING: CI/CD checks for PR #${pr.number} are currently FAILING.\nAre you sure you want to merge anyway?`)) return;
+    } else if (pr.checks?.state === "pending") {
+      if (!confirm(`⚠️ WARNING: CI/CD checks for PR #${pr.number} are still RUNNING.\nAre you sure you want to merge anyway?`)) return;
+    } else {
+      if (!confirm(`Are you sure you want to MERGE Pull Request #${pr.number} using '${selectedMethod.toUpperCase()}' strategy?`)) return;
+    }
 
     setBusy(true); setErr(null);
     try {
-      await mergePullRequest(pr.url, mergeMethod);
+      await mergePullRequest(pr.url, selectedMethod);
       setJustUpdated(true);
+      setGhActionFeedback({
+        type: "success",
+        message: `Pull Request #${pr.number} merged using '${selectedMethod.toUpperCase()}'!`,
+        url: pr.url
+      });
       setTimeout(() => setJustUpdated(false), 3000);
       loadActivities(lastTsRef.current);
       loadSession();
     } catch (e) {
+      setGhActionFeedback({
+        type: "error",
+        message: e.message || "Failed to merge Pull Request"
+      });
       setErr(e.message || "Failed to merge Pull Request");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleDeleteBranch = async () => {
+    if (!repo || !b?.working || busy) return;
+    if (!confirm(`Are you sure you want to DELETE branch '${b.working}' from repository '${repo}'?`)) return;
+
+    setBusy(true); setErr(null);
+    try {
+      await deleteBranch(repo, b.working);
+      setGhActionFeedback({
+        type: "success",
+        message: `Branch '${b.working}' successfully deleted from GitHub!`
+      });
+      loadActivities(lastTsRef.current);
+      loadSession();
+    } catch (e) {
+      setGhActionFeedback({
+        type: "error",
+        message: e.message || "Failed to delete branch"
+      });
+      setErr(e.message || "Failed to delete branch");
     } finally {
       setBusy(false);
     }
@@ -1214,7 +1262,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                 {b?.behind > 0 && <span style={{fontSize:9, background:`${T.amber}22`, color:T.amber, borderRadius:3, padding:"0px 4px", border:`1px solid ${T.amber}40`}}>↓{b.behind}</span>}
                 {!(b?.ahead > 0 || b?.behind > 0) && ahead > 0 && <span style={{fontSize:9}}>+{ahead}</span>}
                 {b?.checks && (
-                  <span title={`Checks: ${b.checks.label || b.checks.state}`} aria-label={`Checks: ${b.checks.label || b.checks.state}`} style={{
+                  <span title={`Checks (${b.checksSource === "base" ? "from base branch" : "working branch"}): ${b.checks.label || b.checks.state}`} aria-label={`Checks (${b.checksSource === "base" ? "from base branch" : "working branch"}): ${b.checks.label || b.checks.state}`} style={{
                     width:5, height:5, borderRadius:"50%", flexShrink:0, marginLeft:2,
                     background: b.checks.state === "success" ? "#34d399" : b.checks.state === "failure" ? T.red : T.amber,
                     boxShadow: b.checks.state === "success" ? "0 0 6px #34d399" : b.checks.state === "failure" ? `0 0 6px ${T.red}` : `0 0 6px ${T.amber}`,
@@ -1311,7 +1359,37 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
           </div>
         )}
 
-        {err&&<div style={{marginBottom:8,padding:"6px 10px",borderRadius:4,background:T.redDim,border:`1px solid ${T.red}40`,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.red}}>{err}</div>}
+        {ghActionFeedback && (
+          <div style={{
+            marginBottom:10, padding:"8px 12px", borderRadius:6,
+            background: ghActionFeedback.type === "error" ? T.redDim : T.brandDim,
+            border: `1px solid ${ghActionFeedback.type === "error" ? T.red : T.brand}40`,
+            display:"flex", alignItems:"center", justifyContent:"space-between", gap:10,
+            animation: "fadeIn .2s ease"
+          }}>
+            <div style={{display:"flex", alignItems:"center", gap:8}}>
+              <Ic n={ghActionFeedback.type === "error" ? "x" : "check"} s={14} c={ghActionFeedback.type === "error" ? T.red : T.brandLight}/>
+              <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:700, color: ghActionFeedback.type === "error" ? T.red : T.brandLight}}>
+                {ghActionFeedback.message}
+              </span>
+            </div>
+            <div style={{display:"flex", alignItems:"center", gap:8}}>
+              {ghActionFeedback.url && (
+                <a href={safeUrl(ghActionFeedback.url)} target="_blank" rel="noopener noreferrer" style={{
+                  fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:800, color:T.brand,
+                  textDecoration:"none", borderBottom:`1px solid ${T.brand}40`
+                }}>
+                  VIEW ON GITHUB ↗
+                </a>
+              )}
+              <button onClick={() => setGhActionFeedback(null)} style={{background:"none", border:"none", cursor:"pointer", padding:2}} aria-label="Dismiss banner" title="Dismiss banner">
+                <Ic n="x" s={12} c={ghActionFeedback.type === "error" ? T.red : T.brandLight}/>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {err && !ghActionFeedback && <div style={{marginBottom:8,padding:"6px 10px",borderRadius:4,background:T.redDim,border:`1px solid ${T.red}40`,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.red}}>{err}</div>}
 
         {summary && (
           <div style={{
@@ -1645,37 +1723,97 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                     </div>
                   </div>
 
+                  {/* Pre-merge Conflict / Unmergeable Warning */}
+                  {pr.state === "open" && (pr.mergeable === false || pr.mergeableState === "dirty") && (
+                    <div style={{ marginTop: 12, padding: "10px 14px", background: `${T.red}15`, border: `1px solid ${T.red}40`, borderRadius: 6, display: "flex", alignItems: "center", gap: 10 }}>
+                      <Ic n="x" s={16} c={T.red}/>
+                      <div style={{ fontFamily: "'IBM Plex Sans',sans-serif", fontSize: 12, color: T.red, fontWeight: 700 }}>
+                        MERGE CONFLICTS DETECTED: This Pull Request cannot be merged automatically. Resolve conflicts on GitHub or rebase locally.
+                      </div>
+                    </div>
+                  )}
+
+                  {/* PR Merge Strategy Selector & Actions */}
                   {pr.state === "open" && (
-                    <div style={{ marginTop: 12, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                    <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 10 }}>
+                      {/* Strategy Selection */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                        <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: T.textDim, fontWeight: 800 }}>STRATEGY:</span>
+                        {[
+                          { id: "merge", label: "Create Merge Commit" },
+                          { id: "squash", label: "Squash & Merge" },
+                          { id: "rebase", label: "Rebase & Merge" }
+                        ].map(st => (
+                          <button
+                            key={st.id}
+                            onClick={() => setMergeMethod(st.id)}
+                            style={{
+                              padding: "4px 10px", borderRadius: 4,
+                              background: mergeMethod === st.id ? `${T.purple}25` : T.surfaceHi,
+                              border: `1px solid ${mergeMethod === st.id ? T.purple : T.border}`,
+                              color: mergeMethod === st.id ? T.purple : T.muted,
+                              fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 800,
+                              cursor: "pointer", transition: "all .12s ease"
+                            }}
+                          >
+                            {st.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                        <button
+                          onClick={() => handleMergePR(mergeMethod)}
+                          disabled={busy || pr.mergeable === false || pr.mergeableState === "dirty"}
+                          style={{
+                            background: (pr.mergeable === false || pr.mergeableState === "dirty") ? T.dim : T.purple,
+                            color: "#000", border: "none", borderRadius: 6,
+                            padding: "8px 16px", fontFamily: "'JetBrains Mono',monospace",
+                            fontSize: 11, fontWeight: 900, cursor: (busy || pr.mergeable === false) ? "not-allowed" : "pointer",
+                            display: "inline-flex", alignItems: "center", gap: 6,
+                            opacity: (busy || pr.mergeable === false) ? 0.6 : 1, transition: "all .15s ease",
+                            boxShadow: `0 4px 12px ${T.purple}30`
+                          }}
+                          aria-label={`Merge Pull Request #${pr.number} using ${mergeMethod}`}
+                          title={pr.mergeable === false ? "Cannot merge due to conflicts" : `Merge Pull Request #${pr.number} using ${mergeMethod}`}
+                        >
+                          <Ic n="git_merge" s={13} c="#000"/> MERGE PULL REQUEST ({mergeMethod.toUpperCase()})
+                        </button>
+                        <button
+                          onClick={() => setTab("diff")}
+                          style={{
+                            background: T.surfaceHi, color: T.brand, border: `1px solid ${T.brand}40`, borderRadius: 6,
+                            padding: "8px 14px", fontFamily: "'JetBrains Mono',monospace",
+                            fontSize: 11, fontWeight: 800, cursor: "pointer",
+                            display: "inline-flex", alignItems: "center", gap: 6,
+                            transition: "all .15s ease"
+                          }}
+                          aria-label="View diff tab to inspect changes"
+                          title="View diff tab to inspect changes"
+                        >
+                          <Ic n="code" s={13} c={T.brand}/> VIEW DIFF
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Post-Merge Branch Cleanup Option */}
+                  {pr.state === "merged" && b?.isNew && (
+                    <div style={{ marginTop: 12, padding: "10px 14px", background: `${T.purple}10`, border: `1px solid ${T.purple}30`, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                      <div style={{ fontFamily: "'IBM Plex Sans',sans-serif", fontSize: 12, color: T.text, fontWeight: 600 }}>
+                        PR merged! Feature branch <span style={{ fontFamily: "'JetBrains Mono',monospace", color: T.purple }}>{b.working}</span> can now be safely cleaned up.
+                      </div>
                       <button
-                        onClick={() => handleMergePR("merge")}
+                        onClick={handleDeleteBranch}
                         disabled={busy}
                         style={{
-                          background: T.purple, color: "#000", border: "none", borderRadius: 6,
-                          padding: "8px 16px", fontFamily: "'JetBrains Mono',monospace",
-                          fontSize: 11, fontWeight: 900, cursor: busy ? "not-allowed" : "pointer",
-                          display: "inline-flex", alignItems: "center", gap: 6,
-                          opacity: busy ? 0.6 : 1, transition: "all .15s ease",
-                          boxShadow: `0 4px 12px ${T.purple}30`
+                          background: T.redDim, color: T.red, border: `1px solid ${T.red}40`,
+                          borderRadius: 4, padding: "4px 10px", fontFamily: "'JetBrains Mono',monospace",
+                          fontSize: 10, fontWeight: 800, cursor: busy ? "not-allowed" : "pointer",
+                          display: "inline-flex", alignItems: "center", gap: 4
                         }}
-                        aria-label={`Merge Pull Request #${pr.number}`}
-                        title={`Merge Pull Request #${pr.number}`}
                       >
-                        <Ic n="git_merge" s={13} c="#000"/> MERGE PULL REQUEST
-                      </button>
-                      <button
-                        onClick={() => setTab("diff")}
-                        style={{
-                          background: T.surfaceHi, color: T.brand, border: `1px solid ${T.brand}40`, borderRadius: 6,
-                          padding: "8px 14px", fontFamily: "'JetBrains Mono',monospace",
-                          fontSize: 11, fontWeight: 800, cursor: "pointer",
-                          display: "inline-flex", alignItems: "center", gap: 6,
-                          transition: "all .15s ease"
-                        }}
-                        aria-label="View diff tab to inspect changes"
-                        title="View diff tab to inspect changes"
-                      >
-                        <Ic n="code" s={13} c={T.brand}/> VIEW DIFF
+                        <Ic n="trash" s={12} c={T.red}/> DELETE BRANCH
                       </button>
                     </div>
                   )}
@@ -2190,6 +2328,12 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
       {showCreatePRModal && (
         <CreatePRModal
           defaultTitle={(() => {
+            if (pr?.state === "merged" && b?.commits && b.commits.length > 0) {
+              const firstCommitMsg = (b.commits[0].message || "").split("\n")[0].trim();
+              if (firstCommitMsg.length >= 3) {
+                return b.commits.length === 1 ? firstCommitMsg : `${firstCommitMsg} (+${b.commits.length - 1} more commits)`;
+              }
+            }
             const summary = session.outputs?.find(o => o.sessionSummary)?.sessionSummary?.summary;
             if (summary) {
               const line = summary.split("\n")[0].trim().replace(/^#+\s*/, "").replace(/^Session Summary:\s*/i, "");
@@ -2200,6 +2344,15 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
               return cleanTitle.length > 90 ? safeSlice(cleanTitle, 87) + "..." : cleanTitle;
             }
             return "Update repository changes";
+          })()}
+          defaultBody={(() => {
+            if (pr?.state === "merged" && b?.commits && b.commits.length > 0) {
+              const commitLines = b.commits.map(c => `- ${c.sha} ${c.message.split("\n")[0]}`).join("\n");
+              return `### Follow-up Commits\n\n${commitLines}\n\nCreated via Jules Mobile Client`;
+            }
+            const summary = session.outputs?.find(o => o.sessionSummary)?.sessionSummary?.summary;
+            if (summary) return summary;
+            return session.prompt ? `### Prompt\n${session.prompt}` : "";
           })()}
           repo={repo}
           headBranch={b?.working || "feature"}
@@ -2447,9 +2600,9 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
 };
 
 // ─── Create PR Modal ──────────────────────────────────────────────────
-const CreatePRModal = ({ defaultTitle, repo, headBranch, baseBranch, onClose, onSubmit, busy, error }) => {
+const CreatePRModal = ({ defaultTitle, defaultBody, repo, headBranch, baseBranch, onClose, onSubmit, busy, error }) => {
   const [prTitle, setPrTitle] = useState(defaultTitle || "");
-  const [prBody, setPrBody] = useState("");
+  const [prBody, setPrBody] = useState(defaultBody || "");
 
   const handleSubmit = (e) => {
     e.preventDefault();
