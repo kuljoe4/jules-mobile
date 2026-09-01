@@ -82,6 +82,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
 
   const [copiedReviews, setCopiedReviews] = useState({});
   const [copiedChat, setCopiedChat] = useState(false);
+  const [copiedAllPrompts, setCopiedAllPrompts] = useState(false);
+  const [copiedAllReviews, setCopiedAllReviews] = useState(false);
   const [showPayloadBreakdown, setShowPayloadBreakdown] = useState(false);
   const [showCreatePRModal, setShowCreatePRModal] = useState(false);
   const [createPRErr, setCreatePRErr] = useState(null);
@@ -1929,51 +1931,112 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                 No reviews found
               </div>
             ) : (
-              reviews.map(act => {
-                const p = act.progressUpdated;
-                return (
-                  <div key={getActKey(act)} style={{
-                    background:T.surfaceHi, border:`1px solid ${T.borderHi}`,
-                    borderRadius:8, padding:16, position:"relative"
-                  }}>
-                    <div style={{fontFamily:"'IBM Plex Sans',sans-serif", fontSize:14, color:T.text, lineHeight:1.5, whiteSpace:"pre-wrap"}}>
-                      {p.description}
+              <>
+                <div style={{display:"flex", justifyContent:"flex-end", marginBottom:4}}>
+                  <button
+                    onClick={() => {
+                      const text = reviews.map((act, i) => {
+                        const desc = act.progressUpdated?.description || "";
+                        return `--- REVIEW #${i+1} ---\n${desc}`;
+                      }).join("\n\n");
+                      navigator.clipboard.writeText(text).then(() => {
+                        setCopiedAllReviews(true);
+                        setTimeout(() => setCopiedAllReviews(false), 2000);
+                      });
+                    }}
+                    style={{
+                      background: "transparent", border: "none", color: T.brand,
+                      fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 800,
+                      cursor: "pointer", display: "flex", alignItems: "center", gap: 4
+                    }}
+                    title="Copy all reviews to clipboard"
+                    aria-label="Copy all reviews to clipboard"
+                  >
+                    {copiedAllReviews ? (
+                      "COPIED ✓"
+                    ) : (
+                      <><Ic n="copy" s={10} c={T.brand}/> COPY ALL</>
+                    )}
+                  </button>
+                </div>
+                {reviews.map(act => {
+                  const p = act.progressUpdated;
+                  return (
+                    <div key={getActKey(act)} style={{
+                      background:T.surfaceHi, border:`1px solid ${T.borderHi}`,
+                      borderRadius:8, padding:16, position:"relative"
+                    }}>
+                      <div style={{fontFamily:"'IBM Plex Sans',sans-serif", fontSize:14, color:T.text, lineHeight:1.5, whiteSpace:"pre-wrap"}}>
+                        {p.description}
+                      </div>
+                      <div style={{marginTop:12, display:"flex", alignItems:"center", justifyContent:"space-between"}}>
+                         <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.dim}}>
+                           {fmtChars(p.description?.length || 0)}
+                         </div>
+                         <button
+                           onClick={() => {
+                             navigator.clipboard.writeText(p.description).then(() => {
+                               const actKey = getActKey(act);
+                               setCopiedReviews(prev => ({ ...prev, [actKey]: true }));
+                               setTimeout(() => {
+                                 setCopiedReviews(prev => ({ ...prev, [actKey]: false }));
+                               }, 2000);
+                             });
+                           }}
+                           style={{
+                             background:"transparent", border:"none", color:T.brand,
+                             fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:700,
+                             cursor:"pointer", display:"flex", alignItems:"center", gap:4
+                           }}
+                         >
+                           {copiedReviews[getActKey(act)] ? (
+                             "COPIED ✓"
+                           ) : (
+                             <><Ic n="copy" s={12} c={T.brand}/> COPY</>
+                           )}
+                         </button>
+                      </div>
                     </div>
-                    <div style={{marginTop:12, display:"flex", alignItems:"center", justifyContent:"space-between"}}>
-                       <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.dim}}>
-                         {fmtChars(p.description?.length || 0)}
-                       </div>
-                       <button
-                         onClick={() => {
-                           navigator.clipboard.writeText(p.description).then(() => {
-                             const actKey = getActKey(act);
-                             setCopiedReviews(prev => ({ ...prev, [actKey]: true }));
-                             setTimeout(() => {
-                               setCopiedReviews(prev => ({ ...prev, [actKey]: false }));
-                             }, 2000);
-                           });
-                         }}
-                         style={{
-                           background:"transparent", border:"none", color:T.brand,
-                           fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:700,
-                           cursor:"pointer", display:"flex", alignItems:"center", gap:4
-                         }}
-                       >
-                         {copiedReviews[getActKey(act)] ? (
-                           "COPIED ✓"
-                         ) : (
-                           <><Ic n="copy" s={12} c={T.brand}/> COPY</>
-                         )}
-                       </button>
-                    </div>
-                  </div>
-                );
-              })
+                  );
+                })}
+              </>
             )}
           </div>
         )}
         {tab==="prompt"&&(
           <div style={{padding:"4px 0 20px", display:"flex", flexDirection:"column", gap:20}}>
+            <div style={{display:"flex", justifyContent:"flex-end", marginBottom:-8}}>
+              <button
+                onClick={() => {
+                  const followups = activities.filter(a => a.userMessaged);
+                  const parts = [];
+                  if (session.prompt) {
+                    parts.push(`--- ORIGINAL PROMPT ---\n${session.prompt}`);
+                  }
+                  followups.forEach((a, i) => {
+                    parts.push(`--- FOLLOW-UP #${i+1} ---\n${a.userMessaged.userMessage}`);
+                  });
+                  const text = parts.join("\n\n");
+                  navigator.clipboard.writeText(text).then(() => {
+                    setCopiedAllPrompts(true);
+                    setTimeout(() => setCopiedAllPrompts(false), 2000);
+                  });
+                }}
+                style={{
+                  background: "transparent", border: "none", color: T.brand,
+                  fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 800,
+                  cursor: "pointer", display: "flex", alignItems: "center", gap: 4
+                }}
+                title="Copy all prompts to clipboard"
+                aria-label="Copy all prompts to clipboard"
+              >
+                {copiedAllPrompts ? (
+                  "COPIED ✓"
+                ) : (
+                  <><Ic n="copy" s={10} c={T.brand}/> COPY ALL</>
+                )}
+              </button>
+            </div>
             <div key="original">
               <div style={{
                 fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.brand,
