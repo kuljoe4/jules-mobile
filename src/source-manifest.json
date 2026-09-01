@@ -41,6 +41,8 @@
   "src/components/networkMonitor.jsx",
   "src/components/conflictRadar.jsx",
   "src/components/modal.jsx",
+  "src/components/createPRModal.jsx",
+  "src/components/payloadBreakdownModal.jsx",
   "src/components/quotaTimeline.jsx",
   "src/components/settings.jsx",
   "src/components/sessionList.jsx",
