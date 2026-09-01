@@ -1,5 +1,5 @@
-const FILTERS = ["ALL","QUEUED","PLANNING","AWAITING_PLAN_APPROVAL","IN_PROGRESS","COMPLETED","FAILED","HAS_DRAFT"];
-const FILTER_LABELS = { AWAITING_PLAN_APPROVAL:"APPROVE", ALL:"ALL", HAS_DRAFT:"HAS DRAFT" };
+const FILTERS = ["ALL","QUEUED","PLANNING","AWAITING_PLAN_APPROVAL","AWAITING_USER_FEEDBACK","IN_PROGRESS","PAUSED","COMPLETED","FAILED","HAS_DRAFT"];
+const FILTER_LABELS = { AWAITING_PLAN_APPROVAL:"APPROVE", AWAITING_USER_FEEDBACK:"INPUT", PAUSED:"PAUSED", ALL:"ALL", HAS_DRAFT:"HAS DRAFT" };
 
 const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed, selectedId, isDesktop, onNew, onDrafts, onSettings, pollInterval, sessionLimit, countdown, plan, todayCount, searchQuery, setSearchQuery, archivedIds, showArchived, setShowArchived, activitiesMap = {}, activityStatsMap = {}, error, clearError, isBoosted, readMap, draftsMap = {}, ignoredIds = new Set(), filterResetTrigger, sidebarCollapsed, setSidebarCollapsed, onCloseMobileDrawer, onToggleMobileDrawer, statusFilter: propStatusFilter, setStatusFilter: propSetStatusFilter, repoFilter: propRepoFilter, setRepoFilter: propSetRepoFilter }) => {
   const [localFilter, setLocalFilter] = useState("ALL");

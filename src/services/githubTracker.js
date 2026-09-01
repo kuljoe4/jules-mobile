@@ -14,6 +14,8 @@ const GitHubTracker = {
   GH_IN_FLIGHT: new Set(),
   GH_BRANCH_STATE_CACHE: new Map(),
   GH_BRANCH_IN_FLIGHT: new Set(),
+  GH_REPO_DEFAULT_BRANCH_CACHE: new Map(),
+  GH_REPO_DEFAULT_BRANCH_IN_FLIGHT: new Set(),
   CHECK_ACTIVITY_CACHE: new WeakMap(),
   CHECK_STATUS_ARRAY_CACHE: new WeakMap(),
   BRANCH_INFO_CACHE: new LRUCache(500),
@@ -189,6 +191,8 @@ const GitHubTracker = {
         const commitsCount = prData.commits || 0;
         const title = prData.title || "";
         const body = prData.body || "";
+        const mergeable = prData.mergeable !== undefined ? prData.mergeable : null;
+        const mergeableState = prData.mergeable_state || "";
 
         const baseRef = prData.base?.ref || "main";
         const headRef = prData.head?.ref || "main";
@@ -282,6 +286,8 @@ const GitHubTracker = {
               ahead,
               behind,
               statusState,
+              mergeable,
+              mergeableState,
               checks: finalState ? {
                 state: finalState,
                 label: finalLabel,
@@ -321,6 +327,82 @@ const GitHubTracker = {
         GitHubTracker.PR_INFO_CACHE.clear();
         window.dispatchEvent(new CustomEvent("gh-pr-updated", { detail: { url, failed: true } }));
       });
+  },
+
+  triggerRepoDefaultBranchFetch(repo, force = false) {
+    if (!repo || !isValidGithubRepoName(repo)) return;
+    if (!force && this.GH_REPO_DEFAULT_BRANCH_IN_FLIGHT.has(repo)) return;
+
+    this.GH_REPO_DEFAULT_BRANCH_IN_FLIGHT.add(repo);
+
+    const token = SafeStorage.loadGithubToken();
+    const headers = { "Accept": "application/vnd.github.v3+json" };
+    if (token && isValidGithubToken(token)) {
+      headers["Authorization"] = `token ${token}`;
+    }
+
+    this.githubFetch(`https://api.github.com/repos/${repo}`, headers)
+      .then(repoData => {
+        const defaultBranch = repoData.default_branch || "main";
+        this.GH_REPO_DEFAULT_BRANCH_CACHE.set(repo, defaultBranch);
+        this.GH_REPO_DEFAULT_BRANCH_IN_FLIGHT.delete(repo);
+        this.BRANCH_INFO_CACHE.clear();
+        window.dispatchEvent(new CustomEvent("gh-pr-updated", { detail: { repo, defaultBranch } }));
+      })
+      .catch(err => {
+        console.warn("Error fetching repo default branch:", err);
+        this.GH_REPO_DEFAULT_BRANCH_IN_FLIGHT.delete(repo);
+      });
+  },
+
+  async deleteBranch(repo, branch) {
+    let cleanRepo = (repo || "").trim().replace(/^sources\/github\//, "").replace(/\.git$/, "").replace(/\/$/, "");
+    let cleanBranch = (branch || "").trim().replace(/^refs\/heads\//, "");
+
+    if (!cleanRepo || !isValidGithubRepoName(cleanRepo)) {
+      throw new Error("Invalid repository format for branch deletion");
+    }
+    if (!cleanBranch || !isValidGitBranchName(cleanBranch)) {
+      throw new Error("Invalid branch name for deletion");
+    }
+
+    const token = SafeStorage.loadGithubToken();
+    if (!token || !isValidGithubToken(token)) {
+      throw new Error("GitHub Token required to delete branch. Please set your token in Settings.");
+    }
+
+    const headers = {
+      "Accept": "application/vnd.github.v3+json",
+      "Authorization": `token ${token}`
+    };
+
+    const encBranch = encodeURIComponent(cleanBranch);
+    const apiUrl = `https://api.github.com/repos/${cleanRepo}/git/refs/heads/${encBranch}`;
+    const controller = new AbortController();
+    const timeoutMs = loadApiTimeout();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const res = await fetch(apiUrl, {
+        method: "DELETE",
+        headers,
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
+      if (!res.ok && res.status !== 404) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || `Failed to delete branch (Status ${res.status})`);
+      }
+
+      this.GH_BRANCH_STATE_CACHE.clear();
+      this.BRANCH_INFO_CACHE.clear();
+      window.dispatchEvent(new CustomEvent("gh-pr-updated", { detail: { repo: cleanRepo, deletedBranch: cleanBranch } }));
+      return true;
+    } catch (err) {
+      clearTimeout(timeoutId);
+      throw err;
+    }
   },
 
   triggerGitHubBranchFetch(repo, base, working, force = false) {
@@ -409,10 +491,18 @@ const GitHubTracker = {
           }
         }
 
+        const branchCommits = (compareData?.commits || []).map(c => ({
+          sha: c.sha ? c.sha.slice(0, 7) : "",
+          message: c.commit?.message || "",
+          author: c.commit?.author?.name || "",
+          date: c.commit?.author?.date || ""
+        }));
+
         const updatedInfo = {
           ahead,
           behind,
           statusState,
+          commits: branchCommits,
           checks: finalState ? {
             state: finalState,
             label: finalLabel,
@@ -723,8 +813,22 @@ const GitHubTracker = {
     const cacheKey = `${sid}:${actLen}:${size}:${s.updateTime || s.createTime || ""}`;
     if (sid !== "temp" && this.BRANCH_INFO_CACHE.has(cacheKey)) return this.BRANCH_INFO_CACHE.get(cacheKey);
 
+    let repo = s.sourceContext?.source?.replace("sources/github/","");
+    if (!repo || repo.startsWith("sources/")) {
+      const pr = this.getPR(s);
+      if (pr && pr.url) {
+        const m = pr.url.match(this.PR_REPO_RE);
+        if (m) repo = m[1];
+      }
+    }
+
+    const fetchedDefaultBranch = repo ? this.GH_REPO_DEFAULT_BRANCH_CACHE.get(repo) : null;
+    if (repo && !fetchedDefaultBranch) {
+      this.triggerRepoDefaultBranchFetch(repo);
+    }
+
     const context = s.sourceContext?.githubRepoContext;
-    const base = context?.startingBranch || "main";
+    const base = context?.startingBranch || fetchedDefaultBranch || "main";
 
     let working = null;
 
@@ -810,21 +914,14 @@ const GitHubTracker = {
       }
     }
 
-    let repo = s.sourceContext?.source?.replace("sources/github/","");
-    if (!repo || repo.startsWith("sources/")) {
-      const pr = this.getPR(s);
-      if (pr && pr.url) {
-        const m = pr.url.match(this.PR_REPO_RE);
-        if (m) repo = m[1];
-      }
-    }
-
     const repoUrl = repo && !repo.startsWith("sources/") && isValidGithubRepoName(repo) ? `https://github.com/${repo}` : null;
 
     let ahead = 0;
     let behind = 0;
     let statusState = "identical";
+    let commits = [];
     let checks = null;
+    let checksSource = "working";
     let failed = false;
 
     const activeWorking = working || base;
@@ -837,6 +934,7 @@ const GitHubTracker = {
           ahead = bCached.ahead || 0;
           behind = bCached.behind || 0;
           statusState = bCached.statusState || "identical";
+          commits = bCached.commits || [];
           checks = bCached.checks || null;
           failed = bCached.failed || false;
         } else {
@@ -851,6 +949,7 @@ const GitHubTracker = {
         const defaultTtl = 30 * 1000;
         if (defaultCached && (Date.now() - defaultCached.fetchedAt < defaultTtl)) {
           checks = defaultCached.checks || null;
+          if (checks) checksSource = "base";
         } else {
           this.triggerGitHubBranchFetch(repo, base, base, force);
         }
@@ -866,7 +965,9 @@ const GitHubTracker = {
       ahead,
       behind,
       statusState,
+      commits,
       checks,
+      checksSource,
       failed
     };
     if (sid !== "temp") {
@@ -888,5 +989,6 @@ const getCheckStatus = (activities = []) => GitHubTracker.getCheckStatus(activit
 const getPrUrlAndNumber = (pr) => GitHubTracker.getPrUrlAndNumber(pr);
 const createPullRequest = (params) => GitHubTracker.createPullRequest(params);
 const mergePullRequest = (url, mergeMethod) => GitHubTracker.mergePullRequest(url, mergeMethod);
+const deleteBranch = (repo, branch) => GitHubTracker.deleteBranch(repo, branch);
 
-export { GitHubTracker, getPR, getPRInfo, getBranchInfo, getCheckStatus, getPrUrlAndNumber, createPullRequest, mergePullRequest };
+export { GitHubTracker, getPR, getPRInfo, getBranchInfo, getCheckStatus, getPrUrlAndNumber, createPullRequest, mergePullRequest, deleteBranch };
