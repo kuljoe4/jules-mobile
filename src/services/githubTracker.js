@@ -254,17 +254,18 @@ const GitHubTracker = {
               }
             }
 
-            if (checkCount > 0) {
-              if (failureCount > 0) {
-                finalState = "failure";
-                finalLabel = `${successCount}/${checkCount} PASSED`;
-              } else if (pendingCount > 0) {
-                finalState = "pending";
-                finalLabel = `${successCount}/${checkCount} RUNNING`;
-              } else {
-                finalState = "success";
-                finalLabel = `${successCount}/${checkCount} PASSED`;
-              }
+            if (checkCount === 0) {
+              finalState = "not_run";
+              finalLabel = "NOT RUN";
+            } else if (failureCount > 0) {
+              finalState = "failure";
+              finalLabel = `${successCount}/${checkCount} FAILED`;
+            } else if (pendingCount > 0) {
+              finalState = "pending";
+              finalLabel = `${successCount}/${checkCount} RUNNING`;
+            } else {
+              finalState = "success";
+              finalLabel = `${successCount}/${checkCount} PASSED`;
             }
 
             const commitsList = (Array.isArray(commitsData) ? commitsData : []).map(c => ({
@@ -478,17 +479,18 @@ const GitHubTracker = {
           }
         }
 
-        if (checkCount > 0) {
-          if (failureCount > 0) {
-            finalState = "failure";
-            finalLabel = `${successCount}/${checkCount} PASSED`;
-          } else if (pendingCount > 0) {
-            finalState = "pending";
-            finalLabel = `${successCount}/${checkCount} RUNNING`;
-          } else {
-            finalState = "success";
-            finalLabel = `${successCount}/${checkCount} PASSED`;
-          }
+        if (checkCount === 0) {
+          finalState = "not_run";
+          finalLabel = "NOT RUN";
+        } else if (failureCount > 0) {
+          finalState = "failure";
+          finalLabel = `${successCount}/${checkCount} FAILED`;
+        } else if (pendingCount > 0) {
+          finalState = "pending";
+          finalLabel = `${successCount}/${checkCount} RUNNING`;
+        } else {
+          finalState = "success";
+          finalLabel = `${successCount}/${checkCount} PASSED`;
         }
 
         const branchCommits = (compareData?.commits || []).map(c => ({
