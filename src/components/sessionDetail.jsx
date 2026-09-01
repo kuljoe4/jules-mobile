@@ -1043,7 +1043,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                     {session.sourceContext?.source && (!pr || pr.state === "closed" || pr.state === "merged") && (
                       <button
                         onClick={() => { handleOpenCreatePRModal(); setShowMenu(false); }}
-                        disabled={busy}
+                        disabled={busy || (pr?.state === "merged" && Number(b?.ahead || ahead || 0) === 0)}
                         onMouseEnter={e => e.currentTarget.style.background = T.border}
                         onMouseLeave={e => e.currentTarget.style.background = "none"}
                         onMouseDown={e => e.currentTarget.style.transform = "scale(0.96)"}
@@ -1223,8 +1223,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
             {session.sourceContext?.source && (!pr || pr.state === "closed" || pr.state === "merged") && (
               <button
                 onClick={handleOpenCreatePRModal}
-                disabled={busy}
-                title="Create Pull Request via GitHub API"
+                disabled={busy || (pr?.state === "merged" && Number(b?.ahead || ahead || 0) === 0)}
+                title={pr?.state === "merged" && Number(b?.ahead || ahead || 0) === 0 ? "No new commits ahead of base branch" : "Create Pull Request via GitHub API"}
                 aria-label="Create Pull Request via GitHub API"
                 style={{
                   background: T.brandDim,
@@ -1235,12 +1235,12 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                   alignItems: "center",
                   gap: 4,
                   color: T.brandLight,
-                  cursor: busy ? "not-allowed" : "pointer",
+                  cursor: (busy || (pr?.state === "merged" && Number(b?.ahead || ahead || 0) === 0)) ? "not-allowed" : "pointer",
                   fontFamily: "'JetBrains Mono',monospace",
                   fontSize: 10,
                   fontWeight: 900,
                   flexShrink: 0,
-                  opacity: busy ? 0.6 : 1,
+                  opacity: (busy || (pr?.state === "merged" && Number(b?.ahead || ahead || 0) === 0)) ? 0.5 : 1,
                   transition: "all 0.15s ease"
                 }}
               >
