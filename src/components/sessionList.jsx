@@ -12,6 +12,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
   const setRepoFilter = propSetRepoFilter || setLocalRepoFilter;
 
   const [repoPickerOpen, setRepoPickerOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, handleScroll] = useScrollThreshold();
 
   useEffect(() => {
@@ -20,6 +21,16 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
       setRepoFilter("ALL");
     }
   }, [filterResetTrigger, setFilter, setRepoFilter]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [menuOpen]);
+
   const [searchOpen, setSearchOpen] = useState(false);
   const searchInputRef = useRef(null);
 
@@ -175,76 +186,158 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
             {!sidebarCollapsed && (
               <>
                 <button onClick={toggleSearch} title="Search sessions (Press /)" aria-label="Search sessions (Press forward slash to search)" style={{width:28,height:28,borderRadius:5,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="search" s={14} c={searchOpen||searchQuery?T.blue:T.muted}/></button>
-                {isDesktop && <button onClick={onNew} title="New Session" aria-label="New Session" style={{width:28,height:28,borderRadius:5,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="plus" s={14} c={T.brand}/></button>}
-                {isDesktop && (
+                {(isDesktop || onNew) && <button onClick={onNew} title="New Session" aria-label="New Session" style={{width:28,height:28,borderRadius:5,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="plus" s={14} c={T.brand}/></button>}
+
+                {/* 3-Dots Context Menu */}
+                <div style={{position:"relative"}}>
                   <button
-                    onClick={onDrafts}
-                    title={hasDrafts ? "Drafts Box (Has saved drafts)" : "Drafts Box"}
-                    aria-label={hasDrafts ? "Drafts Box (Has saved drafts)" : "Drafts Box"}
+                    onClick={() => setMenuOpen(!menuOpen)}
+                    title="More session options"
+                    aria-label="More session options"
+                    aria-expanded={menuOpen}
+                    aria-haspopup="true"
                     style={{
-                      width:28,
-                      height:28,
-                      borderRadius:5,
-                      background:"transparent",
-                      border:"none",
-                      display:"flex",
-                      alignItems:"center",
-                      justifyContent:"center",
-                      cursor:"pointer",
-                      position:"relative"
+                      width:28, height:28, borderRadius:5,
+                      background: menuOpen ? `${T.brand}20` : "transparent",
+                      border: menuOpen ? `1px solid ${T.brand}60` : "none",
+                      display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer",
+                      position:"relative", transition:"all .15s ease"
                     }}
                   >
-                    <Ic n="layers" s={14} c={hasDrafts ? T.amber : T.muted}/>
-                    {hasDrafts && (
-                      <span
+                    <Ic n="more" s={14} c={menuOpen ? T.brand : T.muted}/>
+                    {hasDrafts && !menuOpen && (
+                      <span style={{
+                        position:"absolute", top:4, right:4, width:5, height:5,
+                        borderRadius:"50%", background:T.amber, boxShadow:`0 0 4px ${T.amber}`
+                      }}/>
+                    )}
+                  </button>
+
+                  {menuOpen && (
+                    <>
+                      <div style={{ position: "fixed", inset: 0, zIndex: 100 }} onClick={() => setMenuOpen(false)}/>
+                      <div
+                        role="menu"
+                        aria-label="Session list options menu"
                         style={{
-                          position: "absolute",
-                          top: 4,
-                          right: 4,
-                          width: 5,
-                          height: 5,
-                          borderRadius: "50%",
-                          background: T.amber,
-                          boxShadow: `0 0 4px ${T.amber}`
+                          position:"absolute", top:"100%", right:0, zIndex:101, marginTop:6,
+                          background:T.surfaceHi, border:`1px solid ${T.borderHi}`, borderRadius:8,
+                          width:190, boxShadow:"0 10px 32px rgba(0,0,0,0.6)", padding:4,
+                          animation:"zoomIn 0.15s cubic-bezier(0.2, 0, 0.2, 1)"
                         }}
-                      />
-                    )}
-                  </button>
-                )}
-                {isDesktop && (
-                  <button onClick={onSettings} title="Settings" aria-label="Settings" style={{width:28,height:28,borderRadius:5,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="settings" s={14} c={T.muted}/></button>
-                )}
-                <div style={{display:"flex", alignItems:"center", gap:4}}>
-                  <button
-                    onClick={onRefresh}
-                    disabled={refreshing}
-                    title={`Refresh now ${countdown > 0 ? `(Auto in ${countdown}s)` : ""}`}
-                    aria-label="Refresh session list"
-                    style={{
-                      background:"none", border:"none", cursor:refreshing?"default":"pointer",
-                      display:"flex", padding:4, borderRadius:20, transition:"all .15s cubic-bezier(0.4, 0, 0.2, 1)",
-                      background:refreshing?T.brandDim:"transparent",
-                      position:"relative",
-                      outline: countdown > 0 && !refreshing ? `1px solid ${T.brand}10` : "none",
-                    }}
-                    onMouseDown={e => e.currentTarget.style.transform = "scale(0.9)"}
-                    onMouseUp={e => e.currentTarget.style.transform = "scale(1)"}
-                  >
-                    {countdown > 0 && !refreshing && (
-                      <svg style={{ position: "absolute", inset: 0, transform: "rotate(-90deg)", width: "100%", height: "100%", pointerEvents: "none" }}>
-                        <circle
-                          cx="50%" cy="50%" r="42%"
-                          fill="none" stroke={T.brand} strokeWidth="2"
-                          strokeDasharray="100%"
-                          strokeDashoffset={`${100 - (countdown / (pollInterval / 1000 || 1)) * 100}%`}
-                          style={{ transition: "stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1)", opacity: 0.35 }}
-                        />
-                      </svg>
-                    )}
-                    <div style={{ display: "flex", animation: refreshing ? "spin 1s linear infinite" : "none" }}>
-                      <Ic n={justRefreshed ? "check" : "refresh"} s={16} c={refreshing?T.brand:(justRefreshed?T.brandLight:T.textDim)}/>
-                    </div>
-                  </button>
+                      >
+                        <button
+                          role="menuitem"
+                          onClick={() => { if (!refreshing && onRefresh) onRefresh(); setMenuOpen(false); }}
+                          disabled={refreshing}
+                          style={{
+                            width:"100%", padding:"8px 10px", background:"none", border:"none",
+                            borderRadius:5, cursor:refreshing?"default":"pointer", display:"flex",
+                            alignItems:"center", justifyContent:"space-between", gap:8,
+                            fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:600,
+                            color:refreshing?T.brand:T.text, transition:"background .1s ease"
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.background = T.dim}
+                          onMouseLeave={e => e.currentTarget.style.background = "none"}
+                        >
+                          <div style={{display:"flex", alignItems:"center", gap:8}}>
+                            <div style={{display:"flex", animation: refreshing ? "spin 1s linear infinite" : "none"}}>
+                              <Ic n={justRefreshed ? "check" : "refresh"} s={14} c={refreshing ? T.brand : (justRefreshed ? T.brandLight : T.muted)}/>
+                            </div>
+                            <span>Refresh</span>
+                          </div>
+                          <span style={{fontSize:9, color:T.muted, fontWeight:700}}>
+                            {refreshing ? "SYNCING" : justRefreshed ? "DONE" : countdown > 0 ? `${countdown}s` : ""}
+                          </span>
+                        </button>
+
+                        {onDrafts && (
+                          <button
+                            role="menuitem"
+                            onClick={() => { onDrafts(); setMenuOpen(false); }}
+                            style={{
+                              width:"100%", padding:"8px 10px", background:"none", border:"none",
+                              borderRadius:5, cursor:"pointer", display:"flex",
+                              alignItems:"center", justifyContent:"space-between", gap:8,
+                              fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:600,
+                              color:T.text, transition:"background .1s ease"
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.background = T.dim}
+                            onMouseLeave={e => e.currentTarget.style.background = "none"}
+                          >
+                            <div style={{display:"flex", alignItems:"center", gap:8}}>
+                              <Ic n="layers" s={14} c={hasDrafts ? T.amber : T.muted}/>
+                              <span>Drafts Box</span>
+                            </div>
+                            {hasDrafts && (
+                              <span style={{width:6, height:6, borderRadius:"50%", background:T.amber, boxShadow:`0 0 6px ${T.amber}`}}/>
+                            )}
+                          </button>
+                        )}
+
+                        {onSettings && (
+                          <button
+                            role="menuitem"
+                            onClick={() => { onSettings(); setMenuOpen(false); }}
+                            style={{
+                              width:"100%", padding:"8px 10px", background:"none", border:"none",
+                              borderRadius:5, cursor:"pointer", display:"flex",
+                              alignItems:"center", gap:8,
+                              fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:600,
+                              color:T.text, transition:"background .1s ease"
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.background = T.dim}
+                            onMouseLeave={e => e.currentTarget.style.background = "none"}
+                          >
+                            <Ic n="settings" s={14} c={T.muted}/>
+                            <span>Settings</span>
+                          </button>
+                        )}
+
+                        <div style={{height:1, background:`${T.border}40`, margin:"4px 2px"}}/>
+
+                        <button
+                          role="menuitem"
+                          onClick={() => { setShowArchived(false); setMenuOpen(false); }}
+                          style={{
+                            width:"100%", padding:"8px 10px", background: !showArchived ? `${T.brand}15` : "none",
+                            border:"none", borderRadius:5, cursor:"pointer", display:"flex",
+                            alignItems:"center", justifyContent:"space-between", gap:8,
+                            fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight: !showArchived ? 700 : 500,
+                            color: !showArchived ? T.brand : T.text, transition:"background .1s ease"
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.background = !showArchived ? `${T.brand}25` : T.dim}
+                          onMouseLeave={e => e.currentTarget.style.background = !showArchived ? `${T.brand}15` : "none"}
+                        >
+                          <div style={{display:"flex", alignItems:"center", gap:8}}>
+                            <Ic n="tasks" s={14} c={!showArchived ? T.brand : T.muted}/>
+                            <span>Active Sessions</span>
+                          </div>
+                          {!showArchived && <Ic n="check" s={12} c={T.brand}/>}
+                        </button>
+
+                        <button
+                          role="menuitem"
+                          onClick={() => { setShowArchived(true); setMenuOpen(false); }}
+                          style={{
+                            width:"100%", padding:"8px 10px", background: showArchived ? `${T.purple}15` : "none",
+                            border:"none", borderRadius:5, cursor:"pointer", display:"flex",
+                            alignItems:"center", justifyContent:"space-between", gap:8,
+                            fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight: showArchived ? 700 : 500,
+                            color: showArchived ? T.purple : T.text, transition:"background .1s ease"
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.background = showArchived ? `${T.purple}25` : T.dim}
+                          onMouseLeave={e => e.currentTarget.style.background = showArchived ? `${T.purple}15` : "none"}
+                        >
+                          <div style={{display:"flex", alignItems:"center", gap:8}}>
+                            <Ic n="archive" s={14} c={showArchived ? T.purple : T.muted}/>
+                            <span>Archived Sessions</span>
+                          </div>
+                          {showArchived && <Ic n="check" s={12} c={T.purple}/>}
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
               </>
             )}
