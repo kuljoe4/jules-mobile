@@ -86,6 +86,11 @@ assert.equal(ghPrRe.test('https://github.com/owner/repo#frag/pull/123'), false);
 
 assert.equal(safeUrl('https://github.com/example/repo'), 'https://github.com/example/repo');
 assert.equal(safeUrl('javascript:alert(1)'), '#');
+assert.equal(safeUrl(null), '#');
+assert.equal(safeUrl(123), '#');
+assert.equal(safeUrl('https://github.com/example/repo\x00nullbyte'), '#');
+assert.equal(safeUrl('https://github.com/example/repo\r\nnewline'), '#');
+assert.equal(safeUrl('https://github.com/example/repo with space'), '#');
 assert.equal(safeMediaMimeType(' IMAGE/PNG '), 'image/png');
 assert.equal(safeMediaMimeType('text/html'), 'image/png');
 assert.equal(safeMediaBase64('abc!@#/+=123'), 'abc/+=123');
