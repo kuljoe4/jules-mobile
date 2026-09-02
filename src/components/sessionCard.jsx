@@ -58,6 +58,7 @@ const SessionCard = memo(({ s, onPress, onSelect, isSelected, index, activities 
   const b    = useMemo(() => getBranchInfo(s, activities), [s, activities, ghPrNonce]);
   const activeCheck = useMemo(() => {
     if (b?.checks && (b.checksSource === "base" || b.working === b.base)) {
+      if (b.checks.state === "success") return null;
       return b.checks;
     }
     return null;
