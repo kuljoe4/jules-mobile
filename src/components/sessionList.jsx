@@ -57,13 +57,20 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
       searchInputRef.current.focus();
     }
   }, [searchOpen]);
-  const availableRepos = useMemo(() => {
-    const repos = new Set();
-    sessions.forEach(s => {
+  // OPTIMIZATION (Bolt): Pre-aggregate repository session counts in a single O(N) pass alongside availableRepos.
+  // This turns count lookups inside the repo picker JSX rendering loop into constant O(1) property reads,
+  // avoiding O(N * R) full array filter traversals and string replacements on every render tick.
+  const { availableRepos, repoCountsMap } = useMemo(() => {
+    const counts = {};
+    for (let i = 0; i < sessions.length; i++) {
+      const s = sessions[i];
       const repo = s.sourceContext?.githubRepoContext ? s.sourceContext.source?.replace("sources/github/", "") : (s.sourceContext?.source || null);
-      if (repo) repos.add(repo);
-    });
-    return Array.from(repos).sort();
+      if (repo) {
+        counts[repo] = (counts[repo] || 0) + 1;
+      }
+    }
+    const repos = Object.keys(counts).sort();
+    return { availableRepos: repos, repoCountsMap: counts };
   }, [sessions]);
 
   const baseFiltered = useMemo(() => {
@@ -380,10 +387,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
                   </button>
                   {availableRepos.map(repo => {
                     const isSel = repoFilter === repo;
-                    const count = sessions.filter(s => {
-                      const r = s.sourceContext?.githubRepoContext ? s.sourceContext.source?.replace("sources/github/", "") : (s.sourceContext?.source || null);
-                      return r === repo;
-                    }).length;
+                    const count = repoCountsMap[repo] || 0;
                     return (
                       <button
                         key={repo}
