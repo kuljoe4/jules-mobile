@@ -483,6 +483,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
                 if (cnt===0 && f!=="ALL" && f!==filter) return null;
                 const isAct = f===filter;
                 const ac = STATUS_META[f]?.color || T.brand;
+                const iconName = STATUS_META[f]?.icon || (f === "HAS_DRAFT" ? "layers" : "tasks");
                 const labelText = FILTER_LABELS[f]||f;
                 return (
                   <button
@@ -491,8 +492,31 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
                     aria-pressed={isAct ? "true" : "false"}
                     aria-label={`Filter by ${labelText}${cnt > 0 ? `, ${cnt} sessions` : ""}`}
                     title={`Filter by ${labelText}${cnt > 0 ? ` (${cnt})` : ""}`}
-                    style={{flexShrink:0, minHeight:36, padding:"0 14px", display:"inline-flex", alignItems:"center", justifyContent:"center", borderRadius:20,border:"none",background:isAct?`${ac}20`:"transparent",border:`1px solid ${isAct?`${ac}80`:T.border}`,color:isAct?ac:T.muted,fontFamily:"'JetBrains Mono',monospace",fontSize:11,fontWeight:700,letterSpacing:"0.06em",cursor:"pointer",transition:"background .12s cubic-bezier(0.4, 0, 0.2, 1), color .12s cubic-bezier(0.4, 0, 0.2, 1)"}}
-                  >{labelText} {cnt>0?cnt:""}</button>
+                    style={{
+                      flexShrink:0, minHeight:36, padding:"0 12px",
+                      display:"inline-flex", alignItems:"center", gap:6,
+                      borderRadius:20, border:"none",
+                      background:isAct?`${ac}20`:"transparent",
+                      border:`1px solid ${isAct?`${ac}80`:T.border}`,
+                      color:isAct?ac:T.muted,
+                      fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:700,
+                      letterSpacing:"0.06em", cursor:"pointer",
+                      transition:"all .12s cubic-bezier(0.4, 0, 0.2, 1)"
+                    }}
+                  >
+                    <Ic n={iconName} s={12} c={isAct ? ac : T.muted}/>
+                    <span>{labelText}</span>
+                    {cnt > 0 && (
+                      <span style={{
+                        fontSize: 9, fontWeight: 900,
+                        background: isAct ? `${ac}30` : T.surfaceHi,
+                        padding: "1px 5px", borderRadius: 10,
+                        border: `1px solid ${isAct ? `${ac}50` : T.border}`
+                      }}>
+                        {cnt}
+                      </span>
+                    )}
+                  </button>
                 );
               })}
             </div>
@@ -529,12 +553,12 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
           );
         })()}
         {sidebarCollapsed ? (
-          <div style={{display:"flex", flexDirection:"column", alignItems:"center", gap:8, paddingTop:4}}>
-            <button onClick={onNew} title="New Session" aria-label="New Session" style={{width:36, height:36, borderRadius:8, background:T.brandDim, border:`1px solid ${T.brand}40`, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer"}}><Ic n="plus" s={18} c={T.brand}/></button>
-            <button onClick={toggleSearch} title="Search Sessions" aria-label="Search Sessions" style={{width:36, height:36, borderRadius:8, background:T.surfaceHi, border:`1px solid ${T.border}`, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer"}}><Ic n="search" s={16} c={T.muted}/></button>
-            <button onClick={onDrafts} title="Drafts Box" aria-label="Drafts Box" style={{width:36, height:36, borderRadius:8, background:T.surfaceHi, border:`1px solid ${T.border}`, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", position:"relative"}}><Ic n="layers" s={16} c={hasDrafts ? T.amber : T.muted}/></button>
-            <button onClick={onSettings} title="Settings" aria-label="Settings" style={{width:36, height:36, borderRadius:8, background:T.surfaceHi, border:`1px solid ${T.border}`, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer"}}><Ic n="settings" s={16} c={T.muted}/></button>
-            <button onClick={onRefresh} disabled={refreshing} title="Refresh Sessions" aria-label="Refresh Sessions" style={{width:36, height:36, borderRadius:8, background:T.surfaceHi, border:`1px solid ${T.border}`, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer"}}><Ic n={justRefreshed ? "check" : "refresh"} s={16} c={refreshing ? T.brand : T.muted}/></button>
+          <div style={{display:"flex", flexDirection:"column", alignItems:"center", gap:10, paddingTop:6}}>
+            <button onClick={onNew} title="New Session" aria-label="New Session" style={{width:40, height:40, borderRadius:8, background:T.brandDim, border:`1px solid ${T.brand}40`, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer"}}><Ic n="plus" s={18} c={T.brand}/></button>
+            <button onClick={toggleSearch} title="Search Sessions" aria-label="Search Sessions" style={{width:40, height:40, borderRadius:8, background:T.surfaceHi, border:`1px solid ${T.border}`, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer"}}><Ic n="search" s={16} c={T.muted}/></button>
+            <button onClick={onDrafts} title="Drafts Box" aria-label="Drafts Box" style={{width:40, height:40, borderRadius:8, background:T.surfaceHi, border:`1px solid ${T.border}`, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", position:"relative"}}><Ic n="layers" s={16} c={hasDrafts ? T.amber : T.muted}/></button>
+            <button onClick={onSettings} title="Settings" aria-label="Settings" style={{width:40, height:40, borderRadius:8, background:T.surfaceHi, border:`1px solid ${T.border}`, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer"}}><Ic n="settings" s={16} c={T.muted}/></button>
+            <button onClick={onRefresh} disabled={refreshing} title="Refresh Sessions" aria-label="Refresh Sessions" style={{width:40, height:40, borderRadius:8, background:T.surfaceHi, border:`1px solid ${T.border}`, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer"}}><Ic n={justRefreshed ? "check" : "refresh"} s={16} c={refreshing ? T.brand : T.muted}/></button>
 
             <div style={{width:24, height:1, background:T.border, margin:"6px 0"}}/>
 
@@ -548,7 +572,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
                   title={`${i+1}. ${s.title || s.prompt} (${meta.label})`}
                   aria-label={`Session ${i+1}: ${s.title || s.prompt}. Status: ${meta.label}`}
                   style={{
-                    width: 36, height: 36, borderRadius: 8,
+                    width: 40, height: 40, borderRadius: 8,
                     background: isSelected ? `${T.brand}25` : T.surfaceHi,
                     border: isSelected ? "none" : `1px solid ${T.border}`,
                     display: "flex", alignItems: "center", justifyContent:"center",

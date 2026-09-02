@@ -123,8 +123,9 @@ const SessionCard = memo(({ s, onPress, onSelect, isSelected, index, activities 
       style={{
         width:"100%", background:bg, textAlign:"left", cursor:"pointer",
         border: isSelected ? "none" : `1px solid ${borderColor}`,
-        borderRadius:6, padding:"8px 12px", marginBottom:4, transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)",
+        borderRadius:8, padding:"11px 14px", marginBottom:8, transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)",
         position:"relative",
+        minHeight:48,
         transform:isSelected?"translateX(4px) scale(1.005)":"none",
         outline:"none",
         boxShadow: "none",
