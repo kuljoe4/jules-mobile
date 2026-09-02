@@ -12,7 +12,7 @@ import {
 } from '../src/utils/validation.js';
 import { cleanMathText, fmtBytes, fmtChars, formatSmartDashItems, safeSlice } from '../src/utils/format.js';
 import { fmtAgo, fmtDuration, fmtTime, parseDateMs } from '../src/utils/date.js';
-import { GitHubTracker, getPR, getPRInfo, getBranchInfo, getCheckStatus, createPullRequest, deleteBranch } from '../src/services/githubTracker.js';
+import { GitHubTracker, getPR, getPRInfo, getBranchInfo, getCheckStatus, getDeploymentInfo, createPullRequest, deleteBranch } from '../src/services/githubTracker.js';
 import { fastDeepEqual, getActivitiesSize, getApproxBytes, getPatchFileCount, getPayloadBreakdown } from '../src/utils/performance.js';
 import { parseUnidiffPatch, getWorkingSet } from '../src/utils/workingSet.js';
 
@@ -261,9 +261,24 @@ const mockSession = {
 const workingSetFiles = getWorkingSet(mockSession, sampleActivities);
 assert.equal(workingSetFiles.includes("src/app.js"), true);
 
-// Test getCheckStatus signal extraction
+// Test getCheckStatus signal extraction & fail-closed behavior
 const checkStatus = getCheckStatus(sampleActivities);
 assert.deepEqual(checkStatus, { state: "success", label: "CHECKS PASSED" });
+
+const failingCheckActivities = [
+  {
+    id: "act-fail-1",
+    createTime: "2026-08-25T12:05:00Z",
+    progressUpdated: { description: "Checks completed with failures", title: "CI workflow" }
+  }
+];
+const failCheckStatus = getCheckStatus(failingCheckActivities);
+assert.deepEqual(failCheckStatus, { state: "failure", label: "CHECKS FAILED" });
+
+// Test getDeploymentInfo repository input validation
+assert.equal(getDeploymentInfo(""), null);
+assert.equal(getDeploymentInfo("invalid-repo-without-slash"), null);
+assert.equal(getDeploymentInfo("../invalid/path"), null);
 
 // Test getPRInfo fallback with activities
 const prInfo = getPRInfo(mockSession, sampleActivities);
