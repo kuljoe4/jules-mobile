@@ -59,8 +59,11 @@ export const isValidGitBranchName = (name) => {
   return true;
 };
 
+// Security: Sanitizes and validates dynamic link URLs to prevent Client-Side Cross-Site Scripting (XSS),
+// protocol scheme injection, null-byte/control-character injection, and whitespace manipulation in anchor tags.
 export const safeUrl = (url) => {
-  if (!url) return "#";
+  if (!url || typeof url !== "string") return "#";
+  if (/[\x00-\x1F\x7F]/.test(url) || /\s/.test(url)) return "#";
   try {
     const parsed = new URL(url);
     if (parsed.protocol === "http:" || parsed.protocol === "https:") {
