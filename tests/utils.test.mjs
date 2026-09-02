@@ -161,6 +161,43 @@ assert.equal(SafeStorage.clearFollowupDraft('../path/traversal'), false);
 assert.equal(SafeStorage.saveFollowupDraft('sess\x00nullbyte', 'invalid'), false);
 assert.equal(SafeStorage.loadFollowupDraft('sess\x00nullbyte'), '');
 
+// Test localStorage draft key scanning session ID validation logic
+const mockScanDrafts = (storage) => {
+  const map = {};
+  for (let i = 0; i < storage.length; i++) {
+    const key = storage.key(i);
+    if (key && key.startsWith("jac_draft_") && !key.startsWith("jac_drafts_box")) {
+      const val = storage.getItem(key);
+      if (val && val.trim()) {
+        const id = key.slice("jac_draft_".length);
+        if (isValidSessionId(id)) {
+          map[id] = true;
+        }
+      }
+    }
+  }
+  return map;
+};
+
+const mockStore = new Map([
+  ["jac_draft_valid-sess-1", "draft text"],
+  ["jac_draft_../invalid-path", "bad text"],
+  ["jac_draft_sess\x00nullbyte", "bad text"],
+  ["jac_draft_sess?query=1", "bad text"],
+  ["jac_draft_valid-sess-2", "draft text 2"],
+]);
+const fakeLocalStorage = {
+  length: mockStore.size,
+  key: (i) => Array.from(mockStore.keys())[i],
+  getItem: (k) => mockStore.get(k) || null,
+};
+const scanned = mockScanDrafts(fakeLocalStorage);
+assert.equal(scanned["valid-sess-1"], true);
+assert.equal(scanned["valid-sess-2"], true);
+assert.equal(scanned["../invalid-path"], undefined);
+assert.equal(scanned["sess\x00nullbyte"], undefined);
+assert.equal(scanned["sess?query=1"], undefined);
+
 // Test GitHubTracker.triggerGitHubFetch validation for invalid repo names
 const invalidRepoPrUrl = `https://github.com/${'a/'.repeat(150)}/pull/1`;
 GitHubTracker.triggerGitHubFetch(invalidRepoPrUrl);
