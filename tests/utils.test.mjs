@@ -307,4 +307,31 @@ await assert.rejects(
   { message: "Invalid branch name for deletion" }
 );
 
+// Test single-pass quota calculation partitioning logic
+const now = Date.now();
+const mockRegistry = {
+  "sess-active-1": new Date(now - 1 * 3600000).toISOString(),
+  "sess-active-2": new Date(now - 5 * 3600000).toISOString(),
+  "sess-old-1": new Date(now - 25 * 3600000).toISOString(),
+  "sess-old-2": new Date(now - 30 * 3600000).toISOString(),
+};
+
+const windowStart = now - 24 * 3600000;
+const entries = Object.entries(mockRegistry);
+const allKnown = [];
+const recentlyDone = [];
+
+for (let i = 0; i < entries.length; i++) {
+  const [id, time] = entries[i];
+  const ts = parseDateMs(time);
+  if (ts >= windowStart) {
+    allKnown.push({ id, ts });
+  } else {
+    recentlyDone.push({ id, ts });
+  }
+}
+
+assert.equal(allKnown.length, 2);
+assert.equal(recentlyDone.length, 2);
+
 console.log('Utility tests passed');
