@@ -56,6 +56,8 @@ const SessionCard = memo(({ s, onPress, onSelect, isSelected, index, activities 
   }, [rawRepo]);
   const pri  = useMemo(() => getPRInfo(s, activities), [s, activities, ghPrNonce]);
   const b    = useMemo(() => getBranchInfo(s, activities), [s, activities, ghPrNonce]);
+  const checkStatus = useMemo(() => getCheckStatus(activities), [activities]);
+
   const activeCheck = useMemo(() => {
     if (b?.checks && (b.checksSource === "base" || b.working === b.base)) {
       if (b.checks.state === "success") return null;
@@ -63,6 +65,14 @@ const SessionCard = memo(({ s, onPress, onSelect, isSelected, index, activities 
     }
     return null;
   }, [b]);
+
+  const otherCheckPassed = useMemo(() => {
+    if (pri?.checks?.state === "success") return true;
+    if (b?.checks?.state === "success" && b.checksSource !== "base" && b.working !== b.base) return true;
+    if (checkStatus?.state === "success") return true;
+    return false;
+  }, [pri, b, checkStatus]);
+
   const ahead = useMemo(() => getAheadCount(activities), [activities]);
 
   const pr = useMemo(() => getPR(s), [s]);
@@ -150,7 +160,19 @@ const SessionCard = memo(({ s, onPress, onSelect, isSelected, index, activities 
             <Ic n={m.icon} s={11} c={m.color}/>
           </div>
         </div>
-        <div style={{flex:1,minWidth:0,fontFamily:"'IBM Plex Sans',sans-serif",fontSize:13,fontWeight:600,color:isSelected?T.textHi:T.textDim,lineHeight:1.3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+        <div
+          title={otherCheckPassed ? "Non-base branch checks passed" : undefined}
+          style={{
+            flex:1, minWidth:0, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:13, fontWeight:600,
+            color: isSelected ? T.textHi : (otherCheckPassed ? T.brandLight : T.textDim),
+            background: otherCheckPassed ? `${T.brand}15` : "transparent",
+            padding: otherCheckPassed ? "2px 6px" : "0",
+            borderRadius: otherCheckPassed ? 4 : 0,
+            border: otherCheckPassed ? `1px solid ${T.brand}30` : "none",
+            lineHeight:1.3, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
+            transition: "all .15s ease"
+          }}
+        >
           {s.title||s.prompt}
         </div>
         {activeCheck && (
