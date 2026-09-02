@@ -56,8 +56,12 @@ const SessionCard = memo(({ s, onPress, onSelect, isSelected, index, activities 
   }, [rawRepo]);
   const pri  = useMemo(() => getPRInfo(s, activities), [s, activities, ghPrNonce]);
   const b    = useMemo(() => getBranchInfo(s, activities), [s, activities, ghPrNonce]);
-  const checkStatus = useMemo(() => getCheckStatus(activities), [activities]);
-  const activeCheck = pri?.checks || b?.checks || checkStatus;
+  const activeCheck = useMemo(() => {
+    if (b?.checks && (b.checksSource === "base" || b.working === b.base)) {
+      return b.checks;
+    }
+    return null;
+  }, [b]);
   const ahead = useMemo(() => getAheadCount(activities), [activities]);
 
   const pr = useMemo(() => getPR(s), [s]);
