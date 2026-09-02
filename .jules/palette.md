@@ -73,3 +73,11 @@
 ## 2026-09-01 - [Context-Aware Step Feedback ARIA Labels in Plan View]
 **Learning:** In step-by-step review workflows (like `PlanView`), small toggle buttons like "NOTE" or "EDIT" used to expand/collapse per-step feedback inputs need clear, dynamic ARIA attributes. Providing `aria-expanded` alongside state-aware `title` and `aria-label` attributes (e.g., "Add note for Step 1", "Edit feedback for Step 1", "Close feedback for Step 1", and "Finish feedback for Step 1") ensures screen reader users understand exactly which step is being annotated and whether the input drawer is expanded.
 **Action:** Always add state-aware `title`, `aria-label`, and `aria-expanded` attributes to step-level annotation toggles and inline completion buttons.
+
+## 2026-09-02 - [Standard WAI-ARIA Modal Dialog Semantics and Header Associations]
+**Learning:** Reusable overlay modals require explicit `role="dialog"` and `aria-modal="true"` attributes to inform screen reader engines that interaction is confined to the overlay scope. Furthermore, programmatically linking modal headers using `aria-labelledby` and `aria-describedby` targeting title and subtitle element IDs (`modal-title`, `modal-subtitle`) ensures assistive technologies immediately announce the modal context upon focus traversal.
+**Action:** Always equip reusable Modal dialog containers with `role="dialog"`, `aria-modal="true"`, and conditional `aria-labelledby`/`aria-describedby` attributes referencing title and description element IDs.
+
+## 2026-09-03 - [Ambient Back-and-Forth Sync Border Indicators & ARIA Feedback]
+**Learning:** Providing an ambient, glowing back-and-forth scanning line along container borders during active data synchronization (like refreshing session lists or activity feeds) gives users immediate visual feedback that updates are in progress without causing layout shift or content displacement. Equipping these indicators with `role="progressbar"` and descriptive `aria-label`s ensures screen reader accessibility while creating a sleek, high-tech interface feel.
+**Action:** When implementing background data syncing in header containers, overlay a 2px back-and-forth scanning line along the bottom border with `role="progressbar"` and `aria-label`.

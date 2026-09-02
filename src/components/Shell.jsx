@@ -54,6 +54,11 @@ function Shell({ children, desktop=false }) {
           50% { border-color: ${T.brand}; box-shadow: 0 0 25px ${T.brand}80; transform: scale(1.02); }
           100% { border-color: ${T.brand}40; box-shadow: 0 0 0 ${T.brand}00; }
         }
+        @keyframes syncScan {
+          0% { left: 0%; transform: translateX(-100%); }
+          50% { left: 100%; transform: translateX(0%); }
+          100% { left: 0%; transform: translateX(-100%); }
+        }
         @media (prefers-reduced-motion: reduce) {
           *, ::before, ::after {
             animation-delay: -1ms !important;
