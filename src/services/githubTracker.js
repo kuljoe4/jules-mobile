@@ -553,6 +553,9 @@ const GitHubTracker = {
     if (base && !isValidGitBranchName(base)) {
       throw new Error(`Invalid base branch name ("${rawBase || base}").`);
     }
+    if (head.toLowerCase() === base.toLowerCase()) {
+      throw new Error(`Head branch ("${head}") cannot be identical to base branch ("${base}"). Please specify a feature branch.`);
+    }
     const token = SafeStorage.loadGithubToken();
     if (!token || !isValidGithubToken(token)) {
       throw new Error("GitHub Token required to create PR. Please set your token in Settings.");
@@ -585,7 +588,14 @@ const GitHubTracker = {
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.message || `Failed to create PR (Status ${res.status})`);
+        let errDetail = data.message || `Failed to create PR (Status ${res.status})`;
+        if (data.errors && Array.isArray(data.errors) && data.errors.length > 0) {
+          const formattedErrors = data.errors
+            .map(e => e.message ? e.message : (e.field ? `${e.field}: ${e.code}` : JSON.stringify(e)))
+            .join("; ");
+          errDetail = `${data.message || "Validation Failed"}: ${formattedErrors}`;
+        }
+        throw new Error(errDetail);
       }
 
       if (data.html_url) {
