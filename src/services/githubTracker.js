@@ -1,5 +1,6 @@
 import { LRUCache } from '../utils/cache.js';
 import { isValidGitBranchName, isValidGithubRepoName, isValidGithubToken } from '../utils/validation.js';
+import { getActivitiesSize } from '../utils/performance.js';
 
 /**
  * GitHubTracker encapsulating all GitHub integrations, caches, background fetches,
@@ -549,6 +550,9 @@ const GitHubTracker = {
     if (!head || !isValidGitBranchName(head)) {
       throw new Error(`Invalid head branch name ("${rawHead || head}").`);
     }
+    if (base && !isValidGitBranchName(base)) {
+      throw new Error(`Invalid base branch name ("${rawBase || base}").`);
+    }
     const token = SafeStorage.loadGithubToken();
     if (!token || !isValidGithubToken(token)) {
       throw new Error("GitHub Token required to create PR. Please set your token in Settings.");
@@ -638,7 +642,16 @@ const GitHubTracker = {
         throw new Error(data.message || `Failed to merge PR (Status ${res.status})`);
       }
 
-      this.GH_STATE_CACHE.delete(url);
+      this.PR_INFO_CACHE.clear();
+      const existing = this.GH_STATE_CACHE.get(url) || {};
+      const updatedInfo = {
+        ...existing,
+        state: "merged",
+        fetchedAt: Date.now(),
+        failed: false
+      };
+      this.GH_STATE_CACHE.set(url, updatedInfo);
+      window.dispatchEvent(new CustomEvent("gh-pr-updated", { detail: { url, ...updatedInfo } }));
       this.triggerGitHubFetch(url, true);
       return data;
     } catch (err) {

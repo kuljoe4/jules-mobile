@@ -1,3 +1,5 @@
+import { LRUCache } from './cache.js';
+
 const WORKING_SET_CACHE = new LRUCache(500);
 const FILE_MENTION_RE = /`([^`\s]+\.[a-z0-9]+)`/gi;
 
@@ -140,3 +142,5 @@ const getWorkingSet = (s, activities = []) => {
   WORKING_SET_CACHE.set(cacheKey, result);
   return result;
 };
+
+export { parseUnidiffPatch, getWorkingSet };

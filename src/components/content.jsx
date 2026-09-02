@@ -50,6 +50,9 @@ const ExpandableContent = memo(({ text, limit = 300, showCopy = false, forceExpa
                 e.stopPropagation();
                 setExpanded(true);
               }}
+              aria-expanded={false}
+              aria-label="Read full message"
+              title="Read full message"
               onMouseDown={e => e.currentTarget.style.transform = "translateY(6px) scale(0.96)"}
               onMouseUp={e => e.currentTarget.style.transform = "translateY(4px) scale(1)"}
               style={{
@@ -73,6 +76,9 @@ const ExpandableContent = memo(({ text, limit = 300, showCopy = false, forceExpa
               e.stopPropagation();
               setExpanded(false);
             }}
+            aria-expanded={true}
+            aria-label="Show less"
+            title="Show less"
             style={{
               background: "none", border: "none", color: T.dim, cursor: "pointer",
               fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 700,
@@ -211,6 +217,57 @@ const formatInlineText = (txt) => {
   return cleanMathText(txt);
 };
 
+const CodeBlock = memo(({ lang, content }) => {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = (e) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    if (copied) return;
+    navigator.clipboard.writeText(content).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  const displayLang = lang || "CODE";
+
+  return (
+    <div style={{
+      margin: "10px 0", background: "#040507", border: `1px solid ${T.border}`,
+      borderRadius: 6, overflow: "hidden", fontFamily: "'JetBrains Mono',monospace", fontSize: 13,
+    }}>
+      <div style={{
+        padding: "6px 10px", background: T.surface, borderBottom: `1px solid ${T.border}33`,
+        fontSize: 11, color: T.textDim, display: "flex", alignItems: "center", justifyContent: "space-between"
+      }}>
+        <span style={{ textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 700, color: lang ? T.brandLight : T.textDim }}>
+          {displayLang}
+        </span>
+        <button
+          onClick={handleCopy}
+          title={copied ? "Code preview copied to clipboard" : "Copy code preview"}
+          aria-label={copied ? "Code preview copied to clipboard" : `Copy ${displayLang} code preview`}
+          style={{
+            background: "none", border: "none", padding: "2px 6px", cursor: "pointer",
+            borderRadius: 4, display: "flex", alignItems: "center", gap: 4,
+            color: copied ? T.brand : T.muted,
+            fontSize: 10, fontFamily: "'JetBrains Mono',monospace", fontWeight: 800,
+            transition: "all .15s cubic-bezier(0.4, 0, 0.2, 1)", outline: "none"
+          }}
+          onMouseEnter={e => { e.currentTarget.style.color = T.brand; e.currentTarget.style.background = `${T.brand}15`; }}
+          onMouseLeave={e => { e.currentTarget.style.color = copied ? T.brand : T.muted; e.currentTarget.style.background = "none"; }}
+        >
+          <Ic n="copy" s={11} c={copied ? T.brand : T.muted}/>
+          {copied ? "COPIED" : "COPY"}
+        </button>
+      </div>
+      <div style={{ padding: "12px", color: T.text, whiteSpace: "pre-wrap", overflowWrap: "break-word", wordBreak: "break-word" }}>
+        {content}
+      </div>
+    </div>
+  );
+});
+
 const Markdown = memo(({ text }) => {
   if (!text) return null;
   const rawParts = text.split(/```/g);
@@ -222,21 +279,7 @@ const Markdown = memo(({ text }) => {
       let content = lines.slice(1).join("\n").trim();
       if (!content && lines.length > 0) { content = lines.join("\n").trim(); lang = ""; }
 
-      return (
-        <div key={i} style={{
-          margin:"10px 0", background:"#040507", border:`1px solid ${T.border}`,
-          borderRadius:6, overflow:"hidden", fontFamily:"'JetBrains Mono',monospace", fontSize:13,
-        }}>
-          {lang && (
-            <div style={{padding:"4px 10px", background:T.surface, borderBottom:`1px solid ${T.border}33`, fontSize:11, color:T.textDim, textTransform:"uppercase", letterSpacing:"0.05em"}}>
-              {lang}
-            </div>
-          )}
-          <div style={{padding:"12px", color:T.text, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word"}}>
-            {content}
-          </div>
-        </div>
-      );
+      return <CodeBlock key={i} lang={lang} content={content} />;
     }
 
     // Process lists and bold text in standard text parts
