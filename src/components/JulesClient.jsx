@@ -77,7 +77,10 @@ function JulesClient() {
           const val = localStorage.getItem(key);
           if (val && val.trim()) {
             const id = key.slice("jac_draft_".length);
-            map[id] = true;
+            // Security: Validate extracted session identifier before indexing to prevent LocalStorage key parameter pollution or path injection.
+            if (isValidSessionId(id)) {
+              map[id] = true;
+            }
           }
         }
       }
