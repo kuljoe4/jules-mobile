@@ -56,6 +56,8 @@ const SessionCard = memo(({ s, onPress, onSelect, isSelected, index, activities 
   }, [rawRepo]);
   const pri  = useMemo(() => getPRInfo(s, activities), [s, activities, ghPrNonce]);
   const b    = useMemo(() => getBranchInfo(s, activities), [s, activities, ghPrNonce]);
+  const checkStatus = useMemo(() => getCheckStatus(activities), [activities]);
+
   const activeCheck = useMemo(() => {
     if (b?.checks && (b.checksSource === "base" || b.working === b.base)) {
       if (b.checks.state === "success") return null;
@@ -63,6 +65,28 @@ const SessionCard = memo(({ s, onPress, onSelect, isSelected, index, activities 
     }
     return null;
   }, [b]);
+
+  const titleStyle = useMemo(() => {
+    if (!activeCheck) {
+      return {
+        color: isSelected ? T.textHi : T.textDim,
+        background: "transparent",
+        padding: "0",
+        borderRadius: 0,
+        border: "none"
+      };
+    }
+    const isFailure = activeCheck.state === "failure";
+    const highlightColor = isFailure ? T.red : T.amber;
+    return {
+      color: isSelected ? T.textHi : highlightColor,
+      background: `${highlightColor}15`,
+      padding: "2px 6px",
+      borderRadius: 4,
+      border: `1px solid ${highlightColor}30`
+    };
+  }, [activeCheck, isSelected]);
+
   const ahead = useMemo(() => getAheadCount(activities), [activities]);
 
   const pr = useMemo(() => getPR(s), [s]);
@@ -150,7 +174,15 @@ const SessionCard = memo(({ s, onPress, onSelect, isSelected, index, activities 
             <Ic n={m.icon} s={11} c={m.color}/>
           </div>
         </div>
-        <div style={{flex:1,minWidth:0,fontFamily:"'IBM Plex Sans',sans-serif",fontSize:13,fontWeight:600,color:isSelected?T.textHi:T.textDim,lineHeight:1.3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+        <div
+          title={activeCheck ? `Base branch check status: ${activeCheck.label || activeCheck.state}` : undefined}
+          style={{
+            flex:1, minWidth:0, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:13, fontWeight:600,
+            lineHeight:1.3, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
+            transition: "all .15s ease",
+            ...titleStyle
+          }}
+        >
           {s.title||s.prompt}
         </div>
         {activeCheck && (
