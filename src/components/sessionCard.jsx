@@ -66,12 +66,26 @@ const SessionCard = memo(({ s, onPress, onSelect, isSelected, index, activities 
     return null;
   }, [b]);
 
-  const otherCheckPassed = useMemo(() => {
-    if (pri?.checks?.state === "success") return true;
-    if (b?.checks?.state === "success" && b.checksSource !== "base" && b.working !== b.base) return true;
-    if (checkStatus?.state === "success") return true;
-    return false;
-  }, [pri, b, checkStatus]);
+  const titleStyle = useMemo(() => {
+    if (!activeCheck) {
+      return {
+        color: isSelected ? T.textHi : T.textDim,
+        background: "transparent",
+        padding: "0",
+        borderRadius: 0,
+        border: "none"
+      };
+    }
+    const isFailure = activeCheck.state === "failure";
+    const highlightColor = isFailure ? T.red : T.amber;
+    return {
+      color: isSelected ? T.textHi : highlightColor,
+      background: `${highlightColor}15`,
+      padding: "2px 6px",
+      borderRadius: 4,
+      border: `1px solid ${highlightColor}30`
+    };
+  }, [activeCheck, isSelected]);
 
   const ahead = useMemo(() => getAheadCount(activities), [activities]);
 
@@ -161,16 +175,12 @@ const SessionCard = memo(({ s, onPress, onSelect, isSelected, index, activities 
           </div>
         </div>
         <div
-          title={otherCheckPassed ? "Non-base branch checks passed" : undefined}
+          title={activeCheck ? `Base branch check status: ${activeCheck.label || activeCheck.state}` : undefined}
           style={{
             flex:1, minWidth:0, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:13, fontWeight:600,
-            color: isSelected ? T.textHi : (otherCheckPassed ? T.brandLight : T.textDim),
-            background: otherCheckPassed ? `${T.brand}15` : "transparent",
-            padding: otherCheckPassed ? "2px 6px" : "0",
-            borderRadius: otherCheckPassed ? 4 : 0,
-            border: otherCheckPassed ? `1px solid ${T.brand}30` : "none",
             lineHeight:1.3, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
-            transition: "all .15s ease"
+            transition: "all .15s ease",
+            ...titleStyle
           }}
         >
           {s.title||s.prompt}
