@@ -138,14 +138,20 @@ export const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFe
                   )}
                 </div>
                 {pendingApproval&&!approved&&(
-                  <button onClick={()=>setActiveNote(isOpen?null:st.id)} style={{
-                    flexShrink:0,padding:"4px 8px",borderRadius:4,border:"none",cursor:"pointer",
-                    background:isOpen?(hasNote?T.amberDim:T.purpleDim):"transparent",
-                    outline:`1px solid ${isOpen?(hasNote?T.amber+"40":T.purple+"40"):T.border}`,
-                    fontFamily:"'JetBrains Mono',monospace",fontSize:10,fontWeight:700,
-                    color:isOpen?(hasNote?T.amber:T.purple):T.muted,
-                    transition:"all .12s cubic-bezier(0.4, 0, 0.2, 1)",letterSpacing:"0.06em",
-                  }}>{hasNote?"EDIT":"NOTE"}</button>
+                  <button
+                    onClick={()=>setActiveNote(isOpen?null:st.id)}
+                    aria-expanded={isOpen}
+                    title={isOpen?`Close feedback for Step ${i+1}`:(hasNote?`Edit feedback for Step ${i+1}`:`Add note for Step ${i+1}`)}
+                    aria-label={isOpen?`Close feedback for Step ${i+1}`:(hasNote?`Edit feedback for Step ${i+1}`:`Add note for Step ${i+1}`)}
+                    style={{
+                      flexShrink:0,padding:"4px 8px",borderRadius:4,border:"none",cursor:"pointer",
+                      background:isOpen?(hasNote?T.amberDim:T.purpleDim):"transparent",
+                      outline:`1px solid ${isOpen?(hasNote?T.amber+"40":T.purple+"40"):T.border}`,
+                      fontFamily:"'JetBrains Mono',monospace",fontSize:10,fontWeight:700,
+                      color:isOpen?(hasNote?T.amber:T.purple):T.muted,
+                      transition:"all .12s cubic-bezier(0.4, 0, 0.2, 1)",letterSpacing:"0.06em",
+                    }}
+                  >{hasNote?"EDIT":"NOTE"}</button>
                 )}
               </div>
 
@@ -169,11 +175,16 @@ export const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFe
                     }}
                     autoFocus
                   />
-                  <button onClick={()=>setActiveNote(null)} style={{
-                    marginTop:5,padding:"4px 10px",borderRadius:4,border:`1px solid ${T.border}`,
-                    background:"transparent",cursor:"pointer",color:T.textDim,
-                    fontFamily:"'JetBrains Mono',monospace",fontSize:11,
-                  }}>DONE</button>
+                  <button
+                    onClick={()=>setActiveNote(null)}
+                    title={`Finish feedback for Step ${i+1}`}
+                    aria-label={`Finish feedback for Step ${i+1}`}
+                    style={{
+                      marginTop:5,padding:"4px 10px",borderRadius:4,border:`1px solid ${T.border}`,
+                      background:"transparent",cursor:"pointer",color:T.textDim,
+                      fontFamily:"'JetBrains Mono',monospace",fontSize:11,
+                    }}
+                  >DONE</button>
                 </div>
               )}
             </div>
