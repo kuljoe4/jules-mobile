@@ -2,13 +2,19 @@
  * CreatePRModal component for prompting the user to enter PR title and optional description
  * before submitting a GitHub Pull Request via the REST API.
  */
-const CreatePRModal = ({ defaultTitle, defaultBody, repo, headBranch, baseBranch, onClose, onSubmit, busy, error }) => {
+const CreatePRModal = ({ defaultTitle, defaultBody, repo, headBranch, baseBranch, aheadCommits = [], onClose, onSubmit, busy, error }) => {
   const [prTitle, setPrTitle] = useState(defaultTitle || "");
   const [prBody, setPrBody] = useState(defaultBody || "");
+  const [localErr, setLocalErr] = useState(null);
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!prTitle.trim() || busy) return;
+    if (headBranch && baseBranch && headBranch.trim().toLowerCase() === baseBranch.trim().toLowerCase()) {
+      setLocalErr(`Cannot create Pull Request: Head branch ("${headBranch}") is identical to base branch ("${baseBranch}"). Please specify a feature branch.`);
+      return;
+    }
+    setLocalErr(null);
     onSubmit({ title: prTitle.trim(), body: prBody.trim() });
   };
 
@@ -50,9 +56,44 @@ const CreatePRModal = ({ defaultTitle, defaultBody, repo, headBranch, baseBranch
       }
     >
       <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        {error && (
+        {(error || localErr) && (
           <div style={{ padding: "8px 12px", background: `${T.red}15`, border: `1px solid ${T.red}40`, borderRadius: 6, color: T.red, fontFamily: "'JetBrains Mono',monospace", fontSize: 11 }}>
-            {error}
+            {localErr || error}
+          </div>
+        )}
+
+        {aheadCommits && aheadCommits.length > 0 && (
+          <div style={{
+            background: T.surfaceHi, border: `1px solid ${T.borderHi}`, borderRadius: 8, padding: 12
+          }}>
+            <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 800, color: T.brand, marginBottom: 8, letterSpacing: "0.08em" }}>
+              AHEAD COMMITS TO BE MERGED ({aheadCommits.length})
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 160, overflowY: "auto" }}>
+              {aheadCommits.map((c, i) => {
+                const lines = (c.message || "").trim().split("\n");
+                const subject = lines[0];
+                const desc = lines.slice(1).join("\n").trim();
+
+                return (
+                  <div key={c.sha || i} style={{ background: T.bg, padding: 8, borderRadius: 6, border: `1px solid ${T.border}` }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: desc ? 4 : 0 }}>
+                      <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 700, color: T.purple }}>
+                        {c.sha ? c.sha.slice(0, 7) : "commit"}
+                      </span>
+                      <span style={{ fontFamily: "'IBM Plex Sans',sans-serif", fontSize: 13, fontWeight: 700, color: T.textHi, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {subject}
+                      </span>
+                    </div>
+                    {desc && (
+                      <div style={{ fontFamily: "'IBM Plex Sans',sans-serif", fontSize: 11, color: T.textDim, lineHeight: 1.35, whiteSpace: "pre-wrap", opacity: 0.85 }}>
+                        {desc.length > 150 ? desc.slice(0, 147) + "..." : desc}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 

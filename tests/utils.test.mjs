@@ -12,7 +12,9 @@ import {
 } from '../src/utils/validation.js';
 import { cleanMathText, fmtBytes, fmtChars, formatSmartDashItems, safeSlice } from '../src/utils/format.js';
 import { fmtAgo, fmtDuration, fmtTime, parseDateMs } from '../src/utils/date.js';
-import { GitHubTracker, getPR } from '../src/services/githubTracker.js';
+import { GitHubTracker, getPR, getPRInfo, getBranchInfo, getCheckStatus, createPullRequest, deleteBranch } from '../src/services/githubTracker.js';
+import { fastDeepEqual, getActivitiesSize, getApproxBytes, getPatchFileCount, getPayloadBreakdown } from '../src/utils/performance.js';
+import { parseUnidiffPatch, getWorkingSet } from '../src/utils/workingSet.js';
 
 if (typeof globalThis.localStorage === 'undefined') {
   const storageMap = new Map();
@@ -209,6 +211,85 @@ await assert.rejects(
     await GitHubTracker.mergePullRequest('https://github.com/../invalid/pull/1');
   },
   { message: 'Invalid GitHub repository format in URL' }
+);
+
+// Test fastDeepEqual
+assert.equal(fastDeepEqual({ a: 1, b: [2, 3] }, { a: 1, b: [2, 3] }), true);
+assert.equal(fastDeepEqual({ a: 1, b: [2, 3] }, { a: 1, b: [2, 4] }), false);
+assert.equal(fastDeepEqual(null, null), true);
+assert.equal(fastDeepEqual(1, '1'), false);
+
+// Test performance byte calculation and payload breakdown
+const sampleChangeSet = {
+  gitPatch: {
+    unidiffPatch: "--- a/src/app.js\n+++ b/src/app.js\n@@ -1,3 +1,4 @@\n+// change\n"
+  }
+};
+assert.equal(getPatchFileCount(sampleChangeSet), 1);
+
+const sampleActivities = [
+  {
+    id: "act-1",
+    createTime: "2026-08-25T12:00:00Z",
+    artifacts: [{ changeSet: sampleChangeSet }]
+  },
+  {
+    id: "act-2",
+    createTime: "2026-08-25T12:01:00Z",
+    progressUpdated: { description: "CI check passed successfully", title: "Run checks" }
+  }
+];
+
+const totalSize = getActivitiesSize(sampleActivities);
+assert.equal(typeof totalSize, "number");
+assert.equal(totalSize > 0, true);
+
+const breakdown = getPayloadBreakdown(sampleActivities);
+assert.equal(breakdown.patchCount, 1);
+assert.equal(breakdown.topPatches.length, 1);
+
+// Test parseUnidiffPatch and getWorkingSet
+const parsedGroups = parseUnidiffPatch(sampleChangeSet.gitPatch.unidiffPatch);
+assert.equal(parsedGroups.length, 1);
+assert.equal(parsedGroups[0].file, "src/app.js");
+
+const mockSession = {
+  id: "sess-ws-1",
+  prompt: "Fix bug in `src/app.js` and `src/utils.js`",
+  sourceContext: { source: "sources/github/owner/repo", githubRepoContext: { startingBranch: "main" } }
+};
+const workingSetFiles = getWorkingSet(mockSession, sampleActivities);
+assert.equal(workingSetFiles.includes("src/app.js"), true);
+
+// Test getCheckStatus signal extraction
+const checkStatus = getCheckStatus(sampleActivities);
+assert.deepEqual(checkStatus, { state: "success", label: "CHECKS PASSED" });
+
+// Test getPRInfo fallback with activities
+const prInfo = getPRInfo(mockSession, sampleActivities);
+assert.equal(prInfo, null);
+
+// Test createPullRequest parameter validation
+await assert.rejects(
+  async () => {
+    await createPullRequest({ repo: "owner/repo", head: "-invalid-branch", base: "main" });
+  },
+  { message: 'Invalid head branch name ("-invalid-branch").' }
+);
+
+await assert.rejects(
+  async () => {
+    await createPullRequest({ repo: "owner/repo", head: "feature", base: "bad branch with spaces" });
+  },
+  { message: 'Invalid base branch name ("bad branch with spaces").' }
+);
+
+// Test deleteBranch parameter validation
+await assert.rejects(
+  async () => {
+    await deleteBranch("owner/repo", "../invalid");
+  },
+  { message: "Invalid branch name for deletion" }
 );
 
 console.log('Utility tests passed');

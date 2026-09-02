@@ -170,3 +170,5 @@ const fastDeepEqual = (a, b) => {
   }
   return true;
 };
+
+export { getActivitiesSize, getApproxBytes, getPatchFileCount, getPayloadBreakdown, fastDeepEqual };

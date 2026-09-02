@@ -1,5 +1,6 @@
 import { LRUCache } from '../utils/cache.js';
 import { isValidGitBranchName, isValidGithubRepoName, isValidGithubToken } from '../utils/validation.js';
+import { getActivitiesSize } from '../utils/performance.js';
 
 /**
  * GitHubTracker encapsulating all GitHub integrations, caches, background fetches,
@@ -549,6 +550,12 @@ const GitHubTracker = {
     if (!head || !isValidGitBranchName(head)) {
       throw new Error(`Invalid head branch name ("${rawHead || head}").`);
     }
+    if (base && !isValidGitBranchName(base)) {
+      throw new Error(`Invalid base branch name ("${rawBase || base}").`);
+    }
+    if (head.toLowerCase() === base.toLowerCase()) {
+      throw new Error(`Head branch ("${head}") cannot be identical to base branch ("${base}"). Please specify a feature branch.`);
+    }
     const token = SafeStorage.loadGithubToken();
     if (!token || !isValidGithubToken(token)) {
       throw new Error("GitHub Token required to create PR. Please set your token in Settings.");
@@ -581,7 +588,14 @@ const GitHubTracker = {
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.message || `Failed to create PR (Status ${res.status})`);
+        let errDetail = data.message || `Failed to create PR (Status ${res.status})`;
+        if (data.errors && Array.isArray(data.errors) && data.errors.length > 0) {
+          const formattedErrors = data.errors
+            .map(e => e.message ? e.message : (e.field ? `${e.field}: ${e.code}` : JSON.stringify(e)))
+            .join("; ");
+          errDetail = `${data.message || "Validation Failed"}: ${formattedErrors}`;
+        }
+        throw new Error(errDetail);
       }
 
       if (data.html_url) {
@@ -638,7 +652,16 @@ const GitHubTracker = {
         throw new Error(data.message || `Failed to merge PR (Status ${res.status})`);
       }
 
-      this.GH_STATE_CACHE.delete(url);
+      this.PR_INFO_CACHE.clear();
+      const existing = this.GH_STATE_CACHE.get(url) || {};
+      const updatedInfo = {
+        ...existing,
+        state: "merged",
+        fetchedAt: Date.now(),
+        failed: false
+      };
+      this.GH_STATE_CACHE.set(url, updatedInfo);
+      window.dispatchEvent(new CustomEvent("gh-pr-updated", { detail: { url, ...updatedInfo } }));
       this.triggerGitHubFetch(url, true);
       return data;
     } catch (err) {

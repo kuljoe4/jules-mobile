@@ -2328,7 +2328,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
       {showCreatePRModal && (
         <CreatePRModal
           defaultTitle={(() => {
-            if (pr?.state === "merged" && b?.commits && b.commits.length > 0) {
+            if (b?.commits && b.commits.length > 0) {
               const firstCommitMsg = (b.commits[0].message || "").split("\n")[0].trim();
               if (firstCommitMsg.length >= 3) {
                 return b.commits.length === 1 ? firstCommitMsg : `${firstCommitMsg} (+${b.commits.length - 1} more commits)`;
@@ -2346,9 +2346,14 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
             return "Update repository changes";
           })()}
           defaultBody={(() => {
-            if (pr?.state === "merged" && b?.commits && b.commits.length > 0) {
-              const commitLines = b.commits.map(c => `- ${c.sha} ${c.message.split("\n")[0]}`).join("\n");
-              return `### Follow-up Commits\n\n${commitLines}\n\nCreated via Jules Mobile Client`;
+            if (b?.commits && b.commits.length > 0) {
+              const commitLogs = b.commits.map(c => {
+                const lines = (c.message || "").trim().split("\n");
+                const subject = lines[0];
+                const desc = lines.slice(1).join("\n").trim();
+                return `- **${subject}** (\`${c.sha}\`)${desc ? `\n  ${desc.replace(/\n/g, "\n  ")}` : ""}`;
+              }).join("\n\n");
+              return `### Ahead Commits\n\n${commitLogs}\n\nCreated via Jules Mobile Client`;
             }
             const summary = session.outputs?.find(o => o.sessionSummary)?.sessionSummary?.summary;
             if (summary) return summary;
@@ -2357,6 +2362,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
           repo={repo}
           headBranch={b?.working || "feature"}
           baseBranch={b?.base || "main"}
+          aheadCommits={b?.commits || []}
           onClose={() => setShowCreatePRModal(false)}
           onSubmit={handleConfirmCreatePR}
           busy={busy}
