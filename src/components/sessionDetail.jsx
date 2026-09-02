@@ -890,6 +890,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     ...(mediaArtifacts.length>0?[{ id:"media", label:"MEDIA" }]:[]),
   ];
 
+  const activeSyncing = isSyncing || busy || (syncPhase !== "IDLE" && syncPhase !== "DONE");
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%",minHeight:0,position:"relative"}}>
@@ -903,6 +904,23 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
         contain: "layout",
         position: "relative",
       }}>
+        {activeSyncing && (
+          <div
+            role="progressbar"
+            aria-label="Syncing activity details"
+            style={{
+              position: "absolute", bottom: -1, left: 0, right: 0, height: 2,
+              overflow: "hidden", pointerEvents: "none", zIndex: 10
+            }}
+          >
+            <div style={{
+              position: "absolute", top: 0, bottom: 0, width: "30%",
+              background: `linear-gradient(90deg, transparent, ${T.brand}, ${T.brandLight}, transparent)`,
+              boxShadow: `0 0 8px ${T.brand}`,
+              animation: "syncScan 1.8s ease-in-out infinite"
+            }}/>
+          </div>
+        )}
         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:scrolled?0:6, minHeight:scrolled?24:44}}>
           {!isDesktop&&(
             <div style={{display:"flex", alignItems:"center", gap:4}}>

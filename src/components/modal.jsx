@@ -16,12 +16,19 @@ const Modal = ({ children, actions, onClose, title, subtitle, icon: IconN, maxWi
       display:"flex", alignItems:"center", justifyContent:"center",
       padding:20, animation:"fadeIn .2s ease"
     }} onClick={onClose}>
-      <div style={{
-        width:"100%", maxWidth, maxHeight:"90vh", background:T.surface, border:`1px solid ${T.borderHi}`,
-        borderRadius:16, boxShadow:"0 20px 50px rgba(0,0,0,0.6)",
-        animation:"zoomIn .3s cubic-bezier(0.2, 0, 0.2, 1)",
-        position:"relative", display:"flex", flexDirection:"column"
-      }} onClick={e => e.stopPropagation()}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={title ? "modal-title" : undefined}
+        aria-describedby={subtitle ? "modal-subtitle" : undefined}
+        style={{
+          width:"100%", maxWidth, maxHeight:"90vh", background:T.surface, border:`1px solid ${T.borderHi}`,
+          borderRadius:16, boxShadow:"0 20px 50px rgba(0,0,0,0.6)",
+          animation:"zoomIn .3s cubic-bezier(0.2, 0, 0.2, 1)",
+          position:"relative", display:"flex", flexDirection:"column"
+        }}
+        onClick={e => e.stopPropagation()}
+      >
         <div style={{
           position:"absolute", top:0, left:0, right:0, height:3,
           background:`linear-gradient(90deg, ${T.brand}, ${T.purple})`
@@ -62,8 +69,8 @@ const Modal = ({ children, actions, onClose, title, subtitle, icon: IconN, maxWi
                 <Ic n={IconN} s={22} c={T.brand}/>
               </div>
             )}
-            {title && <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:16, fontWeight:900, color:T.text, letterSpacing:"0.05em"}}>{title}</div>}
-            {subtitle && <div style={{fontFamily:"'IBM Plex Sans',sans-serif", fontSize:14, color:T.muted, marginTop:4}}>{subtitle}</div>}
+            {title && <div id="modal-title" style={{fontFamily:"'JetBrains Mono',monospace", fontSize:16, fontWeight:900, color:T.text, letterSpacing:"0.05em"}}>{title}</div>}
+            {subtitle && <div id="modal-subtitle" style={{fontFamily:"'IBM Plex Sans',sans-serif", fontSize:14, color:T.muted, marginTop:4}}>{subtitle}</div>}
           </div>
         )}
         {children}

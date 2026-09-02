@@ -146,8 +146,25 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
         padding: sidebarCollapsed ? "12px 8px" : (scrolled ? "8px 16px 8px" : "12px 16px 0"),
         background: T.surface, borderBottom: `1px solid ${T.border}33`, flexShrink: 0,
         transition: "padding .2s cubic-bezier(0.4, 0, 0.2, 1), background .2s cubic-bezier(0.4, 0, 0.2, 1)",
-        zIndex: 5, contain: "layout"
+        zIndex: 5, contain: "layout", position: "relative"
       }}>
+        {refreshing && (
+          <div
+            role="progressbar"
+            aria-label="Syncing session list"
+            style={{
+              position: "absolute", bottom: -1, left: 0, right: 0, height: 2,
+              overflow: "hidden", pointerEvents: "none", zIndex: 10
+            }}
+          >
+            <div style={{
+              position: "absolute", top: 0, bottom: 0, width: "30%",
+              background: `linear-gradient(90deg, transparent, ${T.brand}, ${T.brandLight}, transparent)`,
+              boxShadow: `0 0 8px ${T.brand}`,
+              animation: "syncScan 1.8s ease-in-out infinite"
+            }}/>
+          </div>
+        )}
         <div style={{display:"flex",alignItems:"center",justifyContent:sidebarCollapsed?"center":"flex-start",gap:sidebarCollapsed?4:8,marginBottom:(scrolled||sidebarCollapsed)?0:10}}>
           <div style={{width:scrolled?20:32,height:scrolled?20:32,borderRadius:6,background:T.brand,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace",fontSize:scrolled?11:18,fontWeight:900,color:"#000",boxShadow:scrolled?"none":`0 0 12px ${T.brandDark}40`,flexShrink:0,transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)"}}>J</div>
           {!sidebarCollapsed && (
