@@ -38,15 +38,28 @@ const useQuotaTracker = (sessions, plan) => {
   }, []);
 
   const todayCount = useMemo(() => {
-    // Rolling 24h Window Logic using SessionRegistry for accuracy
+    // OPTIMIZATION (Bolt): Single-pass partitioning over sessionRegistry entries.
+    // Partitioning active window sessions (`allKnown`) and historical resets (`recentlyDone`)
+    // in a single loop avoids 2x Object.entries calls, 2x parseDateMs executions, and 4 intermediate array allocations.
     const now = Date.now();
     const windowStart = now - 24 * 3600000;
 
-    const allKnown = Object.entries(sessionRegistry).map(([id, time]) => ({
-      id, ts: parseDateMs(time)
-    })).filter(s => s.ts >= windowStart);
+    const entries = Object.entries(sessionRegistry);
+    const allKnown = [];
+    const recentlyDone = [];
+
+    for (let i = 0; i < entries.length; i++) {
+      const [id, time] = entries[i];
+      const ts = parseDateMs(time);
+      if (ts >= windowStart) {
+        allKnown.push({ id, ts });
+      } else {
+        recentlyDone.push({ id, ts });
+      }
+    }
 
     allKnown.sort((a, b) => a.ts - b.ts);
+    recentlyDone.sort((a, b) => b.ts - a.ts);
 
     let resetIn = "24h 0m";
     let nextResetTs = null;
@@ -60,27 +73,24 @@ const useQuotaTracker = (sessions, plan) => {
       const m = Math.floor((msLeft % 3600000) / 60000);
       resetIn = `${h}h ${m}m`;
 
-      allKnown.slice(0, 4).forEach(s => {
+      const limit = Math.min(4, allKnown.length);
+      for (let i = 0; i < limit; i++) {
+        const s = allKnown[i];
         const rTs = s.ts + 24 * 3600000;
         const diff = rTs - now;
         upcomingResets.push({
           ts: rTs,
           in: `${Math.floor(diff / 3600000)}h ${Math.floor((diff % 3600000) / 60000)}m`
         });
-      });
+      }
     }
 
-    // ── Find the last 2 resets that happened ───────────────────────────
-    const windowEnd = now - 24 * 3600000;
-    const recentlyDone = Object.entries(sessionRegistry)
-      .map(([id, time]) => ({ id, ts: parseDateMs(time) }))
-      .filter(s => s.ts < windowEnd)
-      .sort((a, b) => b.ts - a.ts); // sort descending (newest reset first)
-
-    recentlyDone.slice(0, 2).forEach(s => {
+    const recentLimit = Math.min(2, recentlyDone.length);
+    for (let i = 0; i < recentLimit; i++) {
+      const s = recentlyDone[i];
       const resetTs = s.ts + 24 * 3600000;
       recentResets.push({ ts: resetTs, ago: fmtAgo(resetTs) });
-    });
+    }
 
     const windowIds = new Set(allKnown.map(s => s.id));
     // OPTIMIZATION (Bolt): Pre-index PR status for sessions in the 24h window in a single pass
