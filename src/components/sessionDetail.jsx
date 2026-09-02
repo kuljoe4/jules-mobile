@@ -96,7 +96,10 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   };
 
   const handleConfirmCreatePR = async ({ title, body }) => {
-    if (!repo || !b?.working) return;
+    if (!repo || !b?.working) {
+      setCreatePRErr(`Cannot create Pull Request: Repository (${repo || "unknown"}) or working branch (${b?.working || "unknown"}) was not detected.`);
+      return;
+    }
     setBusy(true);
     setCreatePRErr(null);
     try {
@@ -1676,7 +1679,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
 
                   {/* PR Branch Sync and CI/CD Build Status Grid */}
                   <div style={{
-                    display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12,
+                    display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12,
                     background: `${T.surfaceHi}80`, borderRadius: 8, border: `1px solid ${T.border}`,
                     padding: 12, marginBottom: 12
                   }}>
@@ -1718,6 +1721,31 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                           <span style={{ width: 8, height: 8, borderRadius: "50%", background: T.dim }} />
                           <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, color: T.dim }}>NO CHECKS REPORTED</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Live Deployment Status */}
+                    <div>
+                      <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 800, color: "#38bdf8", letterSpacing: "0.05em", marginBottom: 4 }}>
+                        LIVE DEPLOYMENT
+                      </div>
+                      {b?.deployment ? (
+                        <a href={safeUrl(b.deployment.environmentUrl || b.deployment.targetUrl || "#")} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
+                          <span style={{
+                            width: 8, height: 8, borderRadius: "50%", flexShrink: 0,
+                            background: b.deployment.state === "success" ? "#34d399" : (b.deployment.state === "failure" || b.deployment.state === "error") ? T.red : T.amber,
+                            boxShadow: b.deployment.state === "success" ? "0 0 8px #34d399" : (b.deployment.state === "failure" || b.deployment.state === "error") ? `0 0 8px ${T.red}` : `0 0 8px ${T.amber}`,
+                            animation: (b.deployment.state === "in_progress" || b.deployment.state === "queued") ? "dot 1s infinite" : "none"
+                          }} />
+                          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, fontWeight: 800, color: b.deployment.state === "success" ? "#34d399" : (b.deployment.state === "failure" || b.deployment.state === "error") ? T.red : T.amber }}>
+                            {b.deployment.label || b.deployment.state.toUpperCase()}
+                          </span>
+                        </a>
+                      ) : (
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <span style={{ width: 8, height: 8, borderRadius: "50%", background: T.dim }} />
+                          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, color: T.dim }}>NO DEPLOYMENT</span>
                         </div>
                       )}
                     </div>
@@ -1896,7 +1924,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
 
                   {/* Branch Sync and CI/CD Status Grid */}
                   <div style={{
-                    display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12,
+                    display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12,
                     background: `${T.surfaceHi}80`, borderRadius: 8, border: `1px solid ${T.border}`,
                     padding: 12, marginBottom: 12
                   }}>
@@ -1938,6 +1966,31 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                           <span style={{ width: 8, height: 8, borderRadius: "50%", background: T.dim }} />
                           <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, color: T.dim }}>NO CHECKS REPORTED</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Live Deployment Status */}
+                    <div>
+                      <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 800, color: "#38bdf8", letterSpacing: "0.05em", marginBottom: 4 }}>
+                        LIVE DEPLOYMENT
+                      </div>
+                      {b.deployment ? (
+                        <a href={safeUrl(b.deployment.environmentUrl || b.deployment.targetUrl || "#")} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
+                          <span style={{
+                            width: 8, height: 8, borderRadius: "50%", flexShrink: 0,
+                            background: b.deployment.state === "success" ? "#34d399" : (b.deployment.state === "failure" || b.deployment.state === "error") ? T.red : T.amber,
+                            boxShadow: b.deployment.state === "success" ? "0 0 8px #34d399" : (b.deployment.state === "failure" || b.deployment.state === "error") ? `0 0 8px ${T.red}` : `0 0 8px ${T.amber}`,
+                            animation: (b.deployment.state === "in_progress" || b.deployment.state === "queued") ? "dot 1s infinite" : "none"
+                          }} />
+                          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, fontWeight: 800, color: b.deployment.state === "success" ? "#34d399" : (b.deployment.state === "failure" || b.deployment.state === "error") ? T.red : T.amber }}>
+                            {b.deployment.label || b.deployment.state.toUpperCase()}
+                          </span>
+                        </a>
+                      ) : (
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <span style={{ width: 8, height: 8, borderRadius: "50%", background: T.dim }} />
+                          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, color: T.dim }}>NO DEPLOYMENT</span>
                         </div>
                       )}
                     </div>

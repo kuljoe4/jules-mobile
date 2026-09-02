@@ -17,10 +17,13 @@ const GitHubTracker = {
   GH_BRANCH_IN_FLIGHT: new Set(),
   GH_REPO_DEFAULT_BRANCH_CACHE: new Map(),
   GH_REPO_DEFAULT_BRANCH_IN_FLIGHT: new Set(),
+  GH_DEPLOYMENT_STATE_CACHE: new Map(),
+  GH_DEPLOYMENT_IN_FLIGHT: new Set(),
   CHECK_ACTIVITY_CACHE: new WeakMap(),
   CHECK_STATUS_ARRAY_CACHE: new WeakMap(),
   BRANCH_INFO_CACHE: new LRUCache(500),
   BRANCH_ACTIVITY_CACHE: new WeakMap(),
+  DEPLOYMENT_INFO_CACHE: new LRUCache(500),
 
   // Regex Configurations
   GH_PR_RE: /https:\/\/github\.com\/[a-zA-Z0-9\-_.]+\/[a-zA-Z0-9\-_.]+\/pull\/(\d+)/,
@@ -355,6 +358,83 @@ const GitHubTracker = {
         console.warn("Error fetching repo default branch:", err);
         this.GH_REPO_DEFAULT_BRANCH_IN_FLIGHT.delete(repo);
       });
+  },
+
+  triggerGitHubDeploymentFetch(rawRepo, force = false) {
+    if (!rawRepo) return;
+    let repo = rawRepo.trim().replace(/^sources\/github\//, "").replace(/\.git$/, "").replace(/\/$/, "");
+    if (!isValidGithubRepoName(repo)) return;
+    if (!force && this.GH_DEPLOYMENT_IN_FLIGHT.has(repo)) return;
+
+    this.GH_DEPLOYMENT_IN_FLIGHT.add(repo);
+
+    const token = SafeStorage.loadGithubToken();
+    const headers = { "Accept": "application/vnd.github.v3+json" };
+    if (token && isValidGithubToken(token)) {
+      headers["Authorization"] = `token ${token}`;
+    }
+
+    const deploymentsUrl = `https://api.github.com/repos/${repo}/deployments?per_page=5`;
+
+    this.githubFetch(deploymentsUrl, headers)
+      .then(deployments => {
+        if (!Array.isArray(deployments) || deployments.length === 0) {
+          const info = { deployment: null, fetchedAt: Date.now() };
+          this.GH_DEPLOYMENT_STATE_CACHE.set(repo, info);
+          this.GH_DEPLOYMENT_IN_FLIGHT.delete(repo);
+          this.BRANCH_INFO_CACHE.clear();
+          return;
+        }
+
+        const latest = deployments[0];
+        const statusUrl = `https://api.github.com/repos/${repo}/deployments/${latest.id}/statuses`;
+
+        return this.githubFetch(statusUrl, headers)
+          .then(statuses => {
+            const latestStatus = (Array.isArray(statuses) && statuses.length > 0) ? statuses[0] : null;
+            const state = latestStatus?.state || "queued";
+            let label = "DEPLOYING";
+            if (state === "success") label = "DEPLOYED";
+            else if (state === "failure" || state === "error") label = "DEPLOY FAILED";
+            else if (state === "in_progress" || state === "queued" || state === "pending") label = "DEPLOYING";
+
+            const deploymentInfo = {
+              id: latest.id,
+              environment: latest.environment || "github-pages",
+              state,
+              label,
+              environmentUrl: latestStatus?.environment_url || latest.environment_url || null,
+              targetUrl: latestStatus?.target_url || latest.statuses_url || `https://github.com/${repo}/deployments`,
+              updatedAt: latestStatus?.created_at || latest.created_at || null,
+              fetchedAt: Date.now()
+            };
+
+            this.GH_DEPLOYMENT_STATE_CACHE.set(repo, deploymentInfo);
+            this.GH_DEPLOYMENT_IN_FLIGHT.delete(repo);
+            this.BRANCH_INFO_CACHE.clear();
+            window.dispatchEvent(new CustomEvent("gh-pr-updated", { detail: { repo, deployment: deploymentInfo } }));
+          });
+      })
+      .catch(err => {
+        console.warn("Error fetching deployment metadata from GitHub:", err);
+        this.GH_DEPLOYMENT_IN_FLIGHT.delete(repo);
+        this.GH_DEPLOYMENT_STATE_CACHE.set(repo, null);
+      });
+  },
+
+  getDeploymentInfo(rawRepo, force = false) {
+    if (!rawRepo) return null;
+    let repo = rawRepo.trim().replace(/^sources\/github\//, "").replace(/\.git$/, "").replace(/\/$/, "");
+    if (!isValidGithubRepoName(repo)) return null;
+
+    const cached = this.GH_DEPLOYMENT_STATE_CACHE.get(repo);
+    const ttl = 30 * 1000;
+    if (!force && cached && (Date.now() - cached.fetchedAt < ttl)) {
+      return cached;
+    }
+
+    this.triggerGitHubDeploymentFetch(repo, force);
+    return cached || null;
   },
 
   async deleteBranch(repo, branch) {
@@ -806,12 +886,12 @@ const GitHubTracker = {
                            title.includes("check") || title.includes("workflow") || title.includes("deploy");
 
           if (isSignal) {
-            if (desc.includes("passed") || desc.includes("success") || desc.includes("completed") || desc.includes("verified")) {
-              actStatus = { state: "success", label: desc.includes("deploy") ? "DEPLOYED" : "CHECKS PASSED" };
-            } else if (desc.includes("failed") || desc.includes("failure") || desc.includes("error")) {
+            if (desc.includes("failed") || desc.includes("failure") || desc.includes("error")) {
               actStatus = { state: "failure", label: desc.includes("deploy") ? "DEPLOY FAILED" : "CHECKS FAILED" };
             } else if (desc.includes("running") || desc.includes("pending") || desc.includes("started") || desc.includes("progress")) {
               actStatus = { state: "pending", label: desc.includes("deploy") ? "DEPLOYING" : "CHECKS RUNNING" };
+            } else if (desc.includes("passed") || desc.includes("success") || desc.includes("completed") || desc.includes("verified")) {
+              actStatus = { state: "success", label: desc.includes("deploy") ? "DEPLOYED" : "CHECKS PASSED" };
             }
 
             const urlMatch = (pu.description || "").match(this.CHECK_URL_RE);
@@ -981,6 +1061,8 @@ const GitHubTracker = {
       }
     }
 
+    const deployment = repo ? this.getDeploymentInfo(repo, force) : null;
+
     const res = {
       base,
       working: activeWorking,
@@ -993,6 +1075,7 @@ const GitHubTracker = {
       commits,
       checks,
       checksSource,
+      deployment,
       failed
     };
     if (sid !== "temp") {
@@ -1011,9 +1094,10 @@ const getPR = (s) => GitHubTracker.getPR(s);
 const getPRInfo = (s, activities = []) => GitHubTracker.getPRInfo(s, activities);
 const getBranchInfo = (s, activities = [], force = false) => GitHubTracker.getBranchInfo(s, activities, force);
 const getCheckStatus = (activities = []) => GitHubTracker.getCheckStatus(activities);
+const getDeploymentInfo = (repo, force = false) => GitHubTracker.getDeploymentInfo(repo, force);
 const getPrUrlAndNumber = (pr) => GitHubTracker.getPrUrlAndNumber(pr);
 const createPullRequest = (params) => GitHubTracker.createPullRequest(params);
 const mergePullRequest = (url, mergeMethod) => GitHubTracker.mergePullRequest(url, mergeMethod);
 const deleteBranch = (repo, branch) => GitHubTracker.deleteBranch(repo, branch);
 
-export { GitHubTracker, getPR, getPRInfo, getBranchInfo, getCheckStatus, getPrUrlAndNumber, createPullRequest, mergePullRequest, deleteBranch };
+export { GitHubTracker, getPR, getPRInfo, getBranchInfo, getCheckStatus, getDeploymentInfo, getPrUrlAndNumber, createPullRequest, mergePullRequest, deleteBranch };
