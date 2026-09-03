@@ -59,12 +59,16 @@ const SessionCard = memo(({ s, onPress, onSelect, isSelected, index, activities 
   const checkStatus = useMemo(() => getCheckStatus(activities), [activities]);
 
   const activeCheck = useMemo(() => {
+    const isFresh = parseDateMs(s.updateTime || s.createTime) > (Date.now() - 15 * 60 * 1000);
+    const isRelevantSession = isSelected || isWorking || (isFinished && isFresh);
+    if (!isRelevantSession) return null;
+
     if (b?.checks && (b.checksSource === "base" || b.working === b.base)) {
       if (b.checks.state === "success") return null;
       return b.checks;
     }
     return null;
-  }, [b]);
+  }, [b, isSelected, isWorking, isFinished, s.updateTime, s.createTime]);
 
   const titleStyle = useMemo(() => {
     if (!activeCheck) {
