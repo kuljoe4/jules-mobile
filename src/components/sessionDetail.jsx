@@ -89,6 +89,9 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   const [createPRErr, setCreatePRErr] = useState(null);
   const [ghActionFeedback, setGhActionFeedback] = useState(null); // { type, message, url }
   const [mergeMethod, setMergeMethod] = useState("merge"); // "merge", "squash", "rebase"
+  const [refreshingPRStatus, setRefreshingPRStatus] = useState(false);
+  const [refreshingBranchStatus, setRefreshingBranchStatus] = useState(false);
+  const [activeFreshnessModal, setActiveFreshnessModal] = useState(null); // { title, type, fetchedAt, checks, url, details }
 
   const handleOpenCreatePRModal = () => {
     setCreatePRErr(null);
@@ -834,6 +837,30 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   const summary = session.outputs?.find(o=>o.sessionSummary)?.sessionSummary;
   const pri = useMemo(() => getPRInfo(session, activities), [session, activities, ghPrNonce]);
   const pr = pri;
+
+  const handleForceRefreshPRStatus = useCallback(async (e) => {
+    if (e) e.stopPropagation();
+    if (refreshingPRStatus) return;
+    setRefreshingPRStatus(true);
+    try {
+      getPRInfo(session, activities, true);
+      setTimeout(() => setRefreshingPRStatus(false), 800);
+    } catch {
+      setRefreshingPRStatus(false);
+    }
+  }, [session, activities, refreshingPRStatus]);
+
+  const handleForceRefreshBranchStatus = useCallback(async (e) => {
+    if (e) e.stopPropagation();
+    if (refreshingBranchStatus) return;
+    setRefreshingBranchStatus(true);
+    try {
+      getBranchInfo(session, activities, true);
+      setTimeout(() => setRefreshingBranchStatus(false), 800);
+    } catch {
+      setRefreshingBranchStatus(false);
+    }
+  }, [session, activities, refreshingBranchStatus]);
   const isActuallyDone = useMemo(() => {
     return getIsActuallyDone(session.state, activities);
   }, [activities, session.state]);
@@ -1218,27 +1245,51 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
           <div style={{display:"flex", alignItems:"center", gap:8, overflowX:"auto", scrollbarWidth:"none", WebkitOverflowScrolling:"touch", width:"100%"}}>
 
             {pr && (
-              <a href={safeUrl(pr.url)} target="_blank" rel="noopener noreferrer" aria-label={`Pull Request #${pr.number} is ${pr.state}. ${pr.ahead || 0} commits ahead, ${pr.behind || 0} commits behind.`} style={{
-                background:pr.state==="merged"?T.purpleDim:pr.state==="closed"?T.dim:T.brandDim,
-                border:`1px solid ${pr.state==="merged"?T.purple:pr.state==="closed"?T.muted:T.brand}40`,
-                borderRadius:4, padding:"3px 8px", display:"flex", alignItems:"center", gap:4,
-                color:pr.state==="merged"?T.purple:pr.state==="closed"?T.muted:T.brand,
-                textDecoration:"none", fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:900, flexShrink:0,
-                animation: isSyncing ? "shimmerPulse 1.5s infinite" : "none"
-              }}>
-                <Ic n={pr.state==="merged"?"git_merge":"git_pull"} s={11} c={pr.state==="merged"?T.purple:pr.state==="closed"?T.muted:T.brand}/>
-                #{pr.number} <span style={{fontSize:8, opacity:0.8}}>{pr.state.toUpperCase()}</span>
-                {pr.ahead > 0 && <span style={{fontSize:9, background:`${T.brand}22`, color:T.brandLight, borderRadius:3, padding:"0px 4px", marginLeft:2, border:`1px solid ${T.brand}40`}}>↑{pr.ahead}</span>}
-                {pr.behind > 0 && <span style={{fontSize:9, background:`${T.amber}22`, color:T.amber, borderRadius:3, padding:"0px 4px", marginLeft:2, border:`1px solid ${T.amber}40`}}>↓{pr.behind}</span>}
-                {pr.checks && (
-                  <span title={`Checks: ${pr.checks.label || pr.checks.state}`} aria-label={`Checks: ${pr.checks.label || pr.checks.state}`} style={{
-                    width:5, height:5, borderRadius:"50%", flexShrink:0, marginLeft:2,
-                    background: pr.checks.state === "success" ? "#34d399" : pr.checks.state === "failure" ? T.red : T.amber,
-                    boxShadow: pr.checks.state === "success" ? "0 0 6px #34d399" : pr.checks.state === "failure" ? `0 0 6px ${T.red}` : `0 0 6px ${T.amber}`,
-                    animation: pr.checks.state === "pending" ? "dot 1s infinite" : "none"
-                  }}/>
-                )}
-              </a>
+              <div style={{display:"inline-flex", alignItems:"center", gap:2, flexShrink:0}}>
+                <a href={safeUrl(pr.url)} target="_blank" rel="noopener noreferrer" aria-label={`Pull Request #${pr.number} is ${pr.state}. ${pr.ahead || 0} commits ahead, ${pr.behind || 0} commits behind. Checked ${pr.fetchedAt ? fmtAgo(pr.fetchedAt) : 'recently'}.`} style={{
+                  background:pr.state==="merged"?T.purpleDim:pr.state==="closed"?T.dim:T.brandDim,
+                  border:`1px solid ${pr.state==="merged"?T.purple:pr.state==="closed"?T.muted:T.brand}40`,
+                  borderRadius:4, padding:"3px 8px", display:"flex", alignItems:"center", gap:4,
+                  color:pr.state==="merged"?T.purple:pr.state==="closed"?T.muted:T.brand,
+                  textDecoration:"none", fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:900, flexShrink:0,
+                  animation: isSyncing ? "shimmerPulse 1.5s infinite" : "none"
+                }}>
+                  <Ic n={pr.state==="merged"?"git_merge":"git_pull"} s={11} c={pr.state==="merged"?T.purple:pr.state==="closed"?T.muted:T.brand}/>
+                  #{pr.number} <span style={{fontSize:8, opacity:0.8}}>{pr.state.toUpperCase()}</span>
+                  {pr.ahead > 0 && <span style={{fontSize:9, background:`${T.brand}22`, color:T.brandLight, borderRadius:3, padding:"0px 4px", marginLeft:2, border:`1px solid ${T.brand}40`}}>↑{pr.ahead}</span>}
+                  {pr.behind > 0 && <span style={{fontSize:9, background:`${T.amber}22`, color:T.amber, borderRadius:3, padding:"0px 4px", marginLeft:2, border:`1px solid ${T.amber}40`}}>↓{pr.behind}</span>}
+                  {pr.checks && (
+                    <span title={`Checks: ${pr.checks.label || pr.checks.state} (Checked ${pr.fetchedAt ? fmtAgo(pr.fetchedAt) : 'recently'})`} aria-label={`Checks: ${pr.checks.label || pr.checks.state}`} style={{
+                      width:5, height:5, borderRadius:"50%", flexShrink:0, marginLeft:2,
+                      background: pr.checks.state === "success" ? "#34d399" : pr.checks.state === "failure" ? T.red : T.amber,
+                      boxShadow: pr.checks.state === "success" ? "0 0 6px #34d399" : pr.checks.state === "failure" ? `0 0 6px ${T.red}` : `0 0 6px ${T.amber}`,
+                      animation: pr.checks.state === "pending" ? "dot 1s infinite" : "none"
+                    }}/>
+                  )}
+                  {pr.fetchedAt && <span style={{fontSize:8, opacity:0.65, fontWeight:600, marginLeft:2}}>{fmtAgo(pr.fetchedAt)}</span>}
+                </a>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveFreshnessModal({
+                      title: `PR #${pr.number} Freshness Details`,
+                      type: "PR",
+                      fetchedAt: pr.fetchedAt,
+                      checks: pr.checks,
+                      url: pr.url,
+                      details: `Status: ${pr.state.toUpperCase()} | Ahead: ${pr.ahead || 0} | Behind: ${pr.behind || 0}`
+                    });
+                  }}
+                  title="Inspect status freshness & tap to re-fetch"
+                  aria-label="Inspect status freshness & tap to re-fetch"
+                  style={{
+                    background: "none", border: "none", cursor: "pointer", padding: "2px 4px",
+                    display: "flex", alignItems: "center", color: pr.state === "merged" ? T.purple : T.brand, opacity: 0.8
+                  }}
+                >
+                  <Ic n="refresh" s={10} c={refreshingPRStatus ? T.brand : (pr.state === "merged" ? T.purple : T.brand)}/>
+                </button>
+              </div>
             )}
 
             {session.sourceContext?.source && (!pr || pr.state === "closed" || pr.state === "merged") && (
@@ -1271,26 +1322,50 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
             )}
 
             {session.sourceContext?.source && (
-              <a href={safeUrl(b?.repoUrl ? `${b.repoUrl}/branches` : "#")} target="_blank" rel="noopener noreferrer" aria-label={`Branch ${b?.working || "main"}. ${b?.ahead || ahead || 0} commits ahead, ${b?.behind || 0} commits behind.`} style={{
-                background:T.blueDim, border:`1px solid ${T.blue}30`, borderRadius:4, padding:"3px 8px",
-                display:"flex", alignItems:"center", gap:4, color:T.blue, textDecoration:"none",
-                fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:900, flexShrink:0,
-                animation: isSyncing ? "shimmerPulse 1.5s infinite 0.4s" : "none"
-              }}>
-                <Ic n="branch" s={11} c={T.blue}/>
-                {b?.working || "main"}
-                {b?.ahead > 0 && <span style={{fontSize:9, background:`${T.brand}22`, color:T.brandLight, borderRadius:3, padding:"0px 4px", border:`1px solid ${T.brand}40`}}>↑{b.ahead}</span>}
-                {b?.behind > 0 && <span style={{fontSize:9, background:`${T.amber}22`, color:T.amber, borderRadius:3, padding:"0px 4px", border:`1px solid ${T.amber}40`}}>↓{b.behind}</span>}
-                {!(b?.ahead > 0 || b?.behind > 0) && ahead > 0 && <span style={{fontSize:9}}>+{ahead}</span>}
-                {b?.checks && (
-                  <span title={`Checks (${b.checksSource === "base" ? "from base branch" : "working branch"}): ${b.checks.label || b.checks.state}`} aria-label={`Checks (${b.checksSource === "base" ? "from base branch" : "working branch"}): ${b.checks.label || b.checks.state}`} style={{
-                    width:5, height:5, borderRadius:"50%", flexShrink:0, marginLeft:2,
-                    background: b.checks.state === "success" ? "#34d399" : b.checks.state === "failure" ? T.red : T.amber,
-                    boxShadow: b.checks.state === "success" ? "0 0 6px #34d399" : b.checks.state === "failure" ? `0 0 6px ${T.red}` : `0 0 6px ${T.amber}`,
-                    animation: b.checks.state === "pending" ? "dot 1s infinite" : "none"
-                  }}/>
-                )}
-              </a>
+              <div style={{display:"inline-flex", alignItems:"center", gap:2, flexShrink:0}}>
+                <a href={safeUrl(b?.repoUrl ? `${b.repoUrl}/branches` : "#")} target="_blank" rel="noopener noreferrer" aria-label={`Branch ${b?.working || "main"}. ${b?.ahead || ahead || 0} commits ahead, ${b?.behind || 0} commits behind. Checked ${b?.fetchedAt ? fmtAgo(b.fetchedAt) : 'recently'}.`} style={{
+                  background:T.blueDim, border:`1px solid ${T.blue}30`, borderRadius:4, padding:"3px 8px",
+                  display:"flex", alignItems:"center", gap:4, color:T.blue, textDecoration:"none",
+                  fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:900, flexShrink:0,
+                  animation: isSyncing ? "shimmerPulse 1.5s infinite 0.4s" : "none"
+                }}>
+                  <Ic n="branch" s={11} c={T.blue}/>
+                  {b?.working || "main"}
+                  {b?.ahead > 0 && <span style={{fontSize:9, background:`${T.brand}22`, color:T.brandLight, borderRadius:3, padding:"0px 4px", border:`1px solid ${T.brand}40`}}>↑{b.ahead}</span>}
+                  {b?.behind > 0 && <span style={{fontSize:9, background:`${T.amber}22`, color:T.amber, borderRadius:3, padding:"0px 4px", border:`1px solid ${T.amber}40`}}>↓{b.behind}</span>}
+                  {!(b?.ahead > 0 || b?.behind > 0) && ahead > 0 && <span style={{fontSize:9}}>+{ahead}</span>}
+                  {b?.checks && (
+                    <span title={`Checks (${b.checksSource === "base" ? "from base branch" : "working branch"}): ${b.checks.label || b.checks.state} (Checked ${b.fetchedAt ? fmtAgo(b.fetchedAt) : 'recently'})`} aria-label={`Checks (${b.checksSource === "base" ? "from base branch" : "working branch"}): ${b.checks.label || b.checks.state}`} style={{
+                      width:5, height:5, borderRadius:"50%", flexShrink:0, marginLeft:2,
+                      background: b.checks.state === "success" ? "#34d399" : b.checks.state === "failure" ? T.red : T.amber,
+                      boxShadow: b.checks.state === "success" ? "0 0 6px #34d399" : b.checks.state === "failure" ? `0 0 6px ${T.red}` : `0 0 6px ${T.amber}`,
+                      animation: b.checks.state === "pending" ? "dot 1s infinite" : "none"
+                    }}/>
+                  )}
+                  {b?.fetchedAt && <span style={{fontSize:8, opacity:0.65, fontWeight:600, marginLeft:2}}>{fmtAgo(b.fetchedAt)}</span>}
+                </a>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveFreshnessModal({
+                      title: `Branch '${b?.working || "main"}' Freshness Details`,
+                      type: "BRANCH",
+                      fetchedAt: b?.fetchedAt,
+                      checks: b?.checks,
+                      url: b?.repoUrl ? `${b.repoUrl}/tree/${b.working || "main"}` : null,
+                      details: `Branch: ${b?.working || "main"} | Ahead: ${b?.ahead || ahead || 0} | Behind: ${b?.behind || 0}`
+                    });
+                  }}
+                  title="Inspect branch status freshness & tap to re-fetch"
+                  aria-label="Inspect branch status freshness & tap to re-fetch"
+                  style={{
+                    background: "none", border: "none", cursor: "pointer", padding: "2px 4px",
+                    display: "flex", alignItems: "center", color: T.blue, opacity: 0.8
+                  }}
+                >
+                  <Ic n="refresh" s={10} c={refreshingBranchStatus ? T.brand : T.blue}/>
+                </button>
+              </div>
             )}
 
 
@@ -1644,6 +1719,30 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                   }}>G</div>
                   <span>GITHUB PULL REQUEST #{pr.number}</span>
                   <div style={{ height: 1, flex: 1, background: pr.state === "merged" ? `${T.purple}20` : `${T.brand}20` }}/>
+                  {pr.fetchedAt && (
+                    <span style={{ color: T.brandLight, fontSize: 9, fontWeight: 700, background: `${T.brand}15`, padding: "2px 6px", borderRadius: 4, border: `1px solid ${T.brand}30`, display: "flex", alignItems: "center", gap: 4 }}>
+                      CHECKED {fmtAgo(pr.fetchedAt).toUpperCase()}
+                    </span>
+                  )}
+                  <button
+                    onClick={handleForceRefreshPRStatus}
+                    disabled={refreshingPRStatus}
+                    title="Refresh Pull Request status & checks"
+                    aria-label="Refresh Pull Request status & checks"
+                    style={{
+                      background: "none", border: `1px solid ${pr.state === "merged" ? T.purple : T.brand}40`,
+                      borderRadius: 4, cursor: refreshingPRStatus ? "default" : "pointer",
+                      padding: "2px 6px", display: "flex", alignItems: "center", gap: 4,
+                      color: pr.state === "merged" ? T.purple : T.brandLight,
+                      fontSize: 9, fontWeight: 800, fontFamily: "'JetBrains Mono',monospace",
+                      transition: "all 0.15s ease"
+                    }}
+                  >
+                    <div style={{ animation: refreshingPRStatus ? "spin 1s linear infinite" : "none", display: "flex" }}>
+                      <Ic n="refresh" s={10} c={pr.state === "merged" ? T.purple : T.brandLight}/>
+                    </div>
+                    {refreshingPRStatus ? "REFRESHING" : "REFRESH"}
+                  </button>
                   <span style={{ color: T.textDim, fontSize: 10, fontWeight: 500, textTransform: "uppercase" }}>
                     {pr.state}
                   </span>
@@ -1908,6 +2007,29 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                   }}>B</div>
                   <span>GITHUB BRANCH STATUS</span>
                   <div style={{ height: 1, flex: 1, background: `${T.blue}20` }}/>
+                  {b.fetchedAt && (
+                    <span style={{ color: T.blue, fontSize: 9, fontWeight: 700, background: `${T.blue}15`, padding: "2px 6px", borderRadius: 4, border: `1px solid ${T.blue}30`, display: "flex", alignItems: "center", gap: 4 }}>
+                      CHECKED {fmtAgo(b.fetchedAt).toUpperCase()}
+                    </span>
+                  )}
+                  <button
+                    onClick={handleForceRefreshBranchStatus}
+                    disabled={refreshingBranchStatus}
+                    title="Refresh Branch status & checks"
+                    aria-label="Refresh Branch status & checks"
+                    style={{
+                      background: "none", border: `1px solid ${T.blue}40`,
+                      borderRadius: 4, cursor: refreshingBranchStatus ? "default" : "pointer",
+                      padding: "2px 6px", display: "flex", alignItems: "center", gap: 4,
+                      color: T.blue, fontSize: 9, fontWeight: 800, fontFamily: "'JetBrains Mono',monospace",
+                      transition: "all 0.15s ease"
+                    }}
+                  >
+                    <div style={{ animation: refreshingBranchStatus ? "spin 1s linear infinite" : "none", display: "flex" }}>
+                      <Ic n="refresh" s={10} c={T.blue}/>
+                    </div>
+                    {refreshingBranchStatus ? "REFRESHING" : "REFRESH"}
+                  </button>
                   <span style={{ color: T.textDim, fontSize: 10, fontWeight: 500, textTransform: "uppercase" }}>
                     {b.statusState || "FEATURE"}
                   </span>
@@ -2386,6 +2508,94 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
 
       {/* ── Media Lightbox ── */}
       <MediaModal media={activeMedia} onClose={() => setActiveMedia(null)}/>
+
+      {/* ── Status Freshness & Targeted Refresh Modal ── */}
+      {activeFreshnessModal && (
+        <Modal
+          title={activeFreshnessModal.title}
+          subtitle="Status Freshness & Targeted Inspection"
+          onClose={() => setActiveFreshnessModal(null)}
+        >
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            {/* Timestamp Banner */}
+            <div style={{
+              padding: "12px 14px", borderRadius: 8,
+              background: T.surfaceHi, border: `1px solid ${T.border}`,
+              display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12
+            }}>
+              <div>
+                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 800, color: T.dim, textTransform: "UPPERCASE" }}>
+                  LAST CHECKED
+                </div>
+                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 13, fontWeight: 800, color: T.brandLight, marginTop: 2 }}>
+                  {activeFreshnessModal.fetchedAt ? `${fmtAgo(activeFreshnessModal.fetchedAt)} (${fmtTime(activeFreshnessModal.fetchedAt)})` : "Just now"}
+                </div>
+              </div>
+              <button
+                onClick={async () => {
+                  if (activeFreshnessModal.type === "PR") {
+                    await handleForceRefreshPRStatus();
+                  } else {
+                    await handleForceRefreshBranchStatus();
+                  }
+                  setActiveFreshnessModal(prev => prev ? { ...prev, fetchedAt: Date.now() } : null);
+                }}
+                disabled={activeFreshnessModal.type === "PR" ? refreshingPRStatus : refreshingBranchStatus}
+                style={{
+                  background: T.brand, color: "#000", border: "none", borderRadius: 6,
+                  padding: "8px 14px", fontFamily: "'JetBrains Mono',monospace", fontSize: 11,
+                  fontWeight: 900, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6
+                }}
+              >
+                <div style={{ animation: (activeFreshnessModal.type === "PR" ? refreshingPRStatus : refreshingBranchStatus) ? "spin 1s linear infinite" : "none", display: "flex" }}>
+                  <Ic n="refresh" s={12} c="#000"/>
+                </div>
+                RE-FETCH STATUS
+              </button>
+            </div>
+
+            {/* Details Summary */}
+            {activeFreshnessModal.details && (
+              <div style={{ fontFamily: "'IBM Plex Sans',sans-serif", fontSize: 13, color: T.text, lineHeight: 1.5, background: `${T.surfaceHi}80`, padding: 12, borderRadius: 8, border: `1px solid ${T.border}` }}>
+                {activeFreshnessModal.details}
+              </div>
+            )}
+
+            {/* CI/CD Checks */}
+            {activeFreshnessModal.checks && (
+              <div style={{ padding: 12, borderRadius: 8, background: T.surfaceHi, border: `1px solid ${T.border}` }}>
+                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 800, color: T.purple, marginBottom: 4 }}>
+                  CI/CD CHECKS
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: "'JetBrains Mono',monospace", fontSize: 12, fontWeight: 800, color: activeFreshnessModal.checks.state === "success" ? "#34d399" : activeFreshnessModal.checks.state === "failure" ? T.red : T.amber }}>
+                  <span style={{
+                    width: 8, height: 8, borderRadius: "50%",
+                    background: activeFreshnessModal.checks.state === "success" ? "#34d399" : activeFreshnessModal.checks.state === "failure" ? T.red : T.amber
+                  }}/>
+                  {activeFreshnessModal.checks.label || activeFreshnessModal.checks.state.toUpperCase()}
+                </div>
+              </div>
+            )}
+
+            {/* Direct GitHub Link */}
+            {activeFreshnessModal.url && (
+              <a
+                href={safeUrl(activeFreshnessModal.url)}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8,
+                  padding: "10px 16px", borderRadius: 8, background: T.surfaceHi, border: `1px solid ${T.borderHi}`,
+                  color: T.brandLight, textDecoration: "none", fontFamily: "'JetBrains Mono',monospace",
+                  fontSize: 12, fontWeight: 800
+                }}
+              >
+                OPEN ON GITHUB ↗
+              </a>
+            )}
+          </div>
+        </Modal>
+      )}
 
       {/* ── Payload Breakdown Modal ── */}
       {showPayloadBreakdown && (
