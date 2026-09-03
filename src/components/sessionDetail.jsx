@@ -98,7 +98,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     setShowCreatePRModal(true);
   };
 
-  const handleConfirmCreatePR = async ({ title, body }) => {
+  const handleConfirmCreatePR = async ({ title, body, autoMerge = false }) => {
     if (!repo || !b?.working) {
       setCreatePRErr(`Cannot create Pull Request: Repository (${repo || "unknown"}) or working branch (${b?.working || "unknown"}) was not detected.`);
       return;
@@ -106,27 +106,79 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     setBusy(true);
     setCreatePRErr(null);
     try {
-      const res = await createPullRequest({
-        repo,
-        head: b.working,
-        base: b.base || "main",
-        title,
-        body
-      });
-      setShowCreatePRModal(false);
-      setJustUpdated(true);
-      if (res && res.html_url) {
-        setGhActionFeedback({
-          type: "success",
-          message: `Pull Request #${res.number || ""} created successfully!`,
-          url: res.html_url
+      if (autoMerge) {
+        const { pr: res } = await createAndMergePR({
+          repo,
+          head: b.working,
+          base: b.base || "main",
+          title,
+          body,
+          mergeMethod
         });
+        setShowCreatePRModal(false);
+        setJustUpdated(true);
+        if (res && res.html_url) {
+          setGhActionFeedback({
+            type: "success",
+            message: `Pull Request #${res.number || ""} created & merged (${mergeMethod.toUpperCase()}) successfully!`,
+            url: res.html_url
+          });
+        }
+      } else {
+        const res = await createPullRequest({
+          repo,
+          head: b.working,
+          base: b.base || "main",
+          title,
+          body
+        });
+        setShowCreatePRModal(false);
+        setJustUpdated(true);
+        if (res && res.html_url) {
+          setGhActionFeedback({
+            type: "success",
+            message: `Pull Request #${res.number || ""} created successfully!`,
+            url: res.html_url
+          });
+        }
       }
       setTimeout(() => setJustUpdated(false), 3000);
       loadActivities(lastTsRef.current);
       loadSession();
     } catch (e) {
-      setCreatePRErr(e.message || "Failed to create Pull Request");
+      setCreatePRErr(e.message || "Failed to create / merge Pull Request");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleMergeBranchDirect = async () => {
+    if (!repo || !b?.working) return;
+    const commitMsg = b?.commits && b.commits.length > 0 ? (b.commits[0].title || b.commits[0].message) : `Merge ahead commits from ${b.working} into ${b.base || "main"}`;
+    if (!confirm(`⚡ MERGE AHEAD COMMITS DIRECTLY:\n\nAre you sure you want to merge branch '${b.working}' (${b.ahead || ahead} commits ahead) directly into '${b.base || "main"}'?`)) return;
+
+    setBusy(true); setErr(null);
+    try {
+      await mergeBranch({
+        repo,
+        base: b.base || "main",
+        head: b.working,
+        commitMessage: commitMsg
+      });
+      setJustUpdated(true);
+      setGhActionFeedback({
+        type: "success",
+        message: `Branch '${b.working}' successfully merged into '${b.base || "main"}' via GitHub API!`
+      });
+      setTimeout(() => setJustUpdated(false), 3000);
+      loadActivities(lastTsRef.current);
+      loadSession();
+    } catch (e) {
+      setGhActionFeedback({
+        type: "error",
+        message: e.message || "Failed to merge ahead commits directly"
+      });
+      setErr(e.message || "Failed to merge ahead commits directly");
     } finally {
       setBusy(false);
     }
@@ -1427,13 +1479,28 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                 <Ic n="branch" s={14} c={T.blue}/> BRANCH AHEAD ({b.ahead || ahead} COMMITS) {pr?.state === "merged" && "· PREVIOUS PR MERGED"}
               </div>
               <div style={{fontFamily:"'IBM Plex Sans',sans-serif", fontSize:13, color:T.textDim, lineHeight:1.4}}>
-                New commits pushed to <span style={{color:T.blue, fontWeight:600}}>{b.working}</span>. Create a new PR to merge into <span style={{color:T.blue, fontWeight:600}}>{b.base || "main"}</span>.
+                New commits pushed to <span style={{color:T.blue, fontWeight:600}}>{b.working}</span>. You can merge directly or publish a Pull Request into <span style={{color:T.blue, fontWeight:600}}>{b.base || "main"}</span>.
                 {payloadBreakdown.patchCount > 0 && (
                   <span style={{marginLeft:6, color:T.text, fontWeight:600}}>
                     ({payloadBreakdown.patchCount} patch set{payloadBreakdown.patchCount!==1?'s':''})
                   </span>
                 )}
               </div>
+              {b?.commits && b.commits.length > 0 && (
+                <div style={{marginTop:8, display:"flex", flexDirection:"column", gap:4}}>
+                  {b.commits.slice(0, 2).map((c, idx) => (
+                    <div key={c.sha || idx} style={{display:"flex", alignItems:"center", gap:6, fontFamily:"'JetBrains Mono',monospace", fontSize:11}}>
+                      <span style={{color:T.purple, fontWeight:800}}>{c.sha || "ahead"}</span>
+                      <span style={{color:T.textHi, fontWeight:700, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>{c.title || c.message}</span>
+                    </div>
+                  ))}
+                  {b.commits.length > 2 && (
+                    <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.dim}}>
+                      + {b.commits.length - 2} more commit{b.commits.length - 2 !== 1 ? 's' : ''}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             <div style={{display:"flex", gap:8, alignItems:"center", flexWrap:"wrap"}}>
               <button onClick={() => setTab("diff")} style={{
@@ -1444,12 +1511,20 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                 <Ic n="code" s={12} c={T.brand}/> VIEW DIFF
               </button>
               <button onClick={handleOpenCreatePRModal} disabled={busy} style={{
-                background:T.brand, color:"#000", border:"none", borderRadius:6,
-                padding:"6px 14px", fontFamily:"'JetBrains Mono',monospace",
+                background:T.surfaceHi, color:T.brandLight, border:`1px solid ${T.brand}60`, borderRadius:6,
+                padding:"6px 12px", fontFamily:"'JetBrains Mono',monospace",
                 fontSize:11, fontWeight:800, cursor: busy ? "not-allowed" : "pointer", flexShrink:0,
                 opacity: busy ? 0.6 : 1
               }} aria-label="Create Pull Request via GitHub API" title="Create Pull Request via GitHub API">
                 + CREATE PR
+              </button>
+              <button onClick={handleMergeBranchDirect} disabled={busy} style={{
+                background:T.purple, color:"#000", border:"none", borderRadius:6,
+                padding:"6px 14px", fontFamily:"'JetBrains Mono',monospace",
+                fontSize:11, fontWeight:900, cursor: busy ? "not-allowed" : "pointer", flexShrink:0,
+                opacity: busy ? 0.6 : 1, boxShadow:`0 4px 12px ${T.purple}30`
+              }} aria-label="Directly merge ahead commits into base branch" title="Directly merge ahead commits into base branch via GitHub API">
+                ⚡ MERGE AHEAD COMMITS
               </button>
             </div>
           </div>
@@ -2610,9 +2685,9 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
         <CreatePRModal
           defaultTitle={(() => {
             if (b?.commits && b.commits.length > 0) {
-              const firstCommitMsg = (b.commits[0].message || "").split("\n")[0].trim();
-              if (firstCommitMsg.length >= 3) {
-                return b.commits.length === 1 ? firstCommitMsg : `${firstCommitMsg} (+${b.commits.length - 1} more commits)`;
+              const firstTitle = b.commits[0].title || (b.commits[0].message || "").split("\n")[0].trim();
+              if (firstTitle.length >= 3) {
+                return b.commits.length === 1 ? firstTitle : `${firstTitle} (+${b.commits.length - 1} more commits)`;
               }
             }
             const summary = session.outputs?.find(o => o.sessionSummary)?.sessionSummary?.summary;
@@ -2629,9 +2704,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
           defaultBody={(() => {
             if (b?.commits && b.commits.length > 0) {
               const commitLogs = b.commits.map(c => {
-                const lines = (c.message || "").trim().split("\n");
-                const subject = lines[0];
-                const desc = lines.slice(1).join("\n").trim();
+                const subject = c.title || (c.message || "").trim().split("\n")[0];
+                const desc = c.description || (c.message || "").trim().split("\n").slice(1).join("\n").trim();
                 return `- **${subject}** (\`${c.sha}\`)${desc ? `\n  ${desc.replace(/\n/g, "\n  ")}` : ""}`;
               }).join("\n\n");
               return `### Ahead Commits\n\n${commitLogs}\n\nCreated via Jules Mobile Client`;
@@ -2646,6 +2720,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
           aheadCommits={b?.commits || []}
           onClose={() => setShowCreatePRModal(false)}
           onSubmit={handleConfirmCreatePR}
+          onCreateAndMerge={(params) => handleConfirmCreatePR({ ...params, autoMerge: true })}
           busy={busy}
           error={createPRErr}
         />
