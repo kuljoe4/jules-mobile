@@ -1,6 +1,7 @@
 import { LRUCache } from '../utils/cache.js';
 import { isValidGitBranchName, isValidGithubRepoName, isValidGithubToken } from '../utils/validation.js';
 import { getActivitiesSize } from '../utils/performance.js';
+import { SafeStorage } from './storage.js';
 
 /**
  * GitHubTracker encapsulating all GitHub integrations, caches, background fetches,
@@ -138,7 +139,7 @@ const GitHubTracker = {
 
   githubFetch(url, headers) {
     const controller = new AbortController();
-    const timeoutMs = loadApiTimeout();
+    const timeoutMs = SafeStorage.loadApiTimeout();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
     return fetch(url, { headers, signal: controller.signal })
@@ -461,7 +462,7 @@ const GitHubTracker = {
     const encBranch = encodeURIComponent(cleanBranch);
     const apiUrl = `https://api.github.com/repos/${cleanRepo}/git/refs/heads/${encBranch}`;
     const controller = new AbortController();
-    const timeoutMs = loadApiTimeout();
+    const timeoutMs = SafeStorage.loadApiTimeout();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
@@ -649,7 +650,7 @@ const GitHubTracker = {
 
     const apiUrl = `https://api.github.com/repos/${repo}/pulls`;
     const controller = new AbortController();
-    const timeoutMs = loadApiTimeout();
+    const timeoutMs = SafeStorage.loadApiTimeout();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
@@ -715,7 +716,7 @@ const GitHubTracker = {
 
     const apiUrl = `https://api.github.com/repos/${owner}/${repo}/pulls/${number}/merge`;
     const controller = new AbortController();
-    const timeoutMs = loadApiTimeout();
+    const timeoutMs = SafeStorage.loadApiTimeout();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
@@ -821,6 +822,7 @@ const GitHubTracker = {
 
     const ghCached = this.GH_STATE_CACHE.get(pr.url);
     const ttl = (ghCached && ghCached.state === "open") ? 30 * 1000 : 5 * 60 * 1000;
+    let fetchedAt = null;
     if (!force && ghCached && (Date.now() - ghCached.fetchedAt < ttl)) {
       state = ghCached.state;
       additions = ghCached.additions;
@@ -835,6 +837,7 @@ const GitHubTracker = {
       statusState = ghCached.statusState || "identical";
       checks = ghCached.checks || null;
       failed = ghCached.failed || false;
+      fetchedAt = ghCached.fetchedAt;
     } else {
       this.triggerGitHubFetch(pr.url, force);
     }
@@ -853,6 +856,7 @@ const GitHubTracker = {
       behind,
       statusState,
       checks,
+      fetchedAt,
       failed,
       expiresAt: Date.now() + (5 * 60 * 1000)
     };
@@ -1028,6 +1032,7 @@ const GitHubTracker = {
     let checks = null;
     let checksSource = "working";
     let failed = false;
+    let fetchedAt = null;
 
     const activeWorking = working || base;
     if (sid !== "temp" && repo && base) {
@@ -1041,6 +1046,7 @@ const GitHubTracker = {
           statusState = bCached.statusState || "identical";
           commits = bCached.commits || [];
           checks = bCached.checks || null;
+          fetchedAt = bCached.fetchedAt;
           failed = bCached.failed || false;
         } else {
           this.triggerGitHubBranchFetch(repo, base, activeWorking, force);
@@ -1055,6 +1061,7 @@ const GitHubTracker = {
         if (defaultCached && (Date.now() - defaultCached.fetchedAt < defaultTtl)) {
           checks = defaultCached.checks || null;
           if (checks) checksSource = "base";
+          if (!fetchedAt) fetchedAt = defaultCached.fetchedAt;
         } else {
           this.triggerGitHubBranchFetch(repo, base, base, force);
         }
@@ -1076,6 +1083,7 @@ const GitHubTracker = {
       checks,
       checksSource,
       deployment,
+      fetchedAt,
       failed
     };
     if (sid !== "temp") {
@@ -1091,7 +1099,7 @@ const GitHubTracker = {
  * This decouples GitHub REST API queries, caching, and text-scraping from the main UI file scope.
  */
 const getPR = (s) => GitHubTracker.getPR(s);
-const getPRInfo = (s, activities = []) => GitHubTracker.getPRInfo(s, activities);
+const getPRInfo = (s, activities = [], force = false) => GitHubTracker.getPRInfo(s, activities, force);
 const getBranchInfo = (s, activities = [], force = false) => GitHubTracker.getBranchInfo(s, activities, force);
 const getCheckStatus = (activities = []) => GitHubTracker.getCheckStatus(activities);
 const getDeploymentInfo = (repo, force = false) => GitHubTracker.getDeploymentInfo(repo, force);

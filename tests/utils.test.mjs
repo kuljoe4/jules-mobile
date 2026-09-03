@@ -285,9 +285,39 @@ assert.equal(getDeploymentInfo(""), null);
 assert.equal(getDeploymentInfo("invalid-repo-without-slash"), null);
 assert.equal(getDeploymentInfo("../invalid/path"), null);
 
-// Test getPRInfo fallback with activities
+// Test getPRInfo fallback with activities & fetchedAt timestamp presence
 const prInfo = getPRInfo(mockSession, sampleActivities);
 assert.equal(prInfo, null);
+
+// Test GH_STATE_CACHE fetchedAt propagation
+const testPrUrl = "https://github.com/owner/repo/pull/100";
+const mockFetchedAt = Date.now() - 5000;
+GitHubTracker.GH_STATE_CACHE.set(testPrUrl, {
+  state: "open", additions: 10, deletions: 5, changedFiles: 2, commitsCount: 1,
+  title: "Test PR", body: "PR body", commitsList: [], ahead: 1, behind: 0, statusState: "ahead",
+  checks: { state: "success", label: "1/1 PASSED" }, fetchedAt: mockFetchedAt, failed: false
+});
+const mockPrSession = {
+  id: "sess-pr-test", createTime: "2026-08-25T10:00:00Z",
+  outputs: [{ githubPullRequest: testPrUrl }]
+};
+const cachedPrInfo = getPRInfo(mockPrSession, [], false);
+assert.equal(cachedPrInfo.fetchedAt, mockFetchedAt);
+assert.equal(cachedPrInfo.checks.state, "success");
+
+// Test GH_BRANCH_STATE_CACHE fetchedAt propagation
+const branchKey = "owner/repo:main:feature-1";
+GitHubTracker.GH_BRANCH_STATE_CACHE.set(branchKey, {
+  ahead: 2, behind: 0, statusState: "ahead", commits: [],
+  checks: { state: "success", label: "2/2 PASSED" }, fetchedAt: mockFetchedAt, failed: false
+});
+const mockBranchSession = {
+  id: "sess-branch-test", createTime: "2026-08-25T10:00:00Z",
+  sourceContext: { source: "sources/github/owner/repo", githubRepoContext: { startingBranch: "main" } },
+  prompt: "working on https://github.com/owner/repo/tree/feature-1"
+};
+const cachedBranchInfo = getBranchInfo(mockBranchSession, [], false);
+assert.equal(cachedBranchInfo.fetchedAt, mockFetchedAt);
 
 // Test createPullRequest parameter validation
 await assert.rejects(
