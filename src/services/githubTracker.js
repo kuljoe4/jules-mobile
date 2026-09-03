@@ -273,12 +273,20 @@ const GitHubTracker = {
               finalLabel = `${successCount}/${checkCount} PASSED`;
             }
 
-            const commitsList = (Array.isArray(commitsData) ? commitsData : []).map(c => ({
-              sha: c.sha ? c.sha.slice(0, 7) : "",
-              message: c.commit?.message || "",
-              author: c.commit?.author?.name || "",
-              date: c.commit?.author?.date || ""
-            }));
+            const commitsList = (Array.isArray(commitsData) ? commitsData : []).map(c => {
+              const fullMsg = c.commit?.message || "";
+              const lines = fullMsg.trim().split("\n");
+              const title = lines[0] ? lines[0].trim() : "";
+              const description = lines.slice(1).join("\n").trim();
+              return {
+                sha: c.sha ? c.sha.slice(0, 7) : "",
+                message: fullMsg,
+                title,
+                description,
+                author: c.commit?.author?.name || "",
+                date: c.commit?.author?.date || ""
+              };
+            });
 
             const updatedInfo = {
               state,
@@ -575,12 +583,20 @@ const GitHubTracker = {
           finalLabel = `${successCount}/${checkCount} PASSED`;
         }
 
-        const branchCommits = (compareData?.commits || []).map(c => ({
-          sha: c.sha ? c.sha.slice(0, 7) : "",
-          message: c.commit?.message || "",
-          author: c.commit?.author?.name || "",
-          date: c.commit?.author?.date || ""
-        }));
+        const branchCommits = (compareData?.commits || []).map(c => {
+          const fullMsg = c.commit?.message || "";
+          const lines = fullMsg.trim().split("\n");
+          const title = lines[0] ? lines[0].trim() : "";
+          const description = lines.slice(1).join("\n").trim();
+          return {
+            sha: c.sha ? c.sha.slice(0, 7) : "",
+            message: fullMsg,
+            title,
+            description,
+            author: c.commit?.author?.name || "",
+            date: c.commit?.author?.date || ""
+          };
+        });
 
         const updatedInfo = {
           ahead,
@@ -688,6 +704,78 @@ const GitHubTracker = {
       clearTimeout(timeoutId);
       throw err;
     }
+  },
+
+  async mergeBranch({ repo: rawRepo, base: rawBase = "main", head: rawHead, commitMessage }) {
+    let repo = (rawRepo || "").trim().replace(/^sources\/github\//, "").replace(/\.git$/, "").replace(/\/$/, "");
+    let base = (rawBase || "main").trim().replace(/^refs\/heads\//, "");
+    let head = (rawHead || "").trim().replace(/^refs\/heads\//, "");
+
+    if (!repo || !isValidGithubRepoName(repo)) {
+      throw new Error(`Invalid GitHub repository format ("${rawRepo || repo}"). Expected "owner/repo".`);
+    }
+    if (!head || !isValidGitBranchName(head)) {
+      throw new Error(`Invalid head branch name ("${rawHead || head}").`);
+    }
+    if (!base || !isValidGitBranchName(base)) {
+      throw new Error(`Invalid base branch name ("${rawBase || base}").`);
+    }
+    if (head.toLowerCase() === base.toLowerCase()) {
+      throw new Error(`Head branch ("${head}") cannot be identical to base branch ("${base}").`);
+    }
+
+    const token = SafeStorage.loadGithubToken();
+    if (!token || !isValidGithubToken(token)) {
+      throw new Error("GitHub Token required to merge branch. Please set your token in Settings.");
+    }
+
+    const headers = {
+      "Accept": "application/vnd.github.v3+json",
+      "Content-Type": "application/json",
+      "Authorization": `token ${token}`
+    };
+
+    const apiUrl = `https://api.github.com/repos/${repo}/merges`;
+    const controller = new AbortController();
+    const timeoutMs = SafeStorage.loadApiTimeout();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const res = await fetch(apiUrl, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          base,
+          head,
+          commit_message: commitMessage || `Merge branch '${head}' into '${base}'`
+        }),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || `Failed to merge branch (Status ${res.status})`);
+      }
+
+      this.GH_BRANCH_STATE_CACHE.clear();
+      this.BRANCH_INFO_CACHE.clear();
+      this.PR_INFO_CACHE.clear();
+      window.dispatchEvent(new CustomEvent("gh-pr-updated", { detail: { repo, mergedBranch: head, intoBase: base } }));
+      return data;
+    } catch (err) {
+      clearTimeout(timeoutId);
+      throw err;
+    }
+  },
+
+  async createAndMergePR({ repo, head, base = "main", title, body, mergeMethod = "merge" }) {
+    const pr = await this.createPullRequest({ repo, head, base, title, body });
+    if (!pr || !pr.html_url) {
+      throw new Error("Pull Request was created but HTML URL was not returned.");
+    }
+    const mergeRes = await this.mergePullRequest(pr.html_url, mergeMethod);
+    return { pr, mergeRes };
   },
 
   async mergePullRequest(url, mergeMethod = "merge") {
@@ -1106,6 +1194,8 @@ const getDeploymentInfo = (repo, force = false) => GitHubTracker.getDeploymentIn
 const getPrUrlAndNumber = (pr) => GitHubTracker.getPrUrlAndNumber(pr);
 const createPullRequest = (params) => GitHubTracker.createPullRequest(params);
 const mergePullRequest = (url, mergeMethod) => GitHubTracker.mergePullRequest(url, mergeMethod);
+const mergeBranch = (params) => GitHubTracker.mergeBranch(params);
+const createAndMergePR = (params) => GitHubTracker.createAndMergePR(params);
 const deleteBranch = (repo, branch) => GitHubTracker.deleteBranch(repo, branch);
 
-export { GitHubTracker, getPR, getPRInfo, getBranchInfo, getCheckStatus, getDeploymentInfo, getPrUrlAndNumber, createPullRequest, mergePullRequest, deleteBranch };
+export { GitHubTracker, getPR, getPRInfo, getBranchInfo, getCheckStatus, getDeploymentInfo, getPrUrlAndNumber, createPullRequest, mergePullRequest, mergeBranch, createAndMergePR, deleteBranch };

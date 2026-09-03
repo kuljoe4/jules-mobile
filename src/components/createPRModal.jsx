@@ -2,13 +2,13 @@
  * CreatePRModal component for prompting the user to enter PR title and optional description
  * before submitting a GitHub Pull Request via the REST API.
  */
-const CreatePRModal = ({ defaultTitle, defaultBody, repo, headBranch, baseBranch, aheadCommits = [], onClose, onSubmit, busy, error }) => {
+const CreatePRModal = ({ defaultTitle, defaultBody, repo, headBranch, baseBranch, aheadCommits = [], onClose, onSubmit, onCreateAndMerge, busy, error }) => {
   const [prTitle, setPrTitle] = useState(defaultTitle || "");
   const [prBody, setPrBody] = useState(defaultBody || "");
   const [localErr, setLocalErr] = useState(null);
 
   const handleSubmit = (e) => {
-    e.preventDefault();
+    e?.preventDefault();
     if (!prTitle.trim() || busy) return;
     if (headBranch && baseBranch && headBranch.trim().toLowerCase() === baseBranch.trim().toLowerCase()) {
       setLocalErr(`Cannot create Pull Request: Head branch ("${headBranch}") is identical to base branch ("${baseBranch}"). Please specify a feature branch.`);
@@ -16,6 +16,21 @@ const CreatePRModal = ({ defaultTitle, defaultBody, repo, headBranch, baseBranch
     }
     setLocalErr(null);
     onSubmit({ title: prTitle.trim(), body: prBody.trim() });
+  };
+
+  const handleCreateAndMerge = (e) => {
+    e?.preventDefault();
+    if (!prTitle.trim() || busy) return;
+    if (headBranch && baseBranch && headBranch.trim().toLowerCase() === baseBranch.trim().toLowerCase()) {
+      setLocalErr(`Cannot create and merge: Head branch ("${headBranch}") is identical to base branch ("${baseBranch}").`);
+      return;
+    }
+    setLocalErr(null);
+    if (onCreateAndMerge) {
+      onCreateAndMerge({ title: prTitle.trim(), body: prBody.trim() });
+    } else {
+      onSubmit({ title: prTitle.trim(), body: prBody.trim(), autoMerge: true });
+    }
   };
 
   return (
@@ -26,12 +41,12 @@ const CreatePRModal = ({ defaultTitle, defaultBody, repo, headBranch, baseBranch
       icon="git_pull"
       maxWidth={520}
       actions={
-        <div style={{ display: "flex", gap: 10, width: "100%" }}>
+        <div style={{ display: "flex", gap: 10, width: "100%", flexWrap: "wrap" }}>
           <button
             onClick={onClose}
             disabled={busy}
             style={{
-              flex: 1, padding: "10px", borderRadius: 8,
+              padding: "10px 14px", borderRadius: 8,
               border: `1px solid ${T.border}`, background: "transparent",
               color: T.muted, fontFamily: "'JetBrains Mono',monospace",
               fontSize: 11, fontWeight: 700, cursor: busy ? "not-allowed" : "pointer"
@@ -43,14 +58,30 @@ const CreatePRModal = ({ defaultTitle, defaultBody, repo, headBranch, baseBranch
             onClick={handleSubmit}
             disabled={!prTitle.trim() || busy}
             style={{
-              flex: 1, padding: "10px", borderRadius: 8, border: "none",
-              background: T.brand, color: "#000", fontFamily: "'JetBrains Mono',monospace",
-              fontSize: 12, fontWeight: 900, cursor: (!prTitle.trim() || busy) ? "not-allowed" : "pointer",
+              flex: 1, padding: "10px", borderRadius: 8, border: `1px solid ${T.brand}60`,
+              background: T.brandDim, color: T.brandLight, fontFamily: "'JetBrains Mono',monospace",
+              fontSize: 11, fontWeight: 900, cursor: (!prTitle.trim() || busy) ? "not-allowed" : "pointer",
               opacity: (!prTitle.trim() || busy) ? 0.6 : 1,
               display: "flex", alignItems: "center", justifyContent: "center", gap: 6
             }}
           >
-            {busy ? "CREATING PR..." : "CREATE PULL REQUEST"}
+            {busy ? "WORKING..." : "CREATE PR"}
+          </button>
+          <button
+            onClick={handleCreateAndMerge}
+            disabled={!prTitle.trim() || busy}
+            style={{
+              flex: 1.2, padding: "10px", borderRadius: 8, border: "none",
+              background: T.purple, color: "#000", fontFamily: "'JetBrains Mono',monospace",
+              fontSize: 11, fontWeight: 900, cursor: (!prTitle.trim() || busy) ? "not-allowed" : "pointer",
+              opacity: (!prTitle.trim() || busy) ? 0.6 : 1,
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+              boxShadow: `0 4px 12px ${T.purple}30`
+            }}
+            title="Create Pull Request and merge immediately in 1 click"
+            aria-label="Create Pull Request and merge immediately in 1 click"
+          >
+            {busy ? "MERGING..." : "⚡ CREATE & MERGE NOW"}
           </button>
         </div>
       }
@@ -71,9 +102,8 @@ const CreatePRModal = ({ defaultTitle, defaultBody, repo, headBranch, baseBranch
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 160, overflowY: "auto" }}>
               {aheadCommits.map((c, i) => {
-                const lines = (c.message || "").trim().split("\n");
-                const subject = lines[0];
-                const desc = lines.slice(1).join("\n").trim();
+                const subject = c.title || (c.message || "").trim().split("\n")[0] || "Ahead commit";
+                const desc = c.description || (c.message || "").trim().split("\n").slice(1).join("\n").trim();
 
                 return (
                   <div key={c.sha || i} style={{ background: T.bg, padding: 8, borderRadius: 6, border: `1px solid ${T.border}` }}>
@@ -87,7 +117,7 @@ const CreatePRModal = ({ defaultTitle, defaultBody, repo, headBranch, baseBranch
                     </div>
                     {desc && (
                       <div style={{ fontFamily: "'IBM Plex Sans',sans-serif", fontSize: 11, color: T.textDim, lineHeight: 1.35, whiteSpace: "pre-wrap", opacity: 0.85 }}>
-                        {desc.length > 150 ? desc.slice(0, 147) + "..." : desc}
+                        {desc.length > 200 ? desc.slice(0, 197) + "..." : desc}
                       </div>
                     )}
                   </div>
