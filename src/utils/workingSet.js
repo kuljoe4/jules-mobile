@@ -43,13 +43,17 @@ const parseUnidiffPatch = (patchOrObj, ts = null) => {
     if (line.startsWith("--- ") || line.startsWith("diff --git")) return;
     if (line.startsWith("+++ ")) {
       const file = line.slice(4).replace(/^b\//, "");
+      const header1 = `--- a/${file}`;
+      const header2 = `+++ b/${file}`;
       currentGroup = {
         file,
         hunks: [],
         adds: 0,
         rems: 0,
         ts,
-        rawLines: [`--- a/${file}`, `+++ b/${file}`]
+        // OPTIMIZATION (Bolt): Track exact byte length during parsing to eliminate O(N) string allocations from `.join("\n")`
+        rawSize: header1.length + header2.length + 1,
+        rawLines: [header1, header2]
       };
       allGroups.push(currentGroup);
       return;
@@ -57,6 +61,7 @@ const parseUnidiffPatch = (patchOrObj, ts = null) => {
     if (!currentGroup) return;
 
     currentGroup.rawLines.push(line);
+    currentGroup.rawSize += line.length + 1;
 
     if (line.startsWith("@@")) {
       currentGroup.hunks.push({ header: line, lines: [] });

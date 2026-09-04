@@ -305,6 +305,9 @@ assert.equal(breakdown.topPatches.length, 1);
 const parsedGroups = parseUnidiffPatch(sampleChangeSet.gitPatch.unidiffPatch);
 assert.equal(parsedGroups.length, 1);
 assert.equal(parsedGroups[0].file, "src/app.js");
+assert.equal(typeof parsedGroups[0].rawSize, "number");
+assert.equal(parsedGroups[0].rawSize > 0, true);
+assert.equal(parsedGroups[0].rawSize, parsedGroups[0].rawLines.join("\n").length);
 
 const mockSession = {
   id: "sess-ws-1",
