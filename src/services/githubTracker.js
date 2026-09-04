@@ -597,7 +597,8 @@ const GitHubTracker = {
             title,
             description,
             author: c.commit?.author?.name || "",
-            date: c.commit?.author?.date || ""
+            date: c.commit?.author?.date || "",
+            source: "compare"
           };
         });
 
@@ -1179,8 +1180,9 @@ const GitHubTracker = {
     const deployment = repo ? this.getDeploymentInfo(repo, force) : null;
 
     // Activity-based Commit Extraction Fallback
-    // If remote commits list is empty, build fallback commit objects from session activities
-    if ((!commits || commits.length === 0) && activities && activities.length > 0) {
+    // If remote commits list is empty AND working branch is distinct from base,
+    // build fallback commit objects from session activities
+    if (activeWorking && activeWorking !== base && (!commits || commits.length === 0) && activities && activities.length > 0) {
       const fallbackCommits = [];
       const seenMsgs = new Set();
 
@@ -1210,7 +1212,8 @@ const GitHubTracker = {
                 title: commitTitle,
                 description: commitDesc,
                 author: "Jules",
-                date: a.createTime || ""
+                date: a.createTime || "",
+                source: "activity"
               });
             }
           }

@@ -390,8 +390,8 @@ const mockBWithCommits = {
   working: "feature/test",
   base: "main",
   commits: [
-    { sha: "a1b2c3d", title: "First Commit Subject", message: "First Commit Subject\n\nMore details" },
-    { sha: "e4f5g6h", title: "Second Commit Subject", message: "Second Commit Subject" }
+    { sha: "a1b2c3d", title: "First Commit Subject", message: "First Commit Subject\n\nMore details", source: "compare" },
+    { sha: "e4f5g6h", title: "Second Commit Subject", message: "Second Commit Subject", source: "compare" }
   ]
 };
 const mockSessWithSummary = {
@@ -404,6 +404,16 @@ const mockSessWithSummary = {
 
 assert.equal(getSmartTitle(mockSessWithSummary, mockBWithCommits), "First Commit Subject (+1 more commits)");
 assert.equal(getSmartBody(mockSessWithSummary, mockBWithCommits).includes("Ahead Commits"), true);
+
+// Regression test: activity-sourced fallback commits should NOT drive title
+const mockBWithActivityCommits = {
+  working: "feature/test",
+  base: "main",
+  commits: [
+    { sha: "ahead1", title: "All plan steps completed.", message: "All plan steps completed.", source: "activity" }
+  ]
+};
+assert.equal(getSmartTitle(mockSessWithSummary, mockBWithActivityCommits), "Session summary title");
 
 // Fallback to summary when no commits
 assert.equal(getSmartTitle(mockSessWithSummary, { working: "feature/test", commits: [] }), "Session summary title");
