@@ -9,17 +9,22 @@ const ConflictRadar = memo(({ currentSource, currentBranch, currentPrompt, allSe
     return () => clearTimeout(handler);
   }, [currentPrompt]);
 
+  // OPTIMIZATION (Bolt): Single-pass O(N) session traversal bounded by limit,
+  // reference-stable array fallbacks, and direct loop overlap matching to avoid intermediate array allocations.
   const collisions = useMemo(() => {
     if (!currentSource) return [];
 
-    const currentFiles = new Set(getWorkingSet({ prompt: debouncedPrompt, id: currentSessionId }, activitiesMap[currentSessionId] || []));
+    const currentActs = (currentSessionId && activitiesMap[currentSessionId]) || [];
+    const currentFiles = new Set(getWorkingSet({ prompt: debouncedPrompt, id: currentSessionId }, currentActs));
     const results = [];
-    const relevantSessions = allSessions
-      .filter(s => s.id !== currentSessionId)
-      .filter(s => s.sourceContext?.source === currentSource)
-      .slice(0, limit);
+    let processed = 0;
 
-    for (const s of relevantSessions) {
+    for (let i = 0; i < allSessions.length; i++) {
+      const s = allSessions[i];
+      if (!s || s.id === currentSessionId) continue;
+      if (s.sourceContext?.source !== currentSource) continue;
+      processed++;
+
       const isCompleted = s.state === "COMPLETED";
       if (isCompleted) {
         if (!startTime) continue;
@@ -29,7 +34,14 @@ const ConflictRadar = memo(({ currentSource, currentBranch, currentPrompt, allSe
 
       const acts = activitiesMap[s.id] || [];
       const sFiles = getWorkingSet(s, acts);
-      const overlap = sFiles.filter(f => currentFiles.has(f));
+
+      const overlap = [];
+      for (let j = 0; j < sFiles.length; j++) {
+        if (currentFiles.has(sFiles[j])) {
+          overlap.push(sFiles[j]);
+        }
+      }
+
       const sameBranch = currentBranch && s.sourceContext?.githubRepoContext?.startingBranch === currentBranch;
 
       if (overlap.length > 0 || sameBranch) {
@@ -41,6 +53,8 @@ const ConflictRadar = memo(({ currentSource, currentBranch, currentPrompt, allSe
           isDrift: isCompleted
         });
       }
+
+      if (processed >= limit) break;
     }
     return results;
   }, [currentSource, currentBranch, debouncedPrompt, allSessions, activitiesMap, currentSessionId, startTime, limit]);
