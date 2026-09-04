@@ -12,7 +12,7 @@ import {
 } from '../src/utils/validation.js';
 import { cleanMathText, fmtBytes, fmtChars, formatSmartDashItems, safeSlice } from '../src/utils/format.js';
 import { fmtAgo, fmtDuration, fmtTime, parseDateMs } from '../src/utils/date.js';
-import { GitHubTracker, getPR, getPRInfo, getBranchInfo, getCheckStatus, getDeploymentInfo, createPullRequest, deleteBranch } from '../src/services/githubTracker.js';
+import { GitHubTracker, getPR, getPRInfo, getBranchInfo, getCheckStatus, getDeploymentInfo, createPullRequest, mergeBranch, deleteBranch } from '../src/services/githubTracker.js';
 import { fastDeepEqual, getActivitiesSize, getApproxBytes, getPatchFileCount, getPayloadBreakdown } from '../src/utils/performance.js';
 import { parseUnidiffPatch, getWorkingSet } from '../src/utils/workingSet.js';
 
@@ -318,6 +318,21 @@ const mockBranchSession = {
 };
 const cachedBranchInfo = getBranchInfo(mockBranchSession, [], false);
 assert.equal(cachedBranchInfo.fetchedAt, mockFetchedAt);
+
+// Test mergeBranch parameter validation
+await assert.rejects(
+  async () => {
+    await mergeBranch({ repo: "owner/repo", head: "feature", base: "feature" });
+  },
+  { message: 'Head branch ("feature") cannot be identical to base branch ("feature").' }
+);
+
+await assert.rejects(
+  async () => {
+    await mergeBranch({ repo: "owner/repo", head: "bad head name", base: "main" });
+  },
+  { message: 'Invalid head branch name ("bad head name").' }
+);
 
 // Test createPullRequest parameter validation
 await assert.rejects(

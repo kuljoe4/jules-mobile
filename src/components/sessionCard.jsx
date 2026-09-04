@@ -227,7 +227,7 @@ const SessionCard = memo(({ s, onPress, onSelect, isSelected, index, activities 
           {(!pri || pri.state === "closed") && b?.isNew && (
             <div style={{display:"flex", alignItems:"center", gap:4, color:T.blue, opacity:0.95, flexShrink:1, minWidth:0, overflow:"hidden"}}>
               <Ic n="branch" s={10} c={T.blue}/>
-              <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:900,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{b.working}</span>
+              <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:900,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{b.working} → {b.base || "main"}</span>
               {b.ahead > 0 && <span aria-label={`${b.ahead} commits ahead`} style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900,color:T.brandLight,background:T.brandDim,padding:"1px 3px",borderRadius:2,flexShrink:0}}>↑{b.ahead}</span>}
               {!b.ahead && ahead > 0 && <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900,color:T.blue,flexShrink:0}}>+{ahead}</span>}
             </div>
