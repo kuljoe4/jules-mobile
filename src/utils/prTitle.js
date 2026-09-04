@@ -3,7 +3,7 @@
  */
 
 export function getSmartTitle(session, b) {
-  if (b?.commits && b.commits.length > 0) {
+  if (b?.commits && b.commits.length > 0 && b.commits[0].source !== "activity") {
     const firstTitle = b.commits[0].title || (b.commits[0].message || "").split("\n")[0].trim();
     if (firstTitle && firstTitle.length >= 3) {
       return b.commits.length === 1 ? firstTitle : `${firstTitle} (+${b.commits.length - 1} more commits)`;
@@ -33,7 +33,7 @@ export function getSmartTitle(session, b) {
 }
 
 export function getSmartBody(session, b) {
-  if (b?.commits && b.commits.length > 0) {
+  if (b?.commits && b.commits.length > 0 && b.commits[0].source !== "activity") {
     const commitLogs = b.commits.map(c => `- ${c.sha ? `[${c.sha}] ` : ""}${c.title || c.message}`).join("\n");
     return `### Ahead Commits\n\n${commitLogs}\n\nCreated via Jules Mobile Client`;
   }

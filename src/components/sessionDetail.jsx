@@ -1140,7 +1140,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                       <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:800, color:T.dim}}>ACTIONS</div>
                       {busy && <div style={{animation:"spin 1s linear infinite"}}><Ic n="refresh" s={10} c={T.brand}/></div>}
                     </div>
-                    {session.sourceContext?.source && (!pr || pr.state === "closed" || pr.state === "merged") && (
+                    {session.sourceContext?.source && b?.working && b?.working !== (b?.base || "main") && (!pr || pr.state === "closed" || pr.state === "merged") && (
                       <button
                         onClick={() => { handleOpenCreatePRModal(); setShowMenu(false); }}
                         disabled={busy}
@@ -1344,7 +1344,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
               </div>
             )}
 
-            {session.sourceContext?.source && (!pr || pr.state === "closed" || pr.state === "merged") && (
+            {session.sourceContext?.source && b?.working && b?.working !== (b?.base || "main") && (!pr || pr.state === "closed" || pr.state === "merged") && (
               <button
                 onClick={handleOpenCreatePRModal}
                 disabled={busy}
@@ -1468,7 +1468,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
           )}
         </div>
 
-        {(pr?.state === "closed" || pr?.state === "merged" || !pr) && ((b && typeof b.ahead === "number") ? b.ahead > 0 : (ahead > 0 || payloadBreakdown.patchCount > 0)) && (
+        {(pr?.state === "closed" || pr?.state === "merged" || !pr) && b?.working && b?.working !== (b?.base || "main") && ((b && typeof b.ahead === "number") ? b.ahead > 0 : (ahead > 0 || payloadBreakdown.patchCount > 0)) && (
           <div style={{
             marginBottom:10, padding:"12px 16px", background:T.blueDim,
             border:`1px solid ${T.blue}40`, borderRadius:8, display:"flex",
