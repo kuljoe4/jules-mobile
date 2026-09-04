@@ -117,6 +117,16 @@ assert.equal(SafeStorage.saveLastBranch('toString', 'main'), false);
 assert.equal(SafeStorage.saveLastBranch('owner/repo', 'main\x00null'), false);
 assert.equal(SafeStorage.saveLastBranch('owner/repo', 'main'), true);
 
+// Test SafeStorage saveDraftToBox and deleteDraftFromBox validation and sanitization
+assert.equal(SafeStorage.saveDraftToBox(null), null);
+assert.equal(SafeStorage.saveDraftToBox('not-an-object'), null);
+assert.equal(SafeStorage.saveDraftToBox({ id: 'toString', prompt: 'test' }), null);
+assert.equal(SafeStorage.saveDraftToBox({ id: '__proto__', prompt: 'test' }), null);
+assert.equal(SafeStorage.saveDraftToBox({ id: 'dr_valid', prompt: 'test prompt', __proto__: { bad: 1 } })?.id, 'dr_valid');
+assert.equal(SafeStorage.deleteDraftFromBox('toString'), false);
+assert.equal(SafeStorage.deleteDraftFromBox('__proto__'), false);
+assert.equal(SafeStorage.deleteDraftFromBox('dr_valid'), true);
+
 const ghPrRe = /https:\/\/github\.com\/[a-zA-Z0-9\-_.]+\/[a-zA-Z0-9\-_.]+\/pull\/(\d+)/;
 assert.equal(ghPrRe.test('https://github.com/owner/repo/pull/123'), true);
 assert.equal(ghPrRe.test('https://github.com/owner?inject=1/repo/pull/123'), false);

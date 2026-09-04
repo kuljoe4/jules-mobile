@@ -348,13 +348,17 @@ const SafeStorage = {
   saveDraftsBox(drafts) {
     this.setJSON(this.KEYS.DRAFTS_BOX, drafts);
   },
+  // Security: Validates draft object and ID to prevent Prototype Pollution, property shadowing, and control character injection.
   saveDraftToBox(draft) {
+    if (!draft || typeof draft !== "object" || Array.isArray(draft)) return null;
     try {
+      const cleanDraft = sanitizeObjectKeys(draft);
+      if (cleanDraft.id && !isValidStorageKey(cleanDraft.id)) return null;
       const drafts = this.loadDraftsBox();
       const newDraft = {
-        ...draft,
-        id: draft.id || "dr_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7),
-        createdAt: draft.createdAt || Date.now(),
+        ...cleanDraft,
+        id: cleanDraft.id || "dr_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7),
+        createdAt: cleanDraft.createdAt || Date.now(),
         updatedAt: Date.now()
       };
       const idx = drafts.findIndex(d => d.id === newDraft.id);
@@ -366,11 +370,16 @@ const SafeStorage = {
       return null;
     }
   },
+  // Security: Validates draft ID against Prototype Pollution and control character injection before filtering.
   deleteDraftFromBox(id) {
+    if (!isValidStorageKey(id)) return false;
     try {
       const drafts = this.loadDraftsBox().filter(d => d.id !== id);
       this.saveDraftsBox(drafts);
-    } catch {}
+      return true;
+    } catch {
+      return false;
+    }
   },
   clearDraftsBox() {
     this.removeItem(this.KEYS.DRAFTS_BOX);
