@@ -6,6 +6,7 @@ import {
   isValidGithubToken,
   isValidGoogleApiKey,
   isValidSessionId,
+  isValidStorageKey,
   safeMediaBase64,
   safeMediaMimeType,
   safeUrl,
@@ -79,6 +80,41 @@ assert.equal(isValidGitBranchName('branch\x00nullbyte'), false);
 assert.equal(isValidGitBranchName('branch\x07bell'), false);
 assert.equal(isValidGitBranchName('branch\x1funit'), false);
 assert.equal(isValidGitBranchName('branch\x7fdel'), false);
+
+// Test isValidStorageKey for Prototype Pollution and control character mitigation
+assert.equal(isValidStorageKey('owner/repo'), true);
+assert.equal(isValidStorageKey('custom_12345'), true);
+assert.equal(isValidStorageKey('__proto__'), false);
+assert.equal(isValidStorageKey('constructor'), false);
+assert.equal(isValidStorageKey('prototype'), false);
+assert.equal(isValidStorageKey('toString'), false);
+assert.equal(isValidStorageKey('valueOf'), false);
+assert.equal(isValidStorageKey('hasOwnProperty'), false);
+assert.equal(isValidStorageKey('key\x00nullbyte'), false);
+assert.equal(isValidStorageKey('key\nnewline'), false);
+assert.equal(isValidStorageKey(''), false);
+assert.equal(isValidStorageKey(null), false);
+assert.equal(isValidStorageKey(123), false);
+
+// Test SafeStorage defense against Prototype Pollution keys
+assert.equal(SafeStorage.savePersonaPrompt('toString', 'invalid prompt'), false);
+assert.equal(SafeStorage.savePersonaPrompt('__proto__', 'invalid prompt'), false);
+assert.equal(SafeStorage.savePersonaPrompt('valid_persona_id', 'valid prompt'), true);
+
+assert.equal(SafeStorage.saveCustomPersona({ id: 'toString', label: 'bad' }), false);
+assert.equal(SafeStorage.saveCustomPersona({ id: '__proto__', label: 'bad' }), false);
+assert.equal(SafeStorage.deleteCustomPersona('toString'), false);
+
+assert.equal(SafeStorage.incRepoStat('toString'), false);
+assert.equal(SafeStorage.incRepoStat('__proto__'), false);
+assert.equal(SafeStorage.incRepoStat('owner/repo'), true);
+
+assert.equal(SafeStorage.saveLeanModeRepo('toString', true), false);
+assert.equal(SafeStorage.saveLeanModeRepo('__proto__', true), false);
+
+assert.equal(SafeStorage.saveLastBranch('toString', 'main'), false);
+assert.equal(SafeStorage.saveLastBranch('owner/repo', 'main\x00null'), false);
+assert.equal(SafeStorage.saveLastBranch('owner/repo', 'main'), true);
 
 const ghPrRe = /https:\/\/github\.com\/[a-zA-Z0-9\-_.]+\/[a-zA-Z0-9\-_.]+\/pull\/(\d+)/;
 assert.equal(ghPrRe.test('https://github.com/owner/repo/pull/123'), true);

@@ -92,3 +92,18 @@ export const safeMediaBase64 = (data) => {
   if (typeof data !== "string") return "";
   return data.replace(/[^A-Za-z0-9+/=]/g, "");
 };
+
+// Security: Validates storage dictionary keys to prevent Prototype Pollution, Object property shadowing
+// (e.g. toString / valueOf override crashes), and control character / null-byte injection.
+export const FORBIDDEN_STORAGE_KEYS = new Set([
+  "__proto__", "constructor", "prototype", "toString", "valueOf",
+  "hasOwnProperty", "isPrototypeOf", "propertyIsEnumerable", "toLocaleString"
+]);
+
+export const isValidStorageKey = (key) => {
+  if (!key || typeof key !== "string") return false;
+  if (key.length > 250) return false;
+  if (/[\x00-\x1F\x7F]/.test(key)) return false;
+  if (FORBIDDEN_STORAGE_KEYS.has(key)) return false;
+  return true;
+};

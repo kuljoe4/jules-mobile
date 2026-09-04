@@ -1,4 +1,4 @@
-import { isValidSessionId } from "../utils/validation.js";
+import { isValidSessionId, isValidStorageKey } from "../utils/validation.js";
 
 // ─── Safe Storage Service ────────────────────────────────────────────────────
 const SafeStorage = {
@@ -217,14 +217,19 @@ const SafeStorage = {
       return DEFAULT_PERSONAS;
     }
   },
+  // Security: Validates persona prompt key against Prototype Pollution and property shadowing.
   savePersonaPrompt(id, prompt) {
+    if (!isValidStorageKey(id)) return false;
     try {
       const saved = this.getJSON(this.KEYS.PERSONA_PROMPTS, {});
       saved[id] = prompt;
-      this.setJSON(this.KEYS.PERSONA_PROMPTS, saved);
-    } catch {}
+      return this.setJSON(this.KEYS.PERSONA_PROMPTS, saved);
+    } catch {
+      return false;
+    }
   },
   saveCustomPersona(persona) {
+    if (!persona || typeof persona !== 'object' || !isValidStorageKey(persona.id)) return false;
     try {
       const custom = this.getJSON(this.KEYS.CUSTOM_PERSONAS, []);
       const index = custom.findIndex(p => p.id === persona.id);
@@ -233,15 +238,20 @@ const SafeStorage = {
       } else {
         custom.push(persona);
       }
-      this.setJSON(this.KEYS.CUSTOM_PERSONAS, custom);
-    } catch {}
+      return this.setJSON(this.KEYS.CUSTOM_PERSONAS, custom);
+    } catch {
+      return false;
+    }
   },
   deleteCustomPersona(id) {
+    if (!isValidStorageKey(id)) return false;
     try {
       const custom = this.getJSON(this.KEYS.CUSTOM_PERSONAS, []);
       const filtered = custom.filter(p => p.id !== id);
-      this.setJSON(this.KEYS.CUSTOM_PERSONAS, filtered);
-    } catch {}
+      return this.setJSON(this.KEYS.CUSTOM_PERSONAS, filtered);
+    } catch {
+      return false;
+    }
   },
   resetPersonas() {
     this.removeItem(this.KEYS.PERSONA_PROMPTS);
@@ -270,15 +280,18 @@ const SafeStorage = {
     return this.getJSON(this.KEYS.REPO_STATS, {});
   },
   saveRepoStats(stats) {
-    this.setJSON(this.KEYS.REPO_STATS, stats);
+    return this.setJSON(this.KEYS.REPO_STATS, stats);
   },
+  // Security: Validates repository stat key against Prototype Pollution and built-in property shadowing.
   incRepoStat(name) {
-    if (!name) return;
+    if (!isValidStorageKey(name)) return false;
     try {
       const stats = this.loadRepoStats();
-      stats[name] = (stats[name] || 0) + 1;
-      this.saveRepoStats(stats);
-    } catch {}
+      stats[name] = (typeof stats[name] === "number" ? stats[name] : 0) + 1;
+      return this.saveRepoStats(stats);
+    } catch {
+      return false;
+    }
   },
 
   loadLastSource() {
@@ -291,13 +304,16 @@ const SafeStorage = {
   loadLeanModeRepos() {
     return this.getJSON(this.KEYS.LEAN_MODE_REPOS, {});
   },
+  // Security: Validates source key against Prototype Pollution and built-in property shadowing.
   saveLeanModeRepo(source, isLean) {
-    if (!source) return;
+    if (!isValidStorageKey(source)) return false;
     try {
       const repos = this.loadLeanModeRepos();
       repos[source] = !!isLean;
-      this.setJSON(this.KEYS.LEAN_MODE_REPOS, repos);
-    } catch {}
+      return this.setJSON(this.KEYS.LEAN_MODE_REPOS, repos);
+    } catch {
+      return false;
+    }
   },
 
   loadLeanDirective() {
@@ -310,15 +326,18 @@ const SafeStorage = {
     return this.getJSON(this.KEYS.LAST_BRANCHES, {});
   },
   saveLastBranches(branches) {
-    this.setJSON(this.KEYS.LAST_BRANCHES, branches);
+    return this.setJSON(this.KEYS.LAST_BRANCHES, branches);
   },
+  // Security: Validates source key and branch parameter against Prototype Pollution and control character injection.
   saveLastBranch(source, branch) {
-    if (!source || !branch) return;
+    if (!isValidStorageKey(source) || typeof branch !== "string" || /[\x00-\x1F\x7F]/.test(branch)) return false;
     try {
       const branches = this.loadLastBranches();
       branches[source] = branch;
-      this.saveLastBranches(branches);
-    } catch {}
+      return this.saveLastBranches(branches);
+    } catch {
+      return false;
+    }
   },
 
   loadDraftsBox() {
