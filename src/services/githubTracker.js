@@ -79,6 +79,52 @@ const GitHubTracker = {
   // combining session ID, update/create timestamp, and outputs length (`${sid}:${ts}:${outLen}`).
   // This avoids redundant object property traversals and regex scans on every render pass
   // for sessions without pull requests, converting O(K) string scans into instant O(1) cache hits.
+  getPendingPRProposal(s, activities = []) {
+    if (!s) return null;
+
+    if (s.outputs && Array.isArray(s.outputs)) {
+      for (const o of s.outputs) {
+        if (o.pullRequest && typeof o.pullRequest === 'object') {
+          const pr = o.pullRequest;
+          const url = pr.url || pr.pullRequestUrl || pr.prUrl || pr.htmlUrl || pr.html_url || pr.pr_url;
+          if (!url && (pr.title || pr.description)) {
+            return {
+              title: pr.title || "",
+              description: pr.description || pr.body || ""
+            };
+          }
+        }
+      }
+    }
+
+    if (activities && Array.isArray(activities)) {
+      for (let i = activities.length - 1; i >= 0; i--) {
+        const a = activities[i];
+        if (!a) continue;
+
+        const outputsList = [
+          ...(a.sessionCompleted?.outputs || []),
+          ...(a.progressUpdated?.outputs || [])
+        ];
+
+        for (const o of outputsList) {
+          if (o.pullRequest && typeof o.pullRequest === 'object') {
+            const pr = o.pullRequest;
+            const url = pr.url || pr.pullRequestUrl || pr.prUrl || pr.htmlUrl || pr.html_url || pr.pr_url;
+            if (!url && (pr.title || pr.description)) {
+              return {
+                title: pr.title || "",
+                description: pr.description || pr.body || ""
+              };
+            }
+          }
+        }
+      }
+    }
+
+    return null;
+  },
+
   getPR(s) {
     if (!s) return null;
     const sid = s.id || s.name || "temp";
@@ -1265,5 +1311,6 @@ const mergePullRequest = (url, mergeMethod) => GitHubTracker.mergePullRequest(ur
 const mergeBranch = (params) => GitHubTracker.mergeBranch(params);
 const createAndMergePR = (params) => GitHubTracker.createAndMergePR(params);
 const deleteBranch = (repo, branch) => GitHubTracker.deleteBranch(repo, branch);
+const getPendingPRProposal = (s, activities = []) => GitHubTracker.getPendingPRProposal(s, activities);
 
-export { GitHubTracker, getPR, getPRInfo, getBranchInfo, getCheckStatus, getDeploymentInfo, getPrUrlAndNumber, createPullRequest, mergePullRequest, mergeBranch, createAndMergePR, deleteBranch };
+export { GitHubTracker, getPR, getPRInfo, getBranchInfo, getCheckStatus, getDeploymentInfo, getPrUrlAndNumber, createPullRequest, mergePullRequest, mergeBranch, createAndMergePR, deleteBranch, getPendingPRProposal };

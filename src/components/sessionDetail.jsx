@@ -885,9 +885,10 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     return getPayloadBreakdown(activities);
   }, [activities]);
 
-  const b = useMemo(() => getBranchInfo(session, activities), [session, activities]);
+  const b = useMemo(() => getBranchInfo(session, activities), [session, activities, ghPrNonce]);
   const ahead = useMemo(() => getAheadCount(activities), [activities]);
 
+  const pendingPRProposal = useMemo(() => getPendingPRProposal(session, activities), [session, activities]);
   const summary = session.outputs?.find(o=>o.sessionSummary)?.sessionSummary;
   const pri = useMemo(() => getPRInfo(session, activities), [session, activities, ghPrNonce]);
   const pr = (b && b.livePR) ? { ...pri, ...b.livePR } : pri;
@@ -1470,7 +1471,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
           )}
         </div>
 
-        {(pr?.state === "closed" || pr?.state === "merged" || !pr) && b?.working && b?.working !== (b?.base || "main") && ((b && typeof b.ahead === "number") ? b.ahead > 0 : (ahead > 0 || payloadBreakdown.patchCount > 0)) && (
+        {(pendingPRProposal || ((pr?.state === "closed" || pr?.state === "merged" || !pr) && b?.working && b?.working !== (b?.base || "main") && ((b && typeof b.ahead === "number") ? b.ahead > 0 : (ahead > 0 || payloadBreakdown.patchCount > 0)))) && (
           <div style={{
             marginBottom:10, padding:"12px 16px", background:T.blueDim,
             border:`1px solid ${T.blue}40`, borderRadius:8, display:"flex",
@@ -1478,11 +1479,13 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
           }}>
             <div style={{flex:1, minWidth:200}}>
               <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.blue, fontWeight:800, letterSpacing:"0.05em", marginBottom:4, display:"flex", alignItems:"center", gap:6}}>
-                <Ic n="branch" s={14} c={T.blue}/> BRANCH AHEAD ({b?.ahead || ahead || payloadBreakdown.patchCount} {b?.ahead || ahead ? "COMMITS" : "PATCH SETS"}) {pr?.state === "merged" && "· PREVIOUS PR MERGED"}
+                <Ic n="branch" s={14} c={T.blue}/> {pendingPRProposal ? "PR READY — NOT YET PUBLISHED" : `BRANCH AHEAD (${b?.ahead || ahead || payloadBreakdown.patchCount} ${b?.ahead || ahead ? "COMMITS" : "PATCH SETS"})${pr?.state === "merged" ? " · PREVIOUS PR MERGED" : ""}`}
               </div>
               <div style={{fontFamily:"'IBM Plex Sans',sans-serif", fontSize:13, color:T.textDim, lineHeight:1.4}}>
-                New changes on <span style={{color:T.blue, fontWeight:600}}>{b?.working || "feature branch"}</span>. Merge directly or publish a Pull Request into <span style={{color:T.blue, fontWeight:600}}>{b?.base || "main"}</span>.
-                {payloadBreakdown.patchCount > 0 && (
+                {pendingPRProposal ? (pendingPRProposal.title || "Jules generated a Pull Request proposal for this session.") : (
+                  <>New changes on <span style={{color:T.blue, fontWeight:600}}>{b?.working || "feature branch"}</span>. Merge directly or publish a Pull Request into <span style={{color:T.blue, fontWeight:600}}>{b?.base || "main"}</span>.</>
+                )}
+                {payloadBreakdown.patchCount > 0 && !pendingPRProposal && (
                   <span style={{marginLeft:6, color:T.text, fontWeight:600}}>
                     ({payloadBreakdown.patchCount} patch set{payloadBreakdown.patchCount!==1?'s':''})
                   </span>
@@ -1517,8 +1520,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                 padding:"6px 12px", fontFamily:"'JetBrains Mono',monospace",
                 fontSize:11, fontWeight:800, cursor: busy ? "not-allowed" : "pointer", flexShrink:0,
                 opacity: busy ? 0.6 : 1
-              }} aria-label="Create Pull Request via GitHub API" title="Create Pull Request via GitHub API">
-                + CREATE PR
+              }} aria-label="Publish Pull Request via GitHub API" title="Publish Pull Request via GitHub API">
+                ↑ PUBLISH PR
               </button>
               {b?.working && b?.working !== (b?.base || "main") && (
                 <button onClick={handleMergeBranchDirect} disabled={busy} style={{
@@ -2695,8 +2698,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
       {/* ── Create PR Modal ── */}
       {showCreatePRModal && (
         <CreatePRModal
-          defaultTitle={getSmartTitle(session, b)}
-          defaultBody={getSmartBody(session, b)}
+          defaultTitle={getSmartTitle(session, b, activities)}
+          defaultBody={getSmartBody(session, b, activities)}
           repo={repo}
           headBranch={b?.working || "feature"}
           baseBranch={b?.base || "main"}
