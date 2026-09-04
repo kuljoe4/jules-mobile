@@ -1046,7 +1046,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                      {session.sourceContext?.source && (
                        <a href={safeUrl(b?.repoUrl ? `${b.repoUrl}/branches` : "#")} target="_blank" rel="noopener noreferrer" style={{display:"flex", alignItems:"center", gap:3, color:T.blue, textDecoration:"none", flexShrink:0, borderBottom:`1px solid ${T.blue}40`}}>
                          <Ic n="branch" s={9} c={T.blue}/>
-                         <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:8, fontWeight:900}}>{b?.working || "main"}</span>
+                         <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:8, fontWeight:900}}>{b?.working || "main"} {b?.base ? `(base: ${b.base})` : ""}</span>
                        </a>
                      )}
                      {isStale && !isFinished && <div style={{width:5, height:5, borderRadius:"50%", background:T.brand, animation:"pulse 2s infinite"}}/>}
@@ -1375,14 +1375,14 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
 
             {session.sourceContext?.source && (
               <div style={{display:"inline-flex", alignItems:"center", gap:2, flexShrink:0}}>
-                <a href={safeUrl(b?.repoUrl ? `${b.repoUrl}/branches` : "#")} target="_blank" rel="noopener noreferrer" aria-label={`Branch ${b?.working || "main"}. ${b?.ahead || ahead || 0} commits ahead, ${b?.behind || 0} commits behind. Checked ${b?.fetchedAt ? fmtAgo(b.fetchedAt) : 'recently'}.`} style={{
+                <a href={safeUrl(b?.repoUrl ? `${b.repoUrl}/branches` : "#")} target="_blank" rel="noopener noreferrer" aria-label={`Branch ${b?.working || "main"} into base ${b?.base || "main"}. ${b?.ahead || ahead || 0} commits ahead, ${b?.behind || 0} commits behind. Checked ${b?.fetchedAt ? fmtAgo(b.fetchedAt) : 'recently'}.`} style={{
                   background:T.blueDim, border:`1px solid ${T.blue}30`, borderRadius:4, padding:"3px 8px",
                   display:"flex", alignItems:"center", gap:4, color:T.blue, textDecoration:"none",
                   fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:900, flexShrink:0,
                   animation: isSyncing ? "shimmerPulse 1.5s infinite 0.4s" : "none"
                 }}>
                   <Ic n="branch" s={11} c={T.blue}/>
-                  {b?.working || "main"}
+                  {b?.isNew ? `${b.working} → ${b.base || "main"}` : `${b?.working || "main"} (base)`}
                   {b?.ahead > 0 && <span style={{fontSize:9, background:`${T.brand}22`, color:T.brandLight, borderRadius:3, padding:"0px 4px", border:`1px solid ${T.brand}40`}}>↑{b.ahead}</span>}
                   {b?.behind > 0 && <span style={{fontSize:9, background:`${T.amber}22`, color:T.amber, borderRadius:3, padding:"0px 4px", border:`1px solid ${T.amber}40`}}>↓{b.behind}</span>}
                   {!(b?.ahead > 0 || b?.behind > 0) && ahead > 0 && <span style={{fontSize:9}}>+{ahead}</span>}
