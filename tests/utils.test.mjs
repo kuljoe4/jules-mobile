@@ -14,7 +14,7 @@ import {
 } from '../src/utils/validation.js';
 import { cleanMathText, copyToClipboard, fmtBytes, fmtChars, formatSmartDashItems, safeSlice } from '../src/utils/format.js';
 import { fmtAgo, fmtDuration, fmtTime, parseDateMs } from '../src/utils/date.js';
-import { GitHubTracker, getPR, getPRInfo, getBranchInfo, getCheckStatus, getDeploymentInfo, createPullRequest, mergeBranch, deleteBranch } from '../src/services/githubTracker.js';
+import { GitHubTracker, getPR, getPRInfo, getBranchInfo, getCheckStatus, getDeploymentInfo, createPullRequest, mergeBranch, deleteBranch, getPendingPRProposal } from '../src/services/githubTracker.js';
 import { fastDeepEqual, getActivitiesSize, getApproxBytes, getPatchFileCount, getPayloadBreakdown } from '../src/utils/performance.js';
 import { parseUnidiffPatch, getWorkingSet } from '../src/utils/workingSet.js';
 import { getSmartTitle, getSmartBody } from '../src/utils/prTitle.js';
@@ -515,5 +515,28 @@ Object.defineProperty(globalThis.navigator, "clipboard", {
 });
 const failedCopyRes = await copyToClipboard("failing text");
 assert.equal(failedCopyRes, false);
+
+// Test getPendingPRProposal and smart title/body fallback with pending PR proposals
+const mockDraftProposalSession = {
+  id: "sess-draft-pr",
+  createTime: "2026-08-25T10:00:00Z",
+  outputs: [
+    {
+      pullRequest: {
+        title: "Draft PR Title from Jules",
+        description: "Draft PR Body Description from Jules"
+      }
+    }
+  ]
+};
+
+const proposalRes = getPendingPRProposal(mockDraftProposalSession, []);
+assert.deepEqual(proposalRes, {
+  title: "Draft PR Title from Jules",
+  description: "Draft PR Body Description from Jules"
+});
+
+assert.equal(getSmartTitle(mockDraftProposalSession, { working: "feature", commits: [] }, []), "Draft PR Title from Jules");
+assert.equal(getSmartBody(mockDraftProposalSession, { working: "feature", commits: [] }, []), "Draft PR Body Description from Jules");
 
 console.log('Utility tests passed');

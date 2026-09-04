@@ -2,7 +2,14 @@
  * Utility functions for generating smart Pull Request / direct merge commit titles and bodies.
  */
 
-export function getSmartTitle(session, b) {
+import { getPendingPRProposal } from '../services/githubTracker.js';
+
+export function getSmartTitle(session, b, activities = []) {
+  const proposal = b?.pendingPRProposal || (typeof getPendingPRProposal === 'function' ? getPendingPRProposal(session, activities) : null);
+  if (proposal && proposal.title) {
+    return proposal.title;
+  }
+
   if (b?.commits && b.commits.length > 0 && b.commits[0].source !== "activity") {
     const firstTitle = b.commits[0].title || (b.commits[0].message || "").split("\n")[0].trim();
     if (firstTitle && firstTitle.length >= 3) {
@@ -32,7 +39,12 @@ export function getSmartTitle(session, b) {
   return `Merge changes from ${b?.working || "feature branch"}`;
 }
 
-export function getSmartBody(session, b) {
+export function getSmartBody(session, b, activities = []) {
+  const proposal = b?.pendingPRProposal || (typeof getPendingPRProposal === 'function' ? getPendingPRProposal(session, activities) : null);
+  if (proposal && (proposal.description || proposal.title)) {
+    return proposal.description || proposal.title;
+  }
+
   if (b?.commits && b.commits.length > 0 && b.commits[0].source !== "activity") {
     const commitLogs = b.commits.map(c => `- ${c.sha ? `[${c.sha}] ` : ""}${c.title || c.message}`).join("\n");
     return `### Ahead Commits\n\n${commitLogs}\n\nCreated via Jules Mobile Client`;
