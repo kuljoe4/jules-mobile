@@ -1158,6 +1158,50 @@ const GitHubTracker = {
 
     const deployment = repo ? this.getDeploymentInfo(repo, force) : null;
 
+    // Activity-based Commit Extraction Fallback
+    // If remote commits list is empty, build fallback commit objects from session activities
+    if ((!commits || commits.length === 0) && activities && activities.length > 0) {
+      const fallbackCommits = [];
+      const seenMsgs = new Set();
+
+      for (let i = activities.length - 1; i >= 0; i--) {
+        const a = activities[i];
+        if (!a) continue;
+
+        const pu = a.progressUpdated;
+        const titleText = (pu?.title || "").trim();
+        const descText = (pu?.description || "").trim();
+
+        if (titleText || descText) {
+          const isPush = descText.toLowerCase().includes("push") || descText.toLowerCase().includes("branch") || titleText.toLowerCase().includes("commit") || titleText.toLowerCase().includes("push");
+          const hasPatch = Array.isArray(a.artifacts) && a.artifacts.some(art => art.changeSet?.gitPatch);
+
+          if (isPush || hasPatch) {
+            const fullMsg = descText || titleText;
+            if (!seenMsgs.has(fullMsg)) {
+              seenMsgs.add(fullMsg);
+              const lines = fullMsg.split("\n");
+              const commitTitle = lines[0].trim();
+              const commitDesc = lines.slice(1).join("\n").trim();
+
+              fallbackCommits.push({
+                sha: (a.id || "").slice(-7) || "ahead",
+                message: fullMsg,
+                title: commitTitle,
+                description: commitDesc,
+                author: "Jules",
+                date: a.createTime || ""
+              });
+            }
+          }
+        }
+      }
+
+      if (fallbackCommits.length > 0) {
+        commits = fallbackCommits;
+      }
+    }
+
     const res = {
       base,
       working: activeWorking,
