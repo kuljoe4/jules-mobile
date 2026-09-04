@@ -57,3 +57,7 @@
 ## 2026-08-25 - Single-Pass Partitioning in Multi-Filter Registry Calculations
 **Learning:** Performing multiple sequential array traversals (`Object.entries()`, `.map()`, `.filter()`, `.sort()`) over the same registry object (like `sessionRegistry` in `useQuotaTracker`) forces duplicate object-to-entry transformations, redundant timestamp parsing (`parseDateMs`), and multiple intermediate array allocations on every recalculation. Combining partitioning logic into a single O(N) `for` loop pass collects active and historical items simultaneously, cutting Object.entries calls and date conversions by 50% while avoiding array slicing allocations.
 **Action:** When evaluating complementary subsets of a dictionary or array, partition items in a single O(N) loop pass instead of chaining multiple `.filter()` and `.map()` pipelines.
+
+## 2026-08-27 - Precomputed String Metric Accumulation in Object Parsing
+**Learning:** Calling `.join("\n").length` on large line array properties inside React render loops or debug serializations allocates temporary concatenated strings in memory every render pass. Accumulating `rawSize` during initial string parsing turns size calculations into O(1) property reads.
+**Action:** Track byte lengths during string parsing into object properties rather than performing runtime `.join()` allocations in render methods or getters.
