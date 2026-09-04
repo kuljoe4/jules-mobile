@@ -1,3 +1,5 @@
+import { copyToClipboard } from "../utils/format.js";
+
 const ExpandableContent = memo(({ text, limit = 300, showCopy = false, forceExpanded = false }) => {
   const [expanded, setExpanded] = useState(false);
   const [showToggle, setShowToggle] = useState(false);
@@ -19,9 +21,11 @@ const ExpandableContent = memo(({ text, limit = 300, showCopy = false, forceExpa
   const handleCopy = (e) => {
     if (e && e.stopPropagation) e.stopPropagation();
     if (copied) return;
-    navigator.clipboard.writeText(text).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+    copyToClipboard(text).then((success) => {
+      if (success) {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
     });
   };
 
@@ -223,9 +227,11 @@ const CodeBlock = memo(({ lang, content }) => {
   const handleCopy = (e) => {
     if (e && e.stopPropagation) e.stopPropagation();
     if (copied) return;
-    navigator.clipboard.writeText(content).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+    copyToClipboard(content).then((success) => {
+      if (success) {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
     });
   };
 

@@ -1,3 +1,5 @@
+import { copyToClipboard } from "../utils/format.js";
+
 // ─── Session Detail ───────────────────────────────────────────────────────────
 const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete, onSessionUpdate, onStatsUpdate, isDesktop, pollInterval, setPollInterval, isArchived, onArchive, onUnarchive, onIgnore, cacheLimit, activityLimit, allSessions = [], activitiesMap = {}, onDraftChange, onToggleMobileDrawer }) => {
   const [session,setSession]     = useState(initSession);
@@ -1643,9 +1645,11 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                     if (a.progressUpdated) return `[SYSTEM] ${a.progressUpdated.title}: ${a.progressUpdated.description}`;
                     return `[SYSTEM] ${Object.keys(a)[0]}`;
                   }).join("\n\n");
-                  navigator.clipboard.writeText(text).then(() => {
-                    setCopiedChat(true);
-                    setTimeout(() => setCopiedChat(false), 2000);
+                  copyToClipboard(text).then((success) => {
+                    if (success) {
+                      setCopiedChat(true);
+                      setTimeout(() => setCopiedChat(false), 2000);
+                    }
                   });
                 }}
                 style={{
@@ -2347,9 +2351,11 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                         const desc = act.progressUpdated?.description || "";
                         return `--- REVIEW #${i+1} ---\n${desc}`;
                       }).join("\n\n");
-                      navigator.clipboard.writeText(text).then(() => {
-                        setCopiedAllReviews(true);
-                        setTimeout(() => setCopiedAllReviews(false), 2000);
+                      copyToClipboard(text).then((success) => {
+                        if (success) {
+                          setCopiedAllReviews(true);
+                          setTimeout(() => setCopiedAllReviews(false), 2000);
+                        }
                       });
                     }}
                     style={{
@@ -2383,12 +2389,14 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                          </div>
                          <button
                            onClick={() => {
-                             navigator.clipboard.writeText(p.description).then(() => {
+                           copyToClipboard(p.description).then((success) => {
+                             if (success) {
                                const actKey = getActKey(act);
                                setCopiedReviews(prev => ({ ...prev, [actKey]: true }));
                                setTimeout(() => {
                                  setCopiedReviews(prev => ({ ...prev, [actKey]: false }));
                                }, 2000);
+                             }
                              });
                            }}
                            style={{
@@ -2425,9 +2433,11 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                     parts.push(`--- FOLLOW-UP #${i+1} ---\n${a.userMessaged.userMessage}`);
                   });
                   const text = parts.join("\n\n");
-                  navigator.clipboard.writeText(text).then(() => {
-                    setCopiedAllPrompts(true);
-                    setTimeout(() => setCopiedAllPrompts(false), 2000);
+                  copyToClipboard(text).then((success) => {
+                    if (success) {
+                      setCopiedAllPrompts(true);
+                      setTimeout(() => setCopiedAllPrompts(false), 2000);
+                    }
                   });
                 }}
                 style={{

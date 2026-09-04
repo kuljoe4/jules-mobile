@@ -92,3 +92,36 @@ export const formatSmartDashItems = (text) => {
 
   return hasChanged ? processedLines.join("\n") : text;
 };
+
+// Resilient, asynchronous clipboard copy function with fallback for non-secure contexts (HTTP)
+// and unsupported browsers. Catches all rejections to prevent unhandled promise exceptions.
+export const copyToClipboard = async (text) => {
+  if (typeof text !== "string") text = String(text || "");
+  if (typeof navigator !== "undefined" && navigator?.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch (err) {
+      console.warn("[copyToClipboard] navigator.clipboard.writeText failed:", err);
+    }
+  }
+  if (typeof document !== "undefined" && document.createElement) {
+    try {
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      textArea.style.position = "fixed";
+      textArea.style.left = "-999999px";
+      textArea.style.top = "-999999px";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      const successful = document.execCommand("copy");
+      document.body.removeChild(textArea);
+      return successful;
+    } catch (err) {
+      console.warn("[copyToClipboard] execCommand fallback failed:", err);
+      return false;
+    }
+  }
+  return false;
+};

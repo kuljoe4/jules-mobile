@@ -1,4 +1,4 @@
-import { isValidSessionId, isValidStorageKey } from "../utils/validation.js";
+import { isValidSessionId, isValidStorageKey, sanitizeObjectKeys } from "../utils/validation.js";
 
 // ─── Safe Storage Service ────────────────────────────────────────────────────
 const SafeStorage = {
@@ -75,11 +75,12 @@ const SafeStorage = {
           if (!Array.isArray(parsed)) return fallback;
         } else if (typeof fallback === 'object') {
           if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return fallback;
+          return sanitizeObjectKeys(parsed);
         } else if (typeof parsed !== typeof fallback) {
           return fallback;
         }
       }
-      return parsed;
+      return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed) ? sanitizeObjectKeys(parsed) : parsed;
     } catch {
       return fallback;
     }
@@ -231,12 +232,13 @@ const SafeStorage = {
   saveCustomPersona(persona) {
     if (!persona || typeof persona !== 'object' || !isValidStorageKey(persona.id)) return false;
     try {
+      const cleanPersona = sanitizeObjectKeys(persona);
       const custom = this.getJSON(this.KEYS.CUSTOM_PERSONAS, []);
-      const index = custom.findIndex(p => p.id === persona.id);
+      const index = custom.findIndex(p => p.id === cleanPersona.id);
       if (index >= 0) {
-        custom[index] = { ...custom[index], ...persona };
+        custom[index] = { ...custom[index], ...cleanPersona };
       } else {
-        custom.push(persona);
+        custom.push(cleanPersona);
       }
       return this.setJSON(this.KEYS.CUSTOM_PERSONAS, custom);
     } catch {

@@ -3,6 +3,8 @@
  * Renders unified diff patches for code changes made during a session,
  * complete with file collapsing, path/diff copy helpers, payload stats, and debug export.
  */
+import { copyToClipboard } from "../utils/format.js";
+
 export const DiffViewer = memo(({ activities = [], isDesktop = false }) => {
   const [collapsed, setCollapsed] = useState(null); // null = auto-collapse all on first load
   const [copiedPaths, setCopiedPaths] = useState({}); // key (pi-gi) -> boolean
@@ -71,11 +73,13 @@ export const DiffViewer = memo(({ activities = [], isDesktop = false }) => {
 
   const handleCopyPath = (e, file, key) => {
     e.stopPropagation();
-    navigator.clipboard.writeText(file).then(() => {
-      setCopiedPaths(prev => ({ ...prev, [key]: true }));
-      setTimeout(() => {
-        setCopiedPaths(prev => ({ ...prev, [key]: false }));
-      }, 2000);
+    copyToClipboard(file).then((success) => {
+      if (success) {
+        setCopiedPaths(prev => ({ ...prev, [key]: true }));
+        setTimeout(() => {
+          setCopiedPaths(prev => ({ ...prev, [key]: false }));
+        }, 2000);
+      }
     });
   };
 
@@ -90,22 +94,26 @@ export const DiffViewer = memo(({ activities = [], isDesktop = false }) => {
       });
     });
     const plainText = plainLines.join("\n");
-    navigator.clipboard.writeText(plainText).then(() => {
-      setCopiedPlains(prev => ({ ...prev, [key]: true }));
-      setTimeout(() => {
-        setCopiedPlains(prev => ({ ...prev, [key]: false }));
-      }, 2000);
+    copyToClipboard(plainText).then((success) => {
+      if (success) {
+        setCopiedPlains(prev => ({ ...prev, [key]: true }));
+        setTimeout(() => {
+          setCopiedPlains(prev => ({ ...prev, [key]: false }));
+        }, 2000);
+      }
     });
   };
 
   const handleCopyDiff = (e, rawLines, key) => {
     e.stopPropagation();
     const diffText = rawLines.join("\n");
-    navigator.clipboard.writeText(diffText).then(() => {
-      setCopiedDiffs(prev => ({ ...prev, [key]: true }));
-      setTimeout(() => {
-        setCopiedDiffs(prev => ({ ...prev, [key]: false }));
-      }, 2000);
+    copyToClipboard(diffText).then((success) => {
+      if (success) {
+        setCopiedDiffs(prev => ({ ...prev, [key]: true }));
+        setTimeout(() => {
+          setCopiedDiffs(prev => ({ ...prev, [key]: false }));
+        }, 2000);
+      }
     });
   };
 
@@ -164,9 +172,11 @@ export const DiffViewer = memo(({ activities = [], isDesktop = false }) => {
                   }))
                 }))
               };
-              navigator.clipboard.writeText(JSON.stringify(debugReport, null, 2)).then(() => {
-                setCopiedOverallDebug(true);
-                setTimeout(() => setCopiedOverallDebug(false), 2000);
+              copyToClipboard(JSON.stringify(debugReport, null, 2)).then((success) => {
+                if (success) {
+                  setCopiedOverallDebug(true);
+                  setTimeout(() => setCopiedOverallDebug(false), 2000);
+                }
               });
             }}
             title={copiedOverallDebug ? "Overall diff debug report copied to clipboard" : "Copy overall diff debug report to clipboard"}
