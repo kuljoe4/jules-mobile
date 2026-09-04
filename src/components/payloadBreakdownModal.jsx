@@ -2,6 +2,8 @@
  * PayloadBreakdownModal component for displaying categorized payload byte sizes,
  * visual stacked bar chart, itemized code patch details, and debug log export.
  */
+import { copyToClipboard } from "../utils/format.js";
+
 const PayloadBreakdownModal = ({ breakdown, onClose }) => {
   const { mediaBytes, patchBytes, messageBytes, planBytes, otherBytes, totalBytes, mediaCount, patchCount, topPatches = [], topMedia = [] } = breakdown;
   const total = totalBytes || 1;
@@ -45,9 +47,11 @@ const PayloadBreakdownModal = ({ breakdown, onClose }) => {
       }))
     };
 
-    navigator.clipboard.writeText(JSON.stringify(logData, null, 2)).then(() => {
-      setCopiedDebug(true);
-      setTimeout(() => setCopiedDebug(false), 2000);
+    copyToClipboard(JSON.stringify(logData, null, 2)).then((success) => {
+      if (success) {
+        setCopiedDebug(true);
+        setTimeout(() => setCopiedDebug(false), 2000);
+      }
     });
   };
 

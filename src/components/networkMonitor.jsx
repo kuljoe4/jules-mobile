@@ -1,3 +1,5 @@
+import { copyToClipboard } from "../utils/format.js";
+
 const RecentActivityLog = memo(({ log, total }) => {
   const [mode, setMode] = useState("chrono"); // "chrono", "ranked-indiv", "ranked-group"
   const [copiedAll, setCopiedAll] = useState(false);
@@ -42,9 +44,11 @@ const RecentActivityLog = memo(({ log, total }) => {
           <button
             onClick={() => {
               const data = JSON.stringify(log, null, 2);
-              navigator.clipboard.writeText(data).then(() => {
-                setCopiedAll(true);
-                setTimeout(() => setCopiedAll(false), 2000);
+              copyToClipboard(data).then((success) => {
+                if (success) {
+                  setCopiedAll(true);
+                  setTimeout(() => setCopiedAll(false), 2000);
+                }
               });
             }}
             aria-label="Copy all network activity to clipboard"
@@ -113,11 +117,13 @@ const RecentActivityLog = memo(({ log, total }) => {
               <div style={{display:"flex", alignItems:"center", gap:8}}>
                 <button
                   onClick={() => {
-                    navigator.clipboard.writeText(JSON.stringify(r, null, 2)).then(() => {
-                      setCopiedItems(prev => ({ ...prev, [r.id]: true }));
-                      setTimeout(() => {
-                        setCopiedItems(prev => ({ ...prev, [r.id]: false }));
-                      }, 2000);
+                    copyToClipboard(JSON.stringify(r, null, 2)).then((success) => {
+                      if (success) {
+                        setCopiedItems(prev => ({ ...prev, [r.id]: true }));
+                        setTimeout(() => {
+                          setCopiedItems(prev => ({ ...prev, [r.id]: false }));
+                        }, 2000);
+                      }
                     });
                   }}
                   aria-label="Copy request JSON"

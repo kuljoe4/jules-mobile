@@ -1,3 +1,5 @@
+import { copyToClipboard } from "../utils/format.js";
+
 const ACTIVITY_LINKS_CACHE = new WeakMap();
 
 const getExtractedLinks = (pu) => {
@@ -80,9 +82,11 @@ const ChatBubble = memo(({ act, type, onMediaClick, onEdit, onReply, forceExpand
   const handleCopy = (e) => {
     if (e && e.stopPropagation) e.stopPropagation();
     if (copied) return;
-    navigator.clipboard.writeText(text).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+    copyToClipboard(text).then((success) => {
+      if (success) {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
     });
   };
 

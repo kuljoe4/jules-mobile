@@ -107,3 +107,18 @@ export const isValidStorageKey = (key) => {
   if (FORBIDDEN_STORAGE_KEYS.has(key)) return false;
   return true;
 };
+
+// Security: Strips dangerous keys (__proto__, constructor, prototype, etc.) from plain objects
+// to prevent Prototype Pollution and object property shadowing attacks.
+export const sanitizeObjectKeys = (obj) => {
+  if (!obj || typeof obj !== "object" || Array.isArray(obj)) return obj;
+  const clean = {};
+  const keys = Object.keys(obj);
+  for (let i = 0; i < keys.length; i++) {
+    const key = keys[i];
+    if (isValidStorageKey(key)) {
+      clean[key] = obj[key];
+    }
+  }
+  return clean;
+};

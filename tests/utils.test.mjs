@@ -10,8 +10,9 @@ import {
   safeMediaBase64,
   safeMediaMimeType,
   safeUrl,
+  sanitizeObjectKeys,
 } from '../src/utils/validation.js';
-import { cleanMathText, fmtBytes, fmtChars, formatSmartDashItems, safeSlice } from '../src/utils/format.js';
+import { cleanMathText, copyToClipboard, fmtBytes, fmtChars, formatSmartDashItems, safeSlice } from '../src/utils/format.js';
 import { fmtAgo, fmtDuration, fmtTime, parseDateMs } from '../src/utils/date.js';
 import { GitHubTracker, getPR, getPRInfo, getBranchInfo, getCheckStatus, getDeploymentInfo, createPullRequest, mergeBranch, deleteBranch } from '../src/services/githubTracker.js';
 import { fastDeepEqual, getActivitiesSize, getApproxBytes, getPatchFileCount, getPayloadBreakdown } from '../src/utils/performance.js';
@@ -468,5 +469,51 @@ const mockLiveBranchSession = {
 };
 const cachedLiveBranchInfo = getBranchInfo(mockLiveBranchSession, [], false);
 assert.deepEqual(cachedLiveBranchInfo.livePR, mockLivePR);
+
+// Test sanitizeObjectKeys prototype pollution stripping
+const pollutedObj = {
+  id: "persona-1",
+  label: "Valid Persona",
+  __proto__: { bad: true },
+  constructor: "bad",
+  prototype: "bad",
+  toString: "bad"
+};
+const cleanObj = sanitizeObjectKeys(pollutedObj);
+assert.equal(cleanObj.id, "persona-1");
+assert.equal(cleanObj.label, "Valid Persona");
+assert.equal(Object.prototype.hasOwnProperty.call(cleanObj, "constructor"), false);
+assert.equal(Object.prototype.hasOwnProperty.call(cleanObj, "prototype"), false);
+assert.equal(Object.prototype.hasOwnProperty.call(cleanObj, "toString"), false);
+assert.equal(Object.prototype.hasOwnProperty.call(cleanObj, "__proto__"), false);
+
+// Test copyToClipboard helper with mock navigator.clipboard
+let copiedText = "";
+Object.defineProperty(globalThis.navigator, "clipboard", {
+  value: {
+    writeText: async (txt) => {
+      copiedText = txt;
+    }
+  },
+  configurable: true,
+  writable: true
+});
+
+const copyRes = await copyToClipboard("test payload 123");
+assert.equal(copyRes, true);
+assert.equal(copiedText, "test payload 123");
+
+// Test copyToClipboard resilience when clipboard throws
+Object.defineProperty(globalThis.navigator, "clipboard", {
+  value: {
+    writeText: async () => {
+      throw new Error("Permission denied");
+    }
+  },
+  configurable: true,
+  writable: true
+});
+const failedCopyRes = await copyToClipboard("failing text");
+assert.equal(failedCopyRes, false);
 
 console.log('Utility tests passed');
