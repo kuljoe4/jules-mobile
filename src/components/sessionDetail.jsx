@@ -1143,7 +1143,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                     {session.sourceContext?.source && (!pr || pr.state === "closed" || pr.state === "merged") && (
                       <button
                         onClick={() => { handleOpenCreatePRModal(); setShowMenu(false); }}
-                        disabled={busy || (pr?.state === "merged" && Number(b?.ahead || ahead || 0) === 0)}
+                        disabled={busy}
                         onMouseEnter={e => e.currentTarget.style.background = T.border}
                         onMouseLeave={e => e.currentTarget.style.background = "none"}
                         onMouseDown={e => e.currentTarget.style.transform = "scale(0.96)"}
@@ -1347,8 +1347,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
             {session.sourceContext?.source && (!pr || pr.state === "closed" || pr.state === "merged") && (
               <button
                 onClick={handleOpenCreatePRModal}
-                disabled={busy || (pr?.state === "merged" && Number(b?.ahead || ahead || 0) === 0)}
-                title={pr?.state === "merged" && Number(b?.ahead || ahead || 0) === 0 ? "No new commits ahead of base branch" : "Create Pull Request via GitHub API"}
+                disabled={busy}
+                title="Create Pull Request via GitHub API"
                 aria-label="Create Pull Request via GitHub API"
                 style={{
                   background: T.brandDim,
@@ -1359,12 +1359,12 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                   alignItems: "center",
                   gap: 4,
                   color: T.brandLight,
-                  cursor: (busy || (pr?.state === "merged" && Number(b?.ahead || ahead || 0) === 0)) ? "not-allowed" : "pointer",
+                  cursor: busy ? "not-allowed" : "pointer",
                   fontFamily: "'JetBrains Mono',monospace",
                   fontSize: 10,
                   fontWeight: 900,
                   flexShrink: 0,
-                  opacity: (busy || (pr?.state === "merged" && Number(b?.ahead || ahead || 0) === 0)) ? 0.5 : 1,
+                  opacity: busy ? 0.5 : 1,
                   transition: "all 0.15s ease"
                 }}
               >
@@ -1468,7 +1468,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
           )}
         </div>
 
-        {(pr?.state === "closed" || pr?.state === "merged" || !pr) && b?.isNew && (b.ahead > 0 || ahead > 0) && (
+        {(pr?.state === "closed" || pr?.state === "merged" || !pr) && (b?.ahead > 0 || ahead > 0 || payloadBreakdown.patchCount > 0) && (
           <div style={{
             marginBottom:10, padding:"12px 16px", background:T.blueDim,
             border:`1px solid ${T.blue}40`, borderRadius:8, display:"flex",
@@ -1476,10 +1476,10 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
           }}>
             <div style={{flex:1, minWidth:200}}>
               <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.blue, fontWeight:800, letterSpacing:"0.05em", marginBottom:4, display:"flex", alignItems:"center", gap:6}}>
-                <Ic n="branch" s={14} c={T.blue}/> BRANCH AHEAD ({b.ahead || ahead} COMMITS) {pr?.state === "merged" && "· PREVIOUS PR MERGED"}
+                <Ic n="branch" s={14} c={T.blue}/> BRANCH AHEAD ({b?.ahead || ahead || payloadBreakdown.patchCount} {b?.ahead || ahead ? "COMMITS" : "PATCH SETS"}) {pr?.state === "merged" && "· PREVIOUS PR MERGED"}
               </div>
               <div style={{fontFamily:"'IBM Plex Sans',sans-serif", fontSize:13, color:T.textDim, lineHeight:1.4}}>
-                New commits pushed to <span style={{color:T.blue, fontWeight:600}}>{b.working}</span>. You can merge directly or publish a Pull Request into <span style={{color:T.blue, fontWeight:600}}>{b.base || "main"}</span>.
+                New changes on <span style={{color:T.blue, fontWeight:600}}>{b?.working || "feature branch"}</span>. Merge directly or publish a Pull Request into <span style={{color:T.blue, fontWeight:600}}>{b?.base || "main"}</span>.
                 {payloadBreakdown.patchCount > 0 && (
                   <span style={{marginLeft:6, color:T.text, fontWeight:600}}>
                     ({payloadBreakdown.patchCount} patch set{payloadBreakdown.patchCount!==1?'s':''})
@@ -1518,14 +1518,16 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
               }} aria-label="Create Pull Request via GitHub API" title="Create Pull Request via GitHub API">
                 + CREATE PR
               </button>
-              <button onClick={handleMergeBranchDirect} disabled={busy} style={{
-                background:T.purple, color:"#000", border:"none", borderRadius:6,
-                padding:"6px 14px", fontFamily:"'JetBrains Mono',monospace",
-                fontSize:11, fontWeight:900, cursor: busy ? "not-allowed" : "pointer", flexShrink:0,
-                opacity: busy ? 0.6 : 1, boxShadow:`0 4px 12px ${T.purple}30`
-              }} aria-label="Directly merge ahead commits into base branch" title="Directly merge ahead commits into base branch via GitHub API">
-                ⚡ MERGE AHEAD COMMITS
-              </button>
+              {b?.working && b?.working !== (b?.base || "main") && (
+                <button onClick={handleMergeBranchDirect} disabled={busy} style={{
+                  background:T.purple, color:"#000", border:"none", borderRadius:6,
+                  padding:"6px 14px", fontFamily:"'JetBrains Mono',monospace",
+                  fontSize:11, fontWeight:900, cursor: busy ? "not-allowed" : "pointer", flexShrink:0,
+                  opacity: busy ? 0.6 : 1, boxShadow:`0 4px 12px ${T.purple}30`
+                }} aria-label="Directly merge ahead commits into base branch" title="Directly merge ahead commits into base branch via GitHub API">
+                  ⚡ MERGE AHEAD COMMITS
+                </button>
+              )}
             </div>
           </div>
         )}
