@@ -36,8 +36,8 @@ const PATHS = {
   eye: "M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8zM12 15a3 3 0 100-6 3 3 0 000 6z",
   eye_closed: "M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19M1 1l22 22",
 };
-const Ic = ({n,s=16,c=T.muted}) => (
-  <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+const Ic = ({n,s=16,c=T.muted,style, ...props}) => (
+  <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" style={style} {...props}>
     <path d={PATHS[n]||""}/>
   </svg>
 );
@@ -166,6 +166,14 @@ const SearchPicker = ({ value, search, onSearch, onSelect, onHide, options, plac
         onFocus={()=>onSearch(search, true)}
         placeholder={placeholder}
         aria-label={placeholder || "Search options"}
+        role="combobox"
+        aria-expanded={isOpen ? "true" : "false"}
+        aria-autocomplete="list"
+        onKeyDown={e => {
+          if (e.key === "Escape") {
+            onHide();
+          }
+        }}
         maxLength={200}
         style={{...inputSt, paddingRight:36}}
       />
@@ -176,12 +184,15 @@ const SearchPicker = ({ value, search, onSearch, onSelect, onHide, options, plac
       {isOpen && (
         <>
           <Backdrop onClick={onHide}/>
-          <div style={{
-            position:"absolute", top:"100%", left:0, right:0, zIndex:101,
-            marginTop:4, background:T.surfaceHi, border:`1px solid ${T.borderHi}`,
-            borderRadius:6, maxHeight:200, overflowY:"auto",
-            boxShadow:"0 10px 25px rgba(0,0,0,0.5)",
-          }}>
+          <div
+            role="listbox"
+            style={{
+              position:"absolute", top:"100%", left:0, right:0, zIndex:101,
+              marginTop:4, background:T.surfaceHi, border:`1px solid ${T.borderHi}`,
+              borderRadius:6, maxHeight:200, overflowY:"auto",
+              boxShadow:"0 10px 25px rgba(0,0,0,0.5)",
+            }}
+          >
             {options.length === 0 && (
               <div style={{padding:"12px", textAlign:"center", fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.textDim}}>
                 NO RESULTS FOUND
@@ -193,6 +204,8 @@ const SearchPicker = ({ value, search, onSearch, onSelect, onHide, options, plac
               return (
                 <button
                   key={idx}
+                  role="option"
+                  aria-selected={isSelected ? "true" : "false"}
                   onClick={()=>onSelect(opt)}
                   style={{
                     width:"100%", padding:"10px 12px", background:"none", border:"none",
