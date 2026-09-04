@@ -16,6 +16,7 @@
   "src/services/api.js",
   "src/utils/cache.js",
   "src/utils/format.js",
+  "src/utils/prTitle.js",
   "src/services/githubTracker.js",
   "src/utils/workingSet.js",
   "src/utils/activityStatus.js",

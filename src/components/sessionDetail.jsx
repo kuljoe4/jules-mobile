@@ -154,7 +154,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
 
   const handleMergeBranchDirect = async () => {
     if (!repo || !b?.working) return;
-    const commitMsg = b?.commits && b.commits.length > 0 ? (b.commits[0].title || b.commits[0].message) : `Merge ahead commits from ${b.working} into ${b.base || "main"}`;
+    const commitMsg = getSmartTitle(session, b);
     if (!confirm(`⚡ MERGE AHEAD COMMITS DIRECTLY:\n\nAre you sure you want to merge branch '${b.working}' (${b.ahead || ahead} commits ahead) directly into '${b.base || "main"}'?`)) return;
 
     setBusy(true); setErr(null);
@@ -888,7 +888,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
 
   const summary = session.outputs?.find(o=>o.sessionSummary)?.sessionSummary;
   const pri = useMemo(() => getPRInfo(session, activities), [session, activities, ghPrNonce]);
-  const pr = pri;
+  const pr = (b && b.livePR) ? { ...pri, ...b.livePR } : pri;
 
   const handleForceRefreshPRStatus = useCallback(async (e) => {
     if (e) e.stopPropagation();
@@ -1468,7 +1468,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
           )}
         </div>
 
-        {(pr?.state === "closed" || pr?.state === "merged" || !pr) && (b?.ahead > 0 || ahead > 0 || payloadBreakdown.patchCount > 0) && (
+        {(pr?.state === "closed" || pr?.state === "merged" || !pr) && ((b && typeof b.ahead === "number") ? b.ahead > 0 : (ahead > 0 || payloadBreakdown.patchCount > 0)) && (
           <div style={{
             marginBottom:10, padding:"12px 16px", background:T.blueDim,
             border:`1px solid ${T.blue}40`, borderRadius:8, display:"flex",
@@ -2685,37 +2685,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
       {/* ── Create PR Modal ── */}
       {showCreatePRModal && (
         <CreatePRModal
-          defaultTitle={(() => {
-            if (b?.commits && b.commits.length > 0) {
-              const firstTitle = b.commits[0].title || (b.commits[0].message || "").split("\n")[0].trim();
-              if (firstTitle.length >= 3) {
-                return b.commits.length === 1 ? firstTitle : `${firstTitle} (+${b.commits.length - 1} more commits)`;
-              }
-            }
-            const summary = session.outputs?.find(o => o.sessionSummary)?.sessionSummary?.summary;
-            if (summary) {
-              const line = summary.split("\n")[0].trim().replace(/^#+\s*/, "").replace(/^Session Summary:\s*/i, "");
-              if (line.length >= 5) return line.length > 90 ? safeSlice(line, 87) + "..." : line;
-            }
-            const cleanTitle = (session.title || session.prompt || "").trim().replace(/\n/g, " ");
-            if (cleanTitle && cleanTitle.length >= 5) {
-              return cleanTitle.length > 90 ? safeSlice(cleanTitle, 87) + "..." : cleanTitle;
-            }
-            return "Update repository changes";
-          })()}
-          defaultBody={(() => {
-            if (b?.commits && b.commits.length > 0) {
-              const commitLogs = b.commits.map(c => {
-                const subject = c.title || (c.message || "").trim().split("\n")[0];
-                const desc = c.description || (c.message || "").trim().split("\n").slice(1).join("\n").trim();
-                return `- **${subject}** (\`${c.sha}\`)${desc ? `\n  ${desc.replace(/\n/g, "\n  ")}` : ""}`;
-              }).join("\n\n");
-              return `### Ahead Commits\n\n${commitLogs}\n\nCreated via Jules Mobile Client`;
-            }
-            const summary = session.outputs?.find(o => o.sessionSummary)?.sessionSummary?.summary;
-            if (summary) return summary;
-            return session.prompt ? `### Prompt\n${session.prompt}` : "";
-          })()}
+          defaultTitle={getSmartTitle(session, b)}
+          defaultBody={getSmartBody(session, b)}
           repo={repo}
           headBranch={b?.working || "feature"}
           baseBranch={b?.base || "main"}

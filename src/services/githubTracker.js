@@ -518,13 +518,16 @@ const GitHubTracker = {
     const compareUrl = `https://api.github.com/repos/${repo}/compare/${encBase}...${encWorking}`;
     const statusUrl = `https://api.github.com/repos/${repo}/commits/${encWorking}/status`;
     const checkRunsUrl = `https://api.github.com/repos/${repo}/commits/${encWorking}/check-runs`;
+    const owner = repo.split("/")[0] || "";
+    const pullsUrl = `https://api.github.com/repos/${repo}/pulls?head=${encodeURIComponent(owner)}:${encWorking}&state=all`;
 
     const fetchCompare = this.githubFetch(compareUrl, headers).catch(() => null);
     const fetchStatus = this.githubFetch(statusUrl, headers).catch(() => null);
     const fetchCheckRuns = this.githubFetch(checkRunsUrl, headers).catch(() => null);
+    const fetchPulls = this.githubFetch(pullsUrl, headers).catch(() => []);
 
-    Promise.all([fetchCompare, fetchStatus, fetchCheckRuns])
-      .then(([compareData, statusData, checkRunsData]) => {
+    Promise.all([fetchCompare, fetchStatus, fetchCheckRuns, fetchPulls])
+      .then(([compareData, statusData, checkRunsData, pullsData]) => {
         let ahead = 0;
         let behind = 0;
         let statusState = "identical";
@@ -598,6 +601,20 @@ const GitHubTracker = {
           };
         });
 
+        let livePR = null;
+        if (Array.isArray(pullsData) && pullsData.length > 0) {
+          const prObj = pullsData[0];
+          livePR = {
+            url: prObj.html_url || prObj.url,
+            number: prObj.number,
+            state: prObj.merged_at ? "merged" : (prObj.state || "open"),
+            title: prObj.title || "",
+            body: prObj.body || "",
+            ahead,
+            behind
+          };
+        }
+
         const updatedInfo = {
           ahead,
           behind,
@@ -608,6 +625,7 @@ const GitHubTracker = {
             label: finalLabel,
             url: checkRunsData?.check_runs?.[0]?.html_url || `https://github.com/${repo}/actions`
           } : null,
+          livePR,
           fetchedAt: Date.now(),
           failed: false
         };
@@ -1118,6 +1136,7 @@ const GitHubTracker = {
     let statusState = "identical";
     let commits = [];
     let checks = null;
+    let livePR = null;
     let checksSource = "working";
     let failed = false;
     let fetchedAt = null;
@@ -1134,6 +1153,7 @@ const GitHubTracker = {
           statusState = bCached.statusState || "identical";
           commits = bCached.commits || [];
           checks = bCached.checks || null;
+          livePR = bCached.livePR || null;
           fetchedAt = bCached.fetchedAt;
           failed = bCached.failed || false;
         } else {
@@ -1213,6 +1233,7 @@ const GitHubTracker = {
       statusState,
       commits,
       checks,
+      livePR,
       checksSource,
       deployment,
       fetchedAt,

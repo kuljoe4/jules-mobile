@@ -15,6 +15,7 @@ import { fmtAgo, fmtDuration, fmtTime, parseDateMs } from '../src/utils/date.js'
 import { GitHubTracker, getPR, getPRInfo, getBranchInfo, getCheckStatus, getDeploymentInfo, createPullRequest, mergeBranch, deleteBranch } from '../src/services/githubTracker.js';
 import { fastDeepEqual, getActivitiesSize, getApproxBytes, getPatchFileCount, getPayloadBreakdown } from '../src/utils/performance.js';
 import { parseUnidiffPatch, getWorkingSet } from '../src/utils/workingSet.js';
+import { getSmartTitle, getSmartBody } from '../src/utils/prTitle.js';
 
 if (typeof globalThis.localStorage === 'undefined') {
   const storageMap = new Map();
@@ -383,5 +384,43 @@ for (let i = 0; i < entries.length; i++) {
 
 assert.equal(allKnown.length, 2);
 assert.equal(recentlyDone.length, 2);
+
+// Test getSmartTitle and getSmartBody
+const mockBWithCommits = {
+  working: "feature/test",
+  base: "main",
+  commits: [
+    { sha: "a1b2c3d", title: "First Commit Subject", message: "First Commit Subject\n\nMore details" },
+    { sha: "e4f5g6h", title: "Second Commit Subject", message: "Second Commit Subject" }
+  ]
+};
+const mockSessWithSummary = {
+  title: "Session Title",
+  prompt: "User prompt",
+  outputs: [
+    { sessionSummary: { summary: "Session summary title\nDetailed explanation of session changes" } }
+  ]
+};
+
+assert.equal(getSmartTitle(mockSessWithSummary, mockBWithCommits), "First Commit Subject (+1 more commits)");
+assert.equal(getSmartBody(mockSessWithSummary, mockBWithCommits).includes("Ahead Commits"), true);
+
+// Fallback to summary when no commits
+assert.equal(getSmartTitle(mockSessWithSummary, { working: "feature/test", commits: [] }), "Session summary title");
+
+// Test GH_BRANCH_STATE_CACHE livePR propagation
+const livePrBranchKey = "owner/repo:main:feature-live";
+const mockLivePR = { url: "https://github.com/owner/repo/pull/50", number: 50, state: "merged", title: "Live PR", body: "Body", ahead: 0, behind: 0 };
+GitHubTracker.GH_BRANCH_STATE_CACHE.set(livePrBranchKey, {
+  ahead: 0, behind: 0, statusState: "identical", commits: [],
+  checks: { state: "success", label: "PASSED" }, livePR: mockLivePR, fetchedAt: Date.now(), failed: false
+});
+const mockLiveBranchSession = {
+  id: "sess-live-pr-test", createTime: "2026-08-25T10:00:00Z",
+  sourceContext: { source: "sources/github/owner/repo", githubRepoContext: { startingBranch: "main" } },
+  prompt: "working on https://github.com/owner/repo/tree/feature-live"
+};
+const cachedLiveBranchInfo = getBranchInfo(mockLiveBranchSession, [], false);
+assert.deepEqual(cachedLiveBranchInfo.livePR, mockLivePR);
 
 console.log('Utility tests passed');
