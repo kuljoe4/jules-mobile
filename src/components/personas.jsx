@@ -1,17 +1,21 @@
 const MultiPersonaPicker = ({ personas, selectedIds, onToggle, style: s = {} }) => {
   return (
-    <div style={{
-      display: "flex", gap: 5, overflowX: "auto", padding: "2px 2px",
-      scrollbarWidth: "none", WebkitOverflowScrolling: "touch",
-      ...s
-    }}>
+    <div
+      role="group"
+      aria-label="Focus roles selection"
+      style={{
+        display: "flex", gap: 5, overflowX: "auto", padding: "2px 2px",
+        scrollbarWidth: "none", WebkitOverflowScrolling: "touch",
+        ...s
+      }}
+    >
       {personas.map(p => {
         const isSelected = selectedIds.has(p.id);
         return (
           <button
             key={p.id}
             onClick={() => onToggle(p.id)}
-            title={`Toggle focus role: ${p.label}`}
+            title={`Toggle focus role: ${p.label}${isSelected ? " (Selected)" : ""}`}
             aria-label={`Toggle focus role: ${p.label}`}
             aria-pressed={isSelected ? "true" : "false"}
             style={{
@@ -56,6 +60,9 @@ const ExpandablePersonaPrompt = ({ prompt, limit = 120 }) => {
       {!expanded && <span style={{color: T.dim}}>...</span>}
       <button
         onClick={() => setExpanded(!expanded)}
+        aria-expanded={expanded ? "true" : "false"}
+        aria-label={expanded ? "Show less system prompt" : "Show full system prompt"}
+        title={expanded ? "Show less system prompt" : "Show full system prompt"}
         style={{
           background: "none",
           border: "none",
