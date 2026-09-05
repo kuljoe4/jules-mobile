@@ -14,6 +14,10 @@ function JulesClient() {
   }, []);
 
   const [sessions,setSessions] = useState(() => SafeStorage.loadSessionsList());
+  const sessionsRef = useRef(sessions);
+  useEffect(() => {
+    sessionsRef.current = sessions;
+  }, [sessions]);
   const lastStates = useRef(new Map()); // id -> state
   const lastCreatedSessionIdRef = useRef(null);
   const [activitiesMap, setActivitiesMap] = useState(() => SafeStorage.loadActivitiesMap());
@@ -107,9 +111,11 @@ function JulesClient() {
   // network updates strictly to SettingsView and NetworkMonitor, eliminating severe CPU/Virtual DOM churn.
 
   const lastFetchTime = useRef(null);
+  const deltaPollCountRef = useRef(0);
 
   const handleSessionLimitChange = useCallback(() => {
     lastFetchTime.current = null; // Force full fetch with new limit
+    deltaPollCountRef.current = 0;
   }, []);
 
   const settings = useAppSettings({
@@ -260,7 +266,19 @@ function JulesClient() {
     const controller = new AbortController();
     sessionsAbortRef.current = controller;
 
-    const isFull = !lastFetchTime.current || forceFull;
+    // Periodic full-sync recovery: every 10 delta polls, perform a full fetch to reconcile state
+    if (!forceFull && !lastFetchTime.current) {
+      deltaPollCountRef.current = 0;
+    } else if (!forceFull) {
+      deltaPollCountRef.current++;
+    }
+
+    const isPeriodicFull = deltaPollCountRef.current >= 10;
+    if (isPeriodicFull) {
+      deltaPollCountRef.current = 0;
+    }
+
+    const isFull = !lastFetchTime.current || forceFull || isPeriodicFull;
     if (!quiet) setRefreshing(true);
     try {
       let incoming = [];
@@ -268,17 +286,36 @@ function JulesClient() {
       let iterations = 0;
       const quotaNeeded = plan.daily || 50;
 
+      // Calculate adaptive pageSize for delta polls using sessionsRef to avoid re-triggering effect on state update
+      const currentSessions = sessionsRef.current || [];
+      let deltaPageSize = sessionLimit;
+      if (!isFull) {
+        const activeCount = currentSessions.filter(s => ACTIVE_STATES.has(s.state)).length;
+        const localRecentCount = currentSessions.filter(s => parseDateMs(s.updateTime || s.createTime) > (lastFetchTime.current || 0)).length;
+        deltaPageSize = Math.min(sessionLimit, Math.max(12, localRecentCount + activeCount + 5));
+      }
+
+      const activeIdsToVerify = new Set(currentSessions.filter(s => ACTIVE_STATES.has(s.state)).map(s => s.id || s.name));
+      const seenActiveIds = new Set();
+
       do {
-        const qs = `pageSize=${sessionLimit}${pageToken ? `&pageToken=${pageToken}` : ""}`;
+        const pageSize = isFull ? sessionLimit : deltaPageSize;
+        const qs = `pageSize=${pageSize}${pageToken ? `&pageToken=${pageToken}` : ""}`;
         const d = await apiCall(apiKey, `/sessions?${qs}`, {
-          _label:`Sessions ${isFull?"full":"Δ"} p${iterations+1}`,
+          _label:`Sessions ${isFull ? "full" : "Δ"} p${iterations+1}`,
           signal: controller.signal,
           timeout: loadApiTimeout()
         });
         const batch = d.sessions || [];
-        console.log(`[FetchSessions] Fetched page ${iterations + 1} with ${batch.length} sessions.`);
+        console.log(`[FetchSessions] Fetched ${isFull ? "full" : "delta"} page ${iterations + 1} with ${batch.length} sessions (pageSize=${pageSize}).`);
         incoming = [...incoming, ...batch];
         pageToken = d.nextPageToken;
+
+        // Register seen active IDs in this batch
+        batch.forEach(s => {
+          const sid = s.id || s.name;
+          if (activeIdsToVerify.has(sid)) seenActiveIds.add(sid);
+        });
 
         const windowStart = Date.now() - 24 * 3600000;
         const hasOlderThanWindow = batch.length > 0 && parseDateMs(batch[batch.length-1].createTime) < windowStart;
@@ -289,7 +326,7 @@ function JulesClient() {
         // Guard against race conditions if superseded by a newer request
         if (sessionsAbortRef.current !== controller) break;
 
-        // Update sessions state instantly for incremental/one-by-one rendering!
+        // Update sessions state instantly for incremental/one-by-one rendering
         const currentBatch = batch;
         const currentIsFirstPageOfFull = isFull && (iterations === 0);
         setSessions(prev => {
@@ -347,6 +384,23 @@ function JulesClient() {
             return bTime - aTime;
           });
 
+          // ── No-Op Re-render Check ──
+          if (prev.length === sorted.length) {
+            let identical = true;
+            for (let i = 0; i < sorted.length; i++) {
+              const p = prev[i];
+              const s = sorted[i];
+              if ((p.id || p.name) !== (s.id || s.name) || p.state !== s.state || p.updateTime !== s.updateTime) {
+                identical = false;
+                break;
+              }
+            }
+            if (identical) {
+              console.log("[FetchSessions] Delta poll returned 0 session changes - bypassing re-render.");
+              return prev;
+            }
+          }
+
           // ── Status Notifications ──
           if (loadNotify()) {
             currentBatch.forEach(s => {
@@ -368,24 +422,58 @@ function JulesClient() {
 
         iterations++;
 
-        if (!isFull) break;
+        if (!isFull) {
+          // Check if batch reached items older than lastFetchTime with a 30s clock-skew buffer
+          const bufferMs = 30000;
+          const thresholdTs = (lastFetchTime.current || Date.now()) - bufferMs;
+          const batchMinTs = batch.length > 0 ? Math.min(...batch.map(s => parseDateMs(s.updateTime || s.createTime))) : 0;
+          const reachedOlder = batch.length > 0 && batchMinTs <= thresholdTs;
+          const allActiveAccountedFor = activeIdsToVerify.size === seenActiveIds.size;
+
+          if (reachedOlder && allActiveAccountedFor) {
+            console.log(`[FetchSessions] Smart delta sync complete on page ${iterations}: captured recent changes and verified all ${activeIdsToVerify.size} active sessions.`);
+            break;
+          }
+        }
+
         if (hasOlderThanWindow) break;
         if (incoming.length >= Math.max(sessionLimit, quotaNeeded * 2)) break;
         if (iterations > 15) break;
       } while (pageToken);
+
+      // Targeted safety check for any active sessions missing from delta pages
+      if (!isFull && activeIdsToVerify.size > seenActiveIds.size && sessionsAbortRef.current === controller) {
+        const checkValidId = typeof isValidSessionId === "function" ? isValidSessionId : (id) => !!id && typeof id === "string";
+        const missingActiveIds = [...activeIdsToVerify].filter(id => !seenActiveIds.has(id) && checkValidId(id));
+        if (missingActiveIds.length > 0) {
+          console.warn(`[FetchSessions] ${missingActiveIds.length} active sessions fell outside delta pages. Fetching targeted updates...`, missingActiveIds);
+          const checked = await Promise.all(missingActiveIds.map(id =>
+            apiCall(apiKey, `/sessions/${id}`, { _label: `Targeted ${id.slice(0,6)}`, signal: controller.signal }).catch(() => null)
+          ));
+          const validUpdates = checked.filter(Boolean);
+          if (validUpdates.length > 0 && sessionsAbortRef.current === controller) {
+            setSessions(prev => {
+              const updatedMap = new Map(validUpdates.map(s => [s.id || s.name, s]));
+              return prev.map(s => updatedMap.get(s.id || s.name) || s);
+            });
+          }
+        }
+      }
 
       if (sessionsAbortRef.current !== controller) return;
 
       setGlobalErr(null); // Clear error on success
       console.log(`[FetchSessions] Loading sequence completed successfully. Total processed: ${incoming.length}`);
 
-      // Update lastFetchTime with the latest timestamp from the incoming results
+      // Update lastFetchTime with the latest numerical millisecond timestamp
       if (incoming.length > 0) {
         const latestTs = incoming.reduce((max, s) => {
-          const ts = s.updateTime || s.createTime;
+          const ts = parseDateMs(s.updateTime || s.createTime);
           return ts > max ? ts : max;
-        }, incoming[0].updateTime || incoming[0].createTime);
-        lastFetchTime.current = latestTs;
+        }, 0);
+        if (latestTs > 0) {
+          lastFetchTime.current = Math.max(lastFetchTime.current || 0, latestTs);
+        }
       } else if (forceFull) {
         lastFetchTime.current = null;
       }

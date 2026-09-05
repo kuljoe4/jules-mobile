@@ -179,7 +179,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
                 <div
                   role="status"
                   aria-live="polite"
-                  aria-label={`Session list state: ${refreshing ? "Syncing updates" : justRefreshed ? "Up to date" : countdown > 0 ? `Synced, next auto update in ${countdown} seconds` : "Stale, click to sync"}`}
+                  aria-label={`Session list state: ${refreshing ? "Fast delta sync in progress" : justRefreshed ? "Up to date" : countdown > 0 ? `Synced, next auto delta sync in ${countdown} seconds` : "Stale, click to sync"}`}
                   style={{display:"flex", alignItems:"center", gap:4, marginTop:1}}
                 >
                   <div style={{
@@ -193,7 +193,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
                     color: refreshing ? T.brandLight : justRefreshed ? "#34d399" : countdown > 0 ? T.muted : T.amber,
                     letterSpacing:"0.04em"
                   }}>
-                    {refreshing ? "SYNCING..." : justRefreshed ? "UP TO DATE" : countdown > 0 ? `SYNCED · ${countdown}S` : "STALE · SYNC"}
+                    {refreshing ? "FAST SYNC..." : justRefreshed ? "UP TO DATE" : countdown > 0 ? `FAST SYNC · ${countdown}S` : "STALE · SYNC"}
                   </span>
                 </div>
               )}

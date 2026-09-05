@@ -552,4 +552,124 @@ assert.deepEqual(proposalRes, {
 assert.equal(getSmartTitle(mockDraftProposalSession, { working: "feature", commits: [] }, []), "Draft PR Title from Jules");
 assert.equal(getSmartBody(mockDraftProposalSession, { working: "feature", commits: [] }, []), "Draft PR Body Description from Jules");
 
+// ── Smart Delta Merging & Adaptive Page Size Tests ─────────────────────────
+const ACTIVE_STATES_SET = new Set(["QUEUED","PLANNING","AWAITING_PLAN_APPROVAL","AWAITING_USER_FEEDBACK","IN_PROGRESS"]);
+
+// Test calculation of adaptive delta page size
+const calcDeltaPageSize = (sessionLimit, sessions, lastFetchMs) => {
+  const activeCount = sessions.filter(s => ACTIVE_STATES_SET.has(s.state)).length;
+  const localRecentCount = sessions.filter(s => parseDateMs(s.updateTime || s.createTime) > (lastFetchMs || 0)).length;
+  return Math.min(sessionLimit, Math.max(12, localRecentCount + activeCount + 5));
+};
+
+const mockExistingSessions = [
+  { id: "s1", state: "IN_PROGRESS", updateTime: "2026-08-25T12:00:00Z" },
+  { id: "s2", state: "COMPLETED", updateTime: "2026-08-25T11:00:00Z" },
+  { id: "s3", state: "COMPLETED", updateTime: "2026-08-25T10:00:00Z" }
+];
+
+// Quiet delta poll with 1 active session -> pageSize = 12 (min threshold: 12)
+assert.equal(calcDeltaPageSize(50, mockExistingSessions, Date.parse("2026-08-25T11:30:00Z")), 12);
+
+// Delta poll with 10 active sessions -> pageSize = 10 + 0 + 5 = 15
+const manyActive = Array.from({ length: 10 }, (_, i) => ({ id: `act-${i}`, state: "IN_PROGRESS", updateTime: "2026-08-25T12:00:00Z" }));
+assert.equal(calcDeltaPageSize(50, manyActive, Date.parse("2026-08-25T12:00:00Z")), 15);
+
+// Test Smart Delta Merge Logic with local optimistic update preservation and no-op detection
+const testSmartMerge = (prevSessions, currentBatch, isFirstPageOfFull = false, selectedId = null) => {
+  const prevSelected = selectedId ? prevSessions.find(s => (s.id || s.name) === selectedId) : null;
+  let adjustedBatch = currentBatch;
+  if (prevSelected) {
+    adjustedBatch = currentBatch.map(s => {
+      if ((s.id || s.name) === selectedId) {
+        const sTs = parseDateMs(s.updateTime || s.createTime);
+        const prevTs = parseDateMs(prevSelected.updateTime || prevSelected.createTime);
+        if (prevTs > sTs) {
+          return prevSelected;
+        }
+      }
+      return s;
+    });
+  }
+
+  let merged = [];
+  if (isFirstPageOfFull) {
+    let oldestTs = 0;
+    if (adjustedBatch.length > 0) {
+      oldestTs = Math.min(...adjustedBatch.map(s => parseDateMs(s.updateTime || s.createTime)));
+    }
+    const batchIds = new Set(adjustedBatch.map(s => s.id || s.name));
+    const preserved = prevSessions.filter(s => {
+      if (batchIds.has(s.id || s.name)) return false;
+      const ts = parseDateMs(s.updateTime || s.createTime);
+      const isRecent = (Date.now() - parseDateMs(s.createTime || s.updateTime)) < 300000;
+      return ts >= oldestTs || ACTIVE_STATES_SET.has(s.state) || isRecent;
+    });
+    merged = [...adjustedBatch, ...preserved];
+  } else {
+    const batchIds = new Set(adjustedBatch.map(s => s.id || s.name));
+    merged = [
+      ...adjustedBatch,
+      ...prevSessions.filter(s => !batchIds.has(s.id || s.name))
+    ];
+  }
+
+  const sorted = [...merged].sort((a, b) => {
+    const aActive = ACTIVE_STATES_SET.has(a.state);
+    const bActive = ACTIVE_STATES_SET.has(b.state);
+    if (aActive && !bActive) return -1;
+    if (!aActive && bActive) return 1;
+    const aTime = parseDateMs(a.updateTime || a.createTime);
+    const bTime = parseDateMs(b.updateTime || b.createTime);
+    return bTime - aTime;
+  });
+
+  // No-Op Check
+  if (prevSessions.length === sorted.length) {
+    let identical = true;
+    for (let i = 0; i < sorted.length; i++) {
+      const p = prevSessions[i];
+      const s = sorted[i];
+      if ((p.id || p.name) !== (s.id || s.name) || p.state !== s.state || p.updateTime !== s.updateTime) {
+        identical = false;
+        break;
+      }
+    }
+    if (identical) return prevSessions;
+  }
+
+  return sorted;
+};
+
+// 1. Delta merge updates existing session state while preserving non-updated existing sessions
+const prev = [
+  { id: "s1", state: "IN_PROGRESS", updateTime: "2026-08-25T12:00:00Z" },
+  { id: "s2", state: "COMPLETED", updateTime: "2026-08-25T11:00:00Z" }
+];
+const deltaBatch = [
+  { id: "s1", state: "COMPLETED", updateTime: "2026-08-25T12:05:00Z" }
+];
+const mergedDelta = testSmartMerge(prev, deltaBatch);
+assert.equal(mergedDelta.length, 2);
+assert.equal(mergedDelta[0].id, "s1");
+assert.equal(mergedDelta[0].state, "COMPLETED");
+assert.equal(mergedDelta[1].id, "s2");
+
+// 2. Local optimistic update timestamp superiority is preserved
+const localOptimistic = [
+  { id: "s1", state: "AWAITING_USER_FEEDBACK", updateTime: "2026-08-25T12:10:00Z" }
+];
+const staleServerBatch = [
+  { id: "s1", state: "IN_PROGRESS", updateTime: "2026-08-25T12:05:00Z" }
+];
+const mergedOptimistic = testSmartMerge(localOptimistic, staleServerBatch, false, "s1");
+assert.equal(mergedOptimistic[0].state, "AWAITING_USER_FEEDBACK");
+
+// 3. No-Op detection returns original array reference when incoming data is identical
+const noOpBatch = [
+  { id: "s1", state: "COMPLETED", updateTime: "2026-08-25T12:05:00Z" }
+];
+const noOpResult = testSmartMerge(mergedDelta, noOpBatch);
+assert.equal(noOpResult, mergedDelta); // Exactly identical object reference
+
 console.log('Utility tests passed');
