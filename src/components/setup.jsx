@@ -89,26 +89,50 @@ const SetupScreen = ({ onSave }) => {
         </div>
 
         <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:8}}>
-          <button onClick={clearDataOnly} style={{
-            background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:6,
-            padding:"10px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:6,
-          }}>
+          <button
+            onClick={clearDataOnly}
+            title="Clear stored application data (drafts, personas, repo stats)"
+            aria-label="Clear application data"
+            style={{
+              background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:6,
+              padding:"10px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:6,
+              transition:"all .15s cubic-bezier(0.4, 0, 0.2, 1)"
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = T.dim}
+            onMouseLeave={e => e.currentTarget.style.background = T.surfaceHi}
+          >
             <Ic n="database" s={16} c={T.purple}/>
             <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:T.textDim, fontWeight:700}}>CLEAR DATA</span>
           </button>
-          <button onClick={clearCacheOnly} style={{
-            background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:6,
-            padding:"10px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:6,
-          }}>
+          <button
+            onClick={clearCacheOnly}
+            title="Clear cached GitHub pull requests and session metadata"
+            aria-label="Clear cache data"
+            style={{
+              background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:6,
+              padding:"10px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:6,
+              transition:"all .15s cubic-bezier(0.4, 0, 0.2, 1)"
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = T.dim}
+            onMouseLeave={e => e.currentTarget.style.background = T.surfaceHi}
+          >
             <Ic n="layers" s={16} c={T.blue}/>
             <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:T.textDim, fontWeight:700}}>CLEAR CACHE</span>
           </button>
         </div>
 
-        <button onClick={resetApp} style={{
-          width:"100%", background:"none", border:`1px solid ${T.red}30`, borderRadius:6,
-          padding:"8px", cursor:"pointer", color:T.red, fontFamily:"'JetBrains Mono',monospace", fontSize:9, fontWeight:700,
-        }}>FULL SYSTEM RESET</button>
+        <button
+          onClick={resetApp}
+          title="Reset all settings, keys, and local data back to initial defaults"
+          aria-label="Full system reset"
+          style={{
+            width:"100%", background:"none", border:`1px solid ${T.red}30`, borderRadius:6,
+            padding:"8px", cursor:"pointer", color:T.red, fontFamily:"'JetBrains Mono',monospace", fontSize:9, fontWeight:700,
+            transition:"all .15s cubic-bezier(0.4, 0, 0.2, 1)"
+          }}
+          onMouseEnter={e => e.currentTarget.style.background = `${T.red}15`}
+          onMouseLeave={e => e.currentTarget.style.background = "none"}
+        >FULL SYSTEM RESET</button>
           <div style={{marginTop:16,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.textDim,textAlign:"center",lineHeight:1.7}}>
           Key stored locally for persistence<br/>
           Install Jules GitHub app first via web UI
