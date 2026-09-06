@@ -174,48 +174,93 @@ const formatInlineText = (txt) => {
     });
   }
 
-  if (txt.includes("$")) {
-    const parts = txt.split("$");
-    // Only treat as inline math if there are paired $ delimiters (odd number of split parts)
-    if (parts.length > 1 && parts.length % 2 === 1) {
-      return parts.map((part, idx) => {
-        if (idx % 2 === 1) {
-          return (
-            <span
-              key={`math-inline-${idx}`}
-              style={{
-                fontFamily: "'JetBrains Mono', monospace",
-                color: T.brandLight,
-                background: `${T.brand}18`,
-                border: `1px solid ${T.brand}40`,
-                padding: "1px 5px",
-                borderRadius: 4,
-                fontSize: 12,
-                fontWeight: 800,
-                letterSpacing: "0.03em"
-              }}
-              title="Mathematical Formula"
-            >
-              {cleanMathText(part)}
-            </span>
-          );
-        }
-        return formatInlineText(part);
-      });
+  if (txt.includes("**")) {
+    const segments = txt.split("**");
+    if (segments.length > 1 && segments.length % 2 === 1) {
+      return segments.map((seg, si) =>
+        si % 2 === 1 ? (
+          <strong key={`bold-${si}`} style={{ color: T.textHi, fontWeight: 700 }}>
+            {formatInlineText(seg)}
+          </strong>
+        ) : (
+          formatInlineText(seg)
+        )
+      );
     }
   }
 
-  if (txt.includes("**")) {
-    const segments = txt.split("**");
-    return segments.map((seg, si) =>
-      si % 2 === 1 ? (
-        <strong key={`bold-${si}`} style={{ color: T.textHi, fontWeight: 700 }}>
-          {seg}
-        </strong>
-      ) : (
-        seg
-      )
-    );
+  if (txt.includes("*") && !txt.includes("**")) {
+    const segments = txt.split("*");
+    if (segments.length > 1 && segments.length % 2 === 1) {
+      return segments.map((seg, si) =>
+        si % 2 === 1 ? (
+          <em key={`italic-${si}`} style={{ color: T.text, fontStyle: "italic" }}>
+            {formatInlineText(seg)}
+          </em>
+        ) : (
+          formatInlineText(seg)
+        )
+      );
+    }
+  }
+
+  if (txt.includes("$")) {
+    // Strict inline math pattern: requires non-whitespace immediately inside $ delimiters
+    // and must contain LaTeX commands (\), math operators (=, _, ^, \implies, etc.),
+    // single-letter variables (e.g., $W$, $R:R$), or math symbols.
+    // Explicitly rejects currency figures ($1.00, $0.667) and spaces around $.
+    const mathRegex = /\$([^\s$](?:[^\n$]*?[^\s$])?)\$/g;
+    const elements = [];
+    let lastIndex = 0;
+    let match;
+
+    while ((match = mathRegex.exec(txt)) !== null) {
+      const matchStart = match.index;
+      const inner = match[1];
+
+      // Disqualify currency values like "1.00" or "0.667"
+      const isPureCurrency = /^\d+(?:\.\d+)?$/.test(inner);
+      // Math formulas should contain LaTeX commands, math operators, symbols, or single variable/symbol names
+      const isMathFormula = !isPureCurrency && (
+        /[\\=_^><+*%:≈≠≤≥±∞÷]/.test(inner) ||
+        /^[A-Za-z0-9_{}\\%.-]{1,15}$/.test(inner)
+      );
+
+      if (isMathFormula) {
+        if (matchStart > lastIndex) {
+          elements.push(txt.substring(lastIndex, matchStart));
+        }
+        elements.push(
+          <span
+            key={`math-inline-${matchStart}`}
+            style={{
+              fontFamily: "'JetBrains Mono', monospace",
+              color: T.brandLight,
+              background: `${T.brand}18`,
+              border: `1px solid ${T.brand}40`,
+              padding: "1px 6px",
+              borderRadius: 4,
+              fontSize: 12,
+              fontWeight: 800,
+              letterSpacing: "0.03em",
+              display: "inline-block",
+              margin: "0 2px"
+            }}
+            title="Mathematical Formula"
+          >
+            {cleanMathText(inner)}
+          </span>
+        );
+        lastIndex = mathRegex.lastIndex;
+      }
+    }
+
+    if (elements.length > 0) {
+      if (lastIndex < txt.length) {
+        elements.push(txt.substring(lastIndex));
+      }
+      return elements;
+    }
   }
 
   return cleanMathText(txt);
@@ -297,13 +342,67 @@ const Markdown = memo(({ text }) => {
           if (!trimmed && li > 0 && li < lines.length - 1) return <div key={li} style={{height: 12}} />;
           if (!trimmed) return <div key={li} />;
 
+          const isH1 = /^#\s+(.*)/.test(trimmed);
+          const isH2 = /^##\s+(.*)/.test(trimmed);
+          const isH3 = /^###\s+(.*)/.test(trimmed);
+          const isH4 = /^####\s+(.*)/.test(trimmed);
+          const isHR = /^---{3,}$|^--{2,}$/ .test(trimmed);
           const isListItem = trimmed.startsWith("- ") || trimmed.startsWith("* ");
           const isNumItem = /^\d+\.\s/.test(trimmed);
-          const isHeader = trimmed.endsWith(":") && !isListItem && !isNumItem && trimmed.length < 80;
+          const isHeader = trimmed.endsWith(":") && !isListItem && !isNumItem && !isH1 && !isH2 && !isH3 && !isH4 && trimmed.length < 80;
 
           let content = line;
 
-          if (isListItem) {
+          if (isH1) {
+            const titleText = trimmed.replace(/^#\s+/, "");
+            content = (
+              <div style={{
+                fontFamily: "'JetBrains Mono', monospace", fontSize: 16, fontWeight: 900,
+                color: T.brandLight, letterSpacing: "0.04em", marginTop: li === 0 ? 4 : 24, marginBottom: 14,
+                borderBottom: `2px solid ${T.brand}50`, paddingBottom: 6
+              }}>
+                {formatInlineText(titleText)}
+              </div>
+            );
+          } else if (isH2) {
+            const titleText = trimmed.replace(/^##\s+/, "");
+            content = (
+              <div style={{
+                fontFamily: "'JetBrains Mono', monospace", fontSize: 14, fontWeight: 800,
+                color: T.brandLight, letterSpacing: "0.03em", marginTop: li === 0 ? 4 : 20, marginBottom: 12,
+                borderBottom: `1px solid ${T.brand}30`, paddingBottom: 4
+              }}>
+                {formatInlineText(titleText)}
+              </div>
+            );
+          } else if (isH3) {
+            const titleText = trimmed.replace(/^###\s+/, "");
+            content = (
+              <div style={{
+                fontFamily: "'JetBrains Mono', monospace", fontSize: 12, fontWeight: 800,
+                color: T.textHi, letterSpacing: "0.02em", marginTop: li === 0 ? 4 : 16, marginBottom: 8
+              }}>
+                {formatInlineText(titleText)}
+              </div>
+            );
+          } else if (isH4) {
+            const titleText = trimmed.replace(/^####\s+/, "");
+            content = (
+              <div style={{
+                fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 700,
+                color: T.textDim, textTransform: "uppercase", marginTop: li === 0 ? 4 : 14, marginBottom: 6
+              }}>
+                {formatInlineText(titleText)}
+              </div>
+            );
+          } else if (isHR) {
+            content = (
+              <div style={{
+                height: 1, background: `linear-gradient(90deg, ${T.brand}50, ${T.border}, transparent)`,
+                margin: "18px 0"
+              }} />
+            );
+          } else if (isListItem) {
             const bullet = trimmed.startsWith("- ") ? "- " : "* ";
             const rest = trimmed.substring(bullet.length);
             content = (
