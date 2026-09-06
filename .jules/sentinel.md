@@ -84,3 +84,8 @@
 **Vulnerability:** `saveDraftToBox` and `deleteDraftFromBox` in `SafeStorage` did not sanitize input draft objects or validate draft identifiers against `isValidStorageKey`. Unsanitized objects containing prototype pollution (`__proto__`, `constructor`, `prototype`) or built-in property shadowing keys (`toString`, `valueOf`) could pollute object keys when stored in or retrieved from LocalStorage.
 **Learning:** LocalStorage object storage abstractions that accept complex objects or user-supplied identifiers must validate object structure and sanitize object keys prior to persistence.
 **Prevention:** Always sanitize object keys with `sanitizeObjectKeys` and validate storage identifiers with `isValidStorageKey` in LocalStorage helper functions.
+
+## 2026-08-18 - Unsanitized LocalStorage Settings Persistence and Plan / Quota Tampering
+**Vulnerability:** Settings getters and setters in `SafeStorage` (`loadPlan`, `savePlan`, `loadCustomDaily`, `saveCustomDaily`, `loadCacheLimit`, `saveCacheLimit`, `loadRepoFilter`, `saveRepoFilter`) directly read and stored values without whitelist checks or bounds validation. Tampered LocalStorage values (e.g. negative daily quota limits, invalid plan IDs, or excessive cache limits) could trigger Denial of Service, quota bypass, or state corruption.
+**Learning:** LocalStorage persistent settings must enforce strict allowlist checks and numeric bounds validation both on write (`saveX`) and on read (`loadX`) to gracefully fall back to safe default configurations when dealing with corrupted or untrusted client state.
+**Prevention:** Validate retrieved setting values against strict whitelists or bounded numeric ranges in `SafeStorage` getter/setter functions before returning them to application state.
