@@ -42,14 +42,37 @@ export const safeSlice = (str, limit) => {
 export const cleanMathText = (mathStr) => {
   if (typeof mathStr !== "string") return mathStr;
   // Fast early-exit guard: if string contains no LaTeX syntax indicators, return trimmed string directly
-  // OPTIMIZATION (Bolt): Bypasses 14 sequential regex replacement iterations and string allocations for plain text.
   if (!mathStr.includes("\\") && !mathStr.includes("_") && !mathStr.includes("^") && !mathStr.includes("/quad")) {
     return mathStr.trim();
   }
   let str = mathStr;
-  str = str.replace(/\\text\{([^{}]+)\}/g, "$1");
+
+  // Replace escaped spaces '\ ' with space
+  str = str.replace(/\\ /g, " ");
+
+  // Unescape escaped symbols: \%, \$, \_, \&, \#
+  str = str.replace(/\\([%$&#_])/g, "$1");
+
+  // Remove structural formatting wrappers: \text{...}, \mathbf{...}, \mathrm{...}, \textbf{...}, \mathit{...}
+  let prev;
+  do {
+    prev = str;
+    str = str.replace(/\\(?:text|mathbf|mathrm|textbf|mathit)\{([^{}]+)\}/g, "$1");
+  } while (str !== prev);
+
+  // Convert LaTeX fractions: \frac{A}{B} -> A / B
+  do {
+    prev = str;
+    str = str.replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, "$1 / $2");
+  } while (str !== prev);
+
+  // Convert mathematical symbols and operators
   str = str
     .replace(/\\(?:quad|qquad)\b|\/quad\b/g, " ")
+    .replace(/\\implies\b/g, "⇒")
+    .replace(/\\iff\b/g, "⇔")
+    .replace(/\\to\b|\\rightarrow\b/g, "→")
+    .replace(/\\in\b/g, "∈")
     .replace(/\\(?:dots|ldots|cdots)\b/g, "…")
     .replace(/\\times\b/g, "×")
     .replace(/\\cdot\b/g, "·")
@@ -62,6 +85,7 @@ export const cleanMathText = (mathStr) => {
     .replace(/\\div\b/g, "÷")
     .replace(/_\{([^{}]+)\}/g, "_$1")
     .replace(/\^\{([^{}]+)\}/g, "^$1");
+
   return str.trim();
 };
 
