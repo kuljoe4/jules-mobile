@@ -117,6 +117,53 @@ assert.equal(SafeStorage.saveLastBranch('toString', 'main'), false);
 assert.equal(SafeStorage.saveLastBranch('owner/repo', 'main\x00null'), false);
 assert.equal(SafeStorage.saveLastBranch('owner/repo', 'main'), true);
 
+// Test SafeStorage settings persistence validation & bounds enforcement
+assert.equal(SafeStorage.savePlan('pro'), true);
+assert.equal(SafeStorage.loadPlan(), 'pro');
+assert.equal(SafeStorage.savePlan('invalid_plan_id'), false);
+assert.equal(SafeStorage.savePlan('<script>alert(1)</script>'), false);
+
+// Mock untrusted LocalStorage tampering for plan ID
+globalThis.localStorage.setItem('jac_plan', '__proto__');
+assert.equal(SafeStorage.loadPlan(), 'free');
+globalThis.localStorage.setItem('jac_plan', '<script>alert(1)</script>');
+assert.equal(SafeStorage.loadPlan(), 'free');
+globalThis.localStorage.setItem('jac_plan', 'pro');
+assert.equal(SafeStorage.loadPlan(), 'pro');
+
+// Test SafeStorage custom daily quota bounds checking
+assert.equal(SafeStorage.saveCustomDaily(100), true);
+assert.equal(SafeStorage.loadCustomDaily(), 100);
+assert.equal(SafeStorage.saveCustomDaily(-50), false);
+assert.equal(SafeStorage.saveCustomDaily(0), false);
+assert.equal(SafeStorage.saveCustomDaily(999999), false);
+assert.equal(SafeStorage.saveCustomDaily('invalid'), false);
+
+globalThis.localStorage.setItem('jac_custom_daily', '-100');
+assert.equal(SafeStorage.loadCustomDaily(), 50);
+globalThis.localStorage.setItem('jac_custom_daily', '0');
+assert.equal(SafeStorage.loadCustomDaily(), 50);
+
+// Test SafeStorage cache limit whitelist validation
+assert.equal(SafeStorage.saveCacheLimit(10), true);
+assert.equal(SafeStorage.loadCacheLimit(), 10);
+assert.equal(SafeStorage.saveCacheLimit(99999), false);
+assert.equal(SafeStorage.saveCacheLimit(-1), false);
+
+globalThis.localStorage.setItem('jac_cache_limit', '99999');
+assert.equal(SafeStorage.loadCacheLimit(), 5); // Fallback to DEFAULT_CACHE_LIMIT (5)
+
+// Test SafeStorage repo filter validation
+assert.equal(SafeStorage.saveRepoFilter('owner/repo'), true);
+assert.equal(SafeStorage.loadRepoFilter(), 'owner/repo');
+assert.equal(SafeStorage.saveRepoFilter('ALL'), true);
+assert.equal(SafeStorage.loadRepoFilter(), 'ALL');
+assert.equal(SafeStorage.saveRepoFilter('../invalid/path'), false);
+assert.equal(SafeStorage.saveRepoFilter('owner/repo?inject=1'), false);
+
+globalThis.localStorage.setItem('jac_repo_filter', '../invalid/path');
+assert.equal(SafeStorage.loadRepoFilter(), 'ALL');
+
 // Test SafeStorage saveDraftToBox and deleteDraftFromBox validation and sanitization
 assert.equal(SafeStorage.saveDraftToBox(null), null);
 assert.equal(SafeStorage.saveDraftToBox('not-an-object'), null);

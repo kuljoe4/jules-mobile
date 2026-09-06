@@ -1,4 +1,4 @@
-import { isValidSessionId, isValidStorageKey, sanitizeObjectKeys } from "../utils/validation.js";
+import { isValidGithubRepoName, isValidSessionId, isValidStorageKey, sanitizeObjectKeys } from "../utils/validation.js";
 
 // ─── Safe Storage Service ────────────────────────────────────────────────────
 const SafeStorage = {
@@ -153,14 +153,19 @@ const SafeStorage = {
 
   loadCacheLimit() {
     try {
-      const v = parseInt(this.getItem(this.KEYS.CACHE_LIMIT));
-      return isNaN(v) ? DEFAULT_CACHE_LIMIT : v;
+      const fallback = typeof DEFAULT_CACHE_LIMIT !== "undefined" ? DEFAULT_CACHE_LIMIT : 5;
+      const v = parseInt(this.getItem(this.KEYS.CACHE_LIMIT), 10);
+      return [0, 3, 5, 10, 20].includes(v) ? v : fallback;
     } catch {
-      return DEFAULT_CACHE_LIMIT;
+      return 5;
     }
   },
   saveCacheLimit(v) {
-    this.setItem(this.KEYS.CACHE_LIMIT, v);
+    if ([0, 3, 5, 10, 20].includes(v)) {
+      this.setItem(this.KEYS.CACHE_LIMIT, v);
+      return true;
+    }
+    return false;
   },
 
   loadActivityLimit() {
@@ -188,21 +193,32 @@ const SafeStorage = {
   },
 
   loadPlan() {
-    return this.getItem(this.KEYS.PLAN, "free");
+    const v = this.getItem(this.KEYS.PLAN, "free");
+    return ["free", "pro", "ultra", "custom"].includes(v) ? v : "free";
   },
   savePlan(id) {
-    this.setItem(this.KEYS.PLAN, id);
+    if (["free", "pro", "ultra", "custom"].includes(id)) {
+      this.setItem(this.KEYS.PLAN, id);
+      return true;
+    }
+    return false;
   },
 
   loadCustomDaily() {
     try {
-      return parseInt(this.getItem(this.KEYS.CUSTOM_DAILY)) || 50;
+      const v = parseInt(this.getItem(this.KEYS.CUSTOM_DAILY), 10);
+      return Number.isInteger(v) && v > 0 && v <= 10000 ? v : 50;
     } catch {
       return 50;
     }
   },
   saveCustomDaily(v) {
-    this.setItem(this.KEYS.CUSTOM_DAILY, v);
+    const num = parseInt(v, 10);
+    if (Number.isInteger(num) && num > 0 && num <= 10000) {
+      this.setItem(this.KEYS.CUSTOM_DAILY, num);
+      return true;
+    }
+    return false;
   },
 
   loadPersonas() {
@@ -442,10 +458,16 @@ const SafeStorage = {
   },
 
   loadRepoFilter() {
-    return this.getItem(this.KEYS.REPO_FILTER, "ALL");
+    const v = this.getItem(this.KEYS.REPO_FILTER, "ALL");
+    if (v === "ALL" || (v && isValidGithubRepoName(v))) return v;
+    return "ALL";
   },
   saveRepoFilter(val) {
-    this.setItem(this.KEYS.REPO_FILTER, val || "ALL");
+    if (!val || val === "ALL" || isValidGithubRepoName(val)) {
+      this.setItem(this.KEYS.REPO_FILTER, val || "ALL");
+      return true;
+    }
+    return false;
   },
 
   loadApiKey() {
