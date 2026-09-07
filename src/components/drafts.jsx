@@ -107,7 +107,14 @@ const DraftsBox = ({ onBack, isDesktop, onResume, onCreate, allSessions, activit
                           )}
                         </div>
                       </div>
-                      <button onClick={() => handleDelete(d.id)} style={{background:"none", border:"none", cursor:"pointer", padding:4, opacity:0.6}} title="Delete Draft" aria-label="Delete Draft">
+                      <button
+                        onClick={() => handleDelete(d.id)}
+                        style={{background:"none", border:"none", cursor:"pointer", padding:4, opacity:0.6, borderRadius:4, transition:"opacity .15s ease, background .15s ease"}}
+                        title={`Delete draft: ${d.title || d.prompt}`}
+                        aria-label={`Delete draft: ${d.title || d.prompt}`}
+                        onMouseEnter={e => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.background = `${T.red}15`; }}
+                        onMouseLeave={e => { e.currentTarget.style.opacity = "0.6"; e.currentTarget.style.background = "none"; }}
+                      >
                         <Ic n="trash" s={14} c={T.red}/>
                       </button>
                     </div>
@@ -125,11 +132,21 @@ const DraftsBox = ({ onBack, isDesktop, onResume, onCreate, allSessions, activit
                     />
 
                     <div style={{display:"flex", gap:10, marginTop:16}}>
-                      <Btn onClick={() => onResume(d)} outline sm style={{flex:1}}>
+                      <Btn
+                        onClick={() => onResume(d)}
+                        outline sm style={{flex:1}}
+                        title={`Resume editing draft: ${d.title || d.prompt}`}
+                        aria-label={`Resume editing draft: ${d.title || d.prompt}`}
+                      >
                         <Ic n="expand" s={12} c={T.brand}/>
                         RESUME
                       </Btn>
-                      <Btn onClick={() => onCreate(d)} sm style={{flex:1}}>
+                      <Btn
+                        onClick={() => onCreate(d)}
+                        sm style={{flex:1}}
+                        title={`Create session from draft: ${d.title || d.prompt}`}
+                        aria-label={`Create session from draft: ${d.title || d.prompt}`}
+                      >
                         <Ic n="plus" s={12} c="#000"/>
                         CREATE
                       </Btn>
@@ -182,7 +199,14 @@ const DraftsBox = ({ onBack, isDesktop, onResume, onCreate, allSessions, activit
                             )}
                           </div>
                         </div>
-                        <button onClick={() => handleDeleteFollowup(s.id)} style={{background:"none", border:"none", cursor:"pointer", padding:4, opacity:0.6}} title="Delete Draft" aria-label="Delete Draft">
+                        <button
+                          onClick={() => handleDeleteFollowup(s.id)}
+                          style={{background:"none", border:"none", cursor:"pointer", padding:4, opacity:0.6, borderRadius:4, transition:"opacity .15s ease, background .15s ease"}}
+                          title={`Delete follow-up draft for session: ${s.title || s.prompt}`}
+                          aria-label={`Delete follow-up draft for session: ${s.title || s.prompt}`}
+                          onMouseEnter={e => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.background = `${T.red}15`; }}
+                          onMouseLeave={e => { e.currentTarget.style.opacity = "0.6"; e.currentTarget.style.background = "none"; }}
+                        >
                           <Ic n="trash" s={14} c={T.red}/>
                         </button>
                       </div>
@@ -197,7 +221,12 @@ const DraftsBox = ({ onBack, isDesktop, onResume, onCreate, allSessions, activit
                       </div>
 
                       <div style={{display:"flex", gap:10}}>
-                        <Btn onClick={() => onSelectSession(s)} sm style={{flex:1}}>
+                        <Btn
+                          onClick={() => onSelectSession(s)}
+                          sm style={{flex:1}}
+                          title={`Resume chat for session: ${s.title || s.prompt}`}
+                          aria-label={`Resume chat for session: ${s.title || s.prompt}`}
+                        >
                           <Ic n="expand" s={12} c="#000"/>
                           RESUME CHAT
                         </Btn>
