@@ -217,6 +217,13 @@ assert.equal(cleanMathText('4.5\\% W = 2.7\\% \\implies W_{BE} = \\frac{2.7}{4.5
 assert.equal(cleanMathText('Target Win Rate (W_{target}) \\approx \\mathbf{68.5\\% \\text{ to } 75.0\\%}'), 'Target Win Rate (W_target) ≈ 68.5%  to  75.0%');
 assert.equal(cleanMathText('\\mathrm{Net\\ TP}: 1.80\\% - 0.14\\% = \\mathbf{+1.66\\%}'), 'Net TP: 1.80% - 0.14% = +1.66%');
 
+// Test cleanMathText caching behavior
+const mathSample = '4.5\\% W = 2.7\\% \\implies W_{BE} = \\frac{2.7}{4.5} = \\mathbf{60.00\\%}';
+const firstRun = cleanMathText(mathSample);
+const secondRun = cleanMathText(mathSample);
+assert.equal(firstRun, secondRun);
+assert.equal(firstRun, '4.5% W = 2.7% ⇒ W_BE = 2.7 / 4.5 = 60.00%');
+
 // Test formatSmartDashItems smart dash itemization
 const dashInput1 = "Fix bugs and improve UI - Mobile-first layout adjustments - Pre-commit check verification (range 1-10).";
 const dashExpected1 = "Fix bugs and improve UI\n- Mobile-first layout adjustments\n- Pre-commit check verification (range 1-10).";
