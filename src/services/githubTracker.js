@@ -503,6 +503,11 @@ const GitHubTracker = {
       throw new Error("Invalid branch name for deletion");
     }
 
+    const PROTECTED_BRANCHES = new Set(["main", "master", "develop", "trunk", "gh-pages", "production"]);
+    if (PROTECTED_BRANCHES.has(cleanBranch.toLowerCase())) {
+      throw new Error(`Deletion of protected primary branch '${cleanBranch}' is strictly prohibited.`);
+    }
+
     const token = SafeStorage.loadGithubToken();
     if (!token || !isValidGithubToken(token)) {
       throw new Error("GitHub Token required to delete branch. Please set your token in Settings.");

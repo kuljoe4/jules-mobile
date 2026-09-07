@@ -461,6 +461,20 @@ await assert.rejects(
   { message: "Invalid branch name for deletion" }
 );
 
+await assert.rejects(
+  async () => {
+    await deleteBranch("owner/repo", "main");
+  },
+  { message: "Deletion of protected primary branch 'main' is strictly prohibited." }
+);
+
+await assert.rejects(
+  async () => {
+    await deleteBranch("owner/repo", "MASTER");
+  },
+  { message: "Deletion of protected primary branch 'MASTER' is strictly prohibited." }
+);
+
 // Test single-pass quota calculation partitioning logic
 const now = Date.now();
 const mockRegistry = {
