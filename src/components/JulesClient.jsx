@@ -777,6 +777,8 @@ function JulesClient() {
             </div>
             <button
               onClick={openMobileDrawer}
+              aria-label="Open sessions sidebar drawer"
+              title="Open sessions sidebar drawer"
               style={{
                 marginTop:8, padding:"10px 18px", borderRadius:8, border:"none",
                 background:T.brand, color:"#000", fontFamily:"'JetBrains Mono',monospace",
@@ -842,7 +844,7 @@ function JulesClient() {
             todayCount={todayCount} />
         )}
       </div>
-      <nav style={{display:"flex",borderTop:`1px solid ${T.border}`,background:T.surface,transform:"translateZ(0)",flexShrink:0}}>
+      <nav aria-label="Main navigation" style={{display:"flex",borderTop:`1px solid ${T.border}`,background:T.surface,transform:"translateZ(0)",flexShrink:0}}>
         {[
           {id:"list",    n:"tasks", label:"SESSIONS", onClick:() => {
             setShowArchived(false);
@@ -863,8 +865,16 @@ function JulesClient() {
                         (!mobileDrawerOpen && mobileScreen === id && id !== "list" && id !== "archive");
 
           const hasAlert = sessions.some(s=>["AWAITING_PLAN_APPROVAL","AWAITING_USER_FEEDBACK"].includes(s.state));
+          const buttonTitle = `${label}${hasAlert ? " (attention needed)" : ""}${isAct ? " (active view)" : ""}`;
           return (
-            <button key={id} onClick={onClick} style={{flex:1,padding:"11px 0 13px",background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
+            <button
+              key={id}
+              onClick={onClick}
+              aria-label={buttonTitle}
+              aria-current={isAct ? "page" : undefined}
+              title={buttonTitle}
+              style={{flex:1,padding:"11px 0 13px",background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:4}}
+            >
               <div style={{position:"relative"}}>
                 <Ic n={n} s={22} c={isAct?T.brand:T.muted}/>
                 {hasAlert&&<div style={{position:"absolute",top:-2,right:-4,width:7,height:7,borderRadius:"50%",background:T.purple,border:`1.5px solid ${T.surface}`,animation:"dot 1.5s ease-in-out infinite"}}/>}
