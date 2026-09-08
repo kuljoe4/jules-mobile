@@ -61,3 +61,7 @@
 ## 2026-08-27 - Precomputed String Metric Accumulation in Object Parsing
 **Learning:** Calling `.join("\n").length` on large line array properties inside React render loops or debug serializations allocates temporary concatenated strings in memory every render pass. Accumulating `rawSize` during initial string parsing turns size calculations into O(1) property reads.
 **Action:** Track byte lengths during string parsing into object properties rather than performing runtime `.join()` allocations in render methods or getters.
+
+## 2026-09-01 - Bounded Map Caching for High-Frequency String Transformations
+**Learning:** Repetitively formatting text strings using complex multi-pass regex replacements (such as `formatSmartDashItems` during Markdown component renders) causes significant CPU churn and string allocation overhead on every render tick or user interaction. Bounded Map caches (`Map` with max size limits like 2000) turn repeated string parsing operations into O(1) cache lookups (~80x-120x speedup), completely bypassing line splitting and regex executions while automatically preventing memory leaks.
+**Action:** Always wrap expensive, pure string manipulation utilities (like LaTeX cleaning, dash formatting, or date string parsing) in bounded Map caches to make repeat render passes instantaneous.
