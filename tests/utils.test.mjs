@@ -181,6 +181,10 @@ assert.equal(ghPrRe.test('https://github.com/owner/repo#frag/pull/123'), false);
 
 assert.equal(safeUrl('https://github.com/example/repo'), 'https://github.com/example/repo');
 assert.equal(safeUrl('javascript:alert(1)'), '#');
+assert.equal(safeUrl('javascript&colon;alert(1)'), '#');
+assert.equal(safeUrl('java&#x09;script:alert(1)'), '#');
+assert.equal(safeUrl('java&#x3a;alert(1)'), '#');
+assert.equal(safeUrl('java&#58;alert(1)'), '#');
 assert.equal(safeUrl(null), '#');
 assert.equal(safeUrl(123), '#');
 assert.equal(safeUrl('https://github.com/example/repo\x00nullbyte'), '#');
