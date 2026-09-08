@@ -45,6 +45,7 @@
   "src/components/createPRModal.jsx",
   "src/components/payloadBreakdownModal.jsx",
   "src/components/quotaTimeline.jsx",
+  "src/components/designLab.jsx",
   "src/components/settings.jsx",
   "src/components/sessionList.jsx",
   "src/hooks/useQuotaTracker.js",
