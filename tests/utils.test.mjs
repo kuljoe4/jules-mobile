@@ -224,10 +224,13 @@ const secondRun = cleanMathText(mathSample);
 assert.equal(firstRun, secondRun);
 assert.equal(firstRun, '4.5% W = 2.7% ⇒ W_BE = 2.7 / 4.5 = 60.00%');
 
-// Test formatSmartDashItems smart dash itemization
+// Test formatSmartDashItems smart dash itemization & caching
 const dashInput1 = "Fix bugs and improve UI - Mobile-first layout adjustments - Pre-commit check verification (range 1-10).";
 const dashExpected1 = "Fix bugs and improve UI\n- Mobile-first layout adjustments\n- Pre-commit check verification (range 1-10).";
-assert.equal(formatSmartDashItems(dashInput1), dashExpected1);
+const dashFirstRun = formatSmartDashItems(dashInput1);
+const dashSecondRun = formatSmartDashItems(dashInput1);
+assert.equal(dashFirstRun, dashExpected1);
+assert.equal(dashSecondRun, dashExpected1);
 
 const dashInput2 = "1. *Audit and enhance UI/UX.* - Inspect components - Ensure 100% WCAG 2.1 compliance.";
 const dashExpected2 = "1. *Audit and enhance UI/UX.*\n- Inspect components\n- Ensure 100% WCAG 2.1 compliance.";
@@ -236,6 +239,10 @@ assert.equal(formatSmartDashItems(dashInput2), dashExpected2);
 const dashInput3 = "Overall details: - First sub item - Second sub item; i.e.: - Third sub item";
 const dashExpected3 = "Overall details:\n- First sub item\n- Second sub item; i.e.:\n- Third sub item";
 assert.equal(formatSmartDashItems(dashInput3), dashExpected3);
+
+// Test fmtAgo with ISO string input
+const pastIsoString = new Date(Date.now() - 120_000).toISOString();
+assert.equal(fmtAgo(pastIsoString), "2m ago");
 
 // Test GitHubTracker PR Caching (positive and negative hits)
 const sessNoPR = { id: 'sess-no-pr-1', createTime: '2026-08-25T10:00:00Z', outputs: [] };

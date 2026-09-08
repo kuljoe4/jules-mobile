@@ -23,7 +23,20 @@ export const fmtDuration = ms => {
   if (d < 86400000) return `${Math.floor(d / 3600000)}h ${Math.floor((d % 3600000) / 60000)}m`;
   return `${Math.floor(d / 86400000)}d`;
 };
-export const fmtAgo = ts => { const d=Date.now()-ts; if(d<60000)return`${Math.floor(d/1000)}s ago`; if(d<3600000)return`${Math.floor(d/60000)}m ago`; if(d<86400000)return`${Math.floor(d/3600000)}h ago`; return`${Math.floor(d/86400000)}d ago`; };
+
+// OPTIMIZATION (Bolt): Route input timestamps through `parseDateMs` to leverage O(1) DATE_MS_CACHE
+// and ensure safe handling for both numeric timestamps and ISO date strings without producing `NaNd ago`.
+export const fmtAgo = (ts) => {
+  if (!ts) return "";
+  const ms = parseDateMs(ts);
+  if (!ms) return "";
+  const d = Date.now() - ms;
+  if (d < 0) return "just now";
+  if (d < 60000) return `${Math.floor(d / 1000)}s ago`;
+  if (d < 3600000) return `${Math.floor(d / 60000)}m ago`;
+  if (d < 86400000) return `${Math.floor(d / 86400000)}h ago`;
+  return `${Math.floor(d / 86400000)}d ago`;
+};
 
 // Bounded cache and module-level Intl.DateTimeFormat for high-performance timestamp string formatting.
 // OPTIMIZATION (Bolt): Reusing a single Intl.DateTimeFormat instance avoids the microsecond-level overhead
