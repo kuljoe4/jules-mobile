@@ -585,6 +585,20 @@ assert.equal(Object.prototype.hasOwnProperty.call(cleanObj, "prototype"), false)
 assert.equal(Object.prototype.hasOwnProperty.call(cleanObj, "toString"), false);
 assert.equal(Object.prototype.hasOwnProperty.call(cleanObj, "__proto__"), false);
 
+// Test SafeStorage.getJSON sanitizes object items inside array payloads against Prototype Pollution and property shadowing
+globalThis.localStorage.setItem('test_array_key', JSON.stringify([
+  { id: "custom_1", label: "Persona", __proto__: { bad: true }, toString: "hacked", constructor: "bad" },
+  { id: "custom_2", label: "Valid" }
+]));
+const loadedArray = SafeStorage.getJSON('test_array_key', []);
+assert.equal(loadedArray.length, 2);
+assert.equal(loadedArray[0].id, "custom_1");
+assert.equal(loadedArray[0].label, "Persona");
+assert.equal(Object.prototype.hasOwnProperty.call(loadedArray[0], "toString"), false);
+assert.equal(Object.prototype.hasOwnProperty.call(loadedArray[0], "constructor"), false);
+assert.equal(Object.prototype.hasOwnProperty.call(loadedArray[0], "__proto__"), false);
+assert.equal(loadedArray[1].id, "custom_2");
+
 // Test copyToClipboard helper with mock navigator.clipboard
 let copiedText = "";
 Object.defineProperty(globalThis.navigator, "clipboard", {
