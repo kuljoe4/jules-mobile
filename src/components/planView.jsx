@@ -225,23 +225,59 @@ export const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFe
           )}
 
           <div style={{display:"flex",gap:8}}>
-            <Btn
-              onClick={handleRequestRevision}
-              disabled={!hasFeedback||sending||busy}
-              color={T.amber} outline sm
-              style={{flex:1}}
-            >
-              {sending?"SENDING…":`REVISE${annotatedCount>0?` (${annotatedCount} step${annotatedCount>1?"s":""})`:globalNote.trim()?" +note":""}`}
-            </Btn>
-            <Btn
-              onClick={onApprove}
-              disabled={busy||sending}
-              color={T.purple} sm
-              style={{flex:1}}
-            >
-              <Ic n="approve" s={11} c="#000"/>
-              {busy?"APPROVING…":"APPROVE PLAN"}
-            </Btn>
+            {(() => {
+              let reviseTitle = undefined;
+              let reviseAria = undefined;
+              if (sending) {
+                reviseTitle = "Sending revision request to Jules...";
+                reviseAria = "Sending revision request to Jules";
+              } else if (busy) {
+                reviseTitle = "Processing session action...";
+                reviseAria = "Processing session action";
+              } else if (!hasFeedback) {
+                reviseTitle = "Add notes to steps or overall comments below to request a plan revision";
+                reviseAria = "Request plan revision (disabled: add feedback first)";
+              } else {
+                reviseTitle = `Request plan revision with ${annotatedCount > 0 ? `${annotatedCount} step feedback note${annotatedCount > 1 ? "s" : ""}` : "overall note"}`;
+                reviseAria = "Request plan revision with feedback";
+              }
+
+              let approveTitle = undefined;
+              let approveAria = undefined;
+              if (busy || sending) {
+                approveTitle = "Processing plan approval...";
+                approveAria = "Processing plan approval";
+              } else {
+                approveTitle = "Approve execution plan and begin task execution";
+                approveAria = "Approve execution plan and begin task execution";
+              }
+
+              return (
+                <>
+                  <Btn
+                    onClick={handleRequestRevision}
+                    disabled={!hasFeedback||sending||busy}
+                    color={T.amber} outline sm
+                    title={reviseTitle}
+                    aria-label={reviseAria}
+                    style={{flex:1}}
+                  >
+                    {sending?"SENDING…":`REVISE${annotatedCount>0?` (${annotatedCount} step${annotatedCount>1?"s":""})`:globalNote.trim()?" +note":""}`}
+                  </Btn>
+                  <Btn
+                    onClick={onApprove}
+                    disabled={busy||sending}
+                    color={T.purple} sm
+                    title={approveTitle}
+                    aria-label={approveAria}
+                    style={{flex:1}}
+                  >
+                    <Ic n="approve" s={11} c="#000"/>
+                    {busy?"APPROVING…":"APPROVE PLAN"}
+                  </Btn>
+                </>
+              );
+            })()}
           </div>
           <div style={{marginTop:7,fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.textDim,textAlign:"center",lineHeight:1.6}}>
             Revise → Jules rewrites the plan · Approve → Jules starts executing
