@@ -73,12 +73,16 @@ const SafeStorage = {
       if (fallback !== null) {
         if (Array.isArray(fallback)) {
           if (!Array.isArray(parsed)) return fallback;
+          return parsed.map(item => (typeof item === "object" && item !== null && !Array.isArray(item)) ? sanitizeObjectKeys(item) : item);
         } else if (typeof fallback === 'object') {
           if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return fallback;
           return sanitizeObjectKeys(parsed);
         } else if (typeof parsed !== typeof fallback) {
           return fallback;
         }
+      }
+      if (Array.isArray(parsed)) {
+        return parsed.map(item => (typeof item === "object" && item !== null && !Array.isArray(item)) ? sanitizeObjectKeys(item) : item);
       }
       return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed) ? sanitizeObjectKeys(parsed) : parsed;
     } catch {
