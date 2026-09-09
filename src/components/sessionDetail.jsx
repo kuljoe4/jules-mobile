@@ -891,7 +891,14 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   const pendingPRProposal = useMemo(() => getPendingPRProposal(session, activities), [session, activities]);
   const summary = session.outputs?.find(o=>o.sessionSummary)?.sessionSummary;
   const pri = useMemo(() => getPRInfo(session, activities), [session, activities, ghPrNonce]);
-  const pr = (b && b.livePR) ? { ...pri, ...b.livePR } : pri;
+  const pr = (b && b.livePR) ? { ...b.livePR, ...pri } : pri;
+
+  const hasPendingCI = useMemo(() => {
+    if (pr?.checks?.state === "pending") return true;
+    if (b?.checks?.state === "pending") return true;
+    if (b?.deployment?.state === "in_progress" || b?.deployment?.state === "queued") return true;
+    return false;
+  }, [pr, b]);
 
   const handleForceRefreshPRStatus = useCallback(async (e) => {
     if (e) e.stopPropagation();
@@ -936,7 +943,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     busy,
     setBusy,
     setErr,
-    setJustUpdated
+    setJustUpdated,
+    hasPendingCI
   );
 
   const latestPlan = useMemo(() => {
