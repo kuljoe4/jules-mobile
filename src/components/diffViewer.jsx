@@ -67,9 +67,20 @@ export const DiffViewer = memo(({ activities = [], isDesktop = false }) => {
     return new Set(allKeys);
   }, [collapsed, allKeys]);
 
-  const totalFiles = useMemo(() => patchGroups.reduce((acc, pg) => acc + pg.groups.length, 0), [patchGroups]);
-  const totalAdds = useMemo(() => patchGroups.reduce((acc, pg) => acc + pg.groups.reduce((a, g) => a + g.adds, 0), 0), [patchGroups]);
-  const totalRems = useMemo(() => patchGroups.reduce((acc, pg) => acc + pg.groups.reduce((a, g) => a + g.rems, 0), 0), [patchGroups]);
+  // OPTIMIZATION (Bolt): Calculate total files, additions, and removals in a single O(N) pass over patchGroups
+  // instead of 3 separate nested .reduce() traversals, avoiding duplicate array loops and function allocations.
+  const { totalFiles, totalAdds, totalRems } = useMemo(() => {
+    let files = 0, adds = 0, rems = 0;
+    for (let i = 0; i < patchGroups.length; i++) {
+      const groups = patchGroups[i].groups;
+      files += groups.length;
+      for (let j = 0; j < groups.length; j++) {
+        adds += groups[j].adds;
+        rems += groups[j].rems;
+      }
+    }
+    return { totalFiles: files, totalAdds: adds, totalRems: rems };
+  }, [patchGroups]);
 
   const handleCopyPath = (e, file, key) => {
     e.stopPropagation();
