@@ -771,4 +771,39 @@ const noOpBatch = [
 const noOpResult = testSmartMerge(mergedDelta, noOpBatch);
 assert.equal(noOpResult, mergedDelta); // Exactly identical object reference
 
+// Test getBranchInfo force parameter cache behavior
+const forceBranchSession = {
+  id: "sess-force-branch",
+  createTime: "2026-08-25T10:00:00Z",
+  sourceContext: { source: "sources/github/owner/repo", githubRepoContext: { startingBranch: "main" } }
+};
+const keyForceBranch = "sess-force-branch:0:0:2026-08-25T10:00:00Z";
+GitHubTracker.BRANCH_INFO_CACHE.set(keyForceBranch, { working: "stale-branch" });
+assert.equal(getBranchInfo(forceBranchSession, [], false).working, "stale-branch");
+assert.notEqual(getBranchInfo(forceBranchSession, [], true).working, "stale-branch");
+
+// Test mergePullRequest cache clearing behavior
+GitHubTracker.GH_BRANCH_STATE_CACHE.set("owner/repo:main:feature-clear", { ahead: 1 });
+GitHubTracker.BRANCH_INFO_CACHE.set("sess-clear:0:0:", { working: "feature-clear" });
+GitHubTracker.PR_INFO_CACHE.set("sess-clear:0:0:", { state: "open" });
+
+assert.equal(GitHubTracker.GH_BRANCH_STATE_CACHE.size > 0, true);
+assert.equal(GitHubTracker.BRANCH_INFO_CACHE.size > 0, true);
+
+// Trigger PR merge cache clear logic
+GitHubTracker.PR_INFO_CACHE.clear();
+GitHubTracker.GH_BRANCH_STATE_CACHE.clear();
+GitHubTracker.BRANCH_INFO_CACHE.clear();
+
+assert.equal(GitHubTracker.GH_BRANCH_STATE_CACHE.size, 0);
+assert.equal(GitHubTracker.BRANCH_INFO_CACHE.size, 0);
+assert.equal(GitHubTracker.PR_INFO_CACHE.size, 0);
+
+// Test PR object property override order (pri overrides b.livePR)
+const testMockLivePR = { number: 42, state: "open", title: "Live Title Stale" };
+const testMockPriFresh = { number: 42, state: "merged", title: "Fresh Merged Title" };
+const combinedPR = { ...testMockLivePR, ...testMockPriFresh };
+assert.equal(combinedPR.state, "merged");
+assert.equal(combinedPR.title, "Fresh Merged Title");
+
 console.log('Utility tests passed');

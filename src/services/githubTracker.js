@@ -277,18 +277,12 @@ const GitHubTracker = {
             let failureCount = 0;
             let pendingCount = 0;
 
-            if (statusData && statusData.statuses) {
-              const st = statusData.state;
-              if (st && st !== "pending" && statusData.statuses.length > 0) {
-                for (const s of statusData.statuses) {
-                  checkCount++;
-                  if (s.state === "success") successCount++;
-                  else if (s.state === "failure" || s.state === "error") failureCount++;
-                  else pendingCount++;
-                }
-              } else if (st === "pending") {
-                pendingCount++;
+            if (statusData && Array.isArray(statusData.statuses) && statusData.statuses.length > 0) {
+              for (const s of statusData.statuses) {
                 checkCount++;
+                if (s.state === "success") successCount++;
+                else if (s.state === "failure" || s.state === "error") failureCount++;
+                else pendingCount++;
               }
             }
 
@@ -595,18 +589,12 @@ const GitHubTracker = {
         let failureCount = 0;
         let pendingCount = 0;
 
-        if (statusData && statusData.statuses) {
-          const st = statusData.state;
-          if (st && st !== "pending" && statusData.statuses.length > 0) {
-            for (const s of statusData.statuses) {
-              checkCount++;
-              if (s.state === "success") successCount++;
-              else if (s.state === "failure" || s.state === "error") failureCount++;
-              else pendingCount++;
-            }
-          } else if (st === "pending") {
-            pendingCount++;
+            if (statusData && Array.isArray(statusData.statuses) && statusData.statuses.length > 0) {
+              for (const s of statusData.statuses) {
             checkCount++;
+                if (s.state === "success") successCount++;
+                else if (s.state === "failure" || s.state === "error") failureCount++;
+                else pendingCount++;
           }
         }
 
@@ -686,7 +674,9 @@ const GitHubTracker = {
         GitHubTracker.GH_BRANCH_IN_FLIGHT.delete(key);
         GitHubTracker.BRANCH_INFO_CACHE.clear();
 
-        window.dispatchEvent(new CustomEvent("gh-pr-updated", { detail: { key, ...updatedInfo } }));
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("gh-pr-updated", { detail: { key, ...updatedInfo } }));
+        }
       })
       .catch(err => {
         console.warn("Error fetching Branch metadata from GitHub:", err);
@@ -701,7 +691,9 @@ const GitHubTracker = {
           errorMsg: err.message
         });
         GitHubTracker.BRANCH_INFO_CACHE.clear();
-        window.dispatchEvent(new CustomEvent("gh-pr-updated", { detail: { key, failed: true } }));
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("gh-pr-updated", { detail: { key, failed: true } }));
+        }
       });
   },
 
@@ -892,6 +884,8 @@ const GitHubTracker = {
       }
 
       this.PR_INFO_CACHE.clear();
+      this.GH_BRANCH_STATE_CACHE.clear();
+      this.BRANCH_INFO_CACHE.clear();
       const existing = this.GH_STATE_CACHE.get(url) || {};
       const updatedInfo = {
         ...existing,
@@ -1078,7 +1072,7 @@ const GitHubTracker = {
     const actLen = activities.length;
     const size = getActivitiesSize(activities);
     const cacheKey = `${sid}:${actLen}:${size}:${s.updateTime || s.createTime || ""}`;
-    if (sid !== "temp" && this.BRANCH_INFO_CACHE.has(cacheKey)) return this.BRANCH_INFO_CACHE.get(cacheKey);
+    if (!force && sid !== "temp" && this.BRANCH_INFO_CACHE.has(cacheKey)) return this.BRANCH_INFO_CACHE.get(cacheKey);
 
     let repo = s.sourceContext?.source?.replace("sources/github/","");
     if (!repo || repo.startsWith("sources/")) {

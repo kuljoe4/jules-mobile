@@ -16,9 +16,10 @@ const useSessionPolling = (
   busy,
   setBusy,
   setErr,
-  setJustUpdated
+  setJustUpdated,
+  hasPendingCI = false
 ) => {
-  const effectiveInterval = (isFinished && !busy) ? 0 : pollInterval;
+  const effectiveInterval = (isFinished && !busy && !hasPendingCI) ? 0 : pollInterval;
 
   const countdown = useAutoPoll(
     effectiveInterval,
