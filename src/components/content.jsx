@@ -97,6 +97,8 @@ const ExpandableContent = memo(({ text, limit = 300, showCopy = false, forceExpa
             <div style={{ color: T.textDim, fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 600, opacity: 0.8 }}>{fmtChars(text?.length || 0)}</div>
             <button
               onClick={handleCopy}
+              title={copied ? "Message content copied to clipboard" : "Copy message content"}
+              aria-label={copied ? "Message content copied to clipboard" : "Copy message content"}
               style={{
                 background: "none", border: "none", color: copied ? T.brand : T.muted, cursor: "pointer",
                 fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 700,

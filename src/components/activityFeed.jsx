@@ -42,6 +42,8 @@ const MediaArtifacts = memo(({ artifacts, ts, onMediaClick }) => {
           <button
             key={i}
             onClick={() => onMediaClick?.({ ...a.media, data: base64Data, mimeType: mime, ts })}
+            title={isVideo ? "View video artifact preview" : "View image artifact preview"}
+            aria-label={isVideo ? "View video artifact preview" : "View image artifact preview"}
             style={{
               padding:0, border:`1px solid ${T.border}`, borderRadius:6,
               background:T.surfaceHi, cursor:"pointer", overflow:"hidden",
@@ -149,6 +151,8 @@ const ChatBubble = memo(({ act, type, onMediaClick, onEdit, onReply, forceExpand
               <span>·</span>
               <button
                 onClick={(e) => { e.stopPropagation(); handleCopy(); }}
+                title={copied ? "Message text copied to clipboard" : "Copy message text"}
+                aria-label={copied ? "Message text copied to clipboard" : "Copy message text"}
                 style={{
                   background: "none", border: "none", padding: "0 2px", cursor: "pointer",
                   color: copied ? T.brand : T.muted, fontWeight: 800, fontSize: 10, letterSpacing: "0.05em",
@@ -166,6 +170,8 @@ const ChatBubble = memo(({ act, type, onMediaClick, onEdit, onReply, forceExpand
               <span>·</span>
               <button
                 onClick={(e) => { e.stopPropagation(); onReply(act, "JULES"); }}
+                title="Reply to Jules message"
+                aria-label="Reply to Jules message"
                 style={{
                   background: "none", border: "none", padding: "0 2px", cursor: "pointer",
                   color: T.brandLight, fontWeight: 800, fontSize: 10, letterSpacing: "0.05em",
@@ -183,6 +189,8 @@ const ChatBubble = memo(({ act, type, onMediaClick, onEdit, onReply, forceExpand
               <span>·</span>
               <button
                 onClick={(e) => { e.stopPropagation(); onEdit(text); }}
+                title="Edit message prompt"
+                aria-label="Edit message prompt"
                 style={{
                   background: "none", border: "none", padding: "0 2px", cursor: "pointer",
                   color: T.brand, fontWeight: 800, fontSize: 10, letterSpacing: "0.05em",
@@ -406,6 +414,8 @@ const TimelineEvent = memo(({ act, onMediaClick, onReply }) => {
           <div style={{marginTop:6, display:"flex", justifyContent:"flex-end"}}>
             <button
               onClick={(e) => { e.stopPropagation(); onReply(act, title.toUpperCase()); }}
+              title={`Reply to ${title.toLowerCase()}`}
+              aria-label={`Reply to ${title.toLowerCase()}`}
               style={{
                 background:"none", border:"none", padding:"2px 6px", cursor:"pointer",
                 color:T.brandLight, fontWeight:800, fontSize:9, letterSpacing:"0.05em",
