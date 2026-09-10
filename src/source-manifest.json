@@ -27,6 +27,7 @@
   "src/hooks/useScrollThreshold.js",
   "src/hooks/useAutoPoll.js",
   "src/components/content.jsx",
+  "src/components/mediaModal.jsx",
   "src/components/activityFeed.jsx",
   "src/components/planView.jsx",
   "src/components/diffViewer.jsx",

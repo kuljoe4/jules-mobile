@@ -1,4 +1,5 @@
 import { copyToClipboard } from "../utils/format.js";
+import { MediaModal } from "./mediaModal.jsx";
 
 // ─── Session Detail ───────────────────────────────────────────────────────────
 const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete, onSessionUpdate, onStatsUpdate, isDesktop, pollInterval, setPollInterval, isArchived, onArchive, onUnarchive, onIgnore, cacheLimit, activityLimit, allSessions = [], activitiesMap = {}, onDraftChange, onToggleMobileDrawer }) => {
