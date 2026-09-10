@@ -42,12 +42,23 @@ export const DiffViewer = memo(({ activities = [], isDesktop = false }) => {
     return patchList;
   }, [activities]);
 
-  // Parse each patch into structured file groups
+  // Parse each patch into structured file groups and precompute total additions/removals
+  // to avoid redundant .reduce() array traversals on every render pass.
   const patchGroups = useMemo(() => {
-    return recentPatches.map(p => ({
-      patchMeta: p,
-      groups: parseUnidiffPatch(p.gitPatch || p.patch, p.ts)
-    }));
+    return recentPatches.map(p => {
+      const groups = parseUnidiffPatch(p.gitPatch || p.patch, p.ts);
+      let pAdds = 0, pRems = 0;
+      for (let i = 0; i < groups.length; i++) {
+        pAdds += groups[i].adds;
+        pRems += groups[i].rems;
+      }
+      return {
+        patchMeta: p,
+        groups,
+        pAdds,
+        pRems
+      };
+    });
   }, [recentPatches]);
 
   // Flattened total key index set for calculating collapse state
@@ -215,8 +226,8 @@ export const DiffViewer = memo(({ activities = [], isDesktop = false }) => {
         const patchMs = parseDateMs(pg.patchMeta.ts);
         const timeStr = patchMs ? fmtTime(patchMs) : "";
         const agoStr = patchMs ? fmtAgo(patchMs) : "";
-        const pAdds = pg.groups.reduce((a, g) => a + g.adds, 0);
-        const pRems = pg.groups.reduce((a, g) => a + g.rems, 0);
+        const pAdds = pg.pAdds;
+        const pRems = pg.pRems;
 
         return (
           <div key={pg.patchMeta.id || pi} style={{
