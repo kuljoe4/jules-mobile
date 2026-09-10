@@ -342,13 +342,17 @@ const Markdown = memo(({ text }) => {
           if (!trimmed && li > 0 && li < lines.length - 1) return <div key={li} style={{height: 12}} />;
           if (!trimmed) return <div key={li} />;
 
-          const isH1 = /^#\s+(.*)/.test(trimmed);
-          const isH2 = /^##\s+(.*)/.test(trimmed);
-          const isH3 = /^###\s+(.*)/.test(trimmed);
-          const isH4 = /^####\s+(.*)/.test(trimmed);
-          const isHR = /^---{3,}$|^--{2,}$/ .test(trimmed);
-          const isListItem = trimmed.startsWith("- ") || trimmed.startsWith("* ");
-          const isNumItem = /^\d+\.\s/.test(trimmed);
+          // OPTIMIZATION (Bolt): Fast early charCode guards bypass sequential regex evaluations for lines
+          // that do not begin with '#', '-', or digits, drastically speeding up Markdown line classification.
+          const c0 = trimmed.charCodeAt(0);
+          const isHash = c0 === 35; // '#'
+          const isH4 = isHash && trimmed.startsWith("#### ");
+          const isH3 = isHash && !isH4 && trimmed.startsWith("### ");
+          const isH2 = isHash && !isH4 && !isH3 && trimmed.startsWith("## ");
+          const isH1 = isHash && !isH4 && !isH3 && !isH2 && trimmed.startsWith("# ");
+          const isHR = c0 === 45 && /^---{3,}$|^--{2,}$/.test(trimmed); // '-'
+          const isListItem = (c0 === 45 && trimmed.startsWith("- ")) || (c0 === 42 && trimmed.startsWith("* "));
+          const isNumItem = c0 >= 48 && c0 <= 57 ? /^\d+\.\s/.test(trimmed) : false; // '0'-'9'
           const isHeader = trimmed.endsWith(":") && !isListItem && !isNumItem && !isH1 && !isH2 && !isH3 && !isH4 && trimmed.length < 80;
 
           let content = line;
