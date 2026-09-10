@@ -695,7 +695,7 @@ const SettingsView = ({ onBack, isDesktop, settings, personas, setPersonas, toda
 
       {editingPersona && (
         <Modal
-          title={`EDIT PERSONA: ${editingPersona.label.toUpperCase()}`}
+          title={`EDIT PERSONA: ${(editingPersona.label || "").toUpperCase()}`}
           onClose={() => setEditingPersona(null)}
           actions={
             <div style={{display:"flex", gap:10, width:"100%", flexDirection:"column"}}>
