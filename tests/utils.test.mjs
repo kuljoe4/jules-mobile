@@ -117,6 +117,31 @@ assert.equal(SafeStorage.saveLastBranch('toString', 'main'), false);
 assert.equal(SafeStorage.saveLastBranch('owner/repo', 'main\x00null'), false);
 assert.equal(SafeStorage.saveLastBranch('owner/repo', 'main'), true);
 
+// Test SafeStorage API key and GitHub token validation & sanitization
+assert.equal(SafeStorage.saveApiKey('AIzaSyValidApiKeyForTesting123'), true);
+assert.equal(SafeStorage.loadApiKey(), 'AIzaSyValidApiKeyForTesting123');
+assert.equal(SafeStorage.saveApiKey('invalid key with spaces'), false);
+assert.equal(SafeStorage.saveApiKey('key\nwith\nnewline'), false);
+assert.equal(SafeStorage.saveApiKey(''), true);
+assert.equal(SafeStorage.loadApiKey(), '');
+
+globalThis.localStorage.setItem('jac_key', 'invalid key in storage');
+assert.equal(SafeStorage.loadApiKey(), '');
+globalThis.localStorage.setItem('jac_key', 'AIzaSyValidKeyInStorage123');
+assert.equal(SafeStorage.loadApiKey(), 'AIzaSyValidKeyInStorage123');
+
+assert.equal(SafeStorage.saveGithubToken('ghp_validAsciiToken123'), true);
+assert.equal(SafeStorage.loadGithubToken(), 'ghp_validAsciiToken123');
+assert.equal(SafeStorage.saveGithubToken('bad token with space'), false);
+assert.equal(SafeStorage.saveGithubToken('token\r\nnewline'), false);
+assert.equal(SafeStorage.saveGithubToken(''), true);
+assert.equal(SafeStorage.loadGithubToken(), '');
+
+globalThis.localStorage.setItem('jac_github_token', 'invalid token in storage');
+assert.equal(SafeStorage.loadGithubToken(), '');
+globalThis.localStorage.setItem('jac_github_token', 'ghp_validTokenInStorage456');
+assert.equal(SafeStorage.loadGithubToken(), 'ghp_validTokenInStorage456');
+
 // Test SafeStorage settings persistence validation & bounds enforcement
 assert.equal(SafeStorage.savePlan('pro'), true);
 assert.equal(SafeStorage.loadPlan(), 'pro');

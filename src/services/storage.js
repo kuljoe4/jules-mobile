@@ -1,4 +1,4 @@
-import { isValidGithubRepoName, isValidSessionId, isValidStorageKey, sanitizeObjectKeys } from "../utils/validation.js";
+import { isValidGithubRepoName, isValidGithubToken, isValidGoogleApiKey, isValidSessionId, isValidStorageKey, sanitizeObjectKeys } from "../utils/validation.js";
 
 // ─── Safe Storage Service ────────────────────────────────────────────────────
 const SafeStorage = {
@@ -475,17 +475,39 @@ const SafeStorage = {
   },
 
   loadApiKey() {
-    return this.getItem(this.KEYS.API_KEY, "");
+    const val = this.getItem(this.KEYS.API_KEY, "");
+    if (!val) return "";
+    return isValidGoogleApiKey(val) ? val : "";
   },
   saveApiKey(val) {
-    this.setItem(this.KEYS.API_KEY, val);
+    const clean = typeof val === "string" ? val.trim() : "";
+    if (!clean) {
+      this.setItem(this.KEYS.API_KEY, "");
+      return true;
+    }
+    if (isValidGoogleApiKey(clean)) {
+      this.setItem(this.KEYS.API_KEY, clean);
+      return true;
+    }
+    return false;
   },
 
   loadGithubToken() {
-    return this.getItem(this.KEYS.GITHUB_TOKEN, "");
+    const val = this.getItem(this.KEYS.GITHUB_TOKEN, "");
+    if (!val) return "";
+    return isValidGithubToken(val) ? val : "";
   },
   saveGithubToken(val) {
-    this.setItem(this.KEYS.GITHUB_TOKEN, val);
+    const clean = typeof val === "string" ? val.trim() : "";
+    if (!clean) {
+      this.setItem(this.KEYS.GITHUB_TOKEN, "");
+      return true;
+    }
+    if (isValidGithubToken(clean)) {
+      this.setItem(this.KEYS.GITHUB_TOKEN, clean);
+      return true;
+    }
+    return false;
   },
 
   // Security: Validates session identifier before accessing LocalStorage keys to prevent parameter pollution or key injection.
