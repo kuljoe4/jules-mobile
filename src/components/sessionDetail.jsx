@@ -123,7 +123,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
         if (res && res.html_url) {
           setGhActionFeedback({
             type: "success",
-            message: `Pull Request #${res.number || ""} created & merged (${mergeMethod.toUpperCase()}) successfully!`,
+            message: `Pull Request #${res.number || ""} created & merged (${(mergeMethod || "").toUpperCase()}) successfully!`,
             url: res.html_url
           });
         }
@@ -681,7 +681,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     } else if (pr.checks?.state === "pending") {
       if (!confirm(`⚠️ WARNING: CI/CD checks for PR #${pr.number} are still RUNNING.\nAre you sure you want to merge anyway?`)) return;
     } else {
-      if (!confirm(`Are you sure you want to MERGE Pull Request #${pr.number} using '${selectedMethod.toUpperCase()}' strategy?`)) return;
+      if (!confirm(`Are you sure you want to MERGE Pull Request #${pr.number} using '${(selectedMethod || "").toUpperCase()}' strategy?`)) return;
     }
 
     setBusy(true); setErr(null);
@@ -690,7 +690,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
       setJustUpdated(true);
       setGhActionFeedback({
         type: "success",
-        message: `Pull Request #${pr.number} merged using '${selectedMethod.toUpperCase()}'!`,
+        message: `Pull Request #${pr.number} merged using '${(selectedMethod || "").toUpperCase()}'!`,
         url: pr.url
       });
       setTimeout(() => setJustUpdated(false), 3000);
@@ -1319,7 +1319,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                   animation: isSyncing ? "shimmerPulse 1.5s infinite" : "none"
                 }}>
                   <Ic n={pr.state==="merged"?"git_merge":"git_pull"} s={11} c={pr.state==="merged"?T.purple:pr.state==="closed"?T.muted:T.brand}/>
-                  #{pr.number} <span style={{fontSize:8, opacity:0.8}}>{pr.state.toUpperCase()}</span>
+                  #{pr.number} <span style={{fontSize:8, opacity:0.8}}>{(pr.state || "").toUpperCase()}</span>
                   {pr.ahead > 0 && <span style={{fontSize:9, background:`${T.brand}22`, color:T.brandLight, borderRadius:3, padding:"0px 4px", marginLeft:2, border:`1px solid ${T.brand}40`}}>↑{pr.ahead}</span>}
                   {pr.behind > 0 && <span style={{fontSize:9, background:`${T.amber}22`, color:T.amber, borderRadius:3, padding:"0px 4px", marginLeft:2, border:`1px solid ${T.amber}40`}}>↓{pr.behind}</span>}
                   {pr.checks && (
@@ -1341,7 +1341,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                       fetchedAt: pr.fetchedAt,
                       checks: pr.checks,
                       url: pr.url,
-                      details: `Status: ${pr.state.toUpperCase()} | Ahead: ${pr.ahead || 0} | Behind: ${pr.behind || 0}`
+                      details: `Status: ${(pr.state || "").toUpperCase()} | Ahead: ${pr.ahead || 0} | Behind: ${pr.behind || 0}`
                     });
                   }}
                   title="Inspect status freshness & tap to re-fetch"
@@ -1772,7 +1772,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                     onMouseLeave={e => { e.currentTarget.style.background = pr.state === "merged" ? T.purpleDim : pr.state === "closed" ? T.dim : T.brandDim; }}
                     >
                       <Ic n={pr.state === "merged" ? "git_merge" : "git_pull"} s={13} c={pr.state === "merged" ? T.purple : pr.state === "closed" ? T.muted : T.brandLight}/>
-                      PR #{pr.number} ({pr.state.toUpperCase()}) ↗
+                      PR #{pr.number} ({(pr.state || "").toUpperCase()}) ↗
                     </a>
                   )}
                   {session.url && (
@@ -1814,7 +1814,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                   <div style={{ height: 1, flex: 1, background: pr.state === "merged" ? `${T.purple}20` : `${T.brand}20` }}/>
                   {pr.fetchedAt && (
                     <span style={{ color: T.brandLight, fontSize: 9, fontWeight: 700, background: `${T.brand}15`, padding: "2px 6px", borderRadius: 4, border: `1px solid ${T.brand}30`, display: "flex", alignItems: "center", gap: 4 }}>
-                      CHECKED {fmtAgo(pr.fetchedAt).toUpperCase()}
+                      CHECKED {(fmtAgo(pr.fetchedAt) || "").toUpperCase()}
                     </span>
                   )}
                   <button
@@ -1924,7 +1924,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                             animation: pr.checks.state === "pending" ? "dot 1s infinite" : "none"
                           }} />
                           <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, fontWeight: 800, color: pr.checks.state === "success" ? "#34d399" : pr.checks.state === "failure" ? T.red : T.amber }}>
-                            {pr.checks.label || pr.checks.state.toUpperCase()}
+                            {pr.checks.label || (pr.checks.state || "").toUpperCase()}
                           </span>
                         </a>
                       ) : (
@@ -1949,7 +1949,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                             animation: (b.deployment.state === "in_progress" || b.deployment.state === "queued") ? "dot 1s infinite" : "none"
                           }} />
                           <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, fontWeight: 800, color: b.deployment.state === "success" ? "#34d399" : (b.deployment.state === "failure" || b.deployment.state === "error") ? T.red : T.amber }}>
-                            {b.deployment.label || b.deployment.state.toUpperCase()}
+                            {b.deployment.label || (b.deployment.state || "").toUpperCase()}
                           </span>
                         </a>
                       ) : (
@@ -2015,7 +2015,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                           aria-label={`Merge Pull Request #${pr.number} using ${mergeMethod}`}
                           title={pr.mergeable === false ? "Cannot merge due to conflicts" : `Merge Pull Request #${pr.number} using ${mergeMethod}`}
                         >
-                          <Ic n="git_merge" s={13} c="#000"/> MERGE PULL REQUEST ({mergeMethod.toUpperCase()})
+                          <Ic n="git_merge" s={13} c="#000"/> MERGE PULL REQUEST ({(mergeMethod || "").toUpperCase()})
                         </button>
                         <button
                           onClick={() => setTab("diff")}
@@ -2102,7 +2102,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                   <div style={{ height: 1, flex: 1, background: `${T.blue}20` }}/>
                   {b.fetchedAt && (
                     <span style={{ color: T.blue, fontSize: 9, fontWeight: 700, background: `${T.blue}15`, padding: "2px 6px", borderRadius: 4, border: `1px solid ${T.blue}30`, display: "flex", alignItems: "center", gap: 4 }}>
-                      CHECKED {fmtAgo(b.fetchedAt).toUpperCase()}
+                      CHECKED {(fmtAgo(b.fetchedAt) || "").toUpperCase()}
                     </span>
                   )}
                   <button
@@ -2192,7 +2192,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                             animation: b.checks.state === "pending" ? "dot 1s infinite" : "none"
                           }} />
                           <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, fontWeight: 800, color: b.checks.state === "success" ? "#34d399" : b.checks.state === "failure" ? T.red : T.amber }}>
-                            {b.checks.label || b.checks.state.toUpperCase()}
+                            {b.checks.label || (b.checks.state || "").toUpperCase()}
                           </span>
                         </a>
                       ) : (
@@ -2217,7 +2217,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                             animation: (b.deployment.state === "in_progress" || b.deployment.state === "queued") ? "dot 1s infinite" : "none"
                           }} />
                           <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, fontWeight: 800, color: b.deployment.state === "success" ? "#34d399" : (b.deployment.state === "failure" || b.deployment.state === "error") ? T.red : T.amber }}>
-                            {b.deployment.label || b.deployment.state.toUpperCase()}
+                            {b.deployment.label || (b.deployment.state || "").toUpperCase()}
                           </span>
                         </a>
                       ) : (
@@ -2671,7 +2671,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                     width: 8, height: 8, borderRadius: "50%",
                     background: activeFreshnessModal.checks.state === "success" ? "#34d399" : activeFreshnessModal.checks.state === "failure" ? T.red : T.amber
                   }}/>
-                  {activeFreshnessModal.checks.label || activeFreshnessModal.checks.state.toUpperCase()}
+                  {activeFreshnessModal.checks.label || (activeFreshnessModal.checks.state || "").toUpperCase()}
                 </div>
               </div>
             )}

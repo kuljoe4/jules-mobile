@@ -191,7 +191,7 @@ const QuotaTimeline = ({ todayCount, plan }) => {
       </div>
       {todayCount.upcomingResets?.length > 0 && (
         <div style={{ marginTop: 16, textAlign: "center", fontFamily: "'JetBrains Mono',monospace", fontSize: 8, color: T.amber, fontWeight: 700, letterSpacing: "0.03em", opacity: 0.8 }}>
-          NEXT RECOVERY IN {fmtDuration(todayCount.upcomingResets[0].ts - now).toUpperCase()}
+          NEXT RECOVERY IN {(fmtDuration(todayCount.upcomingResets[0].ts - now) || "").toUpperCase()}
         </div>
       )}
     </div>

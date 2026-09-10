@@ -414,9 +414,7 @@ const TimelineEvent = memo(({ act, onMediaClick, onReply }) => {
         {onReply && (
           <div style={{marginTop:6, display:"flex", justifyContent:"flex-end"}}>
             <button
-              onClick={(e) => { e.stopPropagation(); onReply(act, title.toUpperCase()); }}
-              title={`Reply to ${title.toLowerCase()}`}
-              aria-label={`Reply to ${title.toLowerCase()}`}
+              onClick={(e) => { e.stopPropagation(); onReply(act, (title || "").toUpperCase()); }}
               style={{
                 background:"none", border:"none", padding:"2px 6px", cursor:"pointer",
                 color:T.brandLight, fontWeight:800, fontSize:9, letterSpacing:"0.05em",
