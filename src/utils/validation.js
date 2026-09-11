@@ -41,6 +41,17 @@ export const isValidSessionId = (id) => {
   return /^[a-zA-Z0-9\-_./:]+$/.test(id);
 };
 
+// Security & Stability: Normalizes session objects returned from API endpoints to guarantee a non-empty `id` property,
+// extracting from `s.id` or stripping `sessions/` prefix from `s.name`.
+export const normalizeSession = (s) => {
+  if (!s || typeof s !== "object") return s;
+  const rawId = s.id || (typeof s.name === "string" ? s.name.replace(/^sessions\//, "") : "");
+  return {
+    ...s,
+    id: rawId || s.id || s.name || `sess_${Date.now()}`
+  };
+};
+
 export const isValidGitBranchName = (name) => {
   if (!name) return true;
   if (typeof name !== "string") return false;

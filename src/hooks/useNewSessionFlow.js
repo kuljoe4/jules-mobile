@@ -194,16 +194,25 @@ const useNewSessionFlow = ({ apiKey, personas, onCreate, initialDraft, onDraftSa
   };
 
   const handleCreate = async () => {
-    setSub(true); setErr(null); setShowConfirm(false);
+    if (submitting) return;
+    setSub(true); setErr(null);
 
     const activeBranch = branch || defaultBranch || "main";
     if (source && !isValidGitBranchName(activeBranch)) {
       setErr("Invalid branch name format. Branch names cannot contain spaces, consecutive dots, or characters like ~, ^, :, ?, *, [, \\.");
       setSub(false);
+      setShowConfirm(false);
       return;
     }
 
     let finalPrompt = prompt.trim();
+    if (!finalPrompt) {
+      setErr("Task prompt cannot be empty.");
+      setSub(false);
+      setShowConfirm(false);
+      return;
+    }
+
     if (selectedPersonas.size > 0) {
       const personaPrompts = Array.from(selectedPersonas)
         .map(id => personas.find(p => p.id === id)?.prompt)
@@ -221,7 +230,7 @@ const useNewSessionFlow = ({ apiKey, personas, onCreate, initialDraft, onDraftSa
     const body = {
       prompt: finalPrompt,
       ...(source&&{
-        sourceContext:{ source, githubRepoContext:{ startingBranch:branch||defaultBranch||"main" } },
+        sourceContext:{ source, githubRepoContext:{ startingBranch:activeBranch } },
         ...(autoMode&&{automationMode:"AUTO_CREATE_PR"}),
       }),
       requirePlanApproval: reqApproval,
@@ -241,10 +250,18 @@ const useNewSessionFlow = ({ apiKey, personas, onCreate, initialDraft, onDraftSa
       if (source) {
         incRepoStat(source);
         saveLastSource(source);
-        saveLastBranch(source, branch || defaultBranch || "main");
+        saveLastBranch(source, activeBranch);
       }
-      onCreate(d);
-    } catch (err) { setErr(err.message); setSub(false); }
+      setShowConfirm(false);
+      if (typeof onCreate === "function") {
+        onCreate(normalizeSession(d));
+      }
+    } catch (err) {
+      console.error("[useNewSessionFlow] Error starting session:", err);
+      setErr(err.message || "Failed to start session. Please check your network connection or parameters.");
+    } finally {
+      setSub(false);
+    }
   };
 
   return {

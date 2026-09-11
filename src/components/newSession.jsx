@@ -79,6 +79,11 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
           }
         >
           <div style={{display:"flex", flexDirection:"column", gap:16, marginBottom:28}}>
+            {err && (
+              <div id="new-session-confirm-error" role="alert" style={{padding:"8px 12px",borderRadius:5,background:T.redDim,border:`1px solid ${T.red}40`,fontFamily:"'JetBrains Mono',monospace",fontSize:12,color:T.red}}>
+                {err}
+              </div>
+            )}
             <div style={{
               background:T.surfaceHi, borderRadius:10, padding:12,
               border: `1px solid ${T.border}`,
