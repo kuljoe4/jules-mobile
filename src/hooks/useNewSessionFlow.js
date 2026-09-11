@@ -26,6 +26,9 @@ const useNewSessionFlow = ({ apiKey, personas, onCreate, initialDraft, onDraftSa
   const [showConfirm,setShowConfirm] = useState(false);
   const [sourceInteracted, setSourceInteracted] = useState(false);
 
+  // Maintain a stable idempotency key reference across retries/duplicate clicks for the active submission
+  const idempotencyKeyRef = useRef(null);
+
   // ── Derive branches whenever selected source changes ─────────────────────
   const srcObj = useMemo(() => sources.find(s => s.name === source) || null, [sources, source]);
 
@@ -162,6 +165,7 @@ const useNewSessionFlow = ({ apiKey, personas, onCreate, initialDraft, onDraftSa
 
   const handleClearDraft = () => {
     hasSavedOrSubmitted.current = true;
+    idempotencyKeyRef.current = null;
     clearDraft();
     setSource(""); setBranch(""); setPrompt("");
     setAutoMode(true); setReqApp(false); setSelectedPersonas(new Set());
@@ -227,7 +231,16 @@ const useNewSessionFlow = ({ apiKey, personas, onCreate, initialDraft, onDraftSa
       finalPrompt += "\n\n" + activeDirective;
     }
 
+    // Security: Reuse or initialize a stable idempotencyKeyRef for this active submission attempt.
+    // Short-circuiting duplicate clicks when submitting===true and sending a consistent idempotency key
+    // across retries protects against duplicate session creation and daily quota exhaustion (DoS).
+    if (!idempotencyKeyRef.current) {
+      idempotencyKeyRef.current = "idemp_" + Date.now() + "_" + Math.random().toString(36).slice(2, 11);
+    }
+    const idempotencyKey = idempotencyKeyRef.current;
+
     const body = {
+      idempotencyKey,
       prompt: finalPrompt,
       ...(source&&{
         sourceContext:{ source, githubRepoContext:{ startingBranch:activeBranch } },
@@ -238,7 +251,7 @@ const useNewSessionFlow = ({ apiKey, personas, onCreate, initialDraft, onDraftSa
     try {
       const d = await apiCall(apiKey, "/sessions", {
         method: "POST",
-        headers: {},
+        headers: { "X-Idempotency-Key": idempotencyKey },
         body,
         timeout: 60000,
         attempts: 4,
@@ -246,6 +259,7 @@ const useNewSessionFlow = ({ apiKey, personas, onCreate, initialDraft, onDraftSa
         _label: "Create session"
       });
       hasSavedOrSubmitted.current = true;
+      idempotencyKeyRef.current = null;
       clearDraft();
       if (source) {
         incRepoStat(source);
