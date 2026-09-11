@@ -561,7 +561,9 @@ function JulesClient() {
     if (isDesktop) setDesktop("detail"); else setMobile("detail");
   }, [isDesktop, mobileDrawerOpen, closeMobileDrawer]);
 
-  const handleCreate = useCallback(s => {
+  const handleCreate = useCallback(rawS => {
+    if (!rawS) return;
+    const s = normalizeSession(rawS);
     if (!s.createTime) s.createTime = new Date().toISOString();
     if (!s.updateTime) s.updateTime = new Date().toISOString();
     const sid = s.id || s.name;
