@@ -673,6 +673,36 @@ assert.deepEqual(proposalRes, {
   description: "Draft PR Body Description from Jules"
 });
 
+// Verify PENDING_PR_PROPOSAL_CACHE caching and invalidation
+const proposalCacheKey = "sess-draft-pr:0:2026-08-25T10:00:00Z";
+assert.equal(GitHubTracker.PENDING_PR_PROPOSAL_CACHE.has(proposalCacheKey), true);
+assert.deepEqual(GitHubTracker.PENDING_PR_PROPOSAL_CACHE.get(proposalCacheKey), {
+  title: "Draft PR Title from Jules",
+  description: "Draft PR Body Description from Jules"
+});
+
+// Test pending PR proposal extraction from activity sessionCompleted outputs
+const mockActProposalSession = { id: "sess-act-proposal-1", createTime: "2026-08-25T11:00:00Z" };
+const mockProposalActivities = [
+  {
+    id: "act-prop-1",
+    createTime: "2026-08-25T11:05:00Z",
+    sessionCompleted: {
+      outputs: [
+        { pullRequest: { title: "Activity Draft PR", description: "Activity Description" } }
+      ]
+    }
+  }
+];
+const actProposalRes = getPendingPRProposal(mockActProposalSession, mockProposalActivities);
+assert.deepEqual(actProposalRes, { title: "Activity Draft PR", description: "Activity Description" });
+const actProposalKey = "sess-act-proposal-1:1:2026-08-25T11:00:00Z";
+assert.equal(GitHubTracker.PENDING_PR_PROPOSAL_CACHE.has(actProposalKey), true);
+
+// Verify cache invalidation
+GitHubTracker.PENDING_PR_PROPOSAL_CACHE.clear();
+assert.equal(GitHubTracker.PENDING_PR_PROPOSAL_CACHE.has(proposalCacheKey), false);
+
 assert.equal(getSmartTitle(mockDraftProposalSession, { working: "feature", commits: [] }, []), "Draft PR Title from Jules");
 assert.equal(getSmartBody(mockDraftProposalSession, { working: "feature", commits: [] }, []), "Draft PR Body Description from Jules");
 
