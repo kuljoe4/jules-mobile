@@ -875,10 +875,6 @@ const mockSessionCreatePayload = {
   prompt: "Test session prompt",
   requirePlanApproval: false
 };
-const mockSessionCreateHeaders = {
-  "X-Idempotency-Key": testIdempotencyKey
-};
 assert.equal(mockSessionCreatePayload.idempotencyKey, undefined);
-assert.equal(mockSessionCreateHeaders["X-Idempotency-Key"], testIdempotencyKey);
 
 console.log('Utility tests passed');
