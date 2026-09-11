@@ -216,8 +216,8 @@ export const DiffViewer = memo(({ activities = [], isDesktop = false }) => {
             <Ic n="copy" s={10} c={T.purple} />
             {copiedOverallDebug ? "LOG COPIED ✓" : "COPY DEBUG LOG"}
           </button>
-          <PickerBtn label="EXPAND ALL" isAct={safeCollapsed.size === 0} onClick={() => toggleAll(false)} />
-          <PickerBtn label="COLLAPSE ALL" isAct={safeCollapsed.size === allKeys.length} onClick={() => toggleAll(true)} />
+          <PickerBtn label="EXPAND ALL" isAct={safeCollapsed.size === 0} onClick={() => toggleAll(false)} title="Expand all file diffs" aria-label="Expand all file diffs" />
+          <PickerBtn label="COLLAPSE ALL" isAct={safeCollapsed.size === allKeys.length} onClick={() => toggleAll(true)} title="Collapse all file diffs" aria-label="Collapse all file diffs" />
         </div>
       </div>
 
@@ -285,8 +285,15 @@ export const DiffViewer = memo(({ activities = [], isDesktop = false }) => {
                     role="button"
                     tabIndex={0}
                     aria-expanded={!isCollapsed}
+                    aria-label={isCollapsed ? `Expand diff for ${g.file}` : `Collapse diff for ${g.file}`}
+                    title={isCollapsed ? `Click to expand diff for ${g.file}` : `Click to collapse diff for ${g.file}`}
                     onClick={() => toggleFile(fileKey)}
-                    onKeyDown={e => (e.key === "Enter" || e.key === " ") && toggleFile(fileKey)}
+                    onKeyDown={e => {
+                      if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
+                        e.preventDefault();
+                        toggleFile(fileKey);
+                      }
+                    }}
                     style={{
                       padding: "10px 12px", background: isCollapsed ? "transparent" : T.surfaceHi,
                       borderBottom: isCollapsed ? "none" : `1px solid ${T.border}`,
