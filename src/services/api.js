@@ -3,8 +3,9 @@ let lastQuotaError = null;
 const QUOTA_ERROR_CODES = [429, 403];
 
 async function apiCall(apiKey, path, opts={}) {
+  const cleanKey = typeof apiKey === "string" ? apiKey.trim() : "";
   // Defensive validation of API key format
-  if (apiKey && !isValidGoogleApiKey(apiKey)) {
+  if (cleanKey && !isValidGoogleApiKey(cleanKey)) {
     throw new Error("Invalid API key.");
   }
   const now = Date.now();
@@ -15,19 +16,34 @@ async function apiCall(apiKey, path, opts={}) {
     throw err;
   }
 
+  const {
+    attempts = 3,
+    retryDelayMultiplier = 500,
+    timeout,
+    _label,
+    onProgress,
+    body: rawBody,
+    headers: customHeaders = {},
+    signal: optsSignal,
+    method = "GET",
+    ...restFetchOpts
+  } = opts;
+
   const url = `${BASE}${path}`;
-  const body = opts.body ? JSON.stringify(opts.body) : undefined;
-  const headers = { "x-goog-api-key": apiKey, ...(opts.headers || {}) };
+  const body = rawBody ? JSON.stringify(rawBody) : undefined;
+  const headers = {
+    ...(cleanKey ? { "x-goog-api-key": cleanKey } : {}),
+    ...(customHeaders || {})
+  };
   if (body) {
     headers["Content-Type"] = "application/json";
   }
 
   // Estimate outgoing bytes (method + url + headers + body)
-  const outBytes = (opts.method || "GET").length + url.length + JSON.stringify(headers).length + (body?.length || 0);
+  const outBytes = method.length + url.length + JSON.stringify(headers).length + (body?.length || 0);
 
   let res;
-  const maxAttempts = opts.attempts || 3;
-  const delayMultiplier = opts.retryDelayMultiplier || 500;
+  const maxAttempts = attempts;
   let attempt = 0;
 
   while (attempt < maxAttempts) {
@@ -35,7 +51,7 @@ async function apiCall(apiKey, path, opts={}) {
 
     // Implement a defensive request timeout to prevent client resource exhaustion and hanging socket connections
     const controller = new AbortController();
-    const timeoutMs = opts.timeout || loadApiTimeout(); // default configured timeout
+    const timeoutMs = timeout || loadApiTimeout(); // default configured timeout
     let timedOut = false;
     const timeoutId = setTimeout(() => {
       timedOut = true;
@@ -43,18 +59,18 @@ async function apiCall(apiKey, path, opts={}) {
     }, timeoutMs);
 
     let removeAbortListener = null;
-    if (opts.signal) {
-      if (opts.signal.aborted) {
+    if (optsSignal) {
+      if (optsSignal.aborted) {
         controller.abort();
       } else {
         const onAbort = () => controller.abort();
-        opts.signal.addEventListener('abort', onAbort);
-        removeAbortListener = () => opts.signal.removeEventListener('abort', onAbort);
+        optsSignal.addEventListener('abort', onAbort);
+        removeAbortListener = () => optsSignal.removeEventListener('abort', onAbort);
       }
     }
 
     try {
-      res = await fetch(url, { ...opts, headers, body, signal: controller.signal });
+      res = await fetch(url, { ...restFetchOpts, method, headers, body, signal: controller.signal });
       if (removeAbortListener) removeAbortListener();
       clearTimeout(timeoutId);
       break; // Success! Exit retry loop
@@ -72,6 +88,7 @@ async function apiCall(apiKey, path, opts={}) {
       }
 
       if (err instanceof TypeError) {
+        console.error(`[apiCall] Fetch failed with TypeError on attempt ${attempt} for ${url}:`, err);
         if (attempt < maxAttempts) {
           // Robust connection waiter: if offline, wait up to 10s for connection to recover
           if (typeof navigator !== 'undefined' && navigator.onLine === false) {
@@ -95,7 +112,7 @@ async function apiCall(apiKey, path, opts={}) {
             });
           }
 
-          const delay = attempt * delayMultiplier;
+          const delay = attempt * retryDelayMultiplier;
           console.warn(`[apiCall] Transient network failure on attempt ${attempt}. Retrying in ${delay}ms...`, err);
           await new Promise(resolve => setTimeout(resolve, delay));
           continue;
@@ -110,7 +127,7 @@ async function apiCall(apiKey, path, opts={}) {
   let headerSize = 0;
   res.headers.forEach((v, k) => headerSize += k.length + v.length + 4);
 
-  if (opts.onProgress && res.body) {
+  if (onProgress && res.body) {
     const reader = res.body.getReader();
     const contentLength = +res.headers.get("Content-Length") || 0;
     let receivedLength = 0;
@@ -120,12 +137,12 @@ async function apiCall(apiKey, path, opts={}) {
       const {done, value} = await reader.read();
       if (done) {
         // Guarantee 100% progress completion at the end of stream
-        opts.onProgress({ loaded: receivedLength, total: receivedLength });
+        onProgress({ loaded: receivedLength, total: receivedLength });
         break;
       }
       chunks.push(value);
       receivedLength += value.length;
-      opts.onProgress({ loaded: receivedLength, total: contentLength });
+      onProgress({ loaded: receivedLength, total: contentLength });
     }
 
     const all = new Uint8Array(receivedLength);
@@ -137,7 +154,7 @@ async function apiCall(apiKey, path, opts={}) {
   }
 
   const inBytes = headerSize + new TextEncoder().encode(text).length;
-  NET.record(opts._label || path, inBytes / 1024, outBytes / 1024, res.status);
+  NET.record(_label || path, inBytes / 1024, outBytes / 1024, res.status);
 
   if (!res.ok) {
     let msg = text;

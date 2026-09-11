@@ -32,9 +32,11 @@ if (typeof globalThis.localStorage === 'undefined') {
 import { SafeStorage } from '../src/services/storage.js';
 
 assert.equal(isValidGoogleApiKey('AIzaSyFakeKeyFormVerificationTesting123'), true);
+assert.equal(isValidGoogleApiKey('  AIzaSyFakeKeyFormVerificationTesting123  '), true);
 assert.equal(isValidGoogleApiKey('bad key with spaces'), false);
 assert.equal(isValidGithubToken(''), true);
 assert.equal(isValidGithubToken('ghp_validAsciiToken123'), true);
+assert.equal(isValidGithubToken('  ghp_validAsciiToken123  '), true);
 assert.equal(isValidGithubToken('bad token'), false);
 
 assert.equal(isValidGithubRepoName('owner/repo'), true);
@@ -127,8 +129,9 @@ assert.equal(SafeStorage.loadApiKey(), '');
 
 globalThis.localStorage.setItem('jac_key', 'invalid key in storage');
 assert.equal(SafeStorage.loadApiKey(), '');
-globalThis.localStorage.setItem('jac_key', 'AIzaSyValidKeyInStorage123');
+globalThis.localStorage.setItem('jac_key', '  AIzaSyValidKeyInStorage123  ');
 assert.equal(SafeStorage.loadApiKey(), 'AIzaSyValidKeyInStorage123');
+assert.equal(globalThis.localStorage.getItem('jac_key'), 'AIzaSyValidKeyInStorage123');
 
 assert.equal(SafeStorage.saveGithubToken('ghp_validAsciiToken123'), true);
 assert.equal(SafeStorage.loadGithubToken(), 'ghp_validAsciiToken123');
@@ -139,8 +142,9 @@ assert.equal(SafeStorage.loadGithubToken(), '');
 
 globalThis.localStorage.setItem('jac_github_token', 'invalid token in storage');
 assert.equal(SafeStorage.loadGithubToken(), '');
-globalThis.localStorage.setItem('jac_github_token', 'ghp_validTokenInStorage456');
+globalThis.localStorage.setItem('jac_github_token', '  ghp_validTokenInStorage456  ');
 assert.equal(SafeStorage.loadGithubToken(), 'ghp_validTokenInStorage456');
+assert.equal(globalThis.localStorage.getItem('jac_github_token'), 'ghp_validTokenInStorage456');
 
 // Test SafeStorage settings persistence validation & bounds enforcement
 assert.equal(SafeStorage.savePlan('pro'), true);

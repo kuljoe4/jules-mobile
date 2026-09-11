@@ -475,9 +475,17 @@ const SafeStorage = {
   },
 
   loadApiKey() {
-    const val = this.getItem(this.KEYS.API_KEY, "");
+    const raw = this.getItem(this.KEYS.API_KEY, "");
+    if (!raw || typeof raw !== "string") return "";
+    const val = raw.trim();
     if (!val) return "";
-    return isValidGoogleApiKey(val) ? val : "";
+    if (isValidGoogleApiKey(val)) {
+      if (raw !== val) {
+        this.setItem(this.KEYS.API_KEY, val);
+      }
+      return val;
+    }
+    return "";
   },
   saveApiKey(val) {
     const clean = typeof val === "string" ? val.trim() : "";
@@ -493,9 +501,17 @@ const SafeStorage = {
   },
 
   loadGithubToken() {
-    const val = this.getItem(this.KEYS.GITHUB_TOKEN, "");
+    const raw = this.getItem(this.KEYS.GITHUB_TOKEN, "");
+    if (!raw || typeof raw !== "string") return "";
+    const val = raw.trim();
     if (!val) return "";
-    return isValidGithubToken(val) ? val : "";
+    if (isValidGithubToken(val)) {
+      if (raw !== val) {
+        this.setItem(this.KEYS.GITHUB_TOKEN, val);
+      }
+      return val;
+    }
+    return "";
   },
   saveGithubToken(val) {
     const clean = typeof val === "string" ? val.trim() : "";
