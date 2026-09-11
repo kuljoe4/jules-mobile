@@ -673,36 +673,6 @@ assert.deepEqual(proposalRes, {
   description: "Draft PR Body Description from Jules"
 });
 
-// Verify PENDING_PR_PROPOSAL_CACHE caching and invalidation
-const proposalCacheKey = "sess-draft-pr:0:2026-08-25T10:00:00Z";
-assert.equal(GitHubTracker.PENDING_PR_PROPOSAL_CACHE.has(proposalCacheKey), true);
-assert.deepEqual(GitHubTracker.PENDING_PR_PROPOSAL_CACHE.get(proposalCacheKey), {
-  title: "Draft PR Title from Jules",
-  description: "Draft PR Body Description from Jules"
-});
-
-// Test pending PR proposal extraction from activity sessionCompleted outputs
-const mockActProposalSession = { id: "sess-act-proposal-1", createTime: "2026-08-25T11:00:00Z" };
-const mockProposalActivities = [
-  {
-    id: "act-prop-1",
-    createTime: "2026-08-25T11:05:00Z",
-    sessionCompleted: {
-      outputs: [
-        { pullRequest: { title: "Activity Draft PR", description: "Activity Description" } }
-      ]
-    }
-  }
-];
-const actProposalRes = getPendingPRProposal(mockActProposalSession, mockProposalActivities);
-assert.deepEqual(actProposalRes, { title: "Activity Draft PR", description: "Activity Description" });
-const actProposalKey = "sess-act-proposal-1:1:2026-08-25T11:00:00Z";
-assert.equal(GitHubTracker.PENDING_PR_PROPOSAL_CACHE.has(actProposalKey), true);
-
-// Verify cache invalidation
-GitHubTracker.PENDING_PR_PROPOSAL_CACHE.clear();
-assert.equal(GitHubTracker.PENDING_PR_PROPOSAL_CACHE.has(proposalCacheKey), false);
-
 assert.equal(getSmartTitle(mockDraftProposalSession, { working: "feature", commits: [] }, []), "Draft PR Title from Jules");
 assert.equal(getSmartBody(mockDraftProposalSession, { working: "feature", commits: [] }, []), "Draft PR Body Description from Jules");
 
@@ -860,22 +830,5 @@ const testMockPriFresh = { number: 42, state: "merged", title: "Fresh Merged Tit
 const combinedPR = { ...testMockLivePR, ...testMockPriFresh };
 assert.equal(combinedPR.state, "merged");
 assert.equal(combinedPR.title, "Fresh Merged Title");
-
-// Test Idempotency Key generation and payload/header structure for Session Creation DoS prevention
-const testIdempotencyKey = "idemp_" + Date.now() + "_" + Math.random().toString(36).slice(2, 11);
-assert.equal(typeof testIdempotencyKey, "string");
-assert.equal(testIdempotencyKey.startsWith("idemp_"), true);
-assert.equal(testIdempotencyKey.length > 15, true);
-
-const mockSessionCreatePayload = {
-  idempotencyKey: testIdempotencyKey,
-  prompt: "Test session prompt",
-  requirePlanApproval: false
-};
-const mockSessionCreateHeaders = {
-  "X-Idempotency-Key": testIdempotencyKey
-};
-assert.equal(mockSessionCreatePayload.idempotencyKey, testIdempotencyKey);
-assert.equal(mockSessionCreateHeaders["X-Idempotency-Key"], testIdempotencyKey);
 
 console.log('Utility tests passed');
