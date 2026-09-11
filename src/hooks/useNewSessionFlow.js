@@ -240,7 +240,6 @@ const useNewSessionFlow = ({ apiKey, personas, onCreate, initialDraft, onDraftSa
     const idempotencyKey = idempotencyKeyRef.current;
 
     const body = {
-      idempotencyKey,
       prompt: finalPrompt,
       ...(source&&{
         sourceContext:{ source, githubRepoContext:{ startingBranch:activeBranch } },

@@ -1,15 +1,19 @@
 // ─── Validation Helpers ──────────────────────────────────────────────────────
 export const isValidGoogleApiKey = (key) => {
-  if (typeof key !== "string") return false;
+  if (!key || typeof key !== "string") return false;
+  const trimmed = key.trim();
+  if (!trimmed) return false;
   const regex = /^[\x21-\x7E]+$/;
-  return regex.test(key);
+  return regex.test(trimmed);
 };
 
 export const isValidGithubToken = (token) => {
   if (!token) return true;
   if (typeof token !== "string") return false;
+  const trimmed = token.trim();
+  if (!trimmed) return true;
   const regex = /^[\x21-\x7E]+$/;
-  return regex.test(token);
+  return regex.test(trimmed);
 };
 
 // Security: Validates GitHub repository identifiers to prevent path traversal (..), REST API endpoint
