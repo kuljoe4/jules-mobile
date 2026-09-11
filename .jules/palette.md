@@ -89,3 +89,7 @@
 ## 2026-09-05 - [Context-Aware ARIA Attributes and Tooltips on Chat Action Strips]
 **Learning:** Action strips on chat bubbles and timeline events (such as COPY, REPLY, EDIT, and media thumbnail previews) frequently feature subtle text or icon triggers that lack explicit ARIA labels and hover tooltips. Equipping these action buttons with state-aware `title` tooltips and dynamic `aria-label` attributes (e.g. updating from "Copy message text" to "Message text copied to clipboard") provides instant, non-disruptive feedback for mouse users while ensuring assistive technologies accurately announce the interactive control's intent and success state.
 **Action:** Always furnish chat/timeline action strip triggers and media thumbnail controls with state-aware `title` tooltips and matching `aria-label` attributes that dynamically reflect action confirmation states.
+
+## 2026-09-06 - [Keydown Event Bubbling Isolation on Custom Container Controls]
+**Learning:** Keyboard event listeners (`onKeyDown` for Enter/Space) attached to custom container elements with `role="button"` catch bubbling keypress events from inner nested `<button>` controls (such as path or diff copy buttons). Checking `e.target === e.currentTarget` inside the container's key listener prevents inner button keypresses from accidentally triggering parent toggle actions, ensuring seamless keyboard navigation.
+**Action:** Always check `e.target === e.currentTarget` on custom `role="button"` container `onKeyDown` handlers that contain nested interactive elements.
