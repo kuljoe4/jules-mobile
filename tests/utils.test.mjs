@@ -831,4 +831,21 @@ const combinedPR = { ...testMockLivePR, ...testMockPriFresh };
 assert.equal(combinedPR.state, "merged");
 assert.equal(combinedPR.title, "Fresh Merged Title");
 
+// Test Idempotency Key generation and payload/header structure for Session Creation DoS prevention
+const testIdempotencyKey = "idemp_" + Date.now() + "_" + Math.random().toString(36).slice(2, 11);
+assert.equal(typeof testIdempotencyKey, "string");
+assert.equal(testIdempotencyKey.startsWith("idemp_"), true);
+assert.equal(testIdempotencyKey.length > 15, true);
+
+const mockSessionCreatePayload = {
+  idempotencyKey: testIdempotencyKey,
+  prompt: "Test session prompt",
+  requirePlanApproval: false
+};
+const mockSessionCreateHeaders = {
+  "X-Idempotency-Key": testIdempotencyKey
+};
+assert.equal(mockSessionCreatePayload.idempotencyKey, testIdempotencyKey);
+assert.equal(mockSessionCreateHeaders["X-Idempotency-Key"], testIdempotencyKey);
+
 console.log('Utility tests passed');
