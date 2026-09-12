@@ -64,17 +64,23 @@ export const cleanMathText = (mathStr) => {
   str = str.replace(/\\([%$&#_])/g, "$1");
 
   // Remove structural formatting wrappers: \text{...}, \mathbf{...}, \mathrm{...}, \textbf{...}, \mathit{...}
+  // Security: Bounded loop iterations (max 10 passes) prevent main-thread freeze / CPU Denial of Service (DoS)
+  // on deeply nested or cyclic LaTeX structural formatting wrappers.
   let prev;
+  let passes = 0;
   do {
     prev = str;
     str = str.replace(/\\(?:text|mathbf|mathrm|textbf|mathit)\{([^{}]+)\}/g, "$1");
-  } while (str !== prev);
+    passes++;
+  } while (str !== prev && passes < 10);
 
   // Convert LaTeX fractions: \frac{A}{B} -> A / B
+  passes = 0;
   do {
     prev = str;
     str = str.replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, "$1 / $2");
-  } while (str !== prev);
+    passes++;
+  } while (str !== prev && passes < 10);
 
   // Convert mathematical symbols and operators
   str = str
