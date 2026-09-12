@@ -257,6 +257,12 @@ const secondRun = cleanMathText(mathSample);
 assert.equal(firstRun, secondRun);
 assert.equal(firstRun, '4.5% W = 2.7% ⇒ W_BE = 2.7 / 4.5 = 60.00%');
 
+// Test cleanMathText loop iteration bounding against CPU DoS on deeply nested LaTeX
+const deeplyNestedText = '\\text{'.repeat(25) + 'Deeply Nested Val' + '}'.repeat(25);
+const boundedMathRes = cleanMathText(deeplyNestedText);
+assert.equal(typeof boundedMathRes, 'string');
+assert.equal(boundedMathRes.includes('Deeply Nested Val'), true);
+
 // Test formatSmartDashItems smart dash itemization & caching
 const dashInput1 = "Fix bugs and improve UI - Mobile-first layout adjustments - Pre-commit check verification (range 1-10).";
 const dashExpected1 = "Fix bugs and improve UI\n- Mobile-first layout adjustments\n- Pre-commit check verification (range 1-10).";
