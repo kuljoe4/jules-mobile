@@ -82,8 +82,10 @@ const getWorkingSet = (s, activities = []) => {
   if (!s) return [];
   const sid = s.id || s.name || "temp";
   const actLen = activities.length;
-  const promptLen = s.prompt?.length || 0;
-  const cacheKey = `${sid}:${actLen}:${promptLen}`;
+  const promptStr = s.prompt || "";
+  // OPTIMIZATION (Bolt): Include actual prompt string (or prompt length if empty) in cache key
+  // to avoid LRUCache collisions when different prompts have identical string lengths for the same session ID.
+  const cacheKey = `${sid}:${actLen}:${promptStr}`;
 
   if (WORKING_SET_CACHE.has(cacheKey)) return WORKING_SET_CACHE.get(cacheKey);
 
