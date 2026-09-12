@@ -52,6 +52,8 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
             <>
               <button
                 onClick={() => setShowConfirm(false)}
+                title="Cancel session creation"
+                aria-label="Cancel session creation"
                 style={{
                   flex:1, padding:"14px", borderRadius:10, border:`1px solid ${T.border}`,
                   background:"transparent", color:T.muted, cursor:"pointer",
@@ -64,6 +66,8 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
               <button
                 onClick={handleCreate}
                 disabled={submitting}
+                title={submitting ? "Starting session..." : "Start session and assign task to Jules"}
+                aria-label={submitting ? "Starting session..." : "Start session and assign task to Jules"}
                 style={{
                   flex:2, padding:"14px", borderRadius:10, border:"none",
                   background:T.brand, color:"#000", cursor:"pointer",
