@@ -274,6 +274,9 @@ const SettingsView = ({ onBack, isDesktop, settings, personas, setPersonas, toda
                   <div style={{display:"flex", gap:12, alignItems:"center"}}>
                      <button
                        onClick={() => { setNotifications(!notifications); triggerSaveFeedback(); }}
+                       aria-pressed={notifications ? "true" : "false"}
+                       aria-label={`Browser notifications: ${notifications ? "Enabled" : "Disabled"}`}
+                       title={notifications ? "Click to disable browser notifications" : "Click to enable browser notifications"}
                        style={{
                          padding: "6px 12px", borderRadius: 6, border: "none", cursor: "pointer",
                          background: notifications ? T.brand : T.surfaceHi,
