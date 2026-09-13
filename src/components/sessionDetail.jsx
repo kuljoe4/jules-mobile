@@ -87,6 +87,64 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   const [copiedChat, setCopiedChat] = useState(false);
   const [copiedAllPrompts, setCopiedAllPrompts] = useState(false);
   const [copiedAllReviews, setCopiedAllReviews] = useState(false);
+  const [selectedPrompts, setSelectedPrompts] = useState(new Set());
+  const [copiedPrompts, setCopiedPrompts] = useState({});
+
+  const followupActivities = useMemo(() => activities.filter(a => a.userMessaged), [activities]);
+
+  const allPromptKeys = useMemo(() => {
+    const keys = [];
+    if (session.prompt) keys.push("original");
+    followupActivities.forEach(a => keys.push(getActKey(a)));
+    return keys;
+  }, [session.prompt, followupActivities]);
+
+  const togglePromptSelection = useCallback((key) => {
+    setSelectedPrompts(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }, []);
+
+  const toggleSelectAllPrompts = useCallback(() => {
+    setSelectedPrompts(prev => {
+      if (prev.size === allPromptKeys.length) return new Set();
+      return new Set(allPromptKeys);
+    });
+  }, [allPromptKeys]);
+
+  const handleCopySelectedPrompts = useCallback(() => {
+    const parts = [];
+    if (selectedPrompts.size === 0 || selectedPrompts.has("original")) {
+      if (session.prompt) parts.push(`--- ORIGINAL PROMPT ---\n${session.prompt}`);
+    }
+    followupActivities.forEach((a, i) => {
+      const actKey = getActKey(a);
+      if (selectedPrompts.size === 0 || selectedPrompts.has(actKey)) {
+        parts.push(`--- FOLLOW-UP #${i+1} ---\n${a.userMessaged.userMessage}`);
+      }
+    });
+    const text = parts.join("\n\n");
+    copyToClipboard(text).then((success) => {
+      if (success) {
+        setCopiedAllPrompts(true);
+        setTimeout(() => setCopiedAllPrompts(false), 2000);
+      }
+    });
+  }, [session.prompt, followupActivities, selectedPrompts]);
+
+  const handleCopySinglePrompt = useCallback((key, text) => {
+    copyToClipboard(text).then((success) => {
+      if (success) {
+        setCopiedPrompts(prev => ({ ...prev, [key]: true }));
+        setTimeout(() => {
+          setCopiedPrompts(prev => ({ ...prev, [key]: false }));
+        }, 2000);
+      }
+    });
+  }, []);
   const [showPayloadBreakdown, setShowPayloadBreakdown] = useState(false);
   const [showCreatePRModal, setShowCreatePRModal] = useState(false);
   const [createPRErr, setCreatePRErr] = useState(null);
@@ -2433,78 +2491,128 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
         )}
         {tab==="prompt"&&(
           <div style={{padding:"4px 0 20px", display:"flex", flexDirection:"column", gap:20}}>
-            <div style={{display:"flex", justifyContent:"flex-end", marginBottom:-8}}>
+            <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:-8, flexWrap:"wrap", gap:8}}>
+              <div style={{display:"flex", alignItems:"center", gap:6}}>
+                <button
+                  onClick={toggleSelectAllPrompts}
+                  style={{
+                    background: "transparent", border: `1px solid ${T.border}`, borderRadius: 4,
+                    padding: "3px 8px", color: T.textDim, fontFamily: "'JetBrains Mono',monospace",
+                    fontSize: 10, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4
+                  }}
+                  title={selectedPrompts.size === allPromptKeys.length ? "Deselect all prompts" : "Select all prompts"}
+                  aria-label={selectedPrompts.size === allPromptKeys.length ? "Deselect all prompts" : "Select all prompts"}
+                >
+                  <div style={{
+                    width: 12, height: 12, borderRadius: 3, border: `1px solid ${T.brand}`,
+                    background: selectedPrompts.size === allPromptKeys.length ? T.brand : "transparent",
+                    display: "flex", alignItems: "center", justifyContent: "center"
+                  }}>
+                    {selectedPrompts.size === allPromptKeys.length && <Ic n="check" s={8} c="#000"/>}
+                  </div>
+                  {selectedPrompts.size === allPromptKeys.length ? "DESELECT ALL" : "SELECT ALL"}
+                </button>
+                {selectedPrompts.size > 0 && (
+                  <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.brand, fontWeight:700}}>
+                    {selectedPrompts.size} SELECTED
+                  </span>
+                )}
+              </div>
+
               <button
-                onClick={() => {
-                  const followups = activities.filter(a => a.userMessaged);
-                  const parts = [];
-                  if (session.prompt) {
-                    parts.push(`--- ORIGINAL PROMPT ---\n${session.prompt}`);
-                  }
-                  followups.forEach((a, i) => {
-                    parts.push(`--- FOLLOW-UP #${i+1} ---\n${a.userMessaged.userMessage}`);
-                  });
-                  const text = parts.join("\n\n");
-                  copyToClipboard(text).then((success) => {
-                    if (success) {
-                      setCopiedAllPrompts(true);
-                      setTimeout(() => setCopiedAllPrompts(false), 2000);
-                    }
-                  });
-                }}
+                onClick={handleCopySelectedPrompts}
                 style={{
-                  background: "transparent", border: "none", color: T.brand,
-                  fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 800,
-                  cursor: "pointer", display: "flex", alignItems: "center", gap: 4
+                  background: selectedPrompts.size > 0 ? T.brandDim : "transparent",
+                  border: `1px solid ${selectedPrompts.size > 0 ? T.brand : "transparent"}`,
+                  borderRadius: 4, padding: "3px 8px",
+                  color: T.brand, fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 800,
+                  cursor: "pointer", display: "flex", alignItems: "center", gap: 4,
+                  transition: "all .15s ease"
                 }}
-                title="Copy all prompts to clipboard"
-                aria-label="Copy all prompts to clipboard"
+                title={copiedAllPrompts ? "Prompts copied to clipboard" : selectedPrompts.size > 0 ? `Copy ${selectedPrompts.size} selected prompt(s) to clipboard` : "Copy all prompts to clipboard"}
+                aria-label={copiedAllPrompts ? "Prompts copied to clipboard" : selectedPrompts.size > 0 ? `Copy ${selectedPrompts.size} selected prompt(s)` : "Copy all prompts"}
               >
                 {copiedAllPrompts ? (
                   "COPIED ✓"
                 ) : (
-                  <><Ic n="copy" s={10} c={T.brand}/> COPY ALL</>
+                  <><Ic n="copy" s={10} c={T.brand}/> {selectedPrompts.size > 0 ? `COPY SELECTED (${selectedPrompts.size})` : "COPY ALL"}</>
                 )}
               </button>
             </div>
-            <div key="original">
-              <div style={{
-                fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.brand,
-                fontWeight:800, letterSpacing:"0.1em", marginBottom:12,
-                display:"flex", alignItems:"center", gap:8
-              }}>
-                ORIGINAL PROMPT
-                <div style={{height:1, flex:1, background:T.brandDim}}/>
-              </div>
-              <div
-                style={{
-                  background:T.surfaceHi, border:`1px solid ${T.border}`,
-                  borderRadius:10, padding:"20px", boxShadow:"none", position:"relative",
-                  transition: "border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1)"
-                }}
-              >
-                <div style={{ fontSize:16, color:T.text, lineHeight:1.6, fontFamily:"'IBM Plex Sans',sans-serif" }}>
-                  <ExpandableContent text={session.prompt} showCopy />
-                </div>
-                <div style={{ position:"absolute", top:12, right:12, display:"flex", gap:6 }}>
-                  <button onClick={(e) => { e.stopPropagation(); scrollToActivityInChat(null, true); }} style={{
-                    background:T.surface, border:`1px solid ${T.border}`, borderRadius:4, padding:"4px 8px",
-                    color:T.brand, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700, cursor:"pointer",
-                    display:"inline-flex", alignItems:"center", gap:4
-                  }} title="Jump to this prompt in chat tab" aria-label="Jump to this prompt in chat tab">
-                    <Ic n="reply" s={11} c={T.brand}/>
-                    VIEW IN CHAT
-                  </button>
-                  <button onClick={(e) => { e.stopPropagation(); onEditMessage(session.prompt); }} style={{
-                    background:T.brandDim, border:"none", borderRadius:4, padding:"4px 8px",
-                    color:T.brand, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700, cursor:"pointer"
-                  }} title="Edit message prompt" aria-label="Edit message prompt">EDIT</button>
-                </div>
-              </div>
-            </div>
 
-            {activities.filter(a => a.userMessaged).map((a, i) => {
+            {session.prompt && (
+              <div key="original">
+                <div style={{
+                  fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.brand,
+                  fontWeight:800, letterSpacing:"0.1em", marginBottom:12,
+                  display:"flex", alignItems:"center", gap:8
+                }}>
+                  <button
+                    role="checkbox"
+                    aria-checked={selectedPrompts.has("original")}
+                    aria-label={selectedPrompts.has("original") ? "Deselect original prompt for copy" : "Select original prompt for copy"}
+                    title={selectedPrompts.has("original") ? "Deselect original prompt" : "Select original prompt"}
+                    onClick={() => togglePromptSelection("original")}
+                    style={{
+                      background: "none", border: "none", cursor: "pointer", padding: 0,
+                      display: "flex", alignItems: "center", gap: 6, color: T.brand,
+                      fontFamily: "inherit", fontSize: "inherit", fontWeight: "inherit"
+                    }}
+                  >
+                    <div style={{
+                      width: 14, height: 14, borderRadius: 3, border: `1px solid ${selectedPrompts.has("original") ? T.brand : T.border}`,
+                      background: selectedPrompts.has("original") ? T.brand : "transparent",
+                      display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0
+                    }}>
+                      {selectedPrompts.has("original") && <Ic n="check" s={10} c="#000"/>}
+                    </div>
+                    ORIGINAL PROMPT
+                  </button>
+                  <div style={{height:1, flex:1, background:T.brandDim}}/>
+                </div>
+                <div
+                  style={{
+                    background:T.surfaceHi,
+                    border:`1px solid ${selectedPrompts.has("original") ? T.brand : T.border}`,
+                    borderRadius:10, padding:"20px", boxShadow: selectedPrompts.has("original") ? `0 0 12px ${T.brand}20` : "none", position:"relative",
+                    transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)"
+                  }}
+                >
+                  <div style={{ fontSize:16, color:T.text, lineHeight:1.6, fontFamily:"'IBM Plex Sans',sans-serif" }}>
+                    <ExpandableContent text={session.prompt} showCopy />
+                  </div>
+                  <div style={{ position:"absolute", top:12, right:12, display:"flex", gap:6 }}>
+                    <button onClick={(e) => { e.stopPropagation(); handleCopySinglePrompt("original", session.prompt); }} style={{
+                      background: copiedPrompts["original"] ? T.brandDim : T.surface,
+                      border: `1px solid ${copiedPrompts["original"] ? T.brand : T.border}`,
+                      borderRadius:4, padding:"4px 8px",
+                      color:T.brand, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700, cursor:"pointer",
+                      display:"inline-flex", alignItems:"center", gap:4
+                    }} title="Copy original prompt text" aria-label="Copy original prompt text">
+                      <Ic n="copy" s={11} c={T.brand}/>
+                      {copiedPrompts["original"] ? "COPIED ✓" : "COPY"}
+                    </button>
+                    <button onClick={(e) => { e.stopPropagation(); scrollToActivityInChat(null, true); }} style={{
+                      background:T.surface, border:`1px solid ${T.border}`, borderRadius:4, padding:"4px 8px",
+                      color:T.brand, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700, cursor:"pointer",
+                      display:"inline-flex", alignItems:"center", gap:4
+                    }} title="Jump to this prompt in chat tab" aria-label="Jump to this prompt in chat tab">
+                      <Ic n="reply" s={11} c={T.brand}/>
+                      VIEW IN CHAT
+                    </button>
+                    <button onClick={(e) => { e.stopPropagation(); onEditMessage(session.prompt); }} style={{
+                      background:T.brandDim, border:"none", borderRadius:4, padding:"4px 8px",
+                      color:T.brand, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700, cursor:"pointer"
+                    }} title="Edit message prompt" aria-label="Edit message prompt">EDIT</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {followupActivities.map((a, i) => {
               const actKey = getActKey(a);
+              const isSel = selectedPrompts.has(actKey);
+              const followupText = a.userMessaged.userMessage;
               return (
                 <div key={actKey || i}>
                   <div style={{
@@ -2512,21 +2620,52 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                     fontWeight:800, letterSpacing:"0.1em", marginBottom:12,
                     display:"flex", alignItems:"center", gap:8
                   }}>
-                    FOLLOW-UP #{i+1}
+                    <button
+                      role="checkbox"
+                      aria-checked={isSel}
+                      aria-label={isSel ? `Deselect follow-up #${i+1} for copy` : `Select follow-up #${i+1} for copy`}
+                      title={isSel ? `Deselect follow-up #${i+1}` : `Select follow-up #${i+1}`}
+                      onClick={() => togglePromptSelection(actKey)}
+                      style={{
+                        background: "none", border: "none", cursor: "pointer", padding: 0,
+                        display: "flex", alignItems: "center", gap: 6, color: T.brand,
+                        fontFamily: "inherit", fontSize: "inherit", fontWeight: "inherit"
+                      }}
+                    >
+                      <div style={{
+                        width: 14, height: 14, borderRadius: 3, border: `1px solid ${isSel ? T.brand : T.border}`,
+                        background: isSel ? T.brand : "transparent",
+                        display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0
+                      }}>
+                        {isSel && <Ic n="check" s={10} c="#000"/>}
+                      </div>
+                      FOLLOW-UP #{i+1}
+                    </button>
                     <div style={{height:1, flex:1, background:T.brandDim}}/>
                     <span style={{color:T.textDim, fontSize:10}}>{fmtTime(parseDateMs(a.createTime))}</span>
                   </div>
                   <div
                     style={{
-                      background:T.surfaceHi, border:`1px solid ${T.border}`,
-                      borderRadius:10, padding:"20px", boxShadow:"none", position:"relative",
-                      transition: "border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1)"
+                      background:T.surfaceHi,
+                      border:`1px solid ${isSel ? T.brand : T.border}`,
+                      borderRadius:10, padding:"20px", boxShadow: isSel ? `0 0 12px ${T.brand}20` : "none", position:"relative",
+                      transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)"
                     }}
                   >
                     <div style={{ fontSize:16, color:T.text, lineHeight:1.6, fontFamily:"'IBM Plex Sans',sans-serif" }}>
-                      <ExpandableContent text={a.userMessaged.userMessage} showCopy />
+                      <ExpandableContent text={followupText} showCopy />
                     </div>
                     <div style={{ position:"absolute", top:12, right:12, display:"flex", gap:6 }}>
+                      <button onClick={(e) => { e.stopPropagation(); handleCopySinglePrompt(actKey, followupText); }} style={{
+                        background: copiedPrompts[actKey] ? T.brandDim : T.surface,
+                        border: `1px solid ${copiedPrompts[actKey] ? T.brand : T.border}`,
+                        borderRadius:4, padding:"4px 8px",
+                        color:T.brand, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700, cursor:"pointer",
+                        display:"inline-flex", alignItems:"center", gap:4
+                      }} title={`Copy follow-up #${i+1} prompt text`} aria-label={`Copy follow-up #${i+1} prompt text`}>
+                        <Ic n="copy" s={11} c={T.brand}/>
+                        {copiedPrompts[actKey] ? "COPIED ✓" : "COPY"}
+                      </button>
                       <button onClick={(e) => { e.stopPropagation(); scrollToActivityInChat(actKey, false); }} style={{
                         background:T.surface, border:`1px solid ${T.border}`, borderRadius:4, padding:"4px 8px",
                         color:T.brand, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700, cursor:"pointer",
@@ -2535,7 +2674,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                         <Ic n="reply" s={11} c={T.brand}/>
                         VIEW IN CHAT
                       </button>
-                      <button onClick={(e) => { e.stopPropagation(); onEditMessage(a.userMessaged.userMessage); }} style={{
+                      <button onClick={(e) => { e.stopPropagation(); onEditMessage(followupText); }} style={{
                         background:T.brandDim, border:"none", borderRadius:4, padding:"4px 8px",
                         color:T.brand, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700, cursor:"pointer"
                       }} title="Edit follow-up prompt" aria-label="Edit follow-up prompt">EDIT</button>

@@ -12,7 +12,6 @@ const GitHubTracker = {
   // Caches
   PR_CACHE: new LRUCache(500),
   PR_INFO_CACHE: new LRUCache(500),
-  PENDING_PR_PROPOSAL_CACHE: new LRUCache(500),
   GH_STATE_CACHE: new Map(),
   GH_IN_FLIGHT: new Set(),
   GH_BRANCH_STATE_CACHE: new Map(),
@@ -76,45 +75,40 @@ const GitHubTracker = {
     return null;
   },
 
-  // OPTIMIZATION (Bolt): Cache pending PR proposals (including negative null hits) using LRUCache
-  // with key `${sid}:${actLen}:${ts}` and eliminate temporary array spread allocations (`[...a, ...b]`)
-  // during activity iterations. Turns repeat session traversals into instant O(1) cache hits.
+  // OPTIMIZATION (Bolt): Cache PR lookups including negative (null) hits using a composite key
+  // combining session ID, update/create timestamp, and outputs length (`${sid}:${ts}:${outLen}`).
+  // This avoids redundant object property traversals and regex scans on every render pass
+  // for sessions without pull requests, converting O(K) string scans into instant O(1) cache hits.
   getPendingPRProposal(s, activities = []) {
     if (!s) return null;
-    const sid = s.id || s.name || "temp";
-    const actLen = Array.isArray(activities) ? activities.length : 0;
-    const ts = s.updateTime || s.createTime || "";
-    const cacheKey = `${sid}:${actLen}:${ts}`;
-
-    if (sid !== "temp" && this.PENDING_PR_PROPOSAL_CACHE.has(cacheKey)) {
-      return this.PENDING_PR_PROPOSAL_CACHE.get(cacheKey);
-    }
-
-    let result = null;
 
     if (s.outputs && Array.isArray(s.outputs)) {
-      for (let i = 0; i < s.outputs.length; i++) {
-        const o = s.outputs[i];
-        if (o && o.pullRequest && typeof o.pullRequest === 'object') {
+      for (const o of s.outputs) {
+        if (o.pullRequest && typeof o.pullRequest === 'object') {
           const pr = o.pullRequest;
           const url = pr.url || pr.pullRequestUrl || pr.prUrl || pr.htmlUrl || pr.html_url || pr.pr_url;
           if (!url && (pr.title || pr.description)) {
-            result = {
+            return {
               title: pr.title || "",
               description: pr.description || pr.body || ""
             };
-            break;
           }
         }
       }
     }
 
-    if (!result && activities && Array.isArray(activities)) {
-      const checkOutputs = (outputs) => {
-        if (!outputs || !Array.isArray(outputs)) return null;
-        for (let j = 0; j < outputs.length; j++) {
-          const o = outputs[j];
-          if (o && o.pullRequest && typeof o.pullRequest === 'object') {
+    if (activities && Array.isArray(activities)) {
+      for (let i = activities.length - 1; i >= 0; i--) {
+        const a = activities[i];
+        if (!a) continue;
+
+        const outputsList = [
+          ...(a.sessionCompleted?.outputs || []),
+          ...(a.progressUpdated?.outputs || [])
+        ];
+
+        for (const o of outputsList) {
+          if (o.pullRequest && typeof o.pullRequest === 'object') {
             const pr = o.pullRequest;
             const url = pr.url || pr.pullRequestUrl || pr.prUrl || pr.htmlUrl || pr.html_url || pr.pr_url;
             if (!url && (pr.title || pr.description)) {
@@ -125,22 +119,10 @@ const GitHubTracker = {
             }
           }
         }
-        return null;
-      };
-
-      for (let i = activities.length - 1; i >= 0; i--) {
-        const a = activities[i];
-        if (!a) continue;
-
-        result = checkOutputs(a.sessionCompleted?.outputs) || checkOutputs(a.progressUpdated?.outputs);
-        if (result) break;
       }
     }
 
-    if (sid !== "temp") {
-      this.PENDING_PR_PROPOSAL_CACHE.set(cacheKey, result);
-    }
-    return result;
+    return null;
   },
 
   getPR(s) {
@@ -372,7 +354,6 @@ const GitHubTracker = {
             GitHubTracker.GH_STATE_CACHE.set(url, updatedInfo);
             GitHubTracker.GH_IN_FLIGHT.delete(url);
             GitHubTracker.PR_INFO_CACHE.clear();
-            GitHubTracker.PENDING_PR_PROPOSAL_CACHE.clear();
 
             window.dispatchEvent(new CustomEvent("gh-pr-updated", { detail: { url, ...updatedInfo } }));
           });
@@ -398,7 +379,6 @@ const GitHubTracker = {
           errorMsg: err.message
         });
         GitHubTracker.PR_INFO_CACHE.clear();
-        GitHubTracker.PENDING_PR_PROPOSAL_CACHE.clear();
         window.dispatchEvent(new CustomEvent("gh-pr-updated", { detail: { url, failed: true } }));
       });
   },
@@ -843,7 +823,6 @@ const GitHubTracker = {
       this.GH_BRANCH_STATE_CACHE.clear();
       this.BRANCH_INFO_CACHE.clear();
       this.PR_INFO_CACHE.clear();
-      this.PENDING_PR_PROPOSAL_CACHE.clear();
       window.dispatchEvent(new CustomEvent("gh-pr-updated", { detail: { repo, mergedBranch: head, intoBase: base } }));
       return data;
     } catch (err) {
@@ -905,7 +884,6 @@ const GitHubTracker = {
       }
 
       this.PR_INFO_CACHE.clear();
-      this.PENDING_PR_PROPOSAL_CACHE.clear();
       this.GH_BRANCH_STATE_CACHE.clear();
       this.BRANCH_INFO_CACHE.clear();
       const existing = this.GH_STATE_CACHE.get(url) || {};

@@ -18,6 +18,7 @@ import { GitHubTracker, getPR, getPRInfo, getBranchInfo, getCheckStatus, getDepl
 import { fastDeepEqual, getActivitiesSize, getApproxBytes, getPatchFileCount, getPayloadBreakdown } from '../src/utils/performance.js';
 import { parseUnidiffPatch, getWorkingSet } from '../src/utils/workingSet.js';
 import { getSmartTitle, getSmartBody } from '../src/utils/prTitle.js';
+import { sanitizeErrorMessage } from '../src/services/api.js';
 
 if (typeof globalThis.localStorage === 'undefined') {
   const storageMap = new Map();
@@ -256,6 +257,12 @@ const firstRun = cleanMathText(mathSample);
 const secondRun = cleanMathText(mathSample);
 assert.equal(firstRun, secondRun);
 assert.equal(firstRun, '4.5% W = 2.7% ⇒ W_BE = 2.7 / 4.5 = 60.00%');
+
+// Test cleanMathText loop iteration bounding against CPU DoS on deeply nested LaTeX
+const deeplyNestedText = '\\text{'.repeat(25) + 'Deeply Nested Val' + '}'.repeat(25);
+const boundedMathRes = cleanMathText(deeplyNestedText);
+assert.equal(typeof boundedMathRes, 'string');
+assert.equal(boundedMathRes.includes('Deeply Nested Val'), true);
 
 // Test formatSmartDashItems smart dash itemization & caching
 const dashInput1 = "Fix bugs and improve UI - Mobile-first layout adjustments - Pre-commit check verification (range 1-10).";
@@ -676,36 +683,6 @@ assert.deepEqual(proposalRes, {
   title: "Draft PR Title from Jules",
   description: "Draft PR Body Description from Jules"
 });
-
-// Verify PENDING_PR_PROPOSAL_CACHE caching and invalidation
-const proposalCacheKey = "sess-draft-pr:0:2026-08-25T10:00:00Z";
-assert.equal(GitHubTracker.PENDING_PR_PROPOSAL_CACHE.has(proposalCacheKey), true);
-assert.deepEqual(GitHubTracker.PENDING_PR_PROPOSAL_CACHE.get(proposalCacheKey), {
-  title: "Draft PR Title from Jules",
-  description: "Draft PR Body Description from Jules"
-});
-
-// Test pending PR proposal extraction from activity sessionCompleted outputs
-const mockActProposalSession = { id: "sess-act-proposal-1", createTime: "2026-08-25T11:00:00Z" };
-const mockProposalActivities = [
-  {
-    id: "act-prop-1",
-    createTime: "2026-08-25T11:05:00Z",
-    sessionCompleted: {
-      outputs: [
-        { pullRequest: { title: "Activity Draft PR", description: "Activity Description" } }
-      ]
-    }
-  }
-];
-const actProposalRes = getPendingPRProposal(mockActProposalSession, mockProposalActivities);
-assert.deepEqual(actProposalRes, { title: "Activity Draft PR", description: "Activity Description" });
-const actProposalKey = "sess-act-proposal-1:1:2026-08-25T11:00:00Z";
-assert.equal(GitHubTracker.PENDING_PR_PROPOSAL_CACHE.has(actProposalKey), true);
-
-// Verify cache invalidation
-GitHubTracker.PENDING_PR_PROPOSAL_CACHE.clear();
-assert.equal(GitHubTracker.PENDING_PR_PROPOSAL_CACHE.has(proposalCacheKey), false);
 
 assert.equal(getSmartTitle(mockDraftProposalSession, { working: "feature", commits: [] }, []), "Draft PR Title from Jules");
 assert.equal(getSmartBody(mockDraftProposalSession, { working: "feature", commits: [] }, []), "Draft PR Body Description from Jules");

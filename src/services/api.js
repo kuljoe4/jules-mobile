@@ -2,6 +2,26 @@ let quotaRetryAfter = 0;
 let lastQuotaError = null;
 const QUOTA_ERROR_CODES = [429, 403];
 
+// Security: Sanitizes HTTP error response payloads to prevent leaking raw HTML, stack traces, internal paths, or DoS bloat.
+export const sanitizeErrorMessage = (text, status = 500) => {
+  let msg = text;
+  try {
+    const parsed = JSON.parse(text);
+    msg = parsed?.error?.message || parsed?.message || text;
+  } catch {}
+
+  if (typeof msg === "string") {
+    if (/<!DOCTYPE|<html/i.test(msg)) {
+      msg = `HTTP ${status} Error`;
+    } else {
+      msg = msg.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
+      if (msg.length > 300) msg = msg.slice(0, 297) + "...";
+    }
+  }
+  if (!msg) msg = `HTTP ${status} Error`;
+  return msg;
+};
+
 async function apiCall(apiKey, path, opts={}) {
   const cleanKey = typeof apiKey === "string" ? apiKey.trim() : "";
   // Defensive validation of API key format
@@ -157,8 +177,7 @@ async function apiCall(apiKey, path, opts={}) {
   NET.record(_label || path, inBytes / 1024, outBytes / 1024, res.status);
 
   if (!res.ok) {
-    let msg = text;
-    try { msg = JSON.parse(text)?.error?.message || text; } catch {}
+    const msg = sanitizeErrorMessage(text, res.status);
 
     const isQuotaError = res.status === 429 || (res.status === 403 && /quota|limit|exceeded|exhausted/i.test(msg));
     if (isQuotaError) {
