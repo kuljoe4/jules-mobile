@@ -18,6 +18,7 @@ import { GitHubTracker, getPR, getPRInfo, getBranchInfo, getCheckStatus, getDepl
 import { fastDeepEqual, getActivitiesSize, getApproxBytes, getPatchFileCount, getPayloadBreakdown } from '../src/utils/performance.js';
 import { parseUnidiffPatch, getWorkingSet } from '../src/utils/workingSet.js';
 import { getSmartTitle, getSmartBody } from '../src/utils/prTitle.js';
+import { sanitizeErrorMessage } from '../src/services/api.js';
 
 if (typeof globalThis.localStorage === 'undefined') {
   const storageMap = new Map();
@@ -840,5 +841,11 @@ const testMockPriFresh = { number: 42, state: "merged", title: "Fresh Merged Tit
 const combinedPR = { ...testMockLivePR, ...testMockPriFresh };
 assert.equal(combinedPR.state, "merged");
 assert.equal(combinedPR.title, "Fresh Merged Title");
+
+// Test API error message sanitization against HTML markup leakage, stack traces, and DoS payload bloat
+assert.equal(sanitizeErrorMessage('<!DOCTYPE html><html><body><h1>502 Bad Gateway</h1></body></html>', 502), 'HTTP 502 Error');
+assert.equal(sanitizeErrorMessage('{"error":{"message":"<script>alert(1)</script>Invalid request payload"}}', 400), 'alert(1)Invalid request payload');
+assert.equal(sanitizeErrorMessage('A'.repeat(500), 500), 'A'.repeat(297) + '...');
+assert.equal(sanitizeErrorMessage('  <p>  Multiple   spaces   and   tags  </p>  ', 400), 'Multiple spaces and tags');
 
 console.log('Utility tests passed');
