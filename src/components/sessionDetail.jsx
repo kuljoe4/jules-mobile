@@ -306,8 +306,9 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     const isNearBottom = h - y - vh < 100;
     const canHeaderShrink = h - vh > 250; // Only allow shrinking if there's significant content
 
-    // Scrolled state for visual transitions
-    if (y > 10 !== scrolled) setScrolled(y > 10);
+    // Scrolled state for visual transitions with hysteresis to prevent scroll feedback loops
+    if (!scrolled && y > 60) setScrolled(true);
+    else if (scrolled && y < 20) setScrolled(false);
 
     // Visibility logic:
     if (isNearBottom) {
