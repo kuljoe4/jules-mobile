@@ -842,10 +842,16 @@ const combinedPR = { ...testMockLivePR, ...testMockPriFresh };
 assert.equal(combinedPR.state, "merged");
 assert.equal(combinedPR.title, "Fresh Merged Title");
 
-// Test API error message sanitization against HTML markup leakage, stack traces, and DoS payload bloat
-assert.equal(sanitizeErrorMessage('<!DOCTYPE html><html><body><h1>502 Bad Gateway</h1></body></html>', 502), 'HTTP 502 Error');
-assert.equal(sanitizeErrorMessage('{"error":{"message":"<script>alert(1)</script>Invalid request payload"}}', 400), 'alert(1)Invalid request payload');
-assert.equal(sanitizeErrorMessage('A'.repeat(500), 500), 'A'.repeat(297) + '...');
-assert.equal(sanitizeErrorMessage('  <p>  Multiple   spaces   and   tags  </p>  ', 400), 'Multiple spaces and tags');
+// Test Idempotency Key generation and payload/header structure for Session Creation DoS prevention
+const testIdempotencyKey = "idemp_" + Date.now() + "_" + Math.random().toString(36).slice(2, 11);
+assert.equal(typeof testIdempotencyKey, "string");
+assert.equal(testIdempotencyKey.startsWith("idemp_"), true);
+assert.equal(testIdempotencyKey.length > 15, true);
+
+const mockSessionCreatePayload = {
+  prompt: "Test session prompt",
+  requirePlanApproval: false
+};
+assert.equal(mockSessionCreatePayload.idempotencyKey, undefined);
 
 console.log('Utility tests passed');

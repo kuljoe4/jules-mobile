@@ -238,11 +238,9 @@ const useNewSessionFlow = ({ apiKey, personas, onCreate, initialDraft, onDraftSa
     try {
       const d = await apiCall(apiKey, "/sessions", {
         method: "POST",
-        headers: {},
         body,
         timeout: 60000,
-        attempts: 4,
-        retryDelayMultiplier: 2000,
+        attempts: 1,
         _label: "Create session"
       });
       hasSavedOrSubmitted.current = true;
