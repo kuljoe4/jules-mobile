@@ -93,3 +93,7 @@
 ## 2026-09-06 - [Keydown Event Bubbling Isolation on Custom Container Controls]
 **Learning:** Keyboard event listeners (`onKeyDown` for Enter/Space) attached to custom container elements with `role="button"` catch bubbling keypress events from inner nested `<button>` controls (such as path or diff copy buttons). Checking `e.target === e.currentTarget` inside the container's key listener prevents inner button keypresses from accidentally triggering parent toggle actions, ensuring seamless keyboard navigation.
 **Action:** Always check `e.target === e.currentTarget` on custom `role="button"` container `onKeyDown` handlers that contain nested interactive elements.
+
+## 2026-09-07 - [Dynamic ARIA Attributes on Standalone Settings Toggles]
+**Learning:** Standalone settings toggle buttons (such as the Browser Notifications toggle) often convey their active state visually through text changes (e.g. "ENABLED" / "DISABLED") or background color shifts, but remain ambiguous to screen reader users without proper ARIA attributes. Providing dynamic `aria-pressed`, `aria-label`, and `title` attributes ensures assistive technologies accurately announce both the current state and the intended action when focused or toggled.
+**Action:** Always decorate standalone toggle buttons in configuration views with dynamic `aria-pressed`, explicit `aria-label`, and action-oriented `title` tooltips.
