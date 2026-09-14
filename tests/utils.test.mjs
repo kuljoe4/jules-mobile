@@ -854,4 +854,13 @@ const mockSessionCreatePayload = {
 };
 assert.equal(mockSessionCreatePayload.idempotencyKey, undefined);
 
+// Test Custom Daily Session Limit bounds and persistence validation
+assert.equal(SafeStorage.saveCustomDaily(50), true);
+assert.equal(SafeStorage.loadCustomDaily(), 50);
+assert.equal(SafeStorage.saveCustomDaily(-10), false);
+assert.equal(SafeStorage.saveCustomDaily(99999), false);
+assert.equal(SafeStorage.saveCustomDaily(0), false);
+assert.equal(SafeStorage.saveCustomDaily(10000), true);
+assert.equal(SafeStorage.loadCustomDaily(), 10000);
+
 console.log('Utility tests passed');

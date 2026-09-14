@@ -378,8 +378,28 @@ const SettingsView = ({ onBack, isDesktop, settings, personas, setPersonas, toda
                     <input
                       id="custom-daily-limit"
                       type="number"
+                      min={1}
+                      max={10000}
                       value={customDaily}
-                      onChange={e=>{setCustomDaily(Math.max(1, parseInt(e.target.value)||1)); triggerSaveFeedback();}}
+                      onChange={e=>{
+                        const val = e.target.value;
+                        if (val === "") {
+                          setCustomDaily("");
+                          return;
+                        }
+                        const parsed = parseInt(val, 10);
+                        if (!Number.isNaN(parsed)) {
+                          const bounded = Math.min(10000, Math.max(1, parsed));
+                          setCustomDaily(bounded);
+                          triggerSaveFeedback();
+                        }
+                      }}
+                      onBlur={() => {
+                        if (!customDaily || customDaily < 1) {
+                          setCustomDaily(1);
+                          triggerSaveFeedback();
+                        }
+                      }}
                       aria-label="Custom daily session limit"
                       style={{...inputSt, width:80, padding:"6px 10px", fontSize:14}}
                     />
