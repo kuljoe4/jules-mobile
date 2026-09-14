@@ -66,6 +66,8 @@ const PayloadBreakdownModal = ({ breakdown, onClose }) => {
         <div style={{ display: "flex", gap: 10, width: "100%" }}>
           <button
             onClick={handleCopyDebugLog}
+            aria-label={copiedDebug ? "Debug log copied to clipboard" : "Copy debug log JSON to clipboard"}
+            title={copiedDebug ? "Debug log copied to clipboard" : "Copy debug log JSON to clipboard"}
             style={{
               flex: 1, padding: "10px", borderRadius: 8,
               border: `1px solid ${T.purple}40`, background: `${T.purple}15`,
@@ -79,6 +81,8 @@ const PayloadBreakdownModal = ({ breakdown, onClose }) => {
           </button>
           <button
             onClick={onClose}
+            aria-label="Close payload size breakdown modal"
+            title="Close payload size breakdown modal"
             style={{
               flex: 1, padding: "10px", borderRadius: 8, border: "none",
               background: T.brand, color: "#000", fontFamily: "'JetBrains Mono',monospace",
@@ -153,6 +157,9 @@ const PayloadBreakdownModal = ({ breakdown, onClose }) => {
           }}>
             <button
               onClick={() => setShowPatchDetail(p => !p)}
+              aria-expanded={showPatchDetail ? "true" : "false"}
+              aria-label={showPatchDetail ? "Hide code patches breakdown list" : `Show code patches breakdown list (${topPatches.length} items)`}
+              title={showPatchDetail ? "Hide code patches breakdown list" : `Show code patches breakdown list (${topPatches.length} items)`}
               style={{
                 width: "100%", padding: "10px 14px", background: "none", border: "none",
                 cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between",
