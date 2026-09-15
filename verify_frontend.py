@@ -1,48 +1,17 @@
 from playwright.sync_api import sync_playwright
 
-mock_activities = [
-    {
-        "id": "act-1",
-        "createTime": "2026-03-31T10:00:00Z",
-        "userMessaged": {"userMessage": "Please analyze the quantitative trading report and extract key formulas."}
-    },
-    {
-        "id": "act-2",
-        "createTime": "2026-03-31T10:01:00Z",
-        "agentMessaged": {"agentMessage": "I have reviewed the report and extracted the mathematical breakeven formulas and $R:R$ ratios."}
-    },
-    {
-        "id": "act-3",
-        "createTime": "2026-03-31T10:02:00Z",
-        "artifacts": [
-            {
-                "media": {
-                    "mimeType": "image/png",
-                    "data": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
-                }
-            }
-        ]
-    }
-]
+mock_report = """# Comprehensive Quantitative Research Report: Strategy Design & Scanner Weight Optimization for an Asymmetric (1.8% TP / 2.7% SL) Trading Profile
 
-mock_sessions = [
-    {
-        "id": "sess-report-demo",
-        "name": "sess-report-demo",
-        "title": "Quantitative Research Report: Strategy Design & Scanner Weight Optimization",
-        "state": "COMPLETED",
-        "createTime": "2026-03-31T10:00:00Z",
-        "updateTime": "2026-03-31T10:02:00Z",
-        "prompt": "Please analyze the quantitative trading report and extract key formulas.",
-        "outputs": [
-            {
-                "sessionSummary": {
-                    "summary": "Quantitative Research Report formatted and rendered successfully."
-                }
-            }
-        ]
-    }
-]
+---
+
+## Executive Summary & Mathematical Foundation
+
+A trade rule specifying a **Take Profit (TP) at +1.8%** and a **Stop Loss (SL) at -2.7%** yields an inverted Payoff / Risk-to-Reward Ratio ($R:R$):
+
+$$R:R = \\frac{\\text{TP}}{\\text{SL}} = \\frac{1.8\\%}{2.7\\%} = \\frac{2}{3} \\approx 0.6667$$
+
+For every $1.00 risked, the trade generates $0.667 in gross potential reward.
+"""
 
 def run_cuj(page):
     page.goto("http://localhost:8080")
@@ -67,11 +36,14 @@ def run_cuj(page):
         page.wait_for_timeout(1000)
 
     page.screenshot(path="/home/jules/verification/screenshots/verification.png")
+    page.wait_for_timeout(1000)
 
 if __name__ == "__main__":
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        context = browser.new_context()
+        context = browser.new_context(
+            record_video_dir="/home/jules/verification/videos"
+        )
         page = context.new_page()
         try:
             run_cuj(page)

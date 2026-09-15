@@ -97,3 +97,7 @@
 ## 2026-09-07 - [Dynamic ARIA Attributes on Standalone Settings Toggles]
 **Learning:** Standalone settings toggle buttons (such as the Browser Notifications toggle) often convey their active state visually through text changes (e.g. "ENABLED" / "DISABLED") or background color shifts, but remain ambiguous to screen reader users without proper ARIA attributes. Providing dynamic `aria-pressed`, `aria-label`, and `title` attributes ensures assistive technologies accurately announce both the current state and the intended action when focused or toggled.
 **Action:** Always decorate standalone toggle buttons in configuration views with dynamic `aria-pressed`, explicit `aria-label`, and action-oriented `title` tooltips.
+
+## 2026-09-14 - [Explicit ARIA Labeling on Status Pill Component]
+**Learning:** Reusable status badge components (like `Pill`) that support icon-only rendering via flags like `hideLabel` can render without inner text nodes, leaving screen reader users without accessible text descriptions of the item's state. Attaching `aria-label={`Status: ${m.label}`}` to the outer container guarantees that screen readers consistently announce the status regardless of visual display mode.
+**Action:** Always provide explicit `aria-label` descriptors on badge and status components that can be visually collapsed to icons or dots.
