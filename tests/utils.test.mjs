@@ -19,6 +19,7 @@ import { fastDeepEqual, getActivitiesSize, getApproxBytes, getPatchFileCount, ge
 import { parseUnidiffPatch, getWorkingSet } from '../src/utils/workingSet.js';
 import { getSmartTitle, getSmartBody } from '../src/utils/prTitle.js';
 import { sanitizeErrorMessage } from '../src/services/api.js';
+import { sendNotification } from '../src/services/notifications.js';
 
 if (typeof globalThis.localStorage === 'undefined') {
   const storageMap = new Map();
@@ -862,5 +863,38 @@ assert.equal(SafeStorage.saveCustomDaily(99999), false);
 assert.equal(SafeStorage.saveCustomDaily(0), false);
 assert.equal(SafeStorage.saveCustomDaily(10000), true);
 assert.equal(SafeStorage.loadCustomDaily(), 10000);
+
+// Test sendNotification sanitization logic against null bytes, control characters, non-string, and oversized payloads
+let sentTitle = null;
+let sentOptions = null;
+globalThis.Notification = class MockNotification {
+  static permission = "granted";
+  constructor(title, options) {
+    sentTitle = title;
+    sentOptions = options;
+  }
+};
+globalThis.window = {
+  dispatchEvent: () => {},
+  Notification: globalThis.Notification
+};
+SafeStorage.saveNotify(true);
+
+await sendNotification("PLAN READY\x00\x07", "Session: test\r\nline", "tag 123\x00");
+assert.equal(sentTitle, "PLAN READY");
+assert.equal(sentOptions.body, "Session: testline");
+assert.equal(sentOptions.tag, "tag123");
+
+// Verify non-string / missing title is safely dropped
+sentTitle = null;
+await sendNotification(null, "body", "tag");
+assert.equal(sentTitle, null);
+
+// Verify title and body truncation
+const longTitle = "A".repeat(150);
+const longBody = "B".repeat(250);
+await sendNotification(longTitle, longBody, "tag");
+assert.equal(sentTitle.length, 100);
+assert.equal(sentOptions.body.length, 200);
 
 console.log('Utility tests passed');
