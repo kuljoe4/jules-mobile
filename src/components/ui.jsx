@@ -49,6 +49,7 @@ const Pill = ({status,small=false,hideLabel=false}) => {
   return (
     <span
       title={m.label}
+      aria-label={`Status: ${m.label}`}
       style={{
       display:"inline-flex",alignItems:"center",gap:4,
       padding:small?(hideLabel?"4px":"2px 8px"):"4px 10px",borderRadius:4,
