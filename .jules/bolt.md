@@ -69,3 +69,7 @@
 ## 2026-09-02 - Early Character Code Guards in Text Line Classification
 **Learning:** In high-frequency rendering components like `Markdown` that process text line-by-line, executing multiple sequential regular expressions (e.g. checking for headers, horizontal rules, or numbered lists) on every line introduces heavy regex state machine churn. Adding fast `charCodeAt(0)` character guards short-circuits line classification before any regex is evaluated, bypassing 95%+ of regex executions for normal text lines and providing a ~10x-20x speedup in line classification.
 **Action:** Guard multi-regex line classification loops with fast character code checks (`c0 === 35`, `c0 === 45`, `c0 >= 48 && c0 <= 57`) or string prefix checks before invoking regular expressions.
+
+## 2026-09-03 - Single-Pass Extraction to Avoid Chained Array Allocations
+**Learning:** Chaining array transformation pipelines like `.flatMap(a => (a.artifacts||[]).filter(...).map(...))` or spreading `.map()` results into array literals (`[...arr.map(...)]`) creates multiple intermediate sub-arrays per iteration. In list-heavy React components like `SessionDetail` and `ActivityFeed`, this generates up to 2N + 1 temporary array allocations on every activity update or memo evaluation, placing unnecessary pressure on garbage collection.
+**Action:** Replace nested `.flatMap().filter().map()` pipelines with single-pass imperative `for` loops that collect target elements directly into a single result array, and avoid redundant `[...]` array spread wrappers around `.map()` calls.

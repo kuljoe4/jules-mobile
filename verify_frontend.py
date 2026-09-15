@@ -15,35 +15,21 @@ For every $1.00 risked, the trade generates $0.667 in gross potential reward.
 
 def run_cuj(page):
     page.goto("http://localhost:8080")
+    page.wait_for_timeout(500)
+
+    # Inject mock data into localStorage using correct SafeStorage keys
+    page.evaluate(f"""([sessions, activities]) => {{
+        localStorage.setItem('jac_key', 'AIzaSyFakeKeyForTesting12345');
+        localStorage.setItem('jac_sessions_list', JSON.stringify(sessions));
+        const cache = {{}};
+        cache['sess-report-demo'] = {{ activities: activities, ts: Date.now() }};
+        localStorage.setItem('jac_session_cache', JSON.stringify(cache));
+    }}""", [mock_sessions, mock_activities])
+
+    page.reload()
     page.wait_for_timeout(1000)
 
-    # Set mock sessions and API key in localStorage
-    page.evaluate(f"""() => {{
-        localStorage.setItem('jac_key', 'AIzaSyFakeKeyFormVerificationTesting123');
-        const mockSessions = [
-            {{
-                id: 'sess-report-demo',
-                name: 'sess-report-demo',
-                title: 'Quantitative Research Report: Strategy Design & Scanner Weight Optimization',
-                state: 'COMPLETED',
-                createTime: new Date().toISOString(),
-                updateTime: new Date().toISOString(),
-                prompt: {repr(mock_report)},
-                outputs: [
-                    {{
-                        sessionSummary: {{
-                            summary: 'Quantitative Research Report formatted and rendered successfully.'
-                        }}
-                    }}
-                ]
-            }}
-        ];
-        localStorage.setItem('jac_sessions_cache', JSON.stringify(mockSessions));
-    }}""")
-    page.reload()
-    page.wait_for_timeout(1500)
-
-    # Click session item
+    # Click session item if visible
     session_card = page.get_by_text("Quantitative Research Report")
     if session_card.is_visible():
         session_card.click()

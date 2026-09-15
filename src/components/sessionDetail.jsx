@@ -935,9 +935,23 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     } catch (err) { setErr(err.message); setBusy(false); }
   };
 
-  const mediaArtifacts = useMemo(() =>
-    activities.flatMap(a => (a.artifacts||[]).filter(x=>x.media?.data).map(x=>({...x.media,ts:a.createTime})))
-  , [activities]);
+  // OPTIMIZATION (Bolt): Extract media artifacts in a single-pass `for` loop over `activities` and `artifacts`.
+  // This eliminates chained `.flatMap().filter().map()` calls that create up to 2N + 1 intermediate array allocations,
+  // reducing GC overhead and memory allocations when rendering session details.
+  const mediaArtifacts = useMemo(() => {
+    const list = [];
+    for (let i = 0; i < activities.length; i++) {
+      const a = activities[i];
+      if (!a || !a.artifacts) continue;
+      for (let j = 0; j < a.artifacts.length; j++) {
+        const x = a.artifacts[j];
+        if (x && x.media?.data) {
+          list.push({ ...x.media, ts: a.createTime });
+        }
+      }
+    }
+    return list;
+  }, [activities]);
 
   const activityStats = useMemo(() => {
     return {
