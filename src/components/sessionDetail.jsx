@@ -1,4 +1,5 @@
 import { copyToClipboard } from "../utils/format.js";
+import { isValidSessionId } from "../utils/validation.js";
 import { MediaModal } from "./mediaModal.jsx";
 
 // ─── Session Detail ───────────────────────────────────────────────────────────
@@ -413,6 +414,11 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   // First load fetches all; subsequent loads fetch only new (createTime filter)
   const lastTsRef = useRef(null);
   const loadActivities = useCallback(async (sinceTs=null) => {
+    // Security: Validate session ID to prevent endpoint path manipulation or parameter pollution
+    if (!isValidSessionId(session?.id)) {
+      console.error("[LoadActivities] Aborting request due to invalid session ID:", session?.id);
+      return;
+    }
     if (activitiesAbortRef.current) {
       activitiesAbortRef.current.abort();
     }
@@ -551,6 +557,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   }, [apiKey, session.id, activityLimit, cacheLimit]);
 
   const loadSession = useCallback(async () => {
+    if (!isValidSessionId(session?.id)) return;
     try {
       const d = await apiCall(apiKey, `/sessions/${session.id}`, { _label:`Session ${session.id?.slice(0,6)}` });
       setSession(d);
@@ -657,7 +664,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
 
   // ── Actions ─────────────────────────────────────────────────────────────────
   const handleSend = async () => {
-    if (!msg.trim() || busy) return;
+    if (!msg.trim() || busy || !isValidSessionId(session?.id)) return;
     userSentRef.current = true;
     let text = msg.trim();
     if (replyingTo) {
@@ -796,7 +803,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   };
 
   const handlePublishPR = async () => {
-    if (busy) return;
+    if (busy || !isValidSessionId(session?.id)) return;
     const promptText = "Please publish a Pull Request for the changes made in this session.";
     setBusy(true); setErr(null);
 
@@ -832,7 +839,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   };
 
   const handleApprove = async () => {
-    if (busy) return;
+    if (busy || !isValidSessionId(session?.id)) return;
     let planTs = null;
     for (let i = activities.length - 1; i >= 0; i--) {
       if (activities[i].planGenerated) { planTs = activities[i].createTime; break; }
@@ -886,6 +893,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
 
   // Used by PlanView to send revision requests
   const handleSendFeedback = useCallback(async (prompt, stayOnTab = false) => {
+    if (!isValidSessionId(session?.id)) return;
     let text = prompt;
     if (selectedPersonas.size > 0) {
       const personaPrompts = Array.from(selectedPersonas)
@@ -928,6 +936,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   }, [apiKey, session.id, loadActivities, loadSession, selectedPersonas, personas, setTab]);
 
   const handleDelete = async () => {
+    if (!isValidSessionId(session?.id)) return;
     setBusy(true);
     try {
       await apiCall(apiKey, `/sessions/${session.id}`, { method:"DELETE", _label:`Delete ${session.id?.slice(0,6)}` });
