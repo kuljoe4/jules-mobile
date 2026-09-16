@@ -1,4 +1,7 @@
-const QuotaTimeline = ({ todayCount, plan }) => {
+// OPTIMIZATION (Bolt): Memoize QuotaTimeline with React.memo and useMemo layout calculations
+// to prevent redundant single-pass event filtering, position math, collision detection loops,
+// and graduation mark array allocations on high-frequency parent re-renders (such as network updates).
+const QuotaTimeline = React.memo(({ todayCount, plan }) => {
   const [now, setNow] = useState(Date.now());
   const [zoomHours, setZoomHours] = useState(12); // Default 12h window
 
@@ -7,17 +10,16 @@ const QuotaTimeline = ({ todayCount, plan }) => {
     return () => clearInterval(i);
   }, []);
 
-  const windowStart = now - (zoomHours / 2) * 3600000;
-  const windowEnd = now + (zoomHours / 2) * 3600000;
-  const totalWidth = zoomHours * 3600000;
+  const zoomH = Math.round(zoomHours);
 
-  const getPos = (ts) => ((ts - windowStart) / totalWidth) * 100;
-
-  const events = [
-    ...(todayCount.recentResets || []).map(r => ({ ts: r.ts, type: "recent" })),
-    ...(todayCount.upcomingResets || []).map(r => ({ ts: r.ts, type: "upcoming" })),
-  ].filter(e => e.ts >= windowStart && e.ts <= windowEnd)
-   .sort((a, b) => a.ts - b.ts);
+  // OPTIMIZATION (Bolt): Memoize graduation marker ticks array to avoid Array.from allocations on re-renders
+  const graduationTicks = useMemo(() => {
+    const ticks = [];
+    for (let h = 0; h <= zoomH; h++) {
+      ticks.push(h);
+    }
+    return ticks;
+  }, [zoomH]);
 
   // Pinch-to-zoom support
   const touchStartDist = useRef(null);
@@ -42,37 +44,71 @@ const QuotaTimeline = ({ todayCount, plan }) => {
     }
   };
 
-  // Smart Collision Avoidance (Staggered Height)
-  const labelSlots = events.map(e => ({ ...e, pos: getPos(e.ts) }));
-  labelSlots.forEach((e, i) => {
-    const isNearNow = Math.abs(e.pos - 50) < 12;
-    const prev = labelSlots[i-1];
+  // OPTIMIZATION (Bolt): Single-pass event collection, positioning, and collision avoidance
+  // memoized with useMemo to eliminate O(N) array transformations and collision loops on parent re-renders.
+  const labelSlots = useMemo(() => {
+    const windowStart = now - (zoomHours / 2) * 3600000;
+    const windowEnd = now + (zoomHours / 2) * 3600000;
+    const totalWidth = zoomHours * 3600000;
 
-    // Base offsets: Stagger top/bottom unless near NOW (where we only stack bottom)
-    let v = isNearNow ? 20 : (i % 2 === 0 ? -18 : 18);
-
-    if (prev && Math.abs(e.pos - prev.pos) < 15) {
-      // Collision detected with previous label
-      if (isNearNow) {
-        // Near center 'NOW' marker: Stack deeply downwards
-        // Hierarchical offsets: 20, 38, 56...
-        let collisionCount = 0;
-        for (let j = i - 1; j >= 0; j--) {
-          if (Math.abs(e.pos - labelSlots[j].pos) < 15 && Math.abs(labelSlots[j].pos - 50) < 12) collisionCount++;
-          else break;
-        }
-        v = 20 + (collisionCount * 20);
-      } else {
-        // Outside center: Try to flip or push further
-        if (Math.sign(v) === Math.sign(prev.vOffset)) {
-          v = prev.vOffset + (20 * Math.sign(v));
+    const events = [];
+    const recent = todayCount?.recentResets;
+    if (recent && Array.isArray(recent)) {
+      for (let i = 0; i < recent.length; i++) {
+        const ts = recent[i].ts;
+        if (ts >= windowStart && ts <= windowEnd) {
+          events.push({ ts, type: "recent" });
         }
       }
     }
-    e.vOffset = v;
-  });
+    const upcoming = todayCount?.upcomingResets;
+    if (upcoming && Array.isArray(upcoming)) {
+      for (let i = 0; i < upcoming.length; i++) {
+        const ts = upcoming[i].ts;
+        if (ts >= windowStart && ts <= windowEnd) {
+          events.push({ ts, type: "upcoming" });
+        }
+      }
+    }
 
-  const zoomH = Math.round(zoomHours);
+    events.sort((a, b) => a.ts - b.ts);
+
+    const slots = new Array(events.length);
+    for (let i = 0; i < events.length; i++) {
+      const e = events[i];
+      const pos = ((e.ts - windowStart) / totalWidth) * 100;
+      slots[i] = { ...e, pos, vOffset: 0 };
+    }
+
+    // Smart Collision Avoidance (Staggered Height)
+    for (let i = 0; i < slots.length; i++) {
+      const e = slots[i];
+      const isNearNow = Math.abs(e.pos - 50) < 12;
+      const prev = slots[i - 1];
+
+      // Base offsets: Stagger top/bottom unless near NOW (where we only stack bottom)
+      let v = isNearNow ? 20 : (i % 2 === 0 ? -18 : 18);
+
+      if (prev && Math.abs(e.pos - prev.pos) < 15) {
+        // Collision detected with previous label
+        if (isNearNow) {
+          let collisionCount = 0;
+          for (let j = i - 1; j >= 0; j--) {
+            if (Math.abs(e.pos - slots[j].pos) < 15 && Math.abs(slots[j].pos - 50) < 12) collisionCount++;
+            else break;
+          }
+          v = 20 + (collisionCount * 20);
+        } else {
+          if (Math.sign(v) === Math.sign(prev.vOffset)) {
+            v = prev.vOffset + (20 * Math.sign(v));
+          }
+        }
+      }
+      e.vOffset = v;
+    }
+
+    return slots;
+  }, [todayCount?.recentResets, todayCount?.upcomingResets, now, zoomHours]);
 
   return (
     <div style={{ marginTop: 24, marginBottom: 24 }}>
@@ -92,7 +128,7 @@ const QuotaTimeline = ({ todayCount, plan }) => {
         <div style={{ position: "absolute", left: 0, width: "50%", height: 2, background: `linear-gradient(to right, transparent, ${T.brand}40)`, borderRadius: 1 }} />
 
         {/* Graduation Markers */}
-        {Array.from({ length: zoomH + 1 }).map((_, h) => (
+        {graduationTicks.map(h => (
           <div key={h} style={{
             position: "absolute", left: `${(h / zoomH) * 100}%`, top: "50%",
             width: 1, height: h % (zoomH > 12 ? 4 : 2) === 0 ? 8 : 4, background: T.border,
@@ -196,4 +232,4 @@ const QuotaTimeline = ({ todayCount, plan }) => {
       )}
     </div>
   );
-};
+});
