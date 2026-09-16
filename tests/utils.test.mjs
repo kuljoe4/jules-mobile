@@ -74,6 +74,11 @@ assert.equal(isValidSessionId('sess\x00nullbyte'), false);
 assert.equal(isValidSessionId('sess\nnewline'), false);
 assert.equal(isValidSessionId('a'.repeat(300)), false);
 
+// Verify session ID validation in session detail actions
+assert.equal(isValidSessionId('sess_valid_123'), true);
+assert.equal(isValidSessionId('sess_invalid/../traversal'), false);
+assert.equal(isValidSessionId('sess_invalid?query=1'), false);
+
 assert.equal(isValidGitBranchName('feature/mobile-refactor'), true);
 assert.equal(isValidGitBranchName('-danger'), false);
 assert.equal(isValidGitBranchName('feature//double'), false);
