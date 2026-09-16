@@ -75,7 +75,7 @@ const QuotaTimeline = ({ todayCount, plan }) => {
   const zoomH = Math.round(zoomHours);
 
   return (
-    <div style={{ marginTop: 24, marginBottom: 24 }}>
+    <div role="region" aria-label="Quota recovery timeline" style={{ marginTop: 24, marginBottom: 24 }}>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10, fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: T.dim, fontWeight: 800, letterSpacing: "0.05em" }}>
         <span>-{zoomH/2}H</span>
         <span style={{ color: T.brand, opacity: 0.8 }}>NOW</span>
@@ -104,9 +104,13 @@ const QuotaTimeline = ({ todayCount, plan }) => {
         {labelSlots.map((e, i) => {
           const color = e.type === "recent" ? T.brand : T.amber;
           const labelDir = e.vOffset > 0 ? "top" : "bottom";
+          const eventLabel = `${e.type === "recent" ? "Recovered quota" : "Upcoming recovery"} at ${fmtTime(e.ts)}`;
 
           return (
-            <div key={i} style={{
+            <div key={i}
+              title={eventLabel}
+              aria-label={eventLabel}
+              style={{
               position: "absolute", left: `${e.pos}%`, top: "50%",
               transform: "translate(-50%, -50%)",
               display: "flex", flexDirection: "column", alignItems: "center",
@@ -131,7 +135,10 @@ const QuotaTimeline = ({ todayCount, plan }) => {
         })}
 
         {/* Current Time Marker */}
-        <div style={{
+        <div
+          title={`Current time: ${fmtTime(now)}`}
+          aria-label={`Current time: ${fmtTime(now)}`}
+          style={{
           position: "absolute", left: "50%", top: "50%",
           transform: "translate(-50%, -50%)", zIndex: 10,
           display: "flex", flexDirection: "column", alignItems: "center"
@@ -140,7 +147,7 @@ const QuotaTimeline = ({ todayCount, plan }) => {
             width: 12, height: 12, borderRadius: "50%", background: T.brand,
             boxShadow: `0 0 20px ${T.brand}`, animation: "dot 1.5s infinite",
             border: `2px solid ${T.bg}`, cursor: "help"
-          }} title="Current Time" />
+          }} />
           <div style={{
             position: "absolute", bottom: 18, whiteSpace: "nowrap",
             fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: T.brand, fontWeight: 900,
@@ -165,7 +172,7 @@ const QuotaTimeline = ({ todayCount, plan }) => {
         </div>
 
         {/* Zoom Control */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, background: T.surfaceHi, padding: "4px 8px", borderRadius: 20, border: `1px solid ${T.border}` }}>
+        <div role="group" aria-label="Timeline zoom controls" style={{ display: "flex", alignItems: "center", gap: 8, background: T.surfaceHi, padding: "4px 8px", borderRadius: 20, border: `1px solid ${T.border}` }}>
           <button
             onClick={() => setZoomHours(h => Math.min(24, h + 2))}
             disabled={zoomHours >= 24}
