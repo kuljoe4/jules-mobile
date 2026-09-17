@@ -408,50 +408,103 @@ const SafeStorage = {
   loadSessionRegistry() {
     return this.getJSON(this.KEYS.SESSION_REGISTRY, {});
   },
+  // Security: Validates session IDs and sanitizes keys against Prototype Pollution and parameter injection.
   saveSessionRegistry(reg) {
-    this.setJSON(this.KEYS.SESSION_REGISTRY, reg);
+    if (!reg || typeof reg !== "object" || Array.isArray(reg)) return false;
+    const cleanReg = sanitizeObjectKeys(reg);
+    const sanitized = {};
+    const keys = Object.keys(cleanReg);
+    for (let i = 0; i < keys.length; i++) {
+      const k = keys[i];
+      if (isValidSessionId(k)) sanitized[k] = cleanReg[k];
+    }
+    return this.setJSON(this.KEYS.SESSION_REGISTRY, sanitized);
   },
 
   loadArchived() {
-    return this.getJSON(this.KEYS.ARCHIVED, []);
+    const list = this.getJSON(this.KEYS.ARCHIVED, []);
+    return Array.isArray(list) ? list.filter(isValidSessionId) : [];
   },
+  // Security: Validates session IDs in archived array against path traversal and control characters.
   saveArchived(archivedArr) {
-    this.setJSON(this.KEYS.ARCHIVED, archivedArr);
+    if (!Array.isArray(archivedArr)) return false;
+    const cleanArr = archivedArr.filter(isValidSessionId);
+    return this.setJSON(this.KEYS.ARCHIVED, cleanArr);
   },
 
   loadIgnored() {
-    return this.getJSON(this.KEYS.IGNORED, []);
+    const list = this.getJSON(this.KEYS.IGNORED, []);
+    return Array.isArray(list) ? list.filter(isValidSessionId) : [];
   },
+  // Security: Validates session IDs in ignored array against path traversal and control characters.
   saveIgnored(ignoredArr) {
-    this.setJSON(this.KEYS.IGNORED, ignoredArr);
+    if (!Array.isArray(ignoredArr)) return false;
+    const cleanArr = ignoredArr.filter(isValidSessionId);
+    return this.setJSON(this.KEYS.IGNORED, cleanArr);
   },
 
   loadReadMap() {
     return this.getJSON(this.KEYS.READ_MAP, {});
   },
+  // Security: Validates session IDs and sanitizes readMap keys against Prototype Pollution.
   saveReadMap(readMap) {
-    this.setJSON(this.KEYS.READ_MAP, readMap);
+    if (!readMap || typeof readMap !== "object" || Array.isArray(readMap)) return false;
+    const cleanMap = sanitizeObjectKeys(readMap);
+    const sanitized = {};
+    const keys = Object.keys(cleanMap);
+    for (let i = 0; i < keys.length; i++) {
+      const k = keys[i];
+      if (isValidSessionId(k)) sanitized[k] = cleanMap[k];
+    }
+    return this.setJSON(this.KEYS.READ_MAP, sanitized);
   },
 
   loadActStats() {
     return this.getJSON(this.KEYS.ACT_STATS, {});
   },
+  // Security: Validates session IDs and sanitizes actStats keys against Prototype Pollution.
   saveActStats(stats) {
-    this.setJSON(this.KEYS.ACT_STATS, stats);
+    if (!stats || typeof stats !== "object" || Array.isArray(stats)) return false;
+    const cleanStats = sanitizeObjectKeys(stats);
+    const sanitized = {};
+    const keys = Object.keys(cleanStats);
+    for (let i = 0; i < keys.length; i++) {
+      const k = keys[i];
+      if (isValidSessionId(k)) sanitized[k] = cleanStats[k];
+    }
+    return this.setJSON(this.KEYS.ACT_STATS, sanitized);
   },
 
   loadActivitiesMap() {
     return this.getJSON(this.KEYS.ACT_MAP, {});
   },
+  // Security: Validates session IDs and sanitizes activitiesMap keys against Prototype Pollution.
   saveActivitiesMap(map) {
-    this.setJSON(this.KEYS.ACT_MAP, map);
+    if (!map || typeof map !== "object" || Array.isArray(map)) return false;
+    const cleanMap = sanitizeObjectKeys(map);
+    const sanitized = {};
+    const keys = Object.keys(cleanMap);
+    for (let i = 0; i < keys.length; i++) {
+      const k = keys[i];
+      if (isValidSessionId(k)) sanitized[k] = cleanMap[k];
+    }
+    return this.setJSON(this.KEYS.ACT_MAP, sanitized);
   },
 
   loadSessionCache() {
     return this.getJSON(this.KEYS.SESSION_CACHE, {});
   },
+  // Security: Validates session IDs and sanitizes sessionCache keys against Prototype Pollution.
   saveSessionCache(cache) {
-    this.setJSON(this.KEYS.SESSION_CACHE, cache);
+    if (!cache || typeof cache !== "object" || Array.isArray(cache)) return false;
+    const cleanCache = sanitizeObjectKeys(cache);
+    const sanitized = {};
+    const keys = Object.keys(cleanCache);
+    for (let i = 0; i < keys.length; i++) {
+      const k = keys[i];
+      if (isValidSessionId(k)) sanitized[k] = cleanCache[k];
+    }
+    return this.setJSON(this.KEYS.SESSION_CACHE, sanitized);
   },
 
   loadSessionsList() {
