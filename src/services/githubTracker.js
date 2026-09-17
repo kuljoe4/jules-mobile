@@ -25,6 +25,7 @@ const GitHubTracker = {
   BRANCH_INFO_CACHE: new LRUCache(500),
   BRANCH_ACTIVITY_CACHE: new WeakMap(),
   DEPLOYMENT_INFO_CACHE: new LRUCache(500),
+  PENDING_PR_PROPOSAL_CACHE: new LRUCache(500),
 
   // Regex Configurations
   GH_PR_RE: /https:\/\/github\.com\/[a-zA-Z0-9\-_.]+\/[a-zA-Z0-9\-_.]+\/pull\/(\d+)/,
@@ -75,16 +76,27 @@ const GitHubTracker = {
     return null;
   },
 
-  // OPTIMIZATION (Bolt): Cache PR lookups including negative (null) hits using a composite key
-  // combining session ID, update/create timestamp, and outputs length (`${sid}:${ts}:${outLen}`).
-  // This avoids redundant object property traversals and regex scans on every render pass
-  // for sessions without pull requests, converting O(K) string scans into instant O(1) cache hits.
+  // OPTIMIZATION (Bolt): Cache PR proposal lookups including negative (null) hits using a composite key
+  // combining session ID, activity count, and update/create timestamp (`${sid}:${actLen}:${ts}`).
+  // Avoids redundant object property traversals and temporary array spread allocations (`[...outputs]`)
+  // on every render pass, converting linear scans into instant O(1) cache hits.
   getPendingPRProposal(s, activities = []) {
     if (!s) return null;
 
-    if (s.outputs && Array.isArray(s.outputs)) {
-      for (const o of s.outputs) {
-        if (o.pullRequest && typeof o.pullRequest === 'object') {
+    const sid = s.id || s.name || "temp";
+    const actLen = Array.isArray(activities) ? activities.length : 0;
+    const ts = s.updateTime || s.createTime || "";
+    const cacheKey = `${sid}:${actLen}:${ts}`;
+
+    if (sid !== "temp" && this.PENDING_PR_PROPOSAL_CACHE.has(cacheKey)) {
+      return this.PENDING_PR_PROPOSAL_CACHE.get(cacheKey);
+    }
+
+    const checkOutputs = (outputs) => {
+      if (!outputs || !Array.isArray(outputs)) return null;
+      for (let j = 0; j < outputs.length; j++) {
+        const o = outputs[j];
+        if (o && o.pullRequest && typeof o.pullRequest === "object") {
           const pr = o.pullRequest;
           const url = pr.url || pr.pullRequestUrl || pr.prUrl || pr.htmlUrl || pr.html_url || pr.pr_url;
           if (!url && (pr.title || pr.description)) {
@@ -95,34 +107,27 @@ const GitHubTracker = {
           }
         }
       }
-    }
+      return null;
+    };
 
-    if (activities && Array.isArray(activities)) {
+    let result = checkOutputs(s.outputs);
+
+    if (!result && activities && Array.isArray(activities)) {
       for (let i = activities.length - 1; i >= 0; i--) {
         const a = activities[i];
         if (!a) continue;
 
-        const outputsList = [
-          ...(a.sessionCompleted?.outputs || []),
-          ...(a.progressUpdated?.outputs || [])
-        ];
-
-        for (const o of outputsList) {
-          if (o.pullRequest && typeof o.pullRequest === 'object') {
-            const pr = o.pullRequest;
-            const url = pr.url || pr.pullRequestUrl || pr.prUrl || pr.htmlUrl || pr.html_url || pr.pr_url;
-            if (!url && (pr.title || pr.description)) {
-              return {
-                title: pr.title || "",
-                description: pr.description || pr.body || ""
-              };
-            }
-          }
-        }
+        result = checkOutputs(a.sessionCompleted?.outputs) || checkOutputs(a.progressUpdated?.outputs);
+        if (result) break;
       }
     }
 
-    return null;
+    if (sid !== "temp") {
+      if (this.PENDING_PR_PROPOSAL_CACHE.size > 500) this.PENDING_PR_PROPOSAL_CACHE.clear();
+      this.PENDING_PR_PROPOSAL_CACHE.set(cacheKey, result);
+    }
+
+    return result;
   },
 
   getPR(s) {
@@ -823,6 +828,7 @@ const GitHubTracker = {
       this.GH_BRANCH_STATE_CACHE.clear();
       this.BRANCH_INFO_CACHE.clear();
       this.PR_INFO_CACHE.clear();
+      this.PENDING_PR_PROPOSAL_CACHE.clear();
       window.dispatchEvent(new CustomEvent("gh-pr-updated", { detail: { repo, mergedBranch: head, intoBase: base } }));
       return data;
     } catch (err) {
@@ -884,6 +890,7 @@ const GitHubTracker = {
       }
 
       this.PR_INFO_CACHE.clear();
+      this.PENDING_PR_PROPOSAL_CACHE.clear();
       this.GH_BRANCH_STATE_CACHE.clear();
       this.BRANCH_INFO_CACHE.clear();
       const existing = this.GH_STATE_CACHE.get(url) || {};
