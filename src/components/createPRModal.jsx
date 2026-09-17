@@ -45,6 +45,8 @@ const CreatePRModal = ({ defaultTitle, defaultBody, repo, headBranch, baseBranch
           <button
             onClick={onClose}
             disabled={busy}
+            title="Cancel pull request creation"
+            aria-label="Cancel pull request creation"
             style={{
               padding: "10px 14px", borderRadius: 8,
               border: `1px solid ${T.border}`, background: "transparent",
@@ -57,6 +59,8 @@ const CreatePRModal = ({ defaultTitle, defaultBody, repo, headBranch, baseBranch
           <button
             onClick={handleSubmit}
             disabled={!prTitle.trim() || busy}
+            title={!prTitle.trim() ? "Title is required to create Pull Request" : busy ? "Creating Pull Request..." : "Create Pull Request"}
+            aria-label={!prTitle.trim() ? "Title is required to create Pull Request" : busy ? "Creating Pull Request..." : "Create Pull Request"}
             style={{
               flex: 1, padding: "10px", borderRadius: 8, border: `1px solid ${T.brand}60`,
               background: T.brandDim, color: T.brandLight, fontFamily: "'JetBrains Mono',monospace",
