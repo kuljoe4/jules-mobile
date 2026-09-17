@@ -210,6 +210,55 @@ assert.equal(SafeStorage.deleteDraftFromBox('toString'), false);
 assert.equal(SafeStorage.deleteDraftFromBox('__proto__'), false);
 assert.equal(SafeStorage.deleteDraftFromBox('dr_valid'), true);
 
+// Test SafeStorage session state map and array sanitization & validation
+const badSessionStateObj = {
+  "valid_sess_123": { time: 100 },
+  "__proto__": { malicious: true },
+  "constructor": "bad",
+  "../path/traversal": { bad: 1 },
+  "sess\x00null": { bad: 1 }
+};
+
+SafeStorage.saveSessionRegistry(badSessionStateObj);
+const loadedRegistry = SafeStorage.loadSessionRegistry();
+assert.equal(loadedRegistry["valid_sess_123"]?.time, 100);
+assert.equal(Object.prototype.hasOwnProperty.call(loadedRegistry, "__proto__"), false);
+assert.equal(Object.prototype.hasOwnProperty.call(loadedRegistry, "constructor"), false);
+assert.equal(loadedRegistry["../path/traversal"], undefined);
+assert.equal(loadedRegistry["sess\x00null"], undefined);
+
+SafeStorage.saveReadMap(badSessionStateObj);
+const loadedReadMap = SafeStorage.loadReadMap();
+assert.equal(loadedReadMap["valid_sess_123"]?.time, 100);
+assert.equal(Object.prototype.hasOwnProperty.call(loadedReadMap, "__proto__"), false);
+assert.equal(loadedReadMap["../path/traversal"], undefined);
+
+SafeStorage.saveActStats(badSessionStateObj);
+const loadedActStats = SafeStorage.loadActStats();
+assert.equal(loadedActStats["valid_sess_123"]?.time, 100);
+assert.equal(Object.prototype.hasOwnProperty.call(loadedActStats, "__proto__"), false);
+assert.equal(loadedActStats["../path/traversal"], undefined);
+
+SafeStorage.saveActivitiesMap(badSessionStateObj);
+const loadedActMap = SafeStorage.loadActivitiesMap();
+assert.equal(loadedActMap["valid_sess_123"]?.time, 100);
+assert.equal(Object.prototype.hasOwnProperty.call(loadedActMap, "__proto__"), false);
+assert.equal(loadedActMap["../path/traversal"], undefined);
+
+SafeStorage.saveSessionCache(badSessionStateObj);
+const loadedCache = SafeStorage.loadSessionCache();
+assert.equal(loadedCache["valid_sess_123"]?.time, 100);
+assert.equal(Object.prototype.hasOwnProperty.call(loadedCache, "__proto__"), false);
+assert.equal(loadedCache["../path/traversal"], undefined);
+
+// Test SafeStorage saveArchived, loadArchived, saveIgnored, loadIgnored validation
+const badSessionArray = ["valid_sess_1", "../path/traversal", "sess\x00null", "valid_sess_2"];
+SafeStorage.saveArchived(badSessionArray);
+assert.deepEqual(SafeStorage.loadArchived(), ["valid_sess_1", "valid_sess_2"]);
+
+SafeStorage.saveIgnored(badSessionArray);
+assert.deepEqual(SafeStorage.loadIgnored(), ["valid_sess_1", "valid_sess_2"]);
+
 const ghPrRe = /https:\/\/github\.com\/[a-zA-Z0-9\-_.]+\/[a-zA-Z0-9\-_.]+\/pull\/(\d+)/;
 assert.equal(ghPrRe.test('https://github.com/owner/repo/pull/123'), true);
 assert.equal(ghPrRe.test('https://github.com/owner?inject=1/repo/pull/123'), false);
