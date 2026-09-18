@@ -126,6 +126,41 @@ assert.equal(SafeStorage.saveLastBranch('toString', 'main'), false);
 assert.equal(SafeStorage.saveLastBranch('owner/repo', 'main\x00null'), false);
 assert.equal(SafeStorage.saveLastBranch('owner/repo', 'main'), true);
 
+// Test SafeStorage saveDraft, saveLastSource, saveLastBranches, and saveSessionsList validation & sanitization
+assert.equal(SafeStorage.saveDraft(null), false);
+assert.equal(SafeStorage.saveDraft('not-an-object'), false);
+const badDraft = { prompt: "test prompt", __proto__: { malicious: true }, toString: "hacked" };
+assert.equal(SafeStorage.saveDraft(badDraft), true);
+const loadedDraft = SafeStorage.loadDraft();
+assert.equal(loadedDraft.prompt, "test prompt");
+assert.equal(Object.prototype.hasOwnProperty.call(loadedDraft, "__proto__"), false);
+assert.equal(Object.prototype.hasOwnProperty.call(loadedDraft, "toString"), false);
+
+assert.equal(SafeStorage.saveLastSource("valid_source_name"), true);
+assert.equal(SafeStorage.loadLastSource(), "valid_source_name");
+assert.equal(SafeStorage.saveLastSource("source\x00nullbyte"), false);
+assert.equal(SafeStorage.saveLastSource("source\nnewline"), false);
+
+assert.equal(SafeStorage.saveLastBranches(null), false);
+assert.equal(SafeStorage.saveLastBranches({ "owner/repo": "main", "__proto__": "bad", "toString": "bad", "repo2": "branch\x00null" }), true);
+const loadedLastBranches = SafeStorage.loadLastBranches();
+assert.equal(loadedLastBranches["owner/repo"], "main");
+assert.equal(Object.prototype.hasOwnProperty.call(loadedLastBranches, "__proto__"), false);
+assert.equal(Object.prototype.hasOwnProperty.call(loadedLastBranches, "toString"), false);
+assert.equal(loadedLastBranches["repo2"], undefined);
+
+assert.equal(SafeStorage.saveSessionsList(null), false);
+const pollutedSessionsList = [
+  { id: "s1", title: "Session 1", __proto__: { bad: true }, toString: "hacked" },
+  { id: "s2", title: "Session 2" }
+];
+assert.equal(SafeStorage.saveSessionsList(pollutedSessionsList), true);
+const loadedSessions = SafeStorage.loadSessionsList();
+assert.equal(loadedSessions.length, 2);
+assert.equal(loadedSessions[0].id, "s1");
+assert.equal(Object.prototype.hasOwnProperty.call(loadedSessions[0], "__proto__"), false);
+assert.equal(Object.prototype.hasOwnProperty.call(loadedSessions[0], "toString"), false);
+
 // Test SafeStorage API key and GitHub token validation & sanitization
 assert.equal(SafeStorage.saveApiKey('AIzaSyValidApiKeyForTesting123'), true);
 assert.equal(SafeStorage.loadApiKey(), 'AIzaSyValidApiKeyForTesting123');
@@ -360,6 +395,7 @@ const keyUpdated = 'sess-no-pr-1:2026-08-25T11:00:00Z:0';
 assert.equal(GitHubTracker.PR_CACHE.has(keyUpdated), true);
 
 // Test SafeStorage session list caching
+SafeStorage.saveSessionsList([]);
 assert.deepEqual(SafeStorage.loadSessionsList(), []);
 const testSessions = [{ id: 's1', title: 'Test Session 1', state: 'COMPLETED' }];
 SafeStorage.saveSessionsList(testSessions);
