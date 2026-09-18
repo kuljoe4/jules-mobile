@@ -291,8 +291,14 @@ const SafeStorage = {
   loadDraft() {
     return this.getJSON(this.KEYS.NS_DRAFT);
   },
+  // Security: Validates and sanitizes draft object keys against Prototype Pollution and property shadowing.
   saveDraft(d) {
-    this.setJSON(this.KEYS.NS_DRAFT, d);
+    if (!d || typeof d !== "object" || Array.isArray(d)) {
+      this.removeItem(this.KEYS.NS_DRAFT);
+      return false;
+    }
+    const cleanDraft = sanitizeObjectKeys(d);
+    return this.setJSON(this.KEYS.NS_DRAFT, cleanDraft);
   },
   clearDraft() {
     this.removeItem(this.KEYS.NS_DRAFT);
@@ -319,8 +325,11 @@ const SafeStorage = {
   loadLastSource() {
     return this.getItem(this.KEYS.LAST_SOURCE, "");
   },
+  // Security: Validates last source name string against control characters / null-byte injection.
   saveLastSource(name) {
-    this.setItem(this.KEYS.LAST_SOURCE, name || "");
+    const str = typeof name === "string" ? name : "";
+    if (/[\x00-\x1F\x7F]/.test(str)) return false;
+    return this.setItem(this.KEYS.LAST_SOURCE, str);
   },
 
   loadLeanModeRepos() {
@@ -347,8 +356,20 @@ const SafeStorage = {
   loadLastBranches() {
     return this.getJSON(this.KEYS.LAST_BRANCHES, {});
   },
+  // Security: Validates and sanitizes last branches object keys against Prototype Pollution and control character injection.
   saveLastBranches(branches) {
-    return this.setJSON(this.KEYS.LAST_BRANCHES, branches);
+    if (!branches || typeof branches !== "object" || Array.isArray(branches)) return false;
+    const cleanBranches = sanitizeObjectKeys(branches);
+    const sanitized = {};
+    const keys = Object.keys(cleanBranches);
+    for (let i = 0; i < keys.length; i++) {
+      const k = keys[i];
+      const val = cleanBranches[k];
+      if (isValidStorageKey(k) && typeof val === "string" && !/[\x00-\x1F\x7F]/.test(val)) {
+        sanitized[k] = val;
+      }
+    }
+    return this.setJSON(this.KEYS.LAST_BRANCHES, sanitized);
   },
   // Security: Validates source key and branch parameter against Prototype Pollution and control character injection.
   saveLastBranch(source, branch) {
@@ -510,8 +531,11 @@ const SafeStorage = {
   loadSessionsList() {
     return this.getJSON(this.KEYS.SESSIONS_LIST, []);
   },
+  // Security: Validates and sanitizes sessions list array objects against Prototype Pollution.
   saveSessionsList(sessions) {
-    this.setJSON(this.KEYS.SESSIONS_LIST, sessions);
+    if (!Array.isArray(sessions)) return false;
+    const cleanSessions = sessions.map(item => (typeof item === "object" && item !== null && !Array.isArray(item)) ? sanitizeObjectKeys(item) : item);
+    return this.setJSON(this.KEYS.SESSIONS_LIST, cleanSessions);
   },
 
   loadRepoFilter() {
