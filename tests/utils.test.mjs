@@ -370,9 +370,11 @@ const dashInput3 = "Overall details: - First sub item - Second sub item; i.e.: -
 const dashExpected3 = "Overall details:\n- First sub item\n- Second sub item; i.e.:\n- Third sub item";
 assert.equal(formatSmartDashItems(dashInput3), dashExpected3);
 
-// Test fmtAgo with ISO string input
+// Test fmtAgo with ISO string input, minutes, and hours calculations
 const pastIsoString = new Date(Date.now() - 120_000).toISOString();
 assert.equal(fmtAgo(pastIsoString), "2m ago");
+assert.equal(fmtAgo(Date.now() - 2 * 3600000), "2h ago");
+assert.equal(fmtAgo(Date.now() - 5 * 3600000), "5h ago");
 
 // Test GitHubTracker PR Caching (positive and negative hits)
 const sessNoPR = { id: 'sess-no-pr-1', createTime: '2026-08-25T10:00:00Z', outputs: [] };
