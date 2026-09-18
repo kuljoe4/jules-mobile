@@ -44,6 +44,9 @@ const MediaModal = ({ media, onClose }) => {
 
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Media artifact lightbox preview"
       onClick={onClose}
       style={{
         position:"fixed", inset:0, zIndex:10000,
@@ -115,7 +118,7 @@ const MediaModal = ({ media, onClose }) => {
         ) : (
           <img
             src={`data:${mime};base64,${base64Data}`}
-            alt="artifact-preview"
+            alt={`Media artifact preview (${mime})`}
             style={{
               maxWidth:"100%", maxHeight:"100%", objectFit:"contain",
               borderRadius:4, boxShadow:"0 20px 50px rgba(0,0,0,0.5)",
