@@ -254,9 +254,15 @@ const GitHubTracker = {
         const headRef = prData.head?.ref || "main";
         const headSha = prData.head?.sha || headRef;
 
-        const compareUrl = `https://api.github.com/repos/${owner}/${repo}/compare/${baseRef}...${headRef}`;
-        const statusUrl = `https://api.github.com/repos/${owner}/${repo}/commits/${headSha}/status`;
-        const checkRunsUrl = `https://api.github.com/repos/${owner}/${repo}/commits/${headSha}/check-runs`;
+        // Security: URL-encode ref and commit SHA parameters to prevent REST API Endpoint Parameter Pollution
+        // and URL Path Manipulation when fetching PR compare details, statuses, and check runs.
+        const encBaseRef = encodeURIComponent(baseRef);
+        const encHeadRef = encodeURIComponent(headRef);
+        const encHeadSha = encodeURIComponent(headSha);
+
+        const compareUrl = `https://api.github.com/repos/${owner}/${repo}/compare/${encBaseRef}...${encHeadRef}`;
+        const statusUrl = `https://api.github.com/repos/${owner}/${repo}/commits/${encHeadSha}/status`;
+        const checkRunsUrl = `https://api.github.com/repos/${owner}/${repo}/commits/${encHeadSha}/check-runs`;
         const commitsUrl = `https://api.github.com/repos/${owner}/${repo}/pulls/${number}/commits?per_page=10`;
 
         const fetchCompare = this.githubFetch(compareUrl, headers).catch(() => null);
@@ -360,7 +366,9 @@ const GitHubTracker = {
             GitHubTracker.GH_IN_FLIGHT.delete(url);
             GitHubTracker.PR_INFO_CACHE.clear();
 
-            window.dispatchEvent(new CustomEvent("gh-pr-updated", { detail: { url, ...updatedInfo } }));
+            if (typeof window !== "undefined") {
+              window.dispatchEvent(new CustomEvent("gh-pr-updated", { detail: { url, ...updatedInfo } }));
+            }
           });
       })
       .catch(err => {
@@ -384,7 +392,9 @@ const GitHubTracker = {
           errorMsg: err.message
         });
         GitHubTracker.PR_INFO_CACHE.clear();
-        window.dispatchEvent(new CustomEvent("gh-pr-updated", { detail: { url, failed: true } }));
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("gh-pr-updated", { detail: { url, failed: true } }));
+        }
       });
   },
 

@@ -458,6 +458,38 @@ const invalidRepoPrUrl = `https://github.com/${'a/'.repeat(150)}/pull/1`;
 GitHubTracker.triggerGitHubFetch(invalidRepoPrUrl);
 assert.equal(GitHubTracker.GH_IN_FLIGHT.has(invalidRepoPrUrl), false);
 
+// Test GitHubTracker.triggerGitHubFetch URL parameter encoding for refs with special characters
+{
+  const origGithubFetch = GitHubTracker.githubFetch;
+  const fetchedUrls = [];
+  GitHubTracker.githubFetch = async (url, headers) => {
+    fetchedUrls.push(url);
+    if (url.includes('/pulls/999')) {
+      return {
+        state: 'open',
+        base: { ref: 'main' },
+        head: { ref: 'feature/branch#1', sha: 'sha/with/slash#123' },
+        additions: 10,
+        deletions: 2,
+        changed_files: 1,
+        commits: 1
+      };
+    }
+    return {};
+  };
+
+  const testPrUrl = 'https://github.com/owner/repo/pull/999';
+  GitHubTracker.triggerGitHubFetch(testPrUrl, true);
+
+  await new Promise(resolve => setTimeout(resolve, 50));
+
+  GitHubTracker.githubFetch = origGithubFetch;
+
+  assert.equal(fetchedUrls.some(u => u.includes('/compare/main...feature%2Fbranch%231')), true);
+  assert.equal(fetchedUrls.some(u => u.includes('/commits/sha%2Fwith%2Fslash%23123/status')), true);
+  assert.equal(fetchedUrls.some(u => u.includes('/commits/sha%2Fwith%2Fslash%23123/check-runs')), true);
+}
+
 // Test GitHubTracker.mergePullRequest validation for invalid repo names and token
 await assert.rejects(
   async () => {
