@@ -272,14 +272,21 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     });
   }, [session, completedSessionsMap]);
 
+  // OPTIMIZATION (Bolt): Memoize review activities first so filteredActivities can return reviews directly
+  // or use Set membership checks when chatFilter is REVIEWS or SYSTEM, avoiding redundant array filtering and string operations.
+  const reviews = useMemo(() => {
+    return activities.filter(a => a.progressUpdated && a.progressUpdated.title?.toLowerCase().includes("review"));
+  }, [activities]);
+
   const filteredActivities = useMemo(() => {
-    return activities.filter(a => {
-      if (chatFilter === "MESSAGES") return a.userMessaged || a.agentMessaged;
-      if (chatFilter === "REVIEWS") return a.progressUpdated && a.progressUpdated.title?.toLowerCase().includes("review");
-      if (chatFilter === "SYSTEM") return !a.userMessaged && !a.agentMessaged && !(a.progressUpdated && a.progressUpdated.title?.toLowerCase().includes("review"));
-      return true;
-    });
-  }, [activities, chatFilter]);
+    if (chatFilter === "MESSAGES") return activities.filter(a => a.userMessaged || a.agentMessaged);
+    if (chatFilter === "REVIEWS") return reviews;
+    if (chatFilter === "SYSTEM") {
+      const reviewSet = new Set(reviews);
+      return activities.filter(a => !a.userMessaged && !a.agentMessaged && !reviewSet.has(a));
+    }
+    return activities;
+  }, [activities, chatFilter, reviews]);
 
   const [scrolled, setScrolled] = useState(false);
   const [headerExpanded, setHeaderExpanded] = useState(true);
@@ -355,19 +362,9 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     lastScrollY.current = y;
   }, [scrolled]);
 
-  const driftDetected = useMemo(() => {
-    if (!session) return false;
-    const repo = session.sourceContext?.source;
-    if (!repo) return false;
-    const currentStart = parseDateMs(session.createTime);
-    const repoCompletions = completedSessionsMap.get(repo) || [];
-
-    return repoCompletions.some(s => {
-      if (s.id === session.id) return false;
-      const completionTime = parseDateMs(s.updateTime || s.createTime);
-      return completionTime > currentStart;
-    });
-  }, [session, completedSessionsMap]);
+  // OPTIMIZATION (Bolt): Reuse precomputed driftSessions array length directly instead of re-iterating over
+  // completedSessionsMap and re-parsing timestamps in a duplicate .some() call.
+  const driftDetected = driftSessions.length > 0;
 
   useEffect(() => {
     if (driftDetected && !isArchived) setShowDriftWarning(true);
@@ -1055,9 +1052,6 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     if (currentState === "AWAITING_PLAN_APPROVAL" && latestPlan && !isApproved) setTab("plan");
   }, [currentState, latestPlan, isApproved]);
 
-  const reviews = useMemo(() => {
-    return activities.filter(a => a.progressUpdated && a.progressUpdated.title?.toLowerCase().includes("review"));
-  }, [activities]);
 
   const TABS = [
     { id:"activity", label:"CHAT" },
