@@ -82,8 +82,8 @@ const CreatePRModal = ({ defaultTitle, defaultBody, repo, headBranch, baseBranch
               display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
               boxShadow: `0 4px 12px ${T.purple}30`
             }}
-            title="Create Pull Request and merge immediately in 1 click"
-            aria-label="Create Pull Request and merge immediately in 1 click"
+            title={!prTitle.trim() ? "Title is required to create and merge Pull Request" : busy ? "Creating and merging Pull Request..." : "Create Pull Request and merge immediately in 1 click"}
+            aria-label={!prTitle.trim() ? "Title is required to create and merge Pull Request" : busy ? "Creating and merging Pull Request..." : "Create Pull Request and merge immediately in 1 click"}
           >
             {busy ? "MERGING..." : "⚡ CREATE & MERGE NOW"}
           </button>
@@ -132,9 +132,14 @@ const CreatePRModal = ({ defaultTitle, defaultBody, repo, headBranch, baseBranch
         )}
 
         <div>
-          <label style={{ display: "block", marginBottom: 6, fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: T.textDim, fontWeight: 700, letterSpacing: "0.08em" }}>
-            PULL REQUEST TITLE
-          </label>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+            <label style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: T.textDim, fontWeight: 700, letterSpacing: "0.08em" }}>
+              PULL REQUEST TITLE
+            </label>
+            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: prTitle.length >= 200 ? T.red : T.muted }}>
+              {prTitle.length}/200
+            </span>
+          </div>
           <input
             type="text"
             value={prTitle}
@@ -152,9 +157,14 @@ const CreatePRModal = ({ defaultTitle, defaultBody, repo, headBranch, baseBranch
         </div>
 
         <div>
-          <label style={{ display: "block", marginBottom: 6, fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: T.textDim, fontWeight: 700, letterSpacing: "0.08em" }}>
-            PR DESCRIPTION (OPTIONAL)
-          </label>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+            <label style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: T.textDim, fontWeight: 700, letterSpacing: "0.08em" }}>
+              PR DESCRIPTION (OPTIONAL)
+            </label>
+            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: prBody.length >= 2000 ? T.red : T.muted }}>
+              {prBody.length}/2000
+            </span>
+          </div>
           <textarea
             value={prBody}
             onChange={e => setPrBody(e.target.value)}
