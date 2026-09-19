@@ -124,3 +124,8 @@
 **Vulnerability:** In `apiCall`, non-OK HTTP responses (such as 500/502/503 server or gateway errors) fell back to parsing raw response text into error messages. When remote proxies or backend endpoints returned HTML error pages or verbose stack traces, unparsed HTML markup and internal server details were thrown as exception strings and rendered directly into UI alert containers, risking internal path disclosure and UI layout corruption.
 **Learning:** Error handling abstractions in client applications must sanitize error payload strings before propagating them to application state or UI alerts. Raw HTML documents (`<!DOCTYPE`, `<html`) and unhandled multi-kilobyte error bodies must be stripped of tags, truncated, or replaced with clean status descriptions.
 **Prevention:** Implement `sanitizeErrorMessage` in central API fetch handlers to strip HTML tags (`/<[^>]*>/g`), replace HTML error pages with safe status descriptions, normalize whitespace, and bound message length to 300 characters.
+
+## 2026-09-14 - Unencoded GitHub Pull Request Ref/SHA Parameters and Endpoint Manipulation
+**Vulnerability:** In `GitHubTracker.triggerGitHubFetch`, branch ref and commit SHA values (`baseRef`, `headRef`, `headSha`) extracted from GitHub Pull Request responses were directly concatenated into compare, status, and check-runs API endpoint URLs without `encodeURIComponent`.
+**Learning:** Branch references containing slashes (`feature/branch-name`), query parameters, or hashes cause REST API Endpoint Parameter Pollution and URL Path Manipulation when concatenated into REST API URL paths without encoding.
+**Prevention:** Always apply `encodeURIComponent` to dynamic branch refs, commit SHAs, and ref parameters when interpolating into REST API endpoint URL paths.
