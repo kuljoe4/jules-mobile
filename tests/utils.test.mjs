@@ -235,6 +235,21 @@ assert.equal(SafeStorage.saveRepoFilter('owner/repo?inject=1'), false);
 globalThis.localStorage.setItem('jac_repo_filter', '../invalid/path');
 assert.equal(SafeStorage.loadRepoFilter(), 'ALL');
 
+// Test SafeStorage lean directive validation & storage persistence
+assert.equal(SafeStorage.saveLeanDirective("Valid custom lean directive"), true);
+assert.equal(SafeStorage.loadLeanDirective(), "Valid custom lean directive");
+assert.equal(SafeStorage.saveLeanDirective("   Valid trimmed directive   "), true);
+assert.equal(SafeStorage.loadLeanDirective(), "Valid trimmed directive");
+assert.equal(SafeStorage.saveLeanDirective(""), false);
+assert.equal(SafeStorage.saveLeanDirective(null), false);
+assert.equal(SafeStorage.saveLeanDirective("Directive with\x00nullbyte"), false);
+assert.equal(SafeStorage.saveLeanDirective("A".repeat(5001)), false);
+
+globalThis.localStorage.setItem('jac_lean_directive', 'Corrupted\x00Directive');
+assert.equal(SafeStorage.loadLeanDirective().startsWith("[System Directive:"), true);
+globalThis.localStorage.setItem('jac_lean_directive', 'A'.repeat(5001));
+assert.equal(SafeStorage.loadLeanDirective().startsWith("[System Directive:"), true);
+
 // Test SafeStorage saveDraftToBox and deleteDraftFromBox validation and sanitization
 assert.equal(SafeStorage.saveDraftToBox(null), null);
 assert.equal(SafeStorage.saveDraftToBox('not-an-object'), null);
