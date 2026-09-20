@@ -54,9 +54,20 @@ function JulesClient() {
   }, [mobileDrawerOpen, closeMobileDrawer]);
   const [justRefreshed, setJustRefreshed] = useState(false);
   const [supplementalSessions, setSupplementalSessions] = useState([]);
+  // OPTIMIZATION (Bolt): Direct O(N) loop iteration over primary and supplemental sessions
+  // to populate map without temporary intermediate array spread `[...sessions, ...supplementalSessions]` allocations.
   const allSessions = useMemo(() => {
     const map = new Map();
-    [...sessions, ...supplementalSessions].forEach(s => map.set(s.id || s.name, s));
+    const len1 = sessions.length;
+    const len2 = supplementalSessions.length;
+    for (let i = 0; i < len1; i++) {
+      const s = sessions[i];
+      if (s) map.set(s.id || s.name, s);
+    }
+    for (let i = 0; i < len2; i++) {
+      const s = supplementalSessions[i];
+      if (s) map.set(s.id || s.name, s);
+    }
     return Array.from(map.values()).sort((a, b) => {
       const aIsNewest = (a.id || a.name) === lastCreatedSessionIdRef.current;
       const bIsNewest = (b.id || b.name) === lastCreatedSessionIdRef.current;
