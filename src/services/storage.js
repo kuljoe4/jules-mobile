@@ -1,3 +1,4 @@
+import { DEFAULT_LEAN_DIRECTIVE } from "../config/constants.js";
 import { isValidGithubRepoName, isValidGithubToken, isValidGoogleApiKey, isValidSessionId, isValidStorageKey, sanitizeObjectKeys } from "../utils/validation.js";
 
 // ─── Safe Storage Service ────────────────────────────────────────────────────
@@ -347,11 +348,19 @@ const SafeStorage = {
     }
   },
 
+  // Security: Validates and sanitizes lean mode system directives to prevent control character / null-byte injection
+  // and prompt payload bloat/tampering when directives are appended to session prompt bodies.
   loadLeanDirective() {
-    return this.getItem(this.KEYS.LEAN_DIRECTIVE, DEFAULT_LEAN_DIRECTIVE);
+    const v = this.getItem(this.KEYS.LEAN_DIRECTIVE, DEFAULT_LEAN_DIRECTIVE);
+    if (typeof v === "string" && v.trim() && !/[\x00-\x1F\x7F]/.test(v) && v.length <= 5000) {
+      return v;
+    }
+    return DEFAULT_LEAN_DIRECTIVE;
   },
   saveLeanDirective(val) {
-    this.setItem(this.KEYS.LEAN_DIRECTIVE, val);
+    const str = typeof val === "string" ? val.trim() : "";
+    if (!str || /[\x00-\x1F\x7F]/.test(str) || str.length > 5000) return false;
+    return this.setItem(this.KEYS.LEAN_DIRECTIVE, str);
   },
   loadLastBranches() {
     return this.getJSON(this.KEYS.LAST_BRANCHES, {});
