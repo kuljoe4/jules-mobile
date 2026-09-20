@@ -37,7 +37,7 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
   // new objects and executing JSON.stringify on every single render pass of NewSession
   // (e.g., during repository search typing, persona toggles, or confirmation modal updates).
   const payloadEst = useMemo(() => {
-    return (JSON.stringify({ prompt, source, branch }).length / 1024).toFixed(1);
+    return (((prompt?.length || 0) + (source?.length || 0) + (branch?.length || 0) + 38) / 1024).toFixed(1);
   }, [prompt, source, branch]);
 
   return (
