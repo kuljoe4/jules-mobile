@@ -62,11 +62,15 @@ const ConflictRadar = memo(({ currentSource, currentBranch, currentPrompt, allSe
   if (collisions.length === 0) {
     if (!currentSource || !currentPrompt.trim()) return null;
     return (
-      <div style={{
-        marginTop: 12, padding: "8px 14px", background: "rgba(52, 211, 153, 0.05)",
-        border: `1px solid rgba(52, 211, 153, 0.2)`, borderRadius: 10,
-        display: "flex", alignItems: "center", gap: 8, animation: "fadeIn .3s ease"
-      }}>
+      <div
+        role="status"
+        aria-label="No session conflicts detected, ready to start"
+        style={{
+          marginTop: 12, padding: "8px 14px", background: "rgba(52, 211, 153, 0.05)",
+          border: `1px solid rgba(52, 211, 153, 0.2)`, borderRadius: 10,
+          display: "flex", alignItems: "center", gap: 8, animation: "fadeIn .3s ease"
+        }}
+      >
         <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#34d399", boxShadow: "0 0 8px #34d399" }}/>
         <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 800, color: "#34d399", letterSpacing: "0.05em" }}>
           NO CONFLICTS DETECTED · READY TO START
@@ -115,9 +119,9 @@ const ConflictRadar = memo(({ currentSource, currentBranch, currentPrompt, allSe
         transition: "all .3s cubic-bezier(0.4, 0, 0.2, 1)",
         padding: expanded ? "0 16px 16px" : "0 16px"
       }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <div role="list" aria-label="Detected session conflicts" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {collisions.map((c, i) => (
-            <div key={i} style={{
+            <div key={i} role="listitem" aria-label={`Conflict risk: ${c.isDrift ? "DRIFT" : c.risk + " RISK"} for session ${c.session.title || c.session.prompt}`} style={{
               background: T.surface, padding: 10, borderRadius: 8,
               border: `1px solid ${c.risk === "HIGH" ? T.red + "40" : T.amber + "40"}`,
               position: "relative", overflow: "hidden"
@@ -151,9 +155,9 @@ const ConflictRadar = memo(({ currentSource, currentBranch, currentPrompt, allSe
               </div>
 
               {c.overlap.length > 0 && (
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 6, paddingLeft: c.risk === "HIGH" ? 6 : 0 }}>
+                <div role="list" aria-label="Conflicting files" style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 6, paddingLeft: c.risk === "HIGH" ? 6 : 0 }}>
                   {c.overlap.map(f => (
-                    <span key={f} style={{
+                    <span key={f} role="listitem" title={f} aria-label={`Conflicting file: ${f}`} style={{
                       fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: T.red,
                       background: `${T.red}10`, padding: "2px 6px", borderRadius: 4,
                       border: `1px solid ${T.red}20`
