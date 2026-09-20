@@ -101,3 +101,7 @@
 ## 2026-09-14 - [Explicit ARIA Labeling on Status Pill Component]
 **Learning:** Reusable status badge components (like `Pill`) that support icon-only rendering via flags like `hideLabel` can render without inner text nodes, leaving screen reader users without accessible text descriptions of the item's state. Attaching `aria-label={`Status: ${m.label}`}` to the outer container guarantees that screen readers consistently announce the status regardless of visual display mode.
 **Action:** Always provide explicit `aria-label` descriptors on badge and status components that can be visually collapsed to icons or dots.
+
+## 2026-09-15 - [Structured WAI-ARIA Lists for Conflict Radar File Overlaps]
+**Learning:** Compact conflict notification banners (like `ConflictRadar`) displaying truncated file tags often lack accessible list semantics and full path disclosures. Adding `role="status"` to status containers along with `role="list"`, `role="listitem"`, full path `title` tooltips, and descriptive `aria-label`s on individual file tags enables mouse users to inspect full paths on hover and allows assistive technologies to reliably convey structured conflict lists.
+**Action:** When implementing conflict indicators or tag clusters, wrap them in semantic `role="list"` containers with `role="listitem"` badges, full path `title` tooltips, and context-aware `aria-label` descriptors.
