@@ -246,31 +246,25 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     }
   };
 
-  const completedSessionsMap = useMemo(() => {
-    const map = new Map();
-    allSessions.forEach(s => {
-      if (s.state === "COMPLETED") {
-        const repo = s.sourceContext?.source;
-        if (repo) {
-          if (!map.has(repo)) map.set(repo, []);
-          map.get(repo).push(s);
-        }
-      }
-    });
-    return map;
-  }, [allSessions]);
-
+  // OPTIMIZATION (Bolt): Single-pass O(N) drift session collection for the active session's repository.
+  // Replaces the intermediate Map construction (`completedSessionsMap`) that grouped completed sessions for all
+  // repositories across allSessions on every update, eliminating Map and array allocations.
   const driftSessions = useMemo(() => {
     if (!session) return [];
     const repo = session.sourceContext?.source;
     if (!repo) return [];
-    const repoCompletions = completedSessionsMap.get(repo) || [];
     const currentStart = parseDateMs(session.createTime);
-    return repoCompletions.filter(s => {
-      if (s.id === session.id) return false;
-      return parseDateMs(s.updateTime || s.createTime) > currentStart;
-    });
-  }, [session, completedSessionsMap]);
+    const list = [];
+    for (let i = 0; i < allSessions.length; i++) {
+      const s = allSessions[i];
+      if (s && s.state === "COMPLETED" && s.id !== session.id && s.sourceContext?.source === repo) {
+        if (parseDateMs(s.updateTime || s.createTime) > currentStart) {
+          list.push(s);
+        }
+      }
+    }
+    return list;
+  }, [session, allSessions]);
 
   // OPTIMIZATION (Bolt): Memoize review activities first so filteredActivities can return reviews directly
   // or use Set membership checks when chatFilter is REVIEWS or SYSTEM, avoiding redundant array filtering and string operations.
