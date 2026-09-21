@@ -1,0 +1,27 @@
+<<<<<<< SEARCH
+  return (
+    <div style={{
+      margin: "12px 0 20px", padding: "10px 14px", background: "rgba(252, 211, 77, 0.03)",
+      border: `1px dashed ${T.amber}30`, borderRadius: 8
+    }}>
+      <div style={{ display: "flex", gap: 10, alignItems: "center", cursor: isMulti ? "pointer" : "default" }} onClick={() => isMulti && setExpanded(!expanded)}>
+=======
+  return (
+    <div style={{
+      margin: "12px 0 20px", padding: "10px 14px", background: "rgba(252, 211, 77, 0.03)",
+      border: `1px dashed ${T.amber}30`, borderRadius: 8
+    }}>
+      <div
+        role={isMulti ? "button" : undefined}
+        tabIndex={isMulti ? 0 : undefined}
+        aria-expanded={isMulti ? expanded : undefined}
+        onKeyDown={(e) => {
+          if (isMulti && (e.key === 'Enter' || e.key === ' ')) {
+            e.preventDefault();
+            setExpanded(!expanded);
+          }
+        }}
+        style={{ display: "flex", gap: 10, alignItems: "center", cursor: isMulti ? "pointer" : "default", outline: "none" }}
+        onClick={() => isMulti && setExpanded(!expanded)}
+      >
+>>>>>>> REPLACE

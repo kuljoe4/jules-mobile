@@ -1,0 +1,101 @@
+<<<<<<< SEARCH
+  // OPTIMIZATION (Bolt): Avoid redundant spread operator `[...map()]` array allocation when combining activity list.
+  // Using direct `.map()` result and `for` loop iteration over `driftSessions` eliminates duplicate array allocations.
+  const combined = useMemo(() => {
+    const list = deduped.map(a => ({ type: "activity", data: a, ts: parseDateMs(a.createTime) }));
+    if (driftSessions.length > 0) {
+      for (let i = 0; i < driftSessions.length; i++) {
+        const s = driftSessions[i];
+        list.push({ type: "drift", data: s, ts: parseDateMs(s.updateTime || s.createTime) });
+      }
+    }
+    return list.sort((a, b) => a.ts - b.ts);
+  }, [deduped, driftSessions]);
+
+  return (
+    <>
+      {collapse && (
+        <button onClick={onShowAll} style={{
+          display:"block",width:"100%",marginBottom:14,
+          background:T.surfaceHi,border:`1px solid ${T.border}`,
+          borderRadius:6,padding:"8px 12px",cursor:"pointer",
+          fontFamily:"'JetBrains Mono',monospace",fontSize:11,
+          color:T.textDim,textAlign:"center",letterSpacing:"0.08em",
+        }}>
+          ↑ SHOW {hidden} EARLIER {hidden===1?"EVENT":"EVENTS"}
+        </button>
+      )}
+      {combined.map((item, idx) => {
+        if (item.type === "drift") {
+          return (
+            <div key={`drift-${item.data.id}-${idx}`} style={{
+              margin: "12px 0 20px", padding: "10px 14px", background: "rgba(252, 211, 77, 0.03)",
+              border: `1px dashed ${T.amber}30`, borderRadius: 8, display: "flex", gap: 10, alignItems: "center"
+            }}>
+              <div style={{ width: 20, height: 20, borderRadius: "50%", background: T.amberDim, display: "flex", alignItems: "center", justifyContent: "center", border: `1px solid ${T.amber}40` }}>
+                <Ic n="wifi" s={11} c={T.amber}/>
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{
+                  fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 800, color: T.amber, letterSpacing: "0.05em",
+                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"
+                }} title={item.data.title || item.data.prompt}>
+                  BASE DRIFT · {item.data.title || item.data.prompt}
+                </div>
+                <div style={{ fontFamily: "'IBM Plex Sans',sans-serif", fontSize: 11, color: T.dim }}>
+                  Merged {fmtAgo(item.ts)}
+                </div>
+              </div>
+            </div>
+          );
+        }
+        const act = item.data;
+=======
+  // OPTIMIZATION (Bolt): Avoid redundant spread operator `[...map()]` array allocation when combining activity list.
+  // Using direct `.map()` result and `for` loop iteration over `driftSessions` eliminates duplicate array allocations.
+  const combined = useMemo(() => {
+    const list = deduped.map(a => ({ type: "activity", data: a, ts: parseDateMs(a.createTime) }));
+    if (driftSessions.length > 0) {
+      for (let i = 0; i < driftSessions.length; i++) {
+        const s = driftSessions[i];
+        list.push({ type: "drift", data: s, ts: parseDateMs(s.updateTime || s.createTime) });
+      }
+    }
+    list.sort((a, b) => a.ts - b.ts);
+
+    // Cluster contiguous drift events
+    const clustered = [];
+    for (let i = 0; i < list.length; i++) {
+      if (list[i].type === "drift") {
+        const cluster = { type: "driftCluster", items: [list[i]], ts: list[i].ts };
+        while (i + 1 < list.length && list[i + 1].type === "drift") {
+          cluster.items.push(list[i + 1]);
+          i++;
+        }
+        clustered.push(cluster);
+      } else {
+        clustered.push(list[i]);
+      }
+    }
+    return clustered;
+  }, [deduped, driftSessions]);
+
+  return (
+    <>
+      {collapse && (
+        <button onClick={onShowAll} style={{
+          display:"block",width:"100%",marginBottom:14,
+          background:T.surfaceHi,border:`1px solid ${T.border}`,
+          borderRadius:6,padding:"8px 12px",cursor:"pointer",
+          fontFamily:"'JetBrains Mono',monospace",fontSize:11,
+          color:T.textDim,textAlign:"center",letterSpacing:"0.08em",
+        }}>
+          ↑ SHOW {hidden} EARLIER {hidden===1?"EVENT":"EVENTS"}
+        </button>
+      )}
+      {combined.map((item, idx) => {
+        if (item.type === "driftCluster") {
+          return <DriftCluster key={`drift-cluster-${idx}`} cluster={item.items} />;
+        }
+        const act = item.data;
+>>>>>>> REPLACE
