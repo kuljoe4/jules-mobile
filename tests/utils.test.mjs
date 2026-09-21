@@ -1036,4 +1036,17 @@ await sendNotification(longTitle, longBody, "tag");
 assert.equal(sentTitle.length, 100);
 assert.equal(sentOptions.body.length, 200);
 
+// Test sanitizeErrorMessage
+assert.equal(sanitizeErrorMessage('{"error":{"message":"JSON Error Message"}}'), "JSON Error Message");
+assert.equal(sanitizeErrorMessage('{"message":"Another JSON Error"}'), "Another JSON Error");
+assert.equal(sanitizeErrorMessage('Plain text error'), "Plain text error");
+assert.equal(sanitizeErrorMessage('<!DOCTYPE html><html><body>Error</body></html>', 503), "HTTP 503 Error");
+assert.equal(sanitizeErrorMessage('<html><body>Fatal Error</body></html>', 404), "HTTP 404 Error");
+assert.equal(sanitizeErrorMessage('Error with <b>bold</b> and <i>italic</i> tags'), "Error with bold and italic tags");
+assert.equal(sanitizeErrorMessage("A".repeat(400)), "A".repeat(297) + "...");
+assert.equal(sanitizeErrorMessage('  Too   much \n whitespace \t here  '), "Too much whitespace here");
+assert.equal(sanitizeErrorMessage(''), "HTTP 500 Error");
+assert.equal(sanitizeErrorMessage('', 400), "HTTP 400 Error");
+assert.equal(sanitizeErrorMessage(null), "HTTP 500 Error");
+
 console.log('Utility tests passed');
