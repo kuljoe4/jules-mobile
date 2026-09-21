@@ -1,0 +1,8 @@
+<<<<<<< SEARCH
+import { copyToClipboard } from "../utils/format.js";
+import { MediaModal } from "./mediaModal.jsx";
+=======
+import { useState } from "react";
+import { copyToClipboard } from "../utils/format.js";
+import { MediaModal } from "./mediaModal.jsx";
+>>>>>>> REPLACE

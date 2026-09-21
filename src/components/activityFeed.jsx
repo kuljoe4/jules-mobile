@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { copyToClipboard } from "../utils/format.js";
 import { MediaModal } from "./mediaModal.jsx";
 
@@ -435,6 +436,74 @@ const TimelineEvent = memo(({ act, onMediaClick, onReply }) => {
 });
 
 // ─── Activity Feed ────────────────────────────────────────────────────────────
+const DriftCluster = ({ cluster }) => {
+  const [expanded, setExpanded] = useState(cluster.length === 1);
+  const isMulti = cluster.length > 1;
+
+  return (
+    <div style={{
+      margin: "12px 0 20px", padding: "10px 14px", background: "rgba(252, 211, 77, 0.03)",
+      border: `1px dashed ${T.amber}30`, borderRadius: 8
+    }}>
+      <div
+        role={isMulti ? "button" : undefined}
+        tabIndex={isMulti ? 0 : undefined}
+        aria-expanded={isMulti ? expanded : undefined}
+        onKeyDown={(e) => {
+          if (isMulti && (e.key === 'Enter' || e.key === ' ')) {
+            e.preventDefault();
+            setExpanded(!expanded);
+          }
+        }}
+        style={{ display: "flex", gap: 10, alignItems: "center", cursor: isMulti ? "pointer" : "default", outline: "none" }}
+        onClick={() => isMulti && setExpanded(!expanded)}
+      >
+        <div style={{ width: 20, height: 20, borderRadius: "50%", background: T.amberDim, display: "flex", alignItems: "center", justifyContent: "center", border: `1px solid ${T.amber}40`, flexShrink: 0 }}>
+          <Ic n="wifi" s={11} c={T.amber}/>
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{
+            fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 800, color: T.amber, letterSpacing: "0.05em",
+            display: "flex", alignItems: "center", gap: 6
+          }}>
+            {isMulti ? `${cluster.length} BASE DRIFTS DETECTED` : `BASE DRIFT · ${cluster[0].data.title || cluster[0].data.prompt}`}
+            {isMulti && (
+              <span style={{ fontSize: 9, opacity: 0.7, fontWeight: 700 }}>
+                ({expanded ? "COLLAPSE" : "EXPAND"})
+              </span>
+            )}
+          </div>
+          <div style={{ fontFamily: "'IBM Plex Sans',sans-serif", fontSize: 11, color: T.dim }}>
+            {isMulti ? `Merged over ${fmtAgo(cluster[0].ts)} to ${fmtAgo(cluster[cluster.length - 1].ts)}` : `Merged ${fmtAgo(cluster[0].ts)}`}
+          </div>
+        </div>
+        {isMulti && (
+          <Ic n={expanded ? "chevron_up" : "chevron_down"} s={14} c={T.amber}/>
+        )}
+      </div>
+
+      {expanded && isMulti && (
+        <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px dashed ${T.amber}20`, display: "flex", flexDirection: "column", gap: 6 }}>
+          {cluster.map((c, i) => (
+            <div key={c.data.id || i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+              <div style={{
+                fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: T.amber, opacity: 0.9,
+                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"
+              }} title={c.data.title || c.data.prompt}>
+                • {c.data.title || c.data.prompt}
+              </div>
+              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: T.dim, flexShrink: 0 }}>
+                {fmtAgo(c.ts)}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ─── Activity Feed ────────────────────────────────────────────────────────────
 const COLLAPSE_THRESHOLD = 35;
 const COLLAPSE_SHOW      = 25;
 
@@ -484,7 +553,23 @@ const ActivityFeed = memo(({ activities, showAll, onShowAll, onMediaClick, onEdi
         list.push({ type: "drift", data: s, ts: parseDateMs(s.updateTime || s.createTime) });
       }
     }
-    return list.sort((a, b) => a.ts - b.ts);
+    list.sort((a, b) => a.ts - b.ts);
+
+    // Cluster contiguous drift events
+    const clustered = [];
+    for (let i = 0; i < list.length; i++) {
+      if (list[i].type === "drift") {
+        const cluster = { type: "driftCluster", items: [list[i]], ts: list[i].ts };
+        while (i + 1 < list.length && list[i + 1].type === "drift") {
+          cluster.items.push(list[i + 1]);
+          i++;
+        }
+        clustered.push(cluster);
+      } else {
+        clustered.push(list[i]);
+      }
+    }
+    return clustered;
   }, [deduped, driftSessions]);
 
   return (
@@ -501,28 +586,8 @@ const ActivityFeed = memo(({ activities, showAll, onShowAll, onMediaClick, onEdi
         </button>
       )}
       {combined.map((item, idx) => {
-        if (item.type === "drift") {
-          return (
-            <div key={`drift-${item.data.id}-${idx}`} style={{
-              margin: "12px 0 20px", padding: "10px 14px", background: "rgba(252, 211, 77, 0.03)",
-              border: `1px dashed ${T.amber}30`, borderRadius: 8, display: "flex", gap: 10, alignItems: "center"
-            }}>
-              <div style={{ width: 20, height: 20, borderRadius: "50%", background: T.amberDim, display: "flex", alignItems: "center", justifyContent: "center", border: `1px solid ${T.amber}40` }}>
-                <Ic n="wifi" s={11} c={T.amber}/>
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{
-                  fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 800, color: T.amber, letterSpacing: "0.05em",
-                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"
-                }} title={item.data.title || item.data.prompt}>
-                  BASE DRIFT · {item.data.title || item.data.prompt}
-                </div>
-                <div style={{ fontFamily: "'IBM Plex Sans',sans-serif", fontSize: 11, color: T.dim }}>
-                  Merged {fmtAgo(item.ts)}
-                </div>
-              </div>
-            </div>
-          );
+        if (item.type === "driftCluster") {
+          return <DriftCluster key={`drift-cluster-${item.items[0].data.id || idx}`} cluster={item.items} />;
         }
         const act = item.data;
         const type = getActType(act);
