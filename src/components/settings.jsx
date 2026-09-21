@@ -579,7 +579,7 @@ const SettingsView = ({ onBack, isDesktop, settings, personas, setPersonas, toda
                     <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:700, color:T.textDim}}>APP DATA</span>
                   </div>
                   <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:24, fontWeight:900, color:T.text, marginBottom:16}}>{storage ? fmtBytes((storage.local||0)/1024) : "..."}<span style={{fontSize:10, color:T.textDim, marginLeft:4, fontWeight:500}}>USED</span></div>
-                  <button onClick={clearDataOnly} style={{
+                  <button onClick={clearDataOnly} title="Clear stored application data (drafts, personas, repo stats)" aria-label="Clear application data" style={{
                     width:"100%", padding:"10px", borderRadius:8, background:`${T.purple}15`, border:`1px solid ${T.purple}30`,
                     color:T.purple, fontSize:10, fontWeight:800, fontFamily:"'JetBrains Mono',monospace", cursor:"pointer",
                     transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)"
@@ -592,7 +592,7 @@ const SettingsView = ({ onBack, isDesktop, settings, personas, setPersonas, toda
                     <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:700, color:T.textDim}}>CACHE</span>
                   </div>
                   <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:24, fontWeight:900, color:T.text, marginBottom:16}}>{storage ? fmtBytes((storage.cache||0)/1024) : "..."}<span style={{fontSize:10, color:T.textDim, marginLeft:4, fontWeight:500}}>TOTAL</span></div>
-                  <button onClick={clearCacheOnly} style={{
+                  <button onClick={clearCacheOnly} title="Clear cached GitHub pull requests and session metadata" aria-label="Clear cache data" style={{
                     width:"100%", padding:"10px", borderRadius:8, background:`${T.blue}15`, border:`1px solid ${T.blue}30`,
                     color:T.blue, fontSize:10, fontWeight:800, fontFamily:"'JetBrains Mono',monospace", cursor:"pointer",
                     transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)"
@@ -623,7 +623,7 @@ const SettingsView = ({ onBack, isDesktop, settings, personas, setPersonas, toda
                 <div style={{fontFamily:"'IBM Plex Sans',sans-serif", fontSize:13, color:T.textDim, marginBottom:20, lineHeight:1.6}}>
                   This will perform a full system purge, including API keys and all local session data. Use with caution.
                 </div>
-                <button onClick={resetApp} style={{
+                <button onClick={resetApp} title="Reset all settings, keys, and local data back to initial defaults" aria-label="Full system reset" style={{
                   width:"100%", maxWidth:240, padding:"12px 20px", borderRadius:8,
                   background:T.red, border:"none",
                   color:"#000", fontFamily:"'JetBrains Mono',monospace", fontSize:12,
@@ -662,14 +662,14 @@ const SettingsView = ({ onBack, isDesktop, settings, personas, setPersonas, toda
           onClose={() => setIsAdding(false)}
           actions={
             <div style={{display:"flex", gap:10, width:"100%"}}>
-              <button onClick={() => setIsAdding(false)} style={{flex:1, padding:10, borderRadius:8, background:T.surface, border:`1px solid ${T.border}`, color:T.text, fontSize:11, fontWeight:700, fontFamily:"'JetBrains Mono',monospace", cursor:"pointer"}}>CANCEL</button>
+              <button onClick={() => setIsAdding(false)} title="Cancel adding persona" aria-label="Cancel adding persona" style={{flex:1, padding:10, borderRadius:8, background:T.surface, border:`1px solid ${T.border}`, color:T.text, fontSize:11, fontWeight:700, fontFamily:"'JetBrains Mono',monospace", cursor:"pointer"}}>CANCEL</button>
               <button onClick={() => {
                 if (!newName.trim() || !newPrompt.trim()) return alert("Label and Prompt are required!");
                 const id = "custom_" + Date.now();
                 saveCustomPersona({ id, label: newName.trim(), prompt: newPrompt.trim(), color: newColor });
                 setPersonas(loadPersonas());
                 setIsAdding(false);
-              }} style={{flex:1, padding:10, borderRadius:8, background:T.brand, border:"none", color:T.brandText, fontSize:11, fontWeight:700, fontFamily:"'JetBrains Mono',monospace", cursor:"pointer"}}>SAVE PERSONA</button>
+              }} title="Save custom persona" aria-label="Save custom persona" style={{flex:1, padding:10, borderRadius:8, background:T.brand, border:"none", color:T.brandText, fontSize:11, fontWeight:700, fontFamily:"'JetBrains Mono',monospace", cursor:"pointer"}}>SAVE PERSONA</button>
             </div>
           }
         >
@@ -723,7 +723,7 @@ const SettingsView = ({ onBack, isDesktop, settings, personas, setPersonas, toda
           actions={
             <div style={{display:"flex", gap:10, width:"100%", flexDirection:"column"}}>
               <div style={{display:"flex", gap:10, width:"100%"}}>
-                <button onClick={() => setEditingPersona(null)} style={{flex:1, padding:10, borderRadius:8, background:T.surface, border:`1px solid ${T.border}`, color:T.text, fontSize:11, fontWeight:700, fontFamily:"'JetBrains Mono',monospace", cursor:"pointer"}}>CANCEL</button>
+                <button onClick={() => setEditingPersona(null)} title="Cancel editing persona" aria-label="Cancel editing persona" style={{flex:1, padding:10, borderRadius:8, background:T.surface, border:`1px solid ${T.border}`, color:T.text, fontSize:11, fontWeight:700, fontFamily:"'JetBrains Mono',monospace", cursor:"pointer"}}>CANCEL</button>
                 <button onClick={() => {
                   if (!newName.trim() || !newPrompt.trim()) return alert("Label and Prompt are required!");
                   if (editingPersona.isCustom) {
@@ -733,7 +733,7 @@ const SettingsView = ({ onBack, isDesktop, settings, personas, setPersonas, toda
                   }
                   setPersonas(loadPersonas());
                   setEditingPersona(null);
-                }} style={{flex:1, padding:10, borderRadius:8, background:T.brand, border:"none", color:T.brandText, fontSize:11, fontWeight:700, fontFamily:"'JetBrains Mono',monospace", cursor:"pointer"}}>SAVE CHANGES</button>
+                }} title="Save persona changes" aria-label="Save persona changes" style={{flex:1, padding:10, borderRadius:8, background:T.brand, border:"none", color:T.brandText, fontSize:11, fontWeight:700, fontFamily:"'JetBrains Mono',monospace", cursor:"pointer"}}>SAVE CHANGES</button>
               </div>
               {editingPersona.isCustom && (
                 <button onClick={() => {
@@ -742,7 +742,7 @@ const SettingsView = ({ onBack, isDesktop, settings, personas, setPersonas, toda
                     setPersonas(loadPersonas());
                     setEditingPersona(null);
                   }
-                }} style={{width:"100%", padding:10, borderRadius:8, background:`${T.red}15`, border:`1px solid ${T.red}30`, color:T.red, fontSize:11, fontWeight:700, fontFamily:"'JetBrains Mono',monospace", cursor:"pointer"}}>DELETE PERSONA</button>
+                }} title="Delete custom persona" aria-label="Delete custom persona" style={{width:"100%", padding:10, borderRadius:8, background:`${T.red}15`, border:`1px solid ${T.red}30`, color:T.red, fontSize:11, fontWeight:700, fontFamily:"'JetBrains Mono',monospace", cursor:"pointer"}}>DELETE PERSONA</button>
               )}
             </div>
           }
