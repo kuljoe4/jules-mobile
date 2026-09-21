@@ -116,10 +116,6 @@ function JulesClient() {
     setMobileRaw(s);
   }, []);
   const [refreshing,setRefreshing] = useState(false);
-  // OPTIMIZATION (Bolt): Removed global root-level `netSnap` state and subscription from JulesClient.
-  // Since netSnap was unused for rendering in JulesClient, every network record (NET.record) previously
-  // triggered a full root-level re-render of the entire tree. Removing this redundant subscription isolates
-  // network updates strictly to SettingsView and NetworkMonitor, eliminating severe CPU/Virtual DOM churn.
 
   const lastFetchTime = useRef(null);
   const deltaPollCountRef = useRef(0);
