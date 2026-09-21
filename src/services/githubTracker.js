@@ -746,15 +746,21 @@ const GitHubTracker = {
     const timeoutMs = SafeStorage.loadApiTimeout();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
+    // Security: Sanitize title and body to prevent control character/null-byte injection and payload bloat.
+    const cleanTitle = (typeof title === "string" ? title : "").replace(/[\x00-\x1F\x7F]/g, "").trim().slice(0, 250);
+    const cleanBody = (typeof body === "string" ? body : "").replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "").trim().slice(0, 10000);
+    const finalTitle = cleanTitle || `Merge changes from ${head}`;
+    const finalBody = cleanBody || "Created via Jules Mobile Client";
+
     try {
       const res = await fetch(apiUrl, {
         method: "POST",
         headers,
         body: JSON.stringify({
-          title: title || `Merge changes from ${head}`,
+          title: finalTitle,
           head,
           base: base || "main",
-          body: body || "Created via Jules Mobile Client"
+          body: finalBody
         }),
         signal: controller.signal
       });
@@ -817,6 +823,10 @@ const GitHubTracker = {
     const timeoutMs = SafeStorage.loadApiTimeout();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
+    // Security: Sanitize commitMessage to prevent control character/null-byte injection and payload bloat.
+    const cleanMsg = (typeof commitMessage === "string" ? commitMessage : "").replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "").trim().slice(0, 2000);
+    const finalMsg = cleanMsg || `Merge branch '${head}' into '${base}'`;
+
     try {
       const res = await fetch(apiUrl, {
         method: "POST",
@@ -824,7 +834,7 @@ const GitHubTracker = {
         body: JSON.stringify({
           base,
           head,
-          commit_message: commitMessage || `Merge branch '${head}' into '${base}'`
+          commit_message: finalMsg
         }),
         signal: controller.signal
       });
@@ -839,7 +849,9 @@ const GitHubTracker = {
       this.BRANCH_INFO_CACHE.clear();
       this.PR_INFO_CACHE.clear();
       this.PENDING_PR_PROPOSAL_CACHE.clear();
-      window.dispatchEvent(new CustomEvent("gh-pr-updated", { detail: { repo, mergedBranch: head, intoBase: base } }));
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("gh-pr-updated", { detail: { repo, mergedBranch: head, intoBase: base } }));
+      }
       return data;
     } catch (err) {
       clearTimeout(timeoutId);

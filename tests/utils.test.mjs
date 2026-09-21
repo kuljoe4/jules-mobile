@@ -632,6 +632,68 @@ await assert.rejects(
   { message: 'Invalid head branch name ("bad head name").' }
 );
 
+// Test createPullRequest and mergeBranch title, body, and commitMessage sanitization against control characters and null bytes
+{
+  const origFetch = globalThis.fetch;
+  let lastFetchBody = null;
+
+  const mockFetch = async (url, opts) => {
+    if (opts?.body) {
+      lastFetchBody = JSON.parse(opts.body);
+    }
+    return {
+      ok: true,
+      status: 200,
+      headers: new Map(),
+      json: async () => ({ html_url: "https://github.com/owner/repo/pull/1" })
+    };
+  };
+
+  globalThis.fetch = mockFetch;
+  if (typeof global !== "undefined") global.fetch = mockFetch;
+
+  try {
+    SafeStorage.saveGithubToken("ghp_validTestToken123");
+
+    // 1. Test createPullRequest sanitizes control characters and null bytes in title and body
+    await createPullRequest({
+      repo: "owner/repo",
+      head: "feature-branch",
+      base: "main",
+      title: "  Fix bug\x00\x07 in UI\r\n  ",
+      body: "  Description with\x00\x07 null byte  "
+    });
+
+    assert.equal(lastFetchBody.title, "Fix bug in UI");
+    assert.equal(lastFetchBody.body, "Description with null byte");
+
+    // 2. Test createPullRequest bounds title length (max 250)
+    const longTitle = "A".repeat(300);
+    await createPullRequest({
+      repo: "owner/repo",
+      head: "feature-branch",
+      base: "main",
+      title: longTitle
+    });
+
+    assert.equal(lastFetchBody.title.length, 250);
+
+    // 3. Test mergeBranch sanitizes control characters and null bytes in commitMessage
+    await mergeBranch({
+      repo: "owner/repo",
+      head: "feature-branch",
+      base: "main",
+      commitMessage: "  Merge PR\x00\x07 into main\r\n  "
+    });
+
+    assert.equal(lastFetchBody.commit_message, "Merge PR into main");
+
+  } finally {
+    globalThis.fetch = origFetch;
+    if (typeof global !== "undefined") global.fetch = origFetch;
+  }
+}
+
 // Test createPullRequest parameter validation
 await assert.rejects(
   async () => {
