@@ -543,15 +543,16 @@ const ActivityFeed = memo(({ activities, showAll, onShowAll, onMediaClick, onEdi
     return list;
   }, [visible]);
 
-  // OPTIMIZATION (Bolt): Avoid redundant spread operator `[...map()]` array allocation when combining activity list.
-  // Using direct `.map()` result and `for` loop iteration over `driftSessions` eliminates duplicate array allocations.
+  // OPTIMIZATION (Bolt): Avoid redundant date parsing and sorting when driftSessions is empty.
+  // Since deduped is derived from chronological activities, sorting is only required when driftSessions > 0.
   const combined = useMemo(() => {
+    if (driftSessions.length === 0) {
+      return deduped.map(a => ({ type: "activity", data: a }));
+    }
     const list = deduped.map(a => ({ type: "activity", data: a, ts: parseDateMs(a.createTime) }));
-    if (driftSessions.length > 0) {
-      for (let i = 0; i < driftSessions.length; i++) {
-        const s = driftSessions[i];
-        list.push({ type: "drift", data: s, ts: parseDateMs(s.updateTime || s.createTime) });
-      }
+    for (let i = 0; i < driftSessions.length; i++) {
+      const s = driftSessions[i];
+      list.push({ type: "drift", data: s, ts: parseDateMs(s.updateTime || s.createTime) });
     }
     list.sort((a, b) => a.ts - b.ts);
 
