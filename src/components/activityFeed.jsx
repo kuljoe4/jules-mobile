@@ -522,7 +522,8 @@ const ActivityFeed = memo(({ activities, showAll, onShowAll, onMediaClick, onEdi
 
   const deduped = useMemo(() => {
     const list = [];
-    let lastPKey = null;
+    let lastPTitle = null;
+    let lastPDesc = null;
     let lastType = null;
     for (const a of visible) {
       const type = getActType(a);
@@ -531,11 +532,14 @@ const ActivityFeed = memo(({ activities, showAll, onShowAll, onMediaClick, onEdi
 
       if (a.progressUpdated) {
         const p = a.progressUpdated;
-        const pKey = `${p.title || ""}:${p.description || ""}`;
-        if (lastPKey === pKey) continue;
-        lastPKey = pKey;
+        const pTitle = p.title || "";
+        const pDesc = p.description || "";
+        if (lastPTitle === pTitle && lastPDesc === pDesc) continue;
+        lastPTitle = pTitle;
+        lastPDesc = pDesc;
       } else {
-        lastPKey = null;
+        lastPTitle = null;
+        lastPDesc = null;
       }
       list.push(a);
       lastType = type;
