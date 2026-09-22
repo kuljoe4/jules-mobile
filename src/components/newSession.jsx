@@ -72,11 +72,13 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
                   flex:2, padding:"14px", borderRadius:10, border:"none",
                   background:T.brand, color:"#000", cursor:"pointer",
                   fontFamily:"'JetBrains Mono',monospace", fontSize:12, fontWeight:900,
-                  boxShadow:`0 8px 24px ${T.brand}40`, transition:"transform .2s cubic-bezier(0.4, 0, 0.2, 1)"
+                  boxShadow:`0 8px 24px ${T.brand}40`, transition:"transform .2s cubic-bezier(0.4, 0, 0.2, 1)",
+                  display:"flex", alignItems:"center", justifyContent:"center", gap:6
                 }}
                 onMouseEnter={e => e.currentTarget.style.transform = "translateY(-2px)"}
                 onMouseLeave={e => e.currentTarget.style.transform = "none"}
               >
+                {submitting && <div style={{ display: "flex", animation: "spin 1s linear infinite" }}><Ic n="refresh" s={14} c="#000" /></div>}
                 {submitting ? "STARTING..." : "START SESSION →"}
               </button>
             </>
