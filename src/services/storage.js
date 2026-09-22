@@ -1,4 +1,5 @@
 import { DEFAULT_LEAN_DIRECTIVE } from "../config/constants.js";
+import { DEFAULT_PERSONAS } from "../config/personas.js";
 import { isValidGithubRepoName, isValidGithubToken, isValidGoogleApiKey, isValidSessionId, isValidStorageKey, sanitizeObjectKeys } from "../utils/validation.js";
 
 // ─── Safe Storage Service ────────────────────────────────────────────────────
@@ -226,34 +227,62 @@ const SafeStorage = {
     return false;
   },
 
+  // Security: Sanitizes persona system prompts and custom focus role parameters against control character prompt injection
+  // and LocalStorage state tampering by enforcing string types, stripping non-printable ASCII control characters
+  // while preserving multiline formatting (\n, \r, \t), and bounding max character lengths.
   loadPersonas() {
     try {
       const saved = this.getJSON(this.KEYS.PERSONA_PROMPTS, {});
       const custom = this.getJSON(this.KEYS.CUSTOM_PERSONAS, []);
-      const mergedDefaults = DEFAULT_PERSONAS.map(p => ({
-        ...p,
-        prompt: saved[p.id] || p.prompt
-      }));
-      return [...mergedDefaults, ...custom.map(c => ({ ...c, isCustom: true }))];
+      const mergedDefaults = DEFAULT_PERSONAS.map(p => {
+        const raw = saved[p.id];
+        const cleanPrompt = typeof raw === "string" ? raw.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "").slice(0, 5000) : p.prompt;
+        return {
+          ...p,
+          prompt: cleanPrompt || p.prompt
+        };
+      });
+      const cleanCustom = custom.map(c => {
+        const cleanObj = sanitizeObjectKeys(c);
+        return {
+          ...cleanObj,
+          label: typeof cleanObj.label === "string" ? cleanObj.label.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "").trim().slice(0, 100) : "",
+          role: typeof cleanObj.role === "string" ? cleanObj.role.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "").trim().slice(0, 100) : "",
+          prompt: typeof cleanObj.prompt === "string" ? cleanObj.prompt.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "").slice(0, 5000) : "",
+          color: typeof cleanObj.color === "string" ? cleanObj.color.replace(/[\x00-\x1F\x7F\s]/g, "").slice(0, 30) : "",
+          isCustom: true
+        };
+      });
+      return [...mergedDefaults, ...cleanCustom];
     } catch {
       return DEFAULT_PERSONAS;
     }
   },
-  // Security: Validates persona prompt key against Prototype Pollution and property shadowing.
+  // Security: Validates persona prompt key and sanitizes prompt text against Prototype Pollution, control character injection, and payload bloat.
   savePersonaPrompt(id, prompt) {
-    if (!isValidStorageKey(id)) return false;
+    if (!isValidStorageKey(id) || typeof prompt !== "string") return false;
+    const cleanPrompt = prompt.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "").slice(0, 5000);
     try {
       const saved = this.getJSON(this.KEYS.PERSONA_PROMPTS, {});
-      saved[id] = prompt;
+      saved[id] = cleanPrompt;
       return this.setJSON(this.KEYS.PERSONA_PROMPTS, saved);
     } catch {
       return false;
     }
   },
+  // Security: Sanitizes custom persona fields against Prototype Pollution, control character prompt injection, and payload bloat.
   saveCustomPersona(persona) {
     if (!persona || typeof persona !== 'object' || !isValidStorageKey(persona.id)) return false;
     try {
-      const cleanPersona = sanitizeObjectKeys(persona);
+      const cleanObj = sanitizeObjectKeys(persona);
+      const cleanPersona = {
+        ...cleanObj,
+        id: cleanObj.id,
+        label: typeof cleanObj.label === "string" ? cleanObj.label.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "").trim().slice(0, 100) : "",
+        role: typeof cleanObj.role === "string" ? cleanObj.role.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "").trim().slice(0, 100) : "",
+        prompt: typeof cleanObj.prompt === "string" ? cleanObj.prompt.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "").slice(0, 5000) : "",
+        color: typeof cleanObj.color === "string" ? cleanObj.color.replace(/[\x00-\x1F\x7F\s]/g, "").slice(0, 30) : ""
+      };
       const custom = this.getJSON(this.KEYS.CUSTOM_PERSONAS, []);
       const index = custom.findIndex(p => p.id === cleanPersona.id);
       if (index >= 0) {

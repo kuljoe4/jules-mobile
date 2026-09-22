@@ -106,13 +106,44 @@ assert.equal(isValidStorageKey(''), false);
 assert.equal(isValidStorageKey(null), false);
 assert.equal(isValidStorageKey(123), false);
 
-// Test SafeStorage defense against Prototype Pollution keys
+// Test SafeStorage defense against Prototype Pollution keys, control characters, and length bounds in persona prompts & custom personas
 assert.equal(SafeStorage.savePersonaPrompt('toString', 'invalid prompt'), false);
 assert.equal(SafeStorage.savePersonaPrompt('__proto__', 'invalid prompt'), false);
 assert.equal(SafeStorage.savePersonaPrompt('valid_persona_id', 'valid prompt'), true);
+assert.equal(SafeStorage.savePersonaPrompt('valid_persona_id', 12345), false);
+
+// Test savePersonaPrompt control character stripping, multiline newline preservation, and max length 5000 bounding
+const dirtyPrompt = "System Prompt\x00\x07 with null byte\nand valid newline\r\nand tab\t";
+assert.equal(SafeStorage.savePersonaPrompt('sec', dirtyPrompt), true);
+const loadedPersonas = SafeStorage.loadPersonas();
+const secPersona = loadedPersonas.find(p => p.id === 'sec');
+assert.equal(secPersona.prompt, "System Prompt with null byte\nand valid newline\r\nand tab\t");
+
+const longPrompt = "A".repeat(6000);
+assert.equal(SafeStorage.savePersonaPrompt('sec', longPrompt), true);
+const loadedLongPersona = SafeStorage.loadPersonas().find(p => p.id === 'sec');
+assert.equal(loadedLongPersona.prompt.length, 5000);
 
 assert.equal(SafeStorage.saveCustomPersona({ id: 'toString', label: 'bad' }), false);
 assert.equal(SafeStorage.saveCustomPersona({ id: '__proto__', label: 'bad' }), false);
+
+// Test saveCustomPersona sanitization and length bounding
+const customPersonaSample = {
+  id: 'custom_sec_1',
+  label: '  Security Reviewer\x00\x07  ',
+  role: 'AppSec Lead\x00',
+  prompt: 'Custom Prompt\x00 with multiline\nlines',
+  color: '#00ff00\x00\n'
+};
+assert.equal(SafeStorage.saveCustomPersona(customPersonaSample), true);
+const loadedCustomPersonas = SafeStorage.loadPersonas();
+const loadedCustom = loadedCustomPersonas.find(p => p.id === 'custom_sec_1');
+assert.equal(loadedCustom.label, "Security Reviewer");
+assert.equal(loadedCustom.role, "AppSec Lead");
+assert.equal(loadedCustom.prompt, "Custom Prompt with multiline\nlines");
+assert.equal(loadedCustom.color, "#00ff00");
+assert.equal(loadedCustom.isCustom, true);
+
 assert.equal(SafeStorage.deleteCustomPersona('toString'), false);
 
 assert.equal(SafeStorage.incRepoStat('toString'), false);
