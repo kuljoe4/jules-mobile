@@ -69,6 +69,7 @@ const CreatePRModal = ({ defaultTitle, defaultBody, repo, headBranch, baseBranch
               display: "flex", alignItems: "center", justifyContent: "center", gap: 6
             }}
           >
+            {busy && <div style={{ display: "flex", animation: "spin 1s linear infinite" }}><Ic n="refresh" s={12} c={T.brandLight} /></div>}
             {busy ? "WORKING..." : "CREATE PR"}
           </button>
           <button
@@ -85,6 +86,7 @@ const CreatePRModal = ({ defaultTitle, defaultBody, repo, headBranch, baseBranch
             title={!prTitle.trim() ? "Title is required to create and merge Pull Request" : busy ? "Creating and merging Pull Request..." : "Create Pull Request and merge immediately in 1 click"}
             aria-label={!prTitle.trim() ? "Title is required to create and merge Pull Request" : busy ? "Creating and merging Pull Request..." : "Create Pull Request and merge immediately in 1 click"}
           >
+            {busy && <div style={{ display: "flex", animation: "spin 1s linear infinite" }}><Ic n="refresh" s={12} c="#000" /></div>}
             {busy ? "MERGING..." : "⚡ CREATE & MERGE NOW"}
           </button>
         </div>
