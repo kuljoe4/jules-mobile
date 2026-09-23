@@ -194,7 +194,7 @@ export const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFe
       </div>
 
       {/* Global feedback + actions — only when pending approval */}
-      {pendingApproval&&!approved&&(
+      {pendingApproval&&(
         <div style={{
           background:T.surface,border:`1px solid ${T.border}`,
           borderRadius:7,padding:"12px 14px",
@@ -248,6 +248,9 @@ export const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFe
               if (busy || sending) {
                 approveTitle = "Processing plan approval...";
                 approveAria = "Processing plan approval";
+              } else if (approved) {
+                approveTitle = "Plan already approved";
+                approveAria = "Plan already approved";
               } else {
                 approveTitle = "Approve execution plan and begin task execution";
                 approveAria = "Approve execution plan and begin task execution";
@@ -257,7 +260,7 @@ export const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFe
                 <>
                   <Btn
                     onClick={handleRequestRevision}
-                    disabled={!hasFeedback||sending||busy}
+                    disabled={!hasFeedback||sending||busy||approved}
                     color={T.amber} outline sm
                     title={reviseTitle}
                     aria-label={reviseAria}
@@ -267,14 +270,14 @@ export const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFe
                   </Btn>
                   <Btn
                     onClick={onApprove}
-                    disabled={busy||sending}
-                    color={T.purple} sm
+                    disabled={busy||sending||approved}
+                    color={approved?T.brand:T.purple} sm
                     title={approveTitle}
                     aria-label={approveAria}
                     style={{flex:1}}
                   >
                     <Ic n="approve" s={11} c="#000"/>
-                    {busy?"APPROVING…":"APPROVE PLAN"}
+                    {approved?"APPROVED":busy?"APPROVING…":"APPROVE PLAN"}
                   </Btn>
                 </>
               );
