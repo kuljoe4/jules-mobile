@@ -423,8 +423,8 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
           {(() => {
             const isOverQuota = plan && todayCount.total >= plan.daily;
             let startBtnTitle = undefined;
-            if (!prompt.trim()) {
-              startBtnTitle = "Please enter a task prompt first";
+            if (!prompt.trim() && selectedPersonas.size === 0) {
+              startBtnTitle = "Please enter a task prompt or select a persona first";
             } else if (submitting) {
               startBtnTitle = "Assigning task to Jules...";
             } else if (loadingSrc) {
@@ -436,8 +436,8 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
             }
 
             let draftBtnTitle = undefined;
-            if (!prompt.trim()) {
-              draftBtnTitle = "Please enter a task prompt first";
+            if (!prompt.trim() && selectedPersonas.size === 0) {
+              draftBtnTitle = "Please enter a task prompt or select a persona first";
             } else if (submitting) {
               draftBtnTitle = "Submitting task...";
             } else {
@@ -446,11 +446,11 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
 
             return (
               <div style={{display:"flex", gap:10}}>
-                <Btn onClick={handleSaveToBox} disabled={!prompt.trim()||submitting} outline title={draftBtnTitle} aria-label={draftBtnTitle} style={{flex:1}}>
+                <Btn onClick={handleSaveToBox} disabled={(!prompt.trim() && selectedPersonas.size === 0) || submitting} outline title={draftBtnTitle} aria-label={draftBtnTitle} style={{flex:1}}>
                   <Ic n="archive" s={14} c={T.brand}/>
                   SAVE DRAFT
                 </Btn>
-                <Btn onClick={() => setShowConfirm(true)} disabled={!prompt.trim()||submitting||loadingSrc||isOverQuota} title={startBtnTitle} aria-label={startBtnTitle} style={{flex:2}}>
+                <Btn onClick={() => setShowConfirm(true)} disabled={(!prompt.trim() && selectedPersonas.size === 0) || submitting || loadingSrc || isOverQuota} title={startBtnTitle} aria-label={startBtnTitle} style={{flex:2}}>
                   {submitting?"SENDING…":"ASSIGN TO JULES →"}
                 </Btn>
               </div>

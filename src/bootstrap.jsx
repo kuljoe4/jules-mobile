@@ -4,7 +4,6 @@ if (window.__splashMsg) __splashMsg("MOUNTING APP…", "building component tree 
 // Strict dependency check before proceeding
 (function checkDeps() {
   const deps = { React: typeof React, ReactDOM: typeof ReactDOM };
-  console.log('[Boot] Checking dependencies:', deps);
   if (deps.React === 'undefined' || deps.ReactDOM === 'undefined') {
     throw new Error('Critical dependencies missing: ' + JSON.stringify(deps));
   }
