@@ -1,6 +1,8 @@
 const areEqual = (prevProps, nextProps) => {
   return (
     prevProps.isSelected === nextProps.isSelected &&
+    prevProps.isBulkSelected === nextProps.isBulkSelected &&
+    prevProps.selectionMode === nextProps.selectionMode &&
     prevProps.index === nextProps.index &&
     prevProps.lastReadTs === nextProps.lastReadTs &&
     prevProps.hasFollowupDraft === nextProps.hasFollowupDraft &&
@@ -19,7 +21,7 @@ const areEqual = (prevProps, nextProps) => {
 // OPTIMIZATION (Bolt): Support reference-stable `onSelect` callback in SessionCard alongside `onPress`.
 // Passing a stable `onSelect` prop directly from SessionList avoids creating inline closures on every
 // render pass (such as 1-second countdown ticks), allowing React.memo on SessionCard to successfully skip re-renders.
-const SessionCard = memo(({ s, onPress, onSelect, isSelected, index, activities = [], stats, lastReadTs, latestCompletedTime, hasFollowupDraft }) => {
+const SessionCard = memo(({ s, onPress, onSelect, isSelected, isBulkSelected, onToggleSelect, selectionMode, index, activities = [], stats, lastReadTs, latestCompletedTime, hasFollowupDraft }) => {
   const cardRef = useRef(null);
   const [ghPrNonce, setGhPrNonce] = useState(0);
 
@@ -168,7 +170,40 @@ const SessionCard = memo(({ s, onPress, onSelect, isSelected, index, activities 
       onBlur={e => e.currentTarget.style.borderColor = borderColor}
     >
       <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6,flexWrap:"nowrap",width:"100%",overflow:"hidden"}}>
-        <div style={{width:16,fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.muted,fontWeight:800,opacity:0.35,flexShrink:0}}>{index}</div>
+
+        <div style={{ position: "relative", width: 16, height: 16, flexShrink: 0, marginRight: 4 }}>
+        {selectionMode ? (
+          <button
+            onClick={(e) => { e.stopPropagation(); if (onToggleSelect) onToggleSelect(s.id); }}
+            title={isBulkSelected ? "Deselect session" : "Select session"}
+            aria-label={isBulkSelected ? "Deselect session" : "Select session"}
+            aria-checked={isBulkSelected}
+            role="checkbox"
+            style={{
+              width: 16, height: 16, borderRadius: 4, flexShrink: 0,
+              border: `1px solid ${isBulkSelected ? T.brand : T.border}`,
+              background: isBulkSelected ? T.brand : "transparent",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              cursor: "pointer", transition: "all .15s ease",
+              marginRight: 4
+            }}
+          >
+            {isBulkSelected && <Ic n="check" s={10} c="#000" />}
+          </button>
+        ) : (
+          <div style={{width:16, height:16, display:"flex", alignItems:"center", fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.muted,fontWeight:800,opacity:0.35,flexShrink:0}}>{index}</div>
+        )}
+        {/* Invisible button overlay to allow starting selection on long press or shift click, but keeping it simple for now, we can show checkbox on hover by adding a class, but inline styles are used. Let's just always render the checkbox if they hover over the index area */}
+        {!selectionMode && (
+          <button
+            onClick={(e) => { e.stopPropagation(); if (onToggleSelect) onToggleSelect(s.id); }}
+            title="Select session"
+            aria-label="Select session"
+            style={{ position: "absolute", inset: -4, opacity: 0, cursor: "pointer", border: "none", background: "transparent" }}
+          />
+        )}
+      </div>
+
         <div
           title={m.label}
           aria-label={`Status: ${m.label}`}
