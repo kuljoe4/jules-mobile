@@ -213,6 +213,90 @@ function JulesClient() {
     SafeStorage.saveReadMap(readMap);
   }, [readMap]);
 
+
+  const handleBulkDelete = useCallback(async (ids) => {
+    if (!confirm(`Are you sure you want to delete ${ids.length} session(s)?`)) return;
+    setSessions(prev => prev.filter(s => !ids.includes(s.id)));
+    ids.forEach(id => {
+      lastStates.current.delete(id);
+      try { SafeStorage.clearFollowupDraft(id); } catch {}
+    });
+    setDraftsMap(prev => {
+      const next = { ...prev };
+      ids.forEach(id => delete next[id]);
+      return next;
+    });
+    if (selected && ids.includes(selected.id)) {
+      setSelected(null);
+      setDesktop("empty");
+      setMobile("detail");
+    }
+
+    for (const id of ids) {
+      apiCall(apiKey, `/sessions/${id}`, { method:"DELETE" }).catch(err => console.error(err));
+    }
+  }, [apiKey, selected]);
+
+  const handleBulkArchive = useCallback((ids) => {
+    setArchivedIds(prev => {
+      const next = new Set(prev);
+      ids.forEach(id => next.add(id));
+      return next;
+    });
+  }, []);
+
+  const handleBulkUnarchive = useCallback((ids) => {
+    setArchivedIds(prev => {
+      const next = new Set(prev);
+      ids.forEach(id => next.delete(id));
+      return next;
+    });
+  }, []);
+
+
+
+  const handleBulkResume = useCallback(async (ids) => {
+    // Optimistic update
+    setSessions(prev => prev.map(s => {
+      if (ids.includes(s.id)) return { ...s, state: "QUEUED" };
+      return s;
+    }));
+
+    for (const id of ids) {
+      lastStates.current.set(id, "QUEUED");
+      apiCall(apiKey, `/sessions/${id}:resume`, { method:"POST" }).catch(err => console.error(err));
+    }
+  }, [apiKey]);
+
+  const handleBulkPause = useCallback(async (ids) => {
+    if (!confirm(`Are you sure you want to pause ${ids.length} session(s)?`)) return;
+
+    // Optimistic update
+    setSessions(prev => prev.map(s => {
+      if (ids.includes(s.id)) return { ...s, state: "PAUSED" };
+      return s;
+    }));
+
+    for (const id of ids) {
+      lastStates.current.set(id, "PAUSED");
+      apiCall(apiKey, `/sessions/${id}:pause`, { method:"POST" }).catch(err => console.error(err));
+    }
+  }, [apiKey]);
+
+  const handleBulkIgnore = useCallback((ids) => {
+    if (!confirm(`Are you sure you want to ignore ${ids.length} session(s)? This will remove them from your active list.`)) return;
+    setIgnoredIds(prev => {
+      const next = new Set(prev);
+      ids.forEach(id => next.add(id));
+      return next;
+    });
+    if (selected && ids.includes(selected.id)) {
+      setSelected(null);
+      setDesktop("empty");
+      setMobile("detail");
+    }
+  }, [selected]);
+
   const handleArchive = useCallback(id => {
     setArchivedIds(prev => {
       const next = new Set(prev);
@@ -622,6 +706,7 @@ function JulesClient() {
           zIndex: 10
         }}>
           <SessionList
+            onBulkDelete={handleBulkDelete} onBulkArchive={handleBulkArchive} onBulkUnarchive={handleBulkUnarchive} onBulkIgnore={handleBulkIgnore} onBulkPause={handleBulkPause} onBulkResume={handleBulkResume}
             onSelect={handleSelect} onRefresh={()=>fetchSessions(false)}
             refreshing={refreshing} justRefreshed={justRefreshed} selectedId={selected?.id}
             isDesktop onNew={()=>setDesktop("new")}
@@ -751,7 +836,7 @@ function JulesClient() {
               flexDirection:"column",
               animation: drawerClosing ? "slideLeft .22s cubic-bezier(0.4, 0, 0.2, 1) forwards" : "slideRight .25s cubic-bezier(0.4, 0, 0.2, 1)"
             }}>
-              <SessionList sessions={allSessions} onSelect={handleSelect} onRefresh={()=>fetchSessions(false)}
+              <SessionList sessions={allSessions} onBulkDelete={handleBulkDelete} onBulkArchive={handleBulkArchive} onBulkUnarchive={handleBulkUnarchive} onBulkIgnore={handleBulkIgnore} onBulkPause={handleBulkPause} onBulkResume={handleBulkResume} onSelect={handleSelect} onRefresh={()=>fetchSessions(false)}
                 refreshing={refreshing} justRefreshed={justRefreshed} selectedId={selected?.id} isDesktop={false}
                 onNew={() => { setSelectedDraft(null); closeMobileDrawer(); setMobile("new"); }}
                 onDrafts={() => { closeMobileDrawer(); setMobile("drafts"); }}
