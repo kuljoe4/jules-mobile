@@ -1044,15 +1044,15 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
 
   // Auto-switch to PLAN tab when AWAITING_PLAN_APPROVAL
   useEffect(() => {
-    if (currentState === "AWAITING_PLAN_APPROVAL" && latestPlan && !isApproved) setTab("plan");
-  }, [currentState, latestPlan, isApproved]);
+    if (currentState === "AWAITING_PLAN_APPROVAL" && !isApproved) setTab("plan");
+  }, [currentState, isApproved]);
 
 
   const TABS = [
     { id:"activity", label:"CHAT" },
     { id:"prompt",   label:"PROMPT" },
     ...(reviews.length > 0 ? [{ id: "reviews", label: "REVIEWS" }] : []),
-    ...(latestPlan?[{ id:"plan", label:"PLAN" }]:[]),
+    ...(latestPlan || currentState === "AWAITING_PLAN_APPROVAL" ? [{ id:"plan", label:"PLAN" }] : []),
     { id:"diff",     label:"DIFF" },
     ...(mediaArtifacts.length>0?[{ id:"media", label:"MEDIA" }]:[]),
   ];
