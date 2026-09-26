@@ -124,25 +124,50 @@ assert.equal(SafeStorage.savePersonaPrompt('sec', longPrompt), true);
 const loadedLongPersona = SafeStorage.loadPersonas().find(p => p.id === 'sec');
 assert.equal(loadedLongPersona.prompt.length, 5000);
 
+// Test SafeStorage savePersonaPrompt and saveCustomPersona control character & null-byte sanitization and length bounds
+assert.equal(SafeStorage.savePersonaPrompt('ux_expert', '  Clean prompt\x00\x07  '), true);
+const savedPersonaPrompts = SafeStorage.getJSON(SafeStorage.KEYS.PERSONA_PROMPTS, {});
+assert.equal(savedPersonaPrompts['ux_expert'], 'Clean prompt');
+assert.equal(SafeStorage.savePersonaPrompt('ux_expert', ''), false);
+assert.equal(SafeStorage.savePersonaPrompt('ux_expert', null), false);
+assert.equal(SafeStorage.savePersonaPrompt('ux_expert', 'A'.repeat(6000)), true);
+const savedLongPrompt = SafeStorage.getJSON(SafeStorage.KEYS.PERSONA_PROMPTS, {})['ux_expert'];
+assert.equal(savedLongPrompt.length, 5000);
+
 assert.equal(SafeStorage.saveCustomPersona({ id: 'toString', label: 'bad' }), false);
 assert.equal(SafeStorage.saveCustomPersona({ id: '__proto__', label: 'bad' }), false);
+assert.equal(SafeStorage.saveCustomPersona({ id: 'custom_1', label: '  Role\x00\x07 Label  ', prompt: '  Prompt\x00\x07 Text  ', color: ' #ff0000\x00 ' }), true);
+const customPersonas = SafeStorage.getJSON(SafeStorage.KEYS.CUSTOM_PERSONAS, []);
+const cleanCustom1 = customPersonas.find(p => p.id === 'custom_1');
+assert.equal(cleanCustom1.label, 'Role Label');
+assert.equal(cleanCustom1.prompt, 'Prompt Text');
+assert.equal(cleanCustom1.color, '#ff0000');
 
-// Test saveCustomPersona sanitization and length bounding
-const customPersonaSample = {
-  id: 'custom_sec_1',
-  label: '  Security Reviewer\x00\x07  ',
-  role: 'AppSec Lead\x00',
-  prompt: 'Custom Prompt\x00 with multiline\nlines',
-  color: '#00ff00\x00\n'
-};
-assert.equal(SafeStorage.saveCustomPersona(customPersonaSample), true);
-const loadedCustomPersonas = SafeStorage.loadPersonas();
-const loadedCustom = loadedCustomPersonas.find(p => p.id === 'custom_sec_1');
-assert.equal(loadedCustom.label, "Security Reviewer");
-assert.equal(loadedCustom.role, "AppSec Lead");
-assert.equal(loadedCustom.prompt, "Custom Prompt with multiline\nlines");
-assert.equal(loadedCustom.color, "#00ff00");
-assert.equal(loadedCustom.isCustom, true);
+assert.equal(SafeStorage.saveCustomPersona({ id: 'custom_2', label: '', prompt: 'Prompt' }), false);
+assert.equal(SafeStorage.saveCustomPersona({ id: 'custom_3', label: 'Label', prompt: '' }), false);
+
+// Test multiline prompts with valid newlines (\n) and tabs (\t) are preserved while null bytes are stripped
+const multilinePrompt = "Line 1: Act as Senior Dev.\nLine 2:\t- Prioritize clean code.\nLine 3: Null byte\x00 removed.";
+assert.equal(SafeStorage.savePersonaPrompt('refactor', multilinePrompt), true);
+assert.equal(SafeStorage.saveCustomPersona({ id: 'custom_multiline', label: 'Multiline Role', prompt: multilinePrompt }), true);
+
+globalThis.localStorage.setItem(SafeStorage.KEYS.PERSONA_PROMPTS, JSON.stringify({
+  'ux': 'Corrupted\x00Prompt',
+  'refactor': 'Line 1: Act as Senior Dev.\nLine 2:\t- Prioritize clean code.\nLine 3: Null byte\x00 removed.'
+}));
+globalThis.localStorage.setItem(SafeStorage.KEYS.CUSTOM_PERSONAS, JSON.stringify([
+  { id: 'custom_bad', label: 'Hacked\x00Role', prompt: 'Prompt\x07Text', color: '#ff0000\x00' },
+  { id: 'custom_multiline', label: 'Multiline Role', prompt: 'Line 1: Act as Senior Dev.\nLine 2:\t- Prioritize clean code.\nLine 3: Null byte\x00 removed.', color: '#00eaff' }
+]));
+const loadedPersonas = SafeStorage.loadPersonas();
+const refactorP = loadedPersonas.find(p => p.id === 'refactor');
+assert.equal(refactorP.prompt, 'Line 1: Act as Senior Dev.\nLine 2:\t- Prioritize clean code.\nLine 3: Null byte removed.');
+const customP = loadedPersonas.find(p => p.id === 'custom_bad');
+assert.equal(customP.label, 'HackedRole');
+assert.equal(customP.prompt, 'PromptText');
+assert.equal(customP.color, '#ff0000');
+const customMultiP = loadedPersonas.find(p => p.id === 'custom_multiline');
+assert.equal(customMultiP.prompt, 'Line 1: Act as Senior Dev.\nLine 2:\t- Prioritize clean code.\nLine 3: Null byte removed.');
 
 assert.equal(SafeStorage.deleteCustomPersona('toString'), false);
 

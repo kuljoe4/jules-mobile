@@ -29,3 +29,5 @@ const COLOR_NAMES = {
   "#ff8844": "Orange",
   "#a5b4fc": "Indigo"
 };
+
+export { DEFAULT_PERSONAS, PRESET_COLORS, COLOR_NAMES };
