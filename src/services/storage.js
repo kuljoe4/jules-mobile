@@ -578,11 +578,11 @@ const SafeStorage = {
 
   loadRepoFilter() {
     const v = this.getItem(this.KEYS.REPO_FILTER, "ALL");
-    if (v === "ALL" || (v && isValidGithubRepoName(v))) return v;
+    if (v === "ALL" || v === "No repo (repoless)" || (v && isValidGithubRepoName(v))) return v;
     return "ALL";
   },
   saveRepoFilter(val) {
-    if (!val || val === "ALL" || isValidGithubRepoName(val)) {
+    if (!val || val === "ALL" || val === "No repo (repoless)" || isValidGithubRepoName(val)) {
       this.setItem(this.KEYS.REPO_FILTER, val || "ALL");
       return true;
     }
