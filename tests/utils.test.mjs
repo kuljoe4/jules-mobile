@@ -130,7 +130,7 @@ const dirtyPrompt = "System Prompt\x00\x07 with null byte\nand valid newline\r\n
 assert.equal(SafeStorage.savePersonaPrompt('sec', dirtyPrompt), true);
 const loadedPersonas = SafeStorage.loadPersonas();
 const secPersona = loadedPersonas.find(p => p.id === 'sec');
-assert.equal(secPersona.prompt, "System Prompt with null byte\nand valid newline\r\nand tab\t");
+assert.equal(secPersona.prompt, 'System Prompt with null byte\nand valid newline\r\nand tab');
 
 const longPrompt = "A".repeat(6000);
 assert.equal(SafeStorage.savePersonaPrompt('sec', longPrompt), true);
@@ -172,14 +172,14 @@ globalThis.localStorage.setItem(SafeStorage.KEYS.CUSTOM_PERSONAS, JSON.stringify
   { id: 'custom_bad', label: 'Hacked\x00Role', prompt: 'Prompt\x07Text', color: '#ff0000\x00' },
   { id: 'custom_multiline', label: 'Multiline Role', prompt: 'Line 1: Act as Senior Dev.\nLine 2:\t- Prioritize clean code.\nLine 3: Null byte\x00 removed.', color: '#00eaff' }
 ]));
-const loadedPersonas = SafeStorage.loadPersonas();
-const refactorP = loadedPersonas.find(p => p.id === 'refactor');
+const loadedPersonas2 = SafeStorage.loadPersonas();
+const refactorP = loadedPersonas2.find(p => p.id === 'refactor');
 assert.equal(refactorP.prompt, 'Line 1: Act as Senior Dev.\nLine 2:\t- Prioritize clean code.\nLine 3: Null byte removed.');
-const customP = loadedPersonas.find(p => p.id === 'custom_bad');
+const customP = loadedPersonas2.find(p => p.id === 'custom_bad');
 assert.equal(customP.label, 'HackedRole');
 assert.equal(customP.prompt, 'PromptText');
 assert.equal(customP.color, '#ff0000');
-const customMultiP = loadedPersonas.find(p => p.id === 'custom_multiline');
+const customMultiP = loadedPersonas2.find(p => p.id === 'custom_multiline');
 assert.equal(customMultiP.prompt, 'Line 1: Act as Senior Dev.\nLine 2:\t- Prioritize clean code.\nLine 3: Null byte removed.');
 
 assert.equal(SafeStorage.deleteCustomPersona('toString'), false);
