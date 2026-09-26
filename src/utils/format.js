@@ -175,7 +175,10 @@ export const copyToClipboard = async (text) => {
       await navigator.clipboard.writeText(text);
       return true;
     } catch (err) {
-      console.warn("[copyToClipboard] navigator.clipboard.writeText failed:", err);
+      // Suppress console warning in test environment
+      if (typeof process === "undefined" || process.env.NODE_ENV !== "test") {
+        console.warn("[copyToClipboard] navigator.clipboard.writeText failed:", err);
+      }
     }
   }
   if (typeof document !== "undefined" && document.createElement) {
