@@ -60,7 +60,7 @@ export const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFe
     </div>
   );
 
-  const pendingApproval = session.state === "AWAITING_PLAN_APPROVAL";
+  const pendingApproval = session.state === "AWAITING_PLAN_APPROVAL" || !approved;
   const annotatedCount  = Object.values(stepNotes).filter(n=>n.trim()).length;
 
   return (

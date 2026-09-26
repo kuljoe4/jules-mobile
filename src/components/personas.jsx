@@ -1,6 +1,101 @@
+const React = window.React || globalThis.React;
+
 const MultiPersonaPicker = ({ personas, selectedIds, onToggle, style: s = {} }) => {
+  const scrollRef = React.useRef(null);
+  const clickPrevented = React.useRef(false);
+
+  React.useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    let isDragging = false;
+    let startX = 0;
+    let scrollLeftStart = 0;
+
+    const onWheel = (e) => {
+      try {
+        if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+          const canScrollLeft = el.scrollLeft > 0;
+          const canScrollRight = Math.ceil(el.scrollLeft + el.clientWidth) < el.scrollWidth;
+
+          if ((e.deltaY < 0 && canScrollLeft) || (e.deltaY > 0 && canScrollRight)) {
+            e.preventDefault();
+            el.scrollLeft += e.deltaY;
+          }
+        }
+      } catch (err) {
+        console.error("[MultiPersonaPicker] onWheel error:", err);
+      }
+    };
+
+    const onPointerDown = (e) => {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      isDragging = true;
+      clickPrevented.current = false;
+      startX = e.pageX - el.offsetLeft;
+      scrollLeftStart = el.scrollLeft;
+    };
+
+    const onPointerMove = (e) => {
+      if (!isDragging) return;
+      if (e.pointerType === 'touch') return;
+
+      try {
+        const x = e.pageX - el.offsetLeft;
+        const walk = (x - startX) * 1.5;
+        if (Math.abs(walk) > 5) {
+          clickPrevented.current = true;
+          el.scrollLeft = scrollLeftStart - walk;
+        }
+      } catch (err) {
+        console.error("[MultiPersonaPicker] onPointerMove error:", err);
+      }
+    };
+
+    const onPointerUp = () => {
+      isDragging = false;
+      setTimeout(() => {
+        clickPrevented.current = false;
+      }, 50);
+    };
+
+    const onPointerLeave = () => {
+      isDragging = false;
+    };
+
+    el.addEventListener("wheel", onWheel, { passive: false });
+    el.addEventListener("pointerdown", onPointerDown);
+    el.addEventListener("pointermove", onPointerMove);
+    el.addEventListener("pointerup", onPointerUp);
+    el.addEventListener("pointercancel", onPointerUp);
+    el.addEventListener("pointerleave", onPointerLeave);
+
+    return () => {
+      el.removeEventListener("wheel", onWheel);
+      el.removeEventListener("pointerdown", onPointerDown);
+      el.removeEventListener("pointermove", onPointerMove);
+      el.removeEventListener("pointerup", onPointerUp);
+      el.removeEventListener("pointercancel", onPointerUp);
+      el.removeEventListener("pointerleave", onPointerLeave);
+    };
+  }, []);
+
+  const handleToggle = (id, e) => {
+    try {
+      if (clickPrevented.current) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+      onToggle(id);
+    } catch (err) {
+      console.error("[MultiPersonaPicker] handleToggle error:", err);
+    }
+  };
+
   return (
     <div
+      ref={scrollRef}
       role="group"
       aria-label="Focus roles selection"
       style={{
@@ -14,7 +109,7 @@ const MultiPersonaPicker = ({ personas, selectedIds, onToggle, style: s = {} }) 
         return (
           <button
             key={p.id}
-            onClick={() => onToggle(p.id)}
+            onClick={(e) => handleToggle(p.id, e)}
             title={`Toggle focus role: ${p.label}${isSelected ? " (Selected)" : ""}`}
             aria-label={`Toggle focus role: ${p.label}`}
             aria-pressed={isSelected ? "true" : "false"}

@@ -655,7 +655,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
 
   // ── Actions ─────────────────────────────────────────────────────────────────
   const handleSend = async () => {
-    if (!msg.trim() || busy || !isValidSessionId(session?.id)) return;
+    const hasInputOrPersona = msg.trim() || selectedPersonas.size > 0;
+    if (!hasInputOrPersona || busy || !isValidSessionId(session?.id)) return;
     userSentRef.current = true;
     let text = msg.trim();
     if (replyingTo) {
@@ -1043,15 +1044,15 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
 
   // Auto-switch to PLAN tab when AWAITING_PLAN_APPROVAL
   useEffect(() => {
-    if (currentState === "AWAITING_PLAN_APPROVAL" && latestPlan && !isApproved) setTab("plan");
-  }, [currentState, latestPlan, isApproved]);
+    if (currentState === "AWAITING_PLAN_APPROVAL" && !isApproved) setTab("plan");
+  }, [currentState, isApproved]);
 
 
   const TABS = [
     { id:"activity", label:"CHAT" },
     { id:"prompt",   label:"PROMPT" },
     ...(reviews.length > 0 ? [{ id: "reviews", label: "REVIEWS" }] : []),
-    ...(latestPlan?[{ id:"plan", label:"PLAN" }]:[]),
+    ...(latestPlan || currentState === "AWAITING_PLAN_APPROVAL" ? [{ id:"plan", label:"PLAN" }] : []),
     { id:"diff",     label:"DIFF" },
     ...(mediaArtifacts.length>0?[{ id:"media", label:"MEDIA" }]:[]),
   ];
@@ -2982,31 +2983,33 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                   </button>
                   <div style={{width:1, height:16, background:T.border}}/>
                   {(() => {
-                    const sendTitle = !msg.trim() ? "Please enter a message first" : (busy ? "Jules is currently busy..." : "Send message to Jules");
+                    const hasInputOrPersona = msg.trim() || selectedPersonas.size > 0;
+                    const sendTitle = !hasInputOrPersona ? "Please enter a message or select a persona first" : (busy ? "Jules is currently busy..." : "Send message to Jules");
                     return (
                       <button
                         onClick={handleSend}
-                        disabled={!msg.trim()||busy}
+                        disabled={!hasInputOrPersona || busy}
                         title={sendTitle}
                         aria-label={sendTitle}
                         style={{
-                          background: "transparent", border: "none", cursor: msg.trim()&&!busy?"pointer":"default",
+                          background: "transparent", border: "none", cursor: hasInputOrPersona && !busy ? "pointer" : "default",
                           display: "flex", alignItems: "center", justifyContent: "center", padding: 4,
-                          opacity: msg.trim()&&!busy ? 1 : 0.4, transition: "all .2s cubic-bezier(0.4, 0, 0.2, 1)"
+                          opacity: hasInputOrPersona && !busy ? 1 : 0.4, transition: "all .2s cubic-bezier(0.4, 0, 0.2, 1)"
                         }}
                       >
-                        <Ic n="send" s={20} c={msg.trim()&&!busy?T.brand:T.muted}/>
+                        <Ic n="send" s={20} c={hasInputOrPersona && !busy ? T.brand : T.muted}/>
                       </button>
                     );
                   })()}
                 </div>
 
                 {expanded && (() => {
-                  const sendTitle = !msg.trim() ? "Please enter a message first" : (busy ? "Jules is currently busy..." : "Send message to Jules");
+                  const hasInputOrPersona = msg.trim() || selectedPersonas.size > 0;
+                  const sendTitle = !hasInputOrPersona ? "Please enter a message or select a persona first" : (busy ? "Jules is currently busy..." : "Send message to Jules");
                   return (
                     <button
                       onClick={handleSend}
-                      disabled={!msg.trim()||busy}
+                      disabled={!hasInputOrPersona || busy}
                       title={sendTitle}
                       aria-label={sendTitle}
                       style={{
