@@ -24,7 +24,7 @@ const DesignLab = () => {
       {/* Mode Toggle Pills */}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: T.muted, fontWeight: 700, letterSpacing: "0.05em" }}>CHOOSE COMPARISON MODE</div>
-        <div style={{ display: "flex", gap: 6, background: T.surfaceHi, padding: 4, borderRadius: 24, border: `1px solid ${T.border}`, alignSelf: "flex-start" }}>
+        <div role="group" aria-label="Design lab comparison mode" style={{ display: "flex", gap: 6, background: T.surfaceHi, padding: 4, borderRadius: 24, border: `1px solid ${T.border}`, alignSelf: "flex-start" }}>
           {[
             { id: "compare", label: "SIDE-BY-SIDE" },
             { id: "current", label: "CURRENT STYLE" },
@@ -36,6 +36,8 @@ const DesignLab = () => {
                 key={m.id}
                 onClick={() => setComparisonMode(m.id)}
                 aria-pressed={isAct ? "true" : "false"}
+                aria-label={`Switch to ${m.label.toLowerCase()} comparison mode`}
+                title={`Switch to ${m.label.toLowerCase()} comparison mode`}
                 style={{
                   padding: "6px 14px", borderRadius: 20, border: "none",
                   background: isAct ? T.brand : "transparent",
