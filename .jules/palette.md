@@ -109,3 +109,7 @@
 ## 2026-09-16 - [Animated Loading Spinners on Asynchronous Submit Buttons]
 **Learning:** Asynchronous submit actions (such as PR creation/merging or session initialization) that only update textual state labels without animated visual feedback leave users uncertain whether the click was registered or if the application is actively processing the network request. Adding an inline animated refresh icon (`<Ic n="refresh" />` with `animation: "spin 1s linear infinite"`) inside busy/submitting action buttons gives immediate, tactile feedback and prevents duplicate submission attempts.
 **Action:** When creating or updating submit buttons for asynchronous operations, complement textual state changes ("WORKING...", "STARTING...") with an inline animated loading spinner icon.
+
+## 2026-09-25 - [Contextual Descriptions and Actionable CTAs for Feature Empty States]
+**Learning:** Empty states in secondary drawers or utility views (such as the Drafts Box) often leave users at a functional dead end when no items are saved. Replacing plain "No items" text with illustrative icons, clear contextual descriptions explaining how the feature works, and prominent, accessible Call-To-Action (CTA) triggers (like "START NEW SESSION") transforms static empty views into intuitive, guidance-driven user journeys.
+**Action:** When designing feature list views or drawer components, pair empty state titles with explanatory subtext and direct action buttons equipped with explicit `aria-label` and `title` attributes.

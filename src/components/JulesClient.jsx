@@ -780,12 +780,11 @@ function JulesClient() {
               draftsMap={draftsMap}
               onDraftChange={handleDraftChange}
               onSelectSession={handleSelect}
+              onStartNewSession={() => { setSelectedDraft(null); setDesktop("new"); }}
               onResume={(d) => { setSelectedDraft(d); setDesktop("new"); }}
               onCreate={async (d) => {
                 setSelectedDraft(d);
                 setDesktop("new");
-                // The actual creation happens inside NewSession but we can also trigger a direct create here if we want.
-                // Resuming into NewSession is safer to allow final tweaks.
               }}
             />
           )}
@@ -920,6 +919,7 @@ function JulesClient() {
             draftsMap={draftsMap}
             onDraftChange={handleDraftChange}
             onSelectSession={handleSelect}
+            onStartNewSession={() => { setSelectedDraft(null); setMobile("new"); }}
             onResume={(d) => { setSelectedDraft(d); setMobile("new"); }}
             onCreate={async (d) => {
               setSelectedDraft(d);
