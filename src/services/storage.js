@@ -227,41 +227,40 @@ const SafeStorage = {
     return false;
   },
 
-  // Security: Sanitizes persona system prompts and custom focus role parameters against control character prompt injection
-  // and LocalStorage state tampering by enforcing string types, stripping non-printable ASCII control characters
-  // while preserving multiline formatting (\n, \r, \t), and bounding max character lengths.
+  // Security: Sanitizes loaded persona prompts and custom persona fields to prevent control character/null-byte injection
+  // and prompt payload tampering when personas are selected during session creation, while preserving standard whitespace (\n, \r, \t).
   loadPersonas() {
     try {
       const saved = this.getJSON(this.KEYS.PERSONA_PROMPTS, {});
       const custom = this.getJSON(this.KEYS.CUSTOM_PERSONAS, []);
       const mergedDefaults = DEFAULT_PERSONAS.map(p => {
-        const raw = saved[p.id];
-        const cleanPrompt = typeof raw === "string" ? raw.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "").slice(0, 5000) : p.prompt;
+        const savedPrompt = saved[p.id];
+        const cleanSaved = typeof savedPrompt === "string"
+          ? savedPrompt.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "").trim().slice(0, 5000)
+          : "";
         return {
           ...p,
-          prompt: cleanPrompt || p.prompt
+          prompt: cleanSaved || p.prompt
         };
       });
-      const cleanCustom = custom.map(c => {
-        const cleanObj = sanitizeObjectKeys(c);
-        return {
-          ...cleanObj,
-          label: typeof cleanObj.label === "string" ? cleanObj.label.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "").trim().slice(0, 100) : "",
-          role: typeof cleanObj.role === "string" ? cleanObj.role.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "").trim().slice(0, 100) : "",
-          prompt: typeof cleanObj.prompt === "string" ? cleanObj.prompt.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "").slice(0, 5000) : "",
-          color: typeof cleanObj.color === "string" ? cleanObj.color.replace(/[\x00-\x1F\x7F\s]/g, "").slice(0, 30) : "",
-          isCustom: true
-        };
-      });
+      const cleanCustom = custom
+        .filter(c => c && typeof c === "object" && isValidStorageKey(c.id))
+        .map(c => {
+          const cleanLabel = typeof c.label === "string" ? c.label.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "").trim().slice(0, 100) : "Custom Role";
+          const cleanPrompt = typeof c.prompt === "string" ? c.prompt.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "").trim().slice(0, 5000) : "";
+          const cleanColor = typeof c.color === "string" ? c.color.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "").trim().slice(0, 30) : "#ffffff";
+          return { ...c, label: cleanLabel || "Custom Role", prompt: cleanPrompt, color: cleanColor || "#ffffff", isCustom: true };
+        });
       return [...mergedDefaults, ...cleanCustom];
     } catch {
       return DEFAULT_PERSONAS;
     }
   },
-  // Security: Validates persona prompt key and sanitizes prompt text against Prototype Pollution, control character injection, and payload bloat.
+  // Security: Validates persona prompt key against Prototype Pollution and sanitizes prompt string against non-printable control characters/null bytes while preserving newlines and tabs.
   savePersonaPrompt(id, prompt) {
-    if (!isValidStorageKey(id) || typeof prompt !== "string") return false;
-    const cleanPrompt = prompt.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "").slice(0, 5000);
+    if (!isValidStorageKey(id)) return false;
+    const cleanPrompt = typeof prompt === "string" ? prompt.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "").trim().slice(0, 5000) : "";
+    if (!cleanPrompt) return false;
     try {
       const saved = this.getJSON(this.KEYS.PERSONA_PROMPTS, {});
       saved[id] = cleanPrompt;
@@ -270,25 +269,30 @@ const SafeStorage = {
       return false;
     }
   },
-  // Security: Sanitizes custom persona fields against Prototype Pollution, control character prompt injection, and payload bloat.
+  // Security: Validates custom persona fields, sanitizing label, prompt, and color against non-printable control characters/null bytes while preserving valid whitespace (\n, \t).
   saveCustomPersona(persona) {
     if (!persona || typeof persona !== 'object' || !isValidStorageKey(persona.id)) return false;
     try {
-      const cleanObj = sanitizeObjectKeys(persona);
-      const cleanPersona = {
-        ...cleanObj,
-        id: cleanObj.id,
-        label: typeof cleanObj.label === "string" ? cleanObj.label.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "").trim().slice(0, 100) : "",
-        role: typeof cleanObj.role === "string" ? cleanObj.role.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "").trim().slice(0, 100) : "",
-        prompt: typeof cleanObj.prompt === "string" ? cleanObj.prompt.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "").slice(0, 5000) : "",
-        color: typeof cleanObj.color === "string" ? cleanObj.color.replace(/[\x00-\x1F\x7F\s]/g, "").slice(0, 30) : ""
+      const cleanPersona = sanitizeObjectKeys(persona);
+      const cleanLabel = typeof cleanPersona.label === "string" ? cleanPersona.label.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "").trim().slice(0, 100) : "";
+      const cleanPrompt = typeof cleanPersona.prompt === "string" ? cleanPersona.prompt.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "").trim().slice(0, 5000) : "";
+      const cleanColor = typeof cleanPersona.color === "string" ? cleanPersona.color.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "").trim().slice(0, 30) : "#ffffff";
+
+      if (!cleanLabel || !cleanPrompt) return false;
+
+      const sanitizedObj = {
+        ...cleanPersona,
+        label: cleanLabel,
+        prompt: cleanPrompt,
+        color: cleanColor || "#ffffff"
       };
+
       const custom = this.getJSON(this.KEYS.CUSTOM_PERSONAS, []);
-      const index = custom.findIndex(p => p.id === cleanPersona.id);
+      const index = custom.findIndex(p => p.id === sanitizedObj.id);
       if (index >= 0) {
-        custom[index] = { ...custom[index], ...cleanPersona };
+        custom[index] = { ...custom[index], ...sanitizedObj };
       } else {
-        custom.push(cleanPersona);
+        custom.push(sanitizedObj);
       }
       return this.setJSON(this.KEYS.CUSTOM_PERSONAS, custom);
     } catch {
@@ -578,11 +582,11 @@ const SafeStorage = {
 
   loadRepoFilter() {
     const v = this.getItem(this.KEYS.REPO_FILTER, "ALL");
-    if (v === "ALL" || (v && isValidGithubRepoName(v))) return v;
+    if (v === "ALL" || v === "No repo (repoless)" || (v && isValidGithubRepoName(v))) return v;
     return "ALL";
   },
   saveRepoFilter(val) {
-    if (!val || val === "ALL" || isValidGithubRepoName(val)) {
+    if (!val || val === "ALL" || val === "No repo (repoless)" || isValidGithubRepoName(val)) {
       this.setItem(this.KEYS.REPO_FILTER, val || "ALL");
       return true;
     }
@@ -641,14 +645,28 @@ const SafeStorage = {
     return false;
   },
 
-  // Security: Validates session identifier before accessing LocalStorage keys to prevent parameter pollution or key injection.
+  // Security: Validates session identifier and sanitizes follow-up message draft text against control character prompt injection,
+  // LocalStorage state tampering, and quota exhaustion by enforcing string types, stripping non-printable ASCII control characters
+  // while preserving multiline formatting (\n, \r, \t), and bounding max character length (10,000 chars).
   loadFollowupDraft(sessionId) {
     if (!isValidSessionId(sessionId)) return "";
-    return this.getItem(`jac_draft_${sessionId}`, "");
+    const raw = this.getItem(`jac_draft_${sessionId}`, "");
+    if (typeof raw !== "string" || !raw) return "";
+    const clean = raw.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "").slice(0, 10000);
+    return clean;
   },
   saveFollowupDraft(sessionId, val) {
     if (!isValidSessionId(sessionId)) return false;
-    return this.setItem(`jac_draft_${sessionId}`, val);
+    if (typeof val !== "string") {
+      this.removeItem(`jac_draft_${sessionId}`);
+      return false;
+    }
+    const clean = val.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "").slice(0, 10000);
+    if (!clean.trim()) {
+      this.removeItem(`jac_draft_${sessionId}`);
+      return true;
+    }
+    return this.setItem(`jac_draft_${sessionId}`, clean);
   },
   clearFollowupDraft(sessionId) {
     if (!isValidSessionId(sessionId)) return false;

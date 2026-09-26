@@ -1,4 +1,4 @@
-const DraftsBox = ({ onBack, isDesktop, onResume, onCreate, allSessions, activitiesMap, draftsMap = {}, onDraftChange, onSelectSession }) => {
+const DraftsBox = ({ onBack, isDesktop, onResume, onCreate, onStartNewSession, allSessions, activitiesMap, draftsMap = {}, onDraftChange, onSelectSession }) => {
   const [activeTab, setActiveTab] = useState("templates"); // "templates" or "followups"
   const [drafts, setDrafts] = useState(loadDraftsBox());
 
@@ -71,11 +71,26 @@ const DraftsBox = ({ onBack, isDesktop, onResume, onCreate, allSessions, activit
 
           {activeTab === "templates" ? (
             drafts.length === 0 ? (
-              <div style={{textAlign:"center",padding:"100px 24px",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>
-                <div style={{width:48, height:48, borderRadius:12, background:T.surfaceHi, display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 16px", border:`1px solid ${T.border}`}}>
-                  <Ic n="archive" s={20} c={T.dim}/>
+              <div style={{textAlign:"center",padding:"60px 24px",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>
+                <div style={{width:52, height:52, borderRadius:16, background:T.surfaceHi, display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 16px", border:`1px solid ${T.border}`}}>
+                  <Ic n="archive" s={22} c={T.brand}/>
                 </div>
-                NO SAVED SESSIONS
+                <div style={{color:T.text, fontWeight:800, fontSize:13, marginBottom:6}}>NO SAVED SESSIONS</div>
+                <div style={{fontFamily:"'IBM Plex Sans',sans-serif", fontSize:13, color:T.textDim, lineHeight:1.5, maxWidth:320, margin:"0 auto 16px"}}>
+                  Save task prompts and repository configurations as drafts to quickly reuse them later.
+                </div>
+                {onStartNewSession && (
+                  <Btn
+                    onClick={onStartNewSession}
+                    sm
+                    style={{margin:"0 auto"}}
+                    title="Start a new session setup"
+                    aria-label="Start a new session setup"
+                  >
+                    <Ic n="plus" s={12} c="#000"/>
+                    START NEW SESSION
+                  </Btn>
+                )}
               </div>
             ) : (
               <div style={{display:"flex", flexDirection:"column", gap:16}}>
@@ -157,11 +172,14 @@ const DraftsBox = ({ onBack, isDesktop, onResume, onCreate, allSessions, activit
             )
           ) : (
             followupSessions.length === 0 ? (
-              <div style={{textAlign:"center",padding:"100px 24px",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>
-                <div style={{width:48, height:48, borderRadius:12, background:T.surfaceHi, display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 16px", border:`1px solid ${T.border}`}}>
-                  <Ic n="layers" s={20} c={T.dim}/>
+              <div style={{textAlign:"center",padding:"60px 24px",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>
+                <div style={{width:52, height:52, borderRadius:16, background:T.surfaceHi, display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 16px", border:`1px solid ${T.border}`}}>
+                  <Ic n="layers" s={22} c={T.brand}/>
                 </div>
-                NO UNSENT FOLLOW-UP CHATS
+                <div style={{color:T.text, fontWeight:800, fontSize:13, marginBottom:6}}>NO UNSENT FOLLOW-UP CHATS</div>
+                <div style={{fontFamily:"'IBM Plex Sans',sans-serif", fontSize:13, color:T.textDim, lineHeight:1.5, maxWidth:320, margin:"0 auto 16px"}}>
+                  Draft follow-up messages inside active session chats to review or send them whenever you are ready.
+                </div>
               </div>
             ) : (
               <div style={{display:"flex", flexDirection:"column", gap:16}}>

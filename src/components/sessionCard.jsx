@@ -47,7 +47,6 @@ const SessionCard = memo(({ s, onPress, onSelect, isSelected, isBulkSelected, on
   const updateTs = s.updateTime || s.createTime;
   const isUnread = isFinished && (!lastReadTs || updateTs > lastReadTs);
 
-  const pct  = pctFromState(currentState);
   const m    = STATUS_META[currentState] || STATUS_META.QUEUED;
   const rawRepo = s.sourceContext?.githubRepoContext ? s.sourceContext.source?.replace("sources/github/","") : null;
   const repo = useMemo(() => {

@@ -1,4 +1,6 @@
-const ConflictRadar = memo(({ currentSource, currentBranch, currentPrompt, allSessions, activitiesMap, currentSessionId, startTime, limit = 20 }) => {
+import { EMPTY_ARR, EMPTY_OBJ } from "../config/constants.js";
+
+const ConflictRadar = memo(({ currentSource, currentBranch, currentPrompt, allSessions = EMPTY_ARR, activitiesMap = EMPTY_OBJ, currentSessionId, startTime, limit = 20 }) => {
   const [expanded, setExpanded] = useState(false);
   const [debouncedPrompt, setDebouncedPrompt] = useState(currentPrompt);
 
@@ -14,7 +16,7 @@ const ConflictRadar = memo(({ currentSource, currentBranch, currentPrompt, allSe
   const collisions = useMemo(() => {
     if (!currentSource) return [];
 
-    const currentActs = (currentSessionId && activitiesMap[currentSessionId]) || [];
+    const currentActs = (currentSessionId && activitiesMap[currentSessionId]) || EMPTY_ARR;
     const currentFiles = new Set(getWorkingSet({ prompt: debouncedPrompt, id: currentSessionId }, currentActs));
     const results = [];
     let processed = 0;
@@ -32,7 +34,7 @@ const ConflictRadar = memo(({ currentSource, currentBranch, currentPrompt, allSe
         if (compTime <= startTime) continue;
       }
 
-      const acts = activitiesMap[s.id] || [];
+      const acts = activitiesMap[s.id] || EMPTY_ARR;
       const sFiles = getWorkingSet(s, acts);
 
       const overlap = [];

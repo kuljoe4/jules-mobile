@@ -53,6 +53,10 @@ const getApproxBytes = (val) => {
 const PAYLOAD_BREAKDOWN_CACHE = new WeakMap();
 const PATCH_FILE_COUNT_CACHE = new WeakMap();
 
+const UNIDIFF_HEADER_RE = /\+\+\+\s+b\//g;
+
+// OPTIMIZATION (Bolt): Replace string.match() array allocations with regex exec() iteration
+// to count unidiff file headers in O(N) time with 0 match array allocations.
 const getPatchFileCount = (changeSet) => {
   if (!changeSet) return 0;
   if (PATCH_FILE_COUNT_CACHE.has(changeSet)) return PATCH_FILE_COUNT_CACHE.get(changeSet);
@@ -60,8 +64,10 @@ const getPatchFileCount = (changeSet) => {
   let count = 0;
   const unidiff = changeSet.gitPatch?.unidiffPatch;
   if (unidiff) {
-    const matches = unidiff.match(/\+\+\+\s+b\//g);
-    count = matches ? matches.length : 0;
+    UNIDIFF_HEADER_RE.lastIndex = 0;
+    while (UNIDIFF_HEADER_RE.exec(unidiff) !== null) {
+      count++;
+    }
   }
   PATCH_FILE_COUNT_CACHE.set(changeSet, count);
   return count;

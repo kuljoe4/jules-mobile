@@ -214,7 +214,10 @@ function JulesClient() {
   }, [readMap]);
 
 
-  const handleBulkDelete = useCallback(async (ids) => {
+  const handleBulkDelete = useCallback(async (rawIds) => {
+    if (!Array.isArray(rawIds)) return;
+    const ids = rawIds.filter(isValidSessionId);
+    if (ids.length === 0) return;
     if (!confirm(`Are you sure you want to delete ${ids.length} session(s)?`)) return;
     setSessions(prev => prev.filter(s => !ids.includes(s.id)));
     ids.forEach(id => {
@@ -237,7 +240,10 @@ function JulesClient() {
     }
   }, [apiKey, selected]);
 
-  const handleBulkArchive = useCallback((ids) => {
+  const handleBulkArchive = useCallback((rawIds) => {
+    if (!Array.isArray(rawIds)) return;
+    const ids = rawIds.filter(isValidSessionId);
+    if (ids.length === 0) return;
     setArchivedIds(prev => {
       const next = new Set(prev);
       ids.forEach(id => next.add(id));
@@ -245,7 +251,10 @@ function JulesClient() {
     });
   }, []);
 
-  const handleBulkUnarchive = useCallback((ids) => {
+  const handleBulkUnarchive = useCallback((rawIds) => {
+    if (!Array.isArray(rawIds)) return;
+    const ids = rawIds.filter(isValidSessionId);
+    if (ids.length === 0) return;
     setArchivedIds(prev => {
       const next = new Set(prev);
       ids.forEach(id => next.delete(id));
@@ -253,9 +262,10 @@ function JulesClient() {
     });
   }, []);
 
-
-
-  const handleBulkResume = useCallback(async (ids) => {
+  const handleBulkResume = useCallback(async (rawIds) => {
+    if (!Array.isArray(rawIds)) return;
+    const ids = rawIds.filter(isValidSessionId);
+    if (ids.length === 0) return;
     // Optimistic update
     setSessions(prev => prev.map(s => {
       if (ids.includes(s.id)) return { ...s, state: "QUEUED" };
@@ -268,7 +278,10 @@ function JulesClient() {
     }
   }, [apiKey]);
 
-  const handleBulkPause = useCallback(async (ids) => {
+  const handleBulkPause = useCallback(async (rawIds) => {
+    if (!Array.isArray(rawIds)) return;
+    const ids = rawIds.filter(isValidSessionId);
+    if (ids.length === 0) return;
     if (!confirm(`Are you sure you want to pause ${ids.length} session(s)?`)) return;
 
     // Optimistic update
@@ -283,7 +296,10 @@ function JulesClient() {
     }
   }, [apiKey]);
 
-  const handleBulkIgnore = useCallback((ids) => {
+  const handleBulkIgnore = useCallback((rawIds) => {
+    if (!Array.isArray(rawIds)) return;
+    const ids = rawIds.filter(isValidSessionId);
+    if (ids.length === 0) return;
     if (!confirm(`Are you sure you want to ignore ${ids.length} session(s)? This will remove them from your active list.`)) return;
     setIgnoredIds(prev => {
       const next = new Set(prev);
@@ -298,6 +314,7 @@ function JulesClient() {
   }, [selected]);
 
   const handleArchive = useCallback(id => {
+    if (!isValidSessionId(id)) return;
     setArchivedIds(prev => {
       const next = new Set(prev);
       next.add(id);
@@ -306,6 +323,7 @@ function JulesClient() {
   }, []);
 
   const handleUnarchive = useCallback(id => {
+    if (!isValidSessionId(id)) return;
     setArchivedIds(prev => {
       const next = new Set(prev);
       next.delete(id);
@@ -314,6 +332,7 @@ function JulesClient() {
   }, []);
 
   const handleIgnore = useCallback(id => {
+    if (!isValidSessionId(id)) return;
     if (!confirm("Are you sure you want to ignore this session? This will remove it from your active list and stop updates.")) return;
     setIgnoredIds(prev => {
       const next = new Set(prev);
@@ -629,6 +648,7 @@ function JulesClient() {
   }, []);
 
   const handleDelete = useCallback(id => {
+    if (!isValidSessionId(id)) return;
     lastStates.current.delete(id);
     setSessions(prev => prev.filter(s=>s.id!==id));
     try { SafeStorage.clearFollowupDraft(id); } catch {}
@@ -668,7 +688,6 @@ function JulesClient() {
     setShowArchived(false);
     setSearchQuery("");
     setStatusFilter("ALL");
-    setRepoFilter("ALL");
     setFilterResetTrigger(prev => prev + 1);
 
     if (isDesktop) setDesktop("detail"); else setMobile("detail");
@@ -780,12 +799,11 @@ function JulesClient() {
               draftsMap={draftsMap}
               onDraftChange={handleDraftChange}
               onSelectSession={handleSelect}
+              onStartNewSession={() => { setSelectedDraft(null); setDesktop("new"); }}
               onResume={(d) => { setSelectedDraft(d); setDesktop("new"); }}
               onCreate={async (d) => {
                 setSelectedDraft(d);
                 setDesktop("new");
-                // The actual creation happens inside NewSession but we can also trigger a direct create here if we want.
-                // Resuming into NewSession is safer to allow final tweaks.
               }}
             />
           )}
@@ -920,6 +938,7 @@ function JulesClient() {
             draftsMap={draftsMap}
             onDraftChange={handleDraftChange}
             onSelectSession={handleSelect}
+            onStartNewSession={() => { setSelectedDraft(null); setMobile("new"); }}
             onResume={(d) => { setSelectedDraft(d); setMobile("new"); }}
             onCreate={async (d) => {
               setSelectedDraft(d);
