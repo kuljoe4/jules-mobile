@@ -18,7 +18,7 @@ import { GitHubTracker, getPR, getPRInfo, getBranchInfo, getCheckStatus, getDepl
 import { fastDeepEqual, getActivitiesSize, getApproxBytes, getPatchFileCount, getPayloadBreakdown } from '../src/utils/performance.js';
 import { parseUnidiffPatch, getWorkingSet } from '../src/utils/workingSet.js';
 import { getSmartTitle, getSmartBody } from '../src/utils/prTitle.js';
-import { sanitizeErrorMessage } from '../src/services/api.js';
+import { apiCall, sanitizeErrorMessage } from '../src/services/api.js';
 import { sendNotification } from '../src/services/notifications.js';
 
 if (typeof globalThis.localStorage === 'undefined') {
@@ -1128,6 +1128,14 @@ const longBody = "B".repeat(250);
 await sendNotification(longTitle, longBody, "tag");
 assert.equal(sentTitle.length, 100);
 assert.equal(sentOptions.body.length, 200);
+
+// Test apiCall path validation
+await assert.rejects(async () => { await apiCall('key', 'invalid-path-without-slash'); }, { message: 'Invalid API path.' });
+await assert.rejects(async () => { await apiCall('key', '/sessions/../traversal'); }, { message: 'Invalid API path.' });
+await assert.rejects(async () => { await apiCall('key', '/sessions//double'); }, { message: 'Invalid API path.' });
+await assert.rejects(async () => { await apiCall('key', '/sessions\x00null'); }, { message: 'Invalid API path.' });
+await assert.rejects(async () => { await apiCall('key', null); }, { message: 'Invalid API path.' });
+await assert.rejects(async () => { await apiCall('key', ''); }, { message: 'Invalid API path.' });
 
 // Test sanitizeErrorMessage
 assert.equal(sanitizeErrorMessage('{"error":{"message":"JSON Error Message"}}'), "JSON Error Message");
