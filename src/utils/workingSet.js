@@ -1,4 +1,5 @@
 import { LRUCache } from './cache.js';
+import { EMPTY_ARR } from '../config/constants.js';
 
 const WORKING_SET_CACHE = new LRUCache(500);
 const FILE_MENTION_RE = /`([^`\s]+\.[a-z0-9]+)`/gi;
@@ -78,7 +79,7 @@ const parseUnidiffPatch = (patchOrObj, ts = null) => {
   return allGroups;
 };
 
-const getWorkingSet = (s, activities = []) => {
+const getWorkingSet = (s, activities = EMPTY_ARR) => {
   if (!s) return [];
   const sid = s.id || s.name || "temp";
   const actLen = activities.length;
