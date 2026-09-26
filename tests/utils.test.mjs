@@ -449,11 +449,31 @@ const testSessions = [{ id: 's1', title: 'Test Session 1', state: 'COMPLETED' }]
 SafeStorage.saveSessionsList(testSessions);
 assert.deepEqual(SafeStorage.loadSessionsList(), testSessions);
 
-// Test SafeStorage followup draft session ID validation
+// Test SafeStorage followup draft session ID validation, control character stripping, and length bounding
 assert.equal(SafeStorage.saveFollowupDraft('valid-sess-123', 'draft text'), true);
 assert.equal(SafeStorage.loadFollowupDraft('valid-sess-123'), 'draft text');
 assert.equal(SafeStorage.clearFollowupDraft('valid-sess-123'), true);
 assert.equal(SafeStorage.loadFollowupDraft('valid-sess-123'), '');
+
+// Test saveFollowupDraft control character stripping, newline preservation, and 10,000 char length bounding
+const dirtyFollowup = "Line 1\x00\x07 with null byte\nLine 2 with tab\t and newline\r\nLine 3";
+assert.equal(SafeStorage.saveFollowupDraft('valid-sess-123', dirtyFollowup), true);
+assert.equal(SafeStorage.loadFollowupDraft('valid-sess-123'), "Line 1 with null byte\nLine 2 with tab\t and newline\r\nLine 3");
+
+const longFollowup = "B".repeat(12000);
+assert.equal(SafeStorage.saveFollowupDraft('valid-sess-123', longFollowup), true);
+assert.equal(SafeStorage.loadFollowupDraft('valid-sess-123').length, 10000);
+
+// Test saveFollowupDraft handles non-string or whitespace-only inputs by clearing key
+assert.equal(SafeStorage.saveFollowupDraft('valid-sess-123', 12345), false);
+assert.equal(SafeStorage.loadFollowupDraft('valid-sess-123'), '');
+assert.equal(SafeStorage.saveFollowupDraft('valid-sess-123', '   '), true);
+assert.equal(SafeStorage.loadFollowupDraft('valid-sess-123'), '');
+
+// Test loadFollowupDraft sanitizes untrusted / tampered LocalStorage content
+globalThis.localStorage.setItem('jac_draft_valid-sess-123', 'Tampered\x00Draft\nWith Newline');
+assert.equal(SafeStorage.loadFollowupDraft('valid-sess-123'), 'TamperedDraft\nWith Newline');
+SafeStorage.clearFollowupDraft('valid-sess-123');
 
 // Test rejection of invalid session IDs in SafeStorage followup draft helpers
 assert.equal(SafeStorage.saveFollowupDraft('../path/traversal', 'invalid'), false);
