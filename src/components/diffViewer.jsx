@@ -79,16 +79,14 @@ export const DiffViewer = memo(({ activities = [], isDesktop = false }) => {
   }, [collapsed, allKeys]);
 
   // OPTIMIZATION (Bolt): Calculate total files, additions, and removals in a single O(N) pass over patchGroups
-  // instead of 3 separate nested .reduce() traversals, avoiding duplicate array loops and function allocations.
+  // using precomputed pAdds and pRems to bypass redundant inner group loops.
   const { totalFiles, totalAdds, totalRems } = useMemo(() => {
     let files = 0, adds = 0, rems = 0;
     for (let i = 0; i < patchGroups.length; i++) {
-      const groups = patchGroups[i].groups;
-      files += groups.length;
-      for (let j = 0; j < groups.length; j++) {
-        adds += groups[j].adds;
-        rems += groups[j].rems;
-      }
+      const pg = patchGroups[i];
+      files += pg.groups.length;
+      adds += pg.pAdds;
+      rems += pg.pRems;
     }
     return { totalFiles: files, totalAdds: adds, totalRems: rems };
   }, [patchGroups]);

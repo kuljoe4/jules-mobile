@@ -50,9 +50,8 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
   useEffect(() => {
     if (filterResetTrigger) {
       setFilter("ALL");
-      setRepoFilter("ALL");
     }
-  }, [filterResetTrigger, setFilter, setRepoFilter]);
+  }, [filterResetTrigger, setFilter]);
 
   useEffect(() => {
     if (!menuOpen) return;

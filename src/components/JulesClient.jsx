@@ -668,7 +668,6 @@ function JulesClient() {
     setShowArchived(false);
     setSearchQuery("");
     setStatusFilter("ALL");
-    setRepoFilter("ALL");
     setFilterResetTrigger(prev => prev + 1);
 
     if (isDesktop) setDesktop("detail"); else setMobile("detail");

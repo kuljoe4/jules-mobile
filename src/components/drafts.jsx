@@ -71,11 +71,26 @@ const DraftsBox = ({ onBack, isDesktop, onResume, onCreate, allSessions, activit
 
           {activeTab === "templates" ? (
             drafts.length === 0 ? (
-              <div style={{textAlign:"center",padding:"100px 24px",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>
-                <div style={{width:48, height:48, borderRadius:12, background:T.surfaceHi, display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 16px", border:`1px solid ${T.border}`}}>
-                  <Ic n="archive" s={20} c={T.dim}/>
+              <div style={{textAlign:"center",padding:"60px 24px",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>
+                <div style={{width:48, height:48, borderRadius:12, background:T.brandDim, display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 16px", border:`1px solid ${T.brand}40`}}>
+                  <Ic n="archive" s={20} c={T.brand}/>
                 </div>
-                NO SAVED SESSIONS
+                <div style={{color:T.text, fontWeight:700, marginBottom:8}}>NO SAVED SESSIONS</div>
+                <div style={{fontFamily:"'IBM Plex Sans',sans-serif", fontSize:12, color:T.textDim, maxWidth:320, margin:"0 auto 20px", lineHeight:1.5}}>
+                  Save custom prompt templates or session setups to quickly launch recurring tasks.
+                </div>
+                {onCreate && (
+                  <Btn
+                    onClick={() => onCreate()}
+                    sm
+                    style={{margin:"0 auto"}}
+                    title="Start a new session setup"
+                    aria-label="Start a new session setup"
+                  >
+                    <Ic n="plus" s={12} c="#000"/>
+                    START NEW SESSION
+                  </Btn>
+                )}
               </div>
             ) : (
               <div style={{display:"flex", flexDirection:"column", gap:16}}>
@@ -157,11 +172,14 @@ const DraftsBox = ({ onBack, isDesktop, onResume, onCreate, allSessions, activit
             )
           ) : (
             followupSessions.length === 0 ? (
-              <div style={{textAlign:"center",padding:"100px 24px",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>
-                <div style={{width:48, height:48, borderRadius:12, background:T.surfaceHi, display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 16px", border:`1px solid ${T.border}`}}>
-                  <Ic n="layers" s={20} c={T.dim}/>
+              <div style={{textAlign:"center",padding:"60px 24px",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>
+                <div style={{width:48, height:48, borderRadius:12, background:T.purpleDim, display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 16px", border:`1px solid ${T.purple}40`}}>
+                  <Ic n="layers" s={20} c={T.purple}/>
                 </div>
-                NO UNSENT FOLLOW-UP CHATS
+                <div style={{color:T.text, fontWeight:700, marginBottom:8}}>NO UNSENT FOLLOW-UP CHATS</div>
+                <div style={{fontFamily:"'IBM Plex Sans',sans-serif", fontSize:12, color:T.textDim, maxWidth:320, margin:"0 auto", lineHeight:1.5}}>
+                  Unsent follow-up messages typed in active session chats will automatically appear here as drafts.
+                </div>
               </div>
             ) : (
               <div style={{display:"flex", flexDirection:"column", gap:16}}>
