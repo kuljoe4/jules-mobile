@@ -36,8 +36,8 @@ const DesignLab = () => {
                 key={m.id}
                 onClick={() => setComparisonMode(m.id)}
                 aria-pressed={isAct ? "true" : "false"}
-                aria-label={`Switch to ${m.label.toLowerCase()} comparison mode`}
-                title={`Switch to ${m.label.toLowerCase()} comparison mode`}
+                aria-label={`Switch comparison mode to ${m.label}`}
+                title={`Switch comparison mode to ${m.label}`}
                 style={{
                   padding: "6px 14px", borderRadius: 20, border: "none",
                   background: isAct ? T.brand : "transparent",
