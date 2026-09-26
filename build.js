@@ -18,8 +18,9 @@ function readAppSource(files) {
       const source = fs.readFileSync(sourcePath, 'utf-8')
         .replace(/^\s*import\s+[^;]+;\s*$/gm, '')
         .replace(/^\s*export\s+\{[^}]+\}(?:\s*from\s*['"][^'"]+['"])?;?\s*$/gm, '')
+        .replace(/^\s*export\s+\{\s*\};\s*$/gm, '')
         .replace(/\bexport\s+default\s+/g, '')
-        .replace(/\bexport\s+(?=(const|let|var|function|class)\b)/g, '');
+        .replace(/\bexport\s+(?=(const|let|var|function|class|async)\b)/g, '');
       return `\n/* ---- ${file} ---- */\n${source}`;
     })
     .join('\n');

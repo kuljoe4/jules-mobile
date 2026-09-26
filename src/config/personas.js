@@ -30,4 +30,4 @@ const COLOR_NAMES = {
   "#a5b4fc": "Indigo"
 };
 
-export { DEFAULT_PERSONAS, PRESET_COLORS, COLOR_NAMES };
+export { PRESET_COLORS, COLOR_NAMES };
