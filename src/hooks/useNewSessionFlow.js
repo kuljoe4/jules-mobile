@@ -58,18 +58,22 @@ const useNewSessionFlow = ({ apiKey, personas, onCreate, initialDraft, onDraftSa
     });
   }, [source]);
 
+  // OPTIMIZATION (Bolt): Decouple repo stats sorting from search input filtering into two memoized tiers.
+  // Sorting and LocalStorage reads (`loadRepoStats`) only execute when `sources` changes, completely
+  // bypassing disk I/O and O(N log N) sorting on search input keystrokes while preserving exact repo usage ranking.
+  const sortedSources = useMemo(() => {
+    const stats = loadRepoStats();
+    return [...sources].sort((a, b) => (stats[b.name] || 0) - (stats[a.name] || 0));
+  }, [sources]);
+
   const filteredSources = useMemo(() => {
     const search = sourceSearch.toLowerCase();
     const isSelectedMatch = (srcObj && sourceSearch === getSourceDisplay(srcObj)) || (source === "" && sourceSearch === "No repo (repoless)");
 
-    let base = [...sources];
-    const stats = loadRepoStats();
-    base.sort((a,b) => (stats[b.name]||0) - (stats[a.name]||0));
-
-    const all = [...base, null]; // null represents "repoless"
+    const all = [...sortedSources, null]; // null represents "repoless"
     if (!sourceSearch || isSelectedMatch) return all;
     return all.filter(s => getSourceDisplay(s).toLowerCase().includes(search));
-  }, [sources, sourceSearch, getSourceDisplay, srcObj, source]);
+  }, [sortedSources, sourceSearch, getSourceDisplay, srcObj, source]);
 
   useEffect(() => {
     if (!srcObj) { setBranches([]); setDefault(""); return; }
