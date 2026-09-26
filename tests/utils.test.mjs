@@ -74,10 +74,23 @@ assert.equal(isValidSessionId('sess\x00nullbyte'), false);
 assert.equal(isValidSessionId('sess\nnewline'), false);
 assert.equal(isValidSessionId('a'.repeat(300)), false);
 
-// Verify session ID validation in session detail actions
+// Verify session ID validation in session detail and bulk client actions
 assert.equal(isValidSessionId('sess_valid_123'), true);
 assert.equal(isValidSessionId('sess_invalid/../traversal'), false);
 assert.equal(isValidSessionId('sess_invalid?query=1'), false);
+
+// Verify filtering of invalid session IDs from bulk action arrays
+const bulkIdsCandidate = [
+  'sess_valid_1',
+  'sess_invalid/../traversal',
+  'sess_valid_2',
+  'sess_invalid?query=1',
+  'sess\x00nullbyte',
+  null,
+  123
+];
+const filteredBulkIds = bulkIdsCandidate.filter(isValidSessionId);
+assert.deepEqual(filteredBulkIds, ['sess_valid_1', 'sess_valid_2']);
 
 assert.equal(isValidGitBranchName('feature/mobile-refactor'), true);
 assert.equal(isValidGitBranchName('-danger'), false);
