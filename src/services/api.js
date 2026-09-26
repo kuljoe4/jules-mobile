@@ -22,7 +22,11 @@ export const sanitizeErrorMessage = (text, status = 500) => {
   return msg;
 };
 
-async function apiCall(apiKey, path, opts={}) {
+// Security: Validates outbound REST API path parameters to prevent path traversal, double slash manipulation, and control character injection.
+export async function apiCall(apiKey, path, opts={}) {
+  if (!path || typeof path !== "string" || !path.startsWith("/") || path.includes("//") || path.includes("..") || /[\x00-\x1F\x7F]/.test(path)) {
+    throw new Error("Invalid API path.");
+  }
   const cleanKey = typeof apiKey === "string" ? apiKey.trim() : "";
   // Defensive validation of API key format
   if (cleanKey && !isValidGoogleApiKey(cleanKey)) {
