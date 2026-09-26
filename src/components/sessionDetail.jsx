@@ -537,7 +537,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     } catch (err) {
       if (err.name === 'AbortError') return;
       console.error("[LoadActivities] Error:", err);
-      throw err;
+      setErr(err.message);
     } finally {
       if (activitiesAbortRef.current === controller) {
         setIsSyncing(false); setIsStale(false);
@@ -555,7 +555,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
       onSessionUpdate?.(d);
     } catch (err) {
       console.error("[LoadSession] Error:", err);
-      throw err;
+      setErr(err.message);
     }
   }, [apiKey, session.id, onSessionUpdate]);
 
@@ -923,7 +923,6 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
       setErr(err.message);
       actMapRef.current.delete(tempKey);
       setActivities(prev => prev.filter(a => a.id !== tempKey));
-      throw err;
     }
   }, [apiKey, session.id, loadActivities, loadSession, selectedPersonas, personas, setTab]);
 

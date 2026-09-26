@@ -372,7 +372,6 @@ const GitHubTracker = {
           });
       })
       .catch(err => {
-        console.warn("Error fetching PR metadata from GitHub:", err);
         GitHubTracker.GH_IN_FLIGHT.delete(url);
         GitHubTracker.GH_STATE_CACHE.set(url, {
           state: "open",
@@ -419,7 +418,6 @@ const GitHubTracker = {
         window.dispatchEvent(new CustomEvent("gh-pr-updated", { detail: { repo, defaultBranch } }));
       })
       .catch(err => {
-        console.warn("Error fetching repo default branch:", err);
         this.GH_REPO_DEFAULT_BRANCH_IN_FLIGHT.delete(repo);
       });
   },
@@ -480,9 +478,8 @@ const GitHubTracker = {
           });
       })
       .catch(err => {
-        console.warn("Error fetching deployment metadata from GitHub:", err);
         this.GH_DEPLOYMENT_IN_FLIGHT.delete(repo);
-        this.GH_DEPLOYMENT_STATE_CACHE.set(repo, null);
+        this.GH_DEPLOYMENT_STATE_CACHE.set(repo, { deployment: null, failed: true, fetchedAt: Date.now() });
       });
   },
 
@@ -492,13 +489,14 @@ const GitHubTracker = {
     if (!isValidGithubRepoName(repo)) return null;
 
     const cached = this.GH_DEPLOYMENT_STATE_CACHE.get(repo);
-    const ttl = 30 * 1000;
+    // If it's a negative cache hit (null), or if it failed, increase TTL to 5 minutes to avoid spamming
+    const ttl = (cached && (cached.deployment === null || cached.failed)) ? 5 * 60 * 1000 : 30 * 1000;
     if (!force && cached && (Date.now() - cached.fetchedAt < ttl)) {
-      return cached;
+      return cached.deployment === null ? null : cached;
     }
 
     this.triggerGitHubDeploymentFetch(repo, force);
-    return cached || null;
+    return (cached && cached.deployment !== null) ? cached : null;
   },
 
   async deleteBranch(repo, branch) {
@@ -694,7 +692,6 @@ const GitHubTracker = {
         }
       })
       .catch(err => {
-        console.warn("Error fetching Branch metadata from GitHub:", err);
         GitHubTracker.GH_BRANCH_IN_FLIGHT.delete(key);
         GitHubTracker.GH_BRANCH_STATE_CACHE.set(key, {
           ahead: 0,
@@ -1002,7 +999,7 @@ const GitHubTracker = {
     let failed = false;
 
     const ghCached = this.GH_STATE_CACHE.get(pr.url);
-    const ttl = (ghCached && ghCached.state === "open") ? 30 * 1000 : 5 * 60 * 1000;
+    const ttl = (ghCached && ghCached.state === "open" && !ghCached.failed) ? 30 * 1000 : 5 * 60 * 1000;
     let fetchedAt = null;
     if (!force && ghCached && (Date.now() - ghCached.fetchedAt < ttl)) {
       state = ghCached.state;
@@ -1221,7 +1218,7 @@ const GitHubTracker = {
       if (activeWorking && activeWorking !== base) {
         const bKey = `${repo}:${base}:${activeWorking}`;
         const bCached = this.GH_BRANCH_STATE_CACHE.get(bKey);
-        const bTtl = 30 * 1000;
+        const bTtl = bCached?.failed ? 5 * 60 * 1000 : 30 * 1000;
         if (!force && bCached && (Date.now() - bCached.fetchedAt < bTtl)) {
           ahead = bCached.ahead || 0;
           behind = bCached.behind || 0;
@@ -1240,7 +1237,7 @@ const GitHubTracker = {
       if (!checks && base) {
         const defaultKey = `${repo}:${base}:${base}`;
         const defaultCached = this.GH_BRANCH_STATE_CACHE.get(defaultKey);
-        const defaultTtl = 30 * 1000;
+        const defaultTtl = defaultCached?.failed ? 5 * 60 * 1000 : 30 * 1000;
         if (defaultCached && (Date.now() - defaultCached.fetchedAt < defaultTtl)) {
           checks = defaultCached.checks || null;
           if (checks) checksSource = "base";
