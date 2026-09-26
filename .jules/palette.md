@@ -105,3 +105,7 @@
 ## 2026-09-15 - [Structured WAI-ARIA Lists for Conflict Radar File Overlaps]
 **Learning:** Compact conflict notification banners (like `ConflictRadar`) displaying truncated file tags often lack accessible list semantics and full path disclosures. Adding `role="status"` to status containers along with `role="list"`, `role="listitem"`, full path `title` tooltips, and descriptive `aria-label`s on individual file tags enables mouse users to inspect full paths on hover and allows assistive technologies to reliably convey structured conflict lists.
 **Action:** When implementing conflict indicators or tag clusters, wrap them in semantic `role="list"` containers with `role="listitem"` badges, full path `title` tooltips, and context-aware `aria-label` descriptors.
+
+## 2026-09-16 - [Animated Loading Spinners on Asynchronous Submit Buttons]
+**Learning:** Asynchronous submit actions (such as PR creation/merging or session initialization) that only update textual state labels without animated visual feedback leave users uncertain whether the click was registered or if the application is actively processing the network request. Adding an inline animated refresh icon (`<Ic n="refresh" />` with `animation: "spin 1s linear infinite"`) inside busy/submitting action buttons gives immediate, tactile feedback and prevents duplicate submission attempts.
+**Action:** When creating or updating submit buttons for asynchronous operations, complement textual state changes ("WORKING...", "STARTING...") with an inline animated loading spinner icon.

@@ -106,10 +106,23 @@ assert.equal(isValidStorageKey(''), false);
 assert.equal(isValidStorageKey(null), false);
 assert.equal(isValidStorageKey(123), false);
 
-// Test SafeStorage defense against Prototype Pollution keys
+// Test SafeStorage defense against Prototype Pollution keys, control characters, and length bounds in persona prompts & custom personas
 assert.equal(SafeStorage.savePersonaPrompt('toString', 'invalid prompt'), false);
 assert.equal(SafeStorage.savePersonaPrompt('__proto__', 'invalid prompt'), false);
 assert.equal(SafeStorage.savePersonaPrompt('valid_persona_id', 'valid prompt'), true);
+assert.equal(SafeStorage.savePersonaPrompt('valid_persona_id', 12345), false);
+
+// Test savePersonaPrompt control character stripping, multiline newline preservation, and max length 5000 bounding
+const dirtyPrompt = "System Prompt\x00\x07 with null byte\nand valid newline\r\nand tab\t";
+assert.equal(SafeStorage.savePersonaPrompt('sec', dirtyPrompt), true);
+const loadedPersonas = SafeStorage.loadPersonas();
+const secPersona = loadedPersonas.find(p => p.id === 'sec');
+assert.equal(secPersona.prompt, "System Prompt with null byte\nand valid newline\r\nand tab\t");
+
+const longPrompt = "A".repeat(6000);
+assert.equal(SafeStorage.savePersonaPrompt('sec', longPrompt), true);
+const loadedLongPersona = SafeStorage.loadPersonas().find(p => p.id === 'sec');
+assert.equal(loadedLongPersona.prompt.length, 5000);
 
 // Test SafeStorage savePersonaPrompt and saveCustomPersona control character & null-byte sanitization and length bounds
 assert.equal(SafeStorage.savePersonaPrompt('ux_expert', '  Clean prompt\x00\x07  '), true);

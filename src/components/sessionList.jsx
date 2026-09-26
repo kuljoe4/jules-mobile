@@ -1,7 +1,7 @@
 const FILTERS = ["ALL","QUEUED","PLANNING","AWAITING_PLAN_APPROVAL","AWAITING_USER_FEEDBACK","IN_PROGRESS","PAUSED","COMPLETED","FAILED","HAS_DRAFT"];
 const FILTER_LABELS = { AWAITING_PLAN_APPROVAL:"APPROVE", AWAITING_USER_FEEDBACK:"INPUT", PAUSED:"PAUSED", ALL:"ALL", HAS_DRAFT:"HAS DRAFT" };
 
-const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed, selectedId, isDesktop, onNew, onDrafts, onSettings, pollInterval, sessionLimit, countdown, plan, todayCount, searchQuery, setSearchQuery, archivedIds, showArchived, setShowArchived, activitiesMap = {}, activityStatsMap = {}, error, clearError, isBoosted, readMap, draftsMap = {}, ignoredIds = new Set(), filterResetTrigger, sidebarCollapsed, setSidebarCollapsed, onCloseMobileDrawer, onToggleMobileDrawer, statusFilter: propStatusFilter, setStatusFilter: propSetStatusFilter, repoFilter: propRepoFilter, setRepoFilter: propSetRepoFilter }) => {
+const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed, selectedId, isDesktop, onNew, onDrafts, onSettings, pollInterval, sessionLimit, countdown, plan, todayCount, searchQuery, setSearchQuery, archivedIds, showArchived, setShowArchived, activitiesMap = {}, activityStatsMap = {}, error, clearError, isBoosted, readMap, draftsMap = {}, ignoredIds = new Set(), filterResetTrigger, sidebarCollapsed, setSidebarCollapsed, onCloseMobileDrawer, onToggleMobileDrawer, statusFilter: propStatusFilter, setStatusFilter: propSetStatusFilter, repoFilter: propRepoFilter, setRepoFilter: propSetRepoFilter, onBulkDelete, onBulkArchive, onBulkUnarchive, onBulkIgnore, onBulkPause, onBulkResume }) => {
   const [localFilter, setLocalFilter] = useState("ALL");
   const [localRepoFilter, setLocalRepoFilter] = useState("ALL");
 
@@ -11,6 +11,38 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
   const repoFilter = propRepoFilter !== undefined ? propRepoFilter : localRepoFilter;
   const setRepoFilter = propSetRepoFilter || setLocalRepoFilter;
 
+
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const selectionMode = selectedIds.size > 0;
+
+  const handleToggleSelect = useCallback((id) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const handleSelectAll = useCallback(() => {
+    if (selectedIds.size === filtered.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filtered.map(s => s.id)));
+    }
+  }, [filtered, selectedIds.size]);
+
+  useEffect(() => {
+    // Clear selection if filter changes and selected items are no longer visible
+    if (selectedIds.size > 0) {
+      const visibleIds = new Set(filtered.map(s => s.id));
+      const newSelection = new Set([...selectedIds].filter(id => visibleIds.has(id)));
+      if (newSelection.size !== selectedIds.size) {
+        setSelectedIds(newSelection);
+      }
+    }
+  }, [filtered, selectedIds]);
+
   const [repoPickerOpen, setRepoPickerOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, handleScroll] = useScrollThreshold();
@@ -18,9 +50,8 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
   useEffect(() => {
     if (filterResetTrigger) {
       setFilter("ALL");
-      setRepoFilter("ALL");
     }
-  }, [filterResetTrigger, setFilter, setRepoFilter]);
+  }, [filterResetTrigger, setFilter]);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -194,7 +225,29 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
             }}/>
           </div>
         )}
-        <div style={{display:"flex",alignItems:"center",justifyContent:sidebarCollapsed?"center":"flex-start",gap:sidebarCollapsed?4:8,marginBottom:(scrolled||sidebarCollapsed)?0:10}}>
+
+        {selectionMode && !sidebarCollapsed ? (
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:(scrolled||sidebarCollapsed)?0:10, minHeight: 32, background: `${T.brand}15`, padding: "4px 8px", borderRadius: 8, border: `1px solid ${T.brand}40`}}>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <button onClick={() => setSelectedIds(new Set())} title="Cancel selection" aria-label="Cancel selection" style={{width:24,height:24,borderRadius:4,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="x" s={14} c={T.brand}/></button>
+              <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:12,fontWeight:700,color:T.brandLight}}>{selectedIds.size} SELECTED</span>
+            </div>
+            <div style={{display:"flex",gap:4,alignItems:"center"}}>
+              <button onClick={handleSelectAll} title="Select all" aria-label="Select all" style={{width:28,height:28,borderRadius:4,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="check" s={14} c={T.brand}/></button>
+              <div style={{width:1,height:14,background:`${T.brand}40`,margin:"0 2px"}}/>
+              <button onClick={() => { if (onBulkPause) { onBulkPause([...selectedIds]); setSelectedIds(new Set()); } }} title="Pause selected" aria-label="Pause selected" style={{width:28,height:28,borderRadius:4,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="pause" s={14} c={T.amber}/></button>
+              <button onClick={() => { if (onBulkResume) { onBulkResume([...selectedIds]); setSelectedIds(new Set()); } }} title="Resume selected" aria-label="Resume selected" style={{width:28,height:28,borderRadius:4,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="play" s={14} c={T.brand}/></button>
+              <button onClick={() => { if (onBulkIgnore) { onBulkIgnore([...selectedIds]); setSelectedIds(new Set()); } }} title="Ignore selected" aria-label="Ignore selected" style={{width:28,height:28,borderRadius:4,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="x" s={14} c={T.amber}/></button>
+              {showArchived ? (
+                <button onClick={() => { if (onBulkUnarchive) { onBulkUnarchive([...selectedIds]); setSelectedIds(new Set()); } }} title="Unarchive selected" aria-label="Unarchive selected" style={{width:28,height:28,borderRadius:4,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="tasks" s={14} c={T.brand}/></button>
+              ) : (
+                <button onClick={() => { if (onBulkArchive) { onBulkArchive([...selectedIds]); setSelectedIds(new Set()); } }} title="Archive selected" aria-label="Archive selected" style={{width:28,height:28,borderRadius:4,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="archive" s={14} c={T.purple}/></button>
+              )}
+              <button onClick={() => { if (onBulkDelete) { onBulkDelete([...selectedIds]); setSelectedIds(new Set()); } }} title="Delete selected" aria-label="Delete selected" style={{width:28,height:28,borderRadius:4,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="trash" s={14} c={T.red}/></button>
+            </div>
+          </div>
+        ) : (
+<div style={{display:"flex",alignItems:"center",justifyContent:sidebarCollapsed?"center":"flex-start",gap:sidebarCollapsed?4:8,marginBottom:(scrolled||sidebarCollapsed)?0:10}}>
           <div style={{width:scrolled?20:32,height:scrolled?20:32,borderRadius:6,background:T.brand,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace",fontSize:scrolled?11:18,fontWeight:900,color:"#000",boxShadow:scrolled?"none":`0 0 12px ${T.brandDark}40`,flexShrink:0,transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)"}}>J</div>
           {!sidebarCollapsed && (
             <div style={{minWidth:0, transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)", flex: 1}}>
@@ -228,7 +281,12 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
               )}
             </div>
           )}
+
           <div style={{marginLeft:"auto",display:"flex",gap:4,alignItems:"center",flexShrink:0}}>
+            {!sidebarCollapsed && !selectionMode && (
+              <button onClick={() => { if (filtered.length > 0) handleToggleSelect(filtered[0].id); }} title="Select items" aria-label="Select items" style={{width:28,height:28,borderRadius:5,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="check" s={14} c={T.muted}/></button>
+            )}
+
             {!sidebarCollapsed && (
               <>
                 <button onClick={toggleSearch} title="Search sessions (Press /)" aria-label="Search sessions (Press forward slash to search)" style={{width:28,height:28,borderRadius:5,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="search" s={14} c={searchOpen||searchQuery?T.blue:T.muted}/></button>
@@ -419,6 +477,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
             )}
           </div>
         </div>
+        )}
         {error && (
           <div style={{
             background:T.redDim, border:`1px solid ${T.red}40`, borderRadius:6,
@@ -725,7 +784,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
             })}
           </div>
         ) : (
-          filtered.map((s,i)=><SessionCard key={s.id||s.name} index={i+1} s={s} onSelect={onSelect} isSelected={s.id===selectedId} activities={activitiesMap[s.id] || EMPTY_ARR} stats={activityStatsMap[s.id]} lastReadTs={readMap[s.id]} latestCompletedTime={latestCompletedTimeByRepo[s.sourceContext?.source]} hasFollowupDraft={!!draftsMap[s.id]}/>)
+          filtered.map((s,i)=><SessionCard key={s.id||s.name} index={i+1} s={s} onSelect={onSelect} isSelected={s.id===selectedId} isBulkSelected={selectedIds.has(s.id)} onToggleSelect={handleToggleSelect} selectionMode={selectionMode} activities={activitiesMap[s.id] || EMPTY_ARR} stats={activityStatsMap[s.id]} lastReadTs={readMap[s.id]} latestCompletedTime={latestCompletedTimeByRepo[s.sourceContext?.source]} hasFollowupDraft={!!draftsMap[s.id]}/>)
         )}
       </div>
     </div>
