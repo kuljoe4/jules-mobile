@@ -6,9 +6,11 @@ const useQuotaTracker = (sessions, plan) => {
       const now = Date.now();
       const cutoff = now - 48 * 3600000;
       const pruned = {};
-      Object.entries(reg).forEach(([id, time]) => {
+      const entries = Object.entries(reg);
+      for (let i = 0; i < entries.length; i++) {
+        const [id, time] = entries[i];
         if (parseDateMs(time) > cutoff) pruned[id] = time;
-      });
+      }
       return pruned;
     } catch { return {}; }
   });
@@ -47,12 +49,14 @@ const useQuotaTracker = (sessions, plan) => {
     const entries = Object.entries(sessionRegistry);
     const allKnown = [];
     const recentlyDone = [];
+    const windowIds = new Set();
 
     for (let i = 0; i < entries.length; i++) {
       const [id, time] = entries[i];
       const ts = parseDateMs(time);
       if (ts >= windowStart) {
         allKnown.push({ id, ts });
+        windowIds.add(id);
       } else {
         recentlyDone.push({ id, ts });
       }
@@ -92,7 +96,6 @@ const useQuotaTracker = (sessions, plan) => {
       recentResets.push({ ts: resetTs, ago: fmtAgo(resetTs) });
     }
 
-    const windowIds = new Set(allKnown.map(s => s.id));
     // OPTIMIZATION (Bolt): Pre-index PR status for sessions in the 24h window in a single pass
     // to avoid redundant getPR property scanning during quota filter evaluations.
     let prCreated = 0;
