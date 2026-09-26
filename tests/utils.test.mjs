@@ -74,10 +74,23 @@ assert.equal(isValidSessionId('sess\x00nullbyte'), false);
 assert.equal(isValidSessionId('sess\nnewline'), false);
 assert.equal(isValidSessionId('a'.repeat(300)), false);
 
-// Verify session ID validation in session detail actions
+// Verify session ID validation in session detail and bulk client actions
 assert.equal(isValidSessionId('sess_valid_123'), true);
 assert.equal(isValidSessionId('sess_invalid/../traversal'), false);
 assert.equal(isValidSessionId('sess_invalid?query=1'), false);
+
+// Verify filtering of invalid session IDs from bulk action arrays
+const bulkIdsCandidate = [
+  'sess_valid_1',
+  'sess_invalid/../traversal',
+  'sess_valid_2',
+  'sess_invalid?query=1',
+  'sess\x00nullbyte',
+  null,
+  123
+];
+const filteredBulkIds = bulkIdsCandidate.filter(isValidSessionId);
+assert.deepEqual(filteredBulkIds, ['sess_valid_1', 'sess_valid_2']);
 
 assert.equal(isValidGitBranchName('feature/mobile-refactor'), true);
 assert.equal(isValidGitBranchName('-danger'), false);
@@ -124,25 +137,50 @@ assert.equal(SafeStorage.savePersonaPrompt('sec', longPrompt), true);
 const loadedLongPersona = SafeStorage.loadPersonas().find(p => p.id === 'sec');
 assert.equal(loadedLongPersona.prompt.length, 5000);
 
+// Test SafeStorage savePersonaPrompt and saveCustomPersona control character & null-byte sanitization and length bounds
+assert.equal(SafeStorage.savePersonaPrompt('ux_expert', '  Clean prompt\x00\x07  '), true);
+const savedPersonaPrompts = SafeStorage.getJSON(SafeStorage.KEYS.PERSONA_PROMPTS, {});
+assert.equal(savedPersonaPrompts['ux_expert'], 'Clean prompt');
+assert.equal(SafeStorage.savePersonaPrompt('ux_expert', ''), false);
+assert.equal(SafeStorage.savePersonaPrompt('ux_expert', null), false);
+assert.equal(SafeStorage.savePersonaPrompt('ux_expert', 'A'.repeat(6000)), true);
+const savedLongPrompt = SafeStorage.getJSON(SafeStorage.KEYS.PERSONA_PROMPTS, {})['ux_expert'];
+assert.equal(savedLongPrompt.length, 5000);
+
 assert.equal(SafeStorage.saveCustomPersona({ id: 'toString', label: 'bad' }), false);
 assert.equal(SafeStorage.saveCustomPersona({ id: '__proto__', label: 'bad' }), false);
+assert.equal(SafeStorage.saveCustomPersona({ id: 'custom_1', label: '  Role\x00\x07 Label  ', prompt: '  Prompt\x00\x07 Text  ', color: ' #ff0000\x00 ' }), true);
+const customPersonas = SafeStorage.getJSON(SafeStorage.KEYS.CUSTOM_PERSONAS, []);
+const cleanCustom1 = customPersonas.find(p => p.id === 'custom_1');
+assert.equal(cleanCustom1.label, 'Role Label');
+assert.equal(cleanCustom1.prompt, 'Prompt Text');
+assert.equal(cleanCustom1.color, '#ff0000');
 
-// Test saveCustomPersona sanitization and length bounding
-const customPersonaSample = {
-  id: 'custom_sec_1',
-  label: '  Security Reviewer\x00\x07  ',
-  role: 'AppSec Lead\x00',
-  prompt: 'Custom Prompt\x00 with multiline\nlines',
-  color: '#00ff00\x00\n'
-};
-assert.equal(SafeStorage.saveCustomPersona(customPersonaSample), true);
-const loadedCustomPersonas = SafeStorage.loadPersonas();
-const loadedCustom = loadedCustomPersonas.find(p => p.id === 'custom_sec_1');
-assert.equal(loadedCustom.label, "Security Reviewer");
-assert.equal(loadedCustom.role, "AppSec Lead");
-assert.equal(loadedCustom.prompt, "Custom Prompt with multiline\nlines");
-assert.equal(loadedCustom.color, "#00ff00");
-assert.equal(loadedCustom.isCustom, true);
+assert.equal(SafeStorage.saveCustomPersona({ id: 'custom_2', label: '', prompt: 'Prompt' }), false);
+assert.equal(SafeStorage.saveCustomPersona({ id: 'custom_3', label: 'Label', prompt: '' }), false);
+
+// Test multiline prompts with valid newlines (\n) and tabs (\t) are preserved while null bytes are stripped
+const multilinePrompt = "Line 1: Act as Senior Dev.\nLine 2:\t- Prioritize clean code.\nLine 3: Null byte\x00 removed.";
+assert.equal(SafeStorage.savePersonaPrompt('refactor', multilinePrompt), true);
+assert.equal(SafeStorage.saveCustomPersona({ id: 'custom_multiline', label: 'Multiline Role', prompt: multilinePrompt }), true);
+
+globalThis.localStorage.setItem(SafeStorage.KEYS.PERSONA_PROMPTS, JSON.stringify({
+  'ux': 'Corrupted\x00Prompt',
+  'refactor': 'Line 1: Act as Senior Dev.\nLine 2:\t- Prioritize clean code.\nLine 3: Null byte\x00 removed.'
+}));
+globalThis.localStorage.setItem(SafeStorage.KEYS.CUSTOM_PERSONAS, JSON.stringify([
+  { id: 'custom_bad', label: 'Hacked\x00Role', prompt: 'Prompt\x07Text', color: '#ff0000\x00' },
+  { id: 'custom_multiline', label: 'Multiline Role', prompt: 'Line 1: Act as Senior Dev.\nLine 2:\t- Prioritize clean code.\nLine 3: Null byte\x00 removed.', color: '#00eaff' }
+]));
+const loadedPersonas = SafeStorage.loadPersonas();
+const refactorP = loadedPersonas.find(p => p.id === 'refactor');
+assert.equal(refactorP.prompt, 'Line 1: Act as Senior Dev.\nLine 2:\t- Prioritize clean code.\nLine 3: Null byte removed.');
+const customP = loadedPersonas.find(p => p.id === 'custom_bad');
+assert.equal(customP.label, 'HackedRole');
+assert.equal(customP.prompt, 'PromptText');
+assert.equal(customP.color, '#ff0000');
+const customMultiP = loadedPersonas.find(p => p.id === 'custom_multiline');
+assert.equal(customMultiP.prompt, 'Line 1: Act as Senior Dev.\nLine 2:\t- Prioritize clean code.\nLine 3: Null byte removed.');
 
 assert.equal(SafeStorage.deleteCustomPersona('toString'), false);
 
@@ -449,11 +487,31 @@ const testSessions = [{ id: 's1', title: 'Test Session 1', state: 'COMPLETED' }]
 SafeStorage.saveSessionsList(testSessions);
 assert.deepEqual(SafeStorage.loadSessionsList(), testSessions);
 
-// Test SafeStorage followup draft session ID validation
+// Test SafeStorage followup draft session ID validation, control character stripping, and length bounding
 assert.equal(SafeStorage.saveFollowupDraft('valid-sess-123', 'draft text'), true);
 assert.equal(SafeStorage.loadFollowupDraft('valid-sess-123'), 'draft text');
 assert.equal(SafeStorage.clearFollowupDraft('valid-sess-123'), true);
 assert.equal(SafeStorage.loadFollowupDraft('valid-sess-123'), '');
+
+// Test saveFollowupDraft control character stripping, newline preservation, and 10,000 char length bounding
+const dirtyFollowup = "Line 1\x00\x07 with null byte\nLine 2 with tab\t and newline\r\nLine 3";
+assert.equal(SafeStorage.saveFollowupDraft('valid-sess-123', dirtyFollowup), true);
+assert.equal(SafeStorage.loadFollowupDraft('valid-sess-123'), "Line 1 with null byte\nLine 2 with tab\t and newline\r\nLine 3");
+
+const longFollowup = "B".repeat(12000);
+assert.equal(SafeStorage.saveFollowupDraft('valid-sess-123', longFollowup), true);
+assert.equal(SafeStorage.loadFollowupDraft('valid-sess-123').length, 10000);
+
+// Test saveFollowupDraft handles non-string or whitespace-only inputs by clearing key
+assert.equal(SafeStorage.saveFollowupDraft('valid-sess-123', 12345), false);
+assert.equal(SafeStorage.loadFollowupDraft('valid-sess-123'), '');
+assert.equal(SafeStorage.saveFollowupDraft('valid-sess-123', '   '), true);
+assert.equal(SafeStorage.loadFollowupDraft('valid-sess-123'), '');
+
+// Test loadFollowupDraft sanitizes untrusted / tampered LocalStorage content
+globalThis.localStorage.setItem('jac_draft_valid-sess-123', 'Tampered\x00Draft\nWith Newline');
+assert.equal(SafeStorage.loadFollowupDraft('valid-sess-123'), 'TamperedDraft\nWith Newline');
+SafeStorage.clearFollowupDraft('valid-sess-123');
 
 // Test rejection of invalid session IDs in SafeStorage followup draft helpers
 assert.equal(SafeStorage.saveFollowupDraft('../path/traversal', 'invalid'), false);
