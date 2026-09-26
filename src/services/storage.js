@@ -645,14 +645,28 @@ const SafeStorage = {
     return false;
   },
 
-  // Security: Validates session identifier before accessing LocalStorage keys to prevent parameter pollution or key injection.
+  // Security: Validates session identifier and sanitizes follow-up message draft text against control character prompt injection,
+  // LocalStorage state tampering, and quota exhaustion by enforcing string types, stripping non-printable ASCII control characters
+  // while preserving multiline formatting (\n, \r, \t), and bounding max character length (10,000 chars).
   loadFollowupDraft(sessionId) {
     if (!isValidSessionId(sessionId)) return "";
-    return this.getItem(`jac_draft_${sessionId}`, "");
+    const raw = this.getItem(`jac_draft_${sessionId}`, "");
+    if (typeof raw !== "string" || !raw) return "";
+    const clean = raw.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "").slice(0, 10000);
+    return clean;
   },
   saveFollowupDraft(sessionId, val) {
     if (!isValidSessionId(sessionId)) return false;
-    return this.setItem(`jac_draft_${sessionId}`, val);
+    if (typeof val !== "string") {
+      this.removeItem(`jac_draft_${sessionId}`);
+      return false;
+    }
+    const clean = val.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "").slice(0, 10000);
+    if (!clean.trim()) {
+      this.removeItem(`jac_draft_${sessionId}`);
+      return true;
+    }
+    return this.setItem(`jac_draft_${sessionId}`, clean);
   },
   clearFollowupDraft(sessionId) {
     if (!isValidSessionId(sessionId)) return false;
