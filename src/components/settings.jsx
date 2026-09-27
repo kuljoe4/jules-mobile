@@ -52,6 +52,7 @@ const SettingsView = ({ onBack, isDesktop, settings, personas, setPersonas, toda
     { id: "personas",label: "PERSONAS", ic: "tasks" },
     { id: "network", label: "NETWORK", ic: "layers" },
     { id: "storage", label: "STORAGE", ic: "database" },
+    { id: "analytics", label: "ANALYTICS", ic: "chart" },
     { id: "api",     label: "API KEY", ic: "key" },
     { id: "design",  label: "DESIGN LAB", ic: "layout_toggle" },
   ];
@@ -567,6 +568,12 @@ const SettingsView = ({ onBack, isDesktop, settings, personas, setPersonas, toda
                   <ExpandablePersonaPrompt prompt={p.prompt} />
                 </div>
               ))}
+            </div>
+          )}
+
+          {tab === "analytics" && (
+            <div style={{animation:"fadeIn .2s ease"}} role="region" aria-label="Analytics Chart">
+              <AnalyticsChart />
             </div>
           )}
 
