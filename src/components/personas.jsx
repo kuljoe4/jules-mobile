@@ -136,8 +136,9 @@ const MultiPersonaPicker = ({ personas, selectedIds, onToggle, style: s = {} }) 
 
 const ExpandablePersonaPrompt = ({ prompt, limit = 120 }) => {
   const [expanded, setExpanded] = React.useState(false);
-  const promptLength = React.useMemo(() => Array.from(prompt || "").length, [prompt]);
-  const isLong = promptLength > limit;
+  // OPTIMIZATION (Bolt): Replace O(N) Array.from(str).length array allocations on long persona prompts (up to 5000 chars)
+  // with O(1) string length comparison. This avoids allocating 5000-element arrays per prompt render pass.
+  const isLong = (prompt || "").length > limit;
 
   if (!isLong) {
     return (

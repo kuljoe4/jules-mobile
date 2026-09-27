@@ -673,7 +673,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
       }
 
       // Limit quoteText length
-      if (Array.from(quoteText).length > 200) {
+      // OPTIMIZATION (Bolt): Use O(1) string .length check instead of Array.from(str) to avoid array allocation
+      if (quoteText.length > 200) {
         quoteText = safeSlice(quoteText, 197) + "...";
       }
 
@@ -1720,13 +1721,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
               <div style={{flex:1}}/>
               <button
                 onClick={() => {
-                  const filtered = activities.filter(a => {
-                    if (chatFilter === "MESSAGES") return a.userMessaged || a.agentMessaged;
-                    if (chatFilter === "REVIEWS") return a.progressUpdated && a.progressUpdated.title?.toLowerCase().includes("review");
-                    if (chatFilter === "SYSTEM") return !a.userMessaged && !a.agentMessaged && !(a.progressUpdated && a.progressUpdated.title?.toLowerCase().includes("review"));
-                    return true;
-                  });
-                  const text = filtered.map(a => {
+                  // OPTIMIZATION (Bolt): Reuse pre-computed filteredActivities directly to avoid re-filtering
+                  const text = filteredActivities.map(a => {
                     if (a.userMessaged) return `[USER] ${a.userMessaged.userMessage}`;
                     if (a.agentMessaged) return `[JULES] ${a.agentMessaged.agentMessage}`;
                     if (a.progressUpdated) return `[SYSTEM] ${a.progressUpdated.title}: ${a.progressUpdated.description}`;

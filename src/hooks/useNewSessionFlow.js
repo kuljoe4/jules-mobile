@@ -135,7 +135,8 @@ const useNewSessionFlow = ({ apiKey, personas, onCreate, initialDraft, onDraftSa
             title: (() => {
               const firstLine = current.prompt.trim().split("\n")[0];
               const truncated = safeSlice(firstLine, 50);
-              const hasMore = Array.from(current.prompt.trim()).length > 50 || firstLine !== current.prompt.trim();
+              // OPTIMIZATION (Bolt): Use O(1) string .length check instead of Array.from(str) to avoid array allocation
+              const hasMore = current.prompt.trim().length > 50 || firstLine !== current.prompt.trim();
               return truncated + (hasMore ? "..." : "");
             })()
           };
@@ -188,7 +189,8 @@ const useNewSessionFlow = ({ apiKey, personas, onCreate, initialDraft, onDraftSa
       title: (() => {
         const firstLine = prompt.trim().split("\n")[0];
         const truncated = safeSlice(firstLine, 50);
-        const hasMore = Array.from(prompt.trim()).length > 50 || firstLine !== prompt.trim();
+        // OPTIMIZATION (Bolt): Use O(1) string .length check instead of Array.from(str) to avoid array allocation
+        const hasMore = prompt.trim().length > 50 || firstLine !== prompt.trim();
         return truncated + (hasMore ? "..." : "");
       })()
     };
