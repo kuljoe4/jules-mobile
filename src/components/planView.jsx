@@ -266,6 +266,7 @@ export const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFe
                     aria-label={reviseAria}
                     style={{flex:1}}
                   >
+                    {sending && <Ic n="refresh" s={11} c={T.amber} style={{ animation: "spin 1s linear infinite" }} />}
                     {sending?"SENDING…":`REVISE${annotatedCount>0?` (${annotatedCount} step${annotatedCount>1?"s":""})`:globalNote.trim()?" +note":""}`}
                   </Btn>
                   <Btn
@@ -276,7 +277,7 @@ export const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFe
                     aria-label={approveAria}
                     style={{flex:1}}
                   >
-                    <Ic n="approve" s={11} c="#000"/>
+                    <Ic n={busy ? "refresh" : "approve"} s={11} c="#000" style={{ animation: busy ? "spin 1s linear infinite" : "none" }}/>
                     {approved?"APPROVED":busy?"APPROVING…":"APPROVE PLAN"}
                   </Btn>
                 </>

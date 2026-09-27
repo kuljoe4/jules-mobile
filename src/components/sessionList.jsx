@@ -756,7 +756,17 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
             <button onClick={toggleSearch} title="Search Sessions" aria-label="Search Sessions" style={{width:40, height:40, borderRadius:8, background:T.surfaceHi, border:`1px solid ${T.border}`, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer"}}><Ic n="search" s={16} c={T.muted}/></button>
             <button onClick={onDrafts} title="Drafts Box" aria-label="Drafts Box" style={{width:40, height:40, borderRadius:8, background:T.surfaceHi, border:`1px solid ${T.border}`, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", position:"relative"}}><Ic n="layers" s={16} c={hasDrafts ? T.amber : T.muted}/></button>
             <button onClick={onSettings} title="Settings" aria-label="Settings" style={{width:40, height:40, borderRadius:8, background:T.surfaceHi, border:`1px solid ${T.border}`, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer"}}><Ic n="settings" s={16} c={T.muted}/></button>
-            <button onClick={onRefresh} disabled={refreshing} title="Refresh Sessions" aria-label="Refresh Sessions" style={{width:40, height:40, borderRadius:8, background:T.surfaceHi, border:`1px solid ${T.border}`, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer"}}><Ic n={justRefreshed ? "check" : "refresh"} s={16} c={refreshing ? T.brand : T.muted}/></button>
+            <button
+              onClick={onRefresh}
+              disabled={refreshing}
+              title={refreshing ? "Refreshing sessions..." : "Refresh Sessions"}
+              aria-label={refreshing ? "Refreshing sessions" : "Refresh Sessions"}
+              style={{width:40, height:40, borderRadius:8, background:T.surfaceHi, border:`1px solid ${T.border}`, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer"}}
+            >
+              <div style={{display:"flex", animation: refreshing ? "spin 1s linear infinite" : "none"}}>
+                <Ic n={justRefreshed ? "check" : "refresh"} s={16} c={refreshing ? T.brand : T.muted}/>
+              </div>
+            </button>
 
             <div style={{width:24, height:1, background:T.border, margin:"6px 0"}}/>
 
