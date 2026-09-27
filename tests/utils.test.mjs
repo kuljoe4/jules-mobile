@@ -880,6 +880,32 @@ assert.equal(getSmartTitle(mockSessWithSummary, mockBWithActivityCommits), "Sess
 // Fallback to summary when no commits
 assert.equal(getSmartTitle(mockSessWithSummary, { working: "feature/test", commits: [] }), "Session summary title");
 
+// Test getSmartTitle & getSmartBody control character, null byte, multiline newline sanitization and length bounds
+const mockDirtyProposalSess = {
+  id: "sess-dirty",
+  prompt: "Prompt\x00with null\r\nand newline"
+};
+const mockDirtyBranch = {
+  working: "feature/dirty",
+  pendingPRProposal: {
+    title: "  Proposal\x00\x07 Title\r\nWith Newline  ",
+    description: "  Proposal\x00\x07 Description\nLine 2\r\nLine 3  "
+  }
+};
+
+assert.equal(getSmartTitle(mockDirtyProposalSess, mockDirtyBranch), "Proposal Title With Newline");
+assert.equal(getSmartBody(mockDirtyProposalSess, mockDirtyBranch), "Proposal Description\nLine 2\r\nLine 3");
+
+const mockOversizedProposalBranch = {
+  working: "feature/long",
+  pendingPRProposal: {
+    title: "T".repeat(300),
+    description: "D".repeat(12000)
+  }
+};
+assert.equal(getSmartTitle(mockDirtyProposalSess, mockOversizedProposalBranch).length, 250);
+assert.equal(getSmartBody(mockDirtyProposalSess, mockOversizedProposalBranch).length, 10000);
+
 // Test GH_BRANCH_STATE_CACHE livePR propagation
 const livePrBranchKey = "owner/repo:main:feature-live";
 const mockLivePR = { url: "https://github.com/owner/repo/pull/50", number: 50, state: "merged", title: "Live PR", body: "Body", ahead: 0, behind: 0 };
