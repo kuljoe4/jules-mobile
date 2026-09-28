@@ -526,7 +526,6 @@ function JulesClient() {
             });
           }
 
-          console.log(`[FetchSessions] Populated state with ${sorted.length} sessions total (increment: ${currentBatch.length}).`);
           return sorted;
         });
 
