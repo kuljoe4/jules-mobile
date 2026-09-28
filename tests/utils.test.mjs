@@ -1213,6 +1213,57 @@ await sendNotification(longTitle, longBody, "tag");
 assert.equal(sentTitle.length, 100);
 assert.equal(sentOptions.body.length, 200);
 
+// Test apiCall AbortError and Timeout handling
+{
+  const origFetch = globalThis.fetch;
+  const origLoadApiTimeout = globalThis.loadApiTimeout;
+  const origBase = globalThis.BASE;
+  const origNet = globalThis.NET;
+  const origIsValidGoogleApiKey = globalThis.isValidGoogleApiKey;
+
+  try {
+    globalThis.isValidGoogleApiKey = () => true;
+    globalThis.loadApiTimeout = () => 5000;
+    globalThis.BASE = "http://localhost";
+    globalThis.NET = { record: () => {} };
+
+    // 1. Test timeout AbortError
+    globalThis.fetch = async (url, opts) => {
+      return new Promise((resolve, reject) => {
+        const err = new Error("AbortError");
+        err.name = "AbortError";
+        if (opts.signal) {
+          opts.signal.addEventListener('abort', () => reject(err));
+        }
+      });
+    };
+
+    await assert.rejects(
+      async () => { await apiCall('AIzaSyValidApiKeyForTesting123', '/test-timeout', { timeout: 10 }); },
+      (err) => err.message === "API request timed out after 10ms"
+    );
+
+    // 2. Test user aborted AbortError
+    globalThis.fetch = async (url, opts) => {
+      const err = new Error("AbortError");
+      err.name = "AbortError";
+      throw err;
+    };
+
+    await assert.rejects(
+      async () => { await apiCall('AIzaSyValidApiKeyForTesting123', '/test-abort', { timeout: 10000 }); },
+      (err) => err.name === "AbortError" && err.message === "The user aborted a request."
+    );
+
+  } finally {
+    globalThis.fetch = origFetch;
+    globalThis.loadApiTimeout = origLoadApiTimeout;
+    globalThis.BASE = origBase;
+    globalThis.NET = origNet;
+    globalThis.isValidGoogleApiKey = origIsValidGoogleApiKey;
+  }
+}
+
 // Test apiCall path validation
 await assert.rejects(async () => { await apiCall('key', 'invalid-path-without-slash'); }, { message: 'Invalid API path.' });
 await assert.rejects(async () => { await apiCall('key', '/sessions/../traversal'); }, { message: 'Invalid API path.' });
