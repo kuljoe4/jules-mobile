@@ -721,6 +721,40 @@ await assert.rejects(
   { message: 'Invalid head branch name ("bad head name").' }
 );
 
+// Test mergeBranch error path when GitHub API returns a failure (e.g. merge conflict)
+{
+  const origFetch = globalThis.fetch;
+  const mockFetchFailed = async (url, opts) => {
+    return {
+      ok: false,
+      status: 409,
+      headers: new Map(),
+      json: async () => ({ message: "Merge conflict" })
+    };
+  };
+
+  globalThis.fetch = mockFetchFailed;
+  if (typeof global !== "undefined") global.fetch = mockFetchFailed;
+
+  try {
+    SafeStorage.saveGithubToken("ghp_validTestToken123");
+    await assert.rejects(
+      async () => {
+        await mergeBranch({
+          repo: "owner/repo",
+          head: "feature-branch",
+          base: "main",
+          commitMessage: "Merge PR"
+        });
+      },
+      { message: "Merge conflict" }
+    );
+  } finally {
+    globalThis.fetch = origFetch;
+    if (typeof global !== "undefined") global.fetch = origFetch;
+  }
+}
+
 // Test createPullRequest and mergeBranch title, body, and commitMessage sanitization against control characters and null bytes
 {
   const origFetch = globalThis.fetch;
