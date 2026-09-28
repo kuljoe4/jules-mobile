@@ -57,7 +57,8 @@ const SessionCard = memo(({ s, onPress, onSelect, isSelected, isBulkSelected, on
   }, [rawRepo]);
   const pri  = useMemo(() => getPRInfo(s, activities), [s, activities, ghPrNonce]);
   const b    = useMemo(() => getBranchInfo(s, activities), [s, activities, ghPrNonce]);
-  const checkStatus = useMemo(() => getCheckStatus(activities), [activities]);
+  // OPTIMIZATION (Bolt): Removed dead/unused `checkStatus` calculation. `activeCheck` evaluates `b.checks` directly,
+  // avoiding redundant `getCheckStatus` calls and array traversals on every session card render pass.
 
   const activeCheck = useMemo(() => {
     const isFresh = parseDateMs(s.updateTime || s.createTime) > (Date.now() - 15 * 60 * 1000);
