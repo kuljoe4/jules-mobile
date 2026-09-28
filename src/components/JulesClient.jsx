@@ -417,7 +417,6 @@ function JulesClient() {
           timeout: loadApiTimeout()
         });
         const batch = d.sessions || [];
-        console.log(`[FetchSessions] Fetched ${isFull ? "full" : "delta"} page ${iterations + 1} with ${batch.length} sessions (pageSize=${pageSize}).`);
         incoming = [...incoming, ...batch];
         pageToken = d.nextPageToken;
 
