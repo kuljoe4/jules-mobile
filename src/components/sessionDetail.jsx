@@ -1735,6 +1735,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                     }
                   });
                 }}
+                title={copiedChat ? "All activities copied to clipboard" : "Copy all activities to clipboard"}
+                aria-label={copiedChat ? "All activities copied to clipboard" : "Copy all activities"}
                 style={{
                   background: "transparent", border: "none", color: T.brand,
                   fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 800,
@@ -2482,6 +2484,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                              }
                              });
                            }}
+                           title={copiedReviews[getActKey(act)] ? "Review text copied to clipboard" : "Copy review text"}
+                           aria-label={copiedReviews[getActKey(act)] ? "Review text copied to clipboard" : "Copy review text"}
                            style={{
                              background:"transparent", border:"none", color:T.brand,
                              fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:700,

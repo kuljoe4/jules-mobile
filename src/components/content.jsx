@@ -105,8 +105,8 @@ const ExpandableContent = memo(({ text, limit = 300, showCopy = false, forceExpa
                 padding: 0, display: "flex", alignItems:"center", gap: 4, transition: "color .2s cubic-bezier(0.4, 0, 0.2, 1)"
               }}
             >
-              <Ic n="copy" s={12} c={copied ? T.brand : T.muted} />
-              {copied ? "COPIED" : "COPY"}
+              <Ic n={copied ? "check" : "copy"} s={12} c={copied ? T.brand : T.muted} />
+              {copied ? "COPIED ✓" : "COPY"}
             </button>
           </>
         )}
@@ -313,8 +313,8 @@ const CodeBlock = memo(({ lang, content }) => {
           onMouseEnter={e => { e.currentTarget.style.color = T.brand; e.currentTarget.style.background = `${T.brand}15`; }}
           onMouseLeave={e => { e.currentTarget.style.color = copied ? T.brand : T.muted; e.currentTarget.style.background = "none"; }}
         >
-          <Ic n="copy" s={11} c={copied ? T.brand : T.muted}/>
-          {copied ? "COPIED" : "COPY"}
+          <Ic n={copied ? "check" : "copy"} s={11} c={copied ? T.brand : T.muted}/>
+          {copied ? "COPIED ✓" : "COPY"}
         </button>
       </div>
       <div style={{ padding: "12px", color: T.text, whiteSpace: "pre-wrap", overflowWrap: "break-word", wordBreak: "break-word" }}>
