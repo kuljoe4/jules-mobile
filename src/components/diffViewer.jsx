@@ -45,20 +45,31 @@ export const DiffViewer = memo(({ activities = [], isDesktop = false }) => {
   // Parse each patch into structured file groups and precompute total additions/removals
   // to avoid redundant .reduce() array traversals on every render pass.
   const patchGroups = useMemo(() => {
-    return recentPatches.map(p => {
+    const result = new Array(recentPatches.length);
+    for (let i = 0; i < recentPatches.length; i++) {
+      const p = recentPatches[i];
       const groups = parseUnidiffPatch(p.gitPatch || p.patch, p.ts);
-      let pAdds = 0, pRems = 0;
-      for (let i = 0; i < groups.length; i++) {
-        pAdds += groups[i].adds;
-        pRems += groups[i].rems;
+
+      // OPTIMIZATION: Cache pAdds and pRems directly on the reference-stable
+      // groups array to avoid O(N) file group iteration on every render pass
+      if (groups.pAdds === undefined) {
+        let pAdds = 0, pRems = 0;
+        for (let j = 0; j < groups.length; j++) {
+          pAdds += groups[j].adds;
+          pRems += groups[j].rems;
+        }
+        groups.pAdds = pAdds;
+        groups.pRems = pRems;
       }
-      return {
+
+      result[i] = {
         patchMeta: p,
         groups,
-        pAdds,
-        pRems
+        pAdds: groups.pAdds,
+        pRems: groups.pRems
       };
-    });
+    }
+    return result;
   }, [recentPatches]);
 
   // Flattened total key index set for calculating collapse state
