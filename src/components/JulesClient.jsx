@@ -506,7 +506,6 @@ function JulesClient() {
               }
             }
             if (identical) {
-              console.log("[FetchSessions] Delta poll returned 0 session changes - bypassing re-render.");
               return prev;
             }
           }
