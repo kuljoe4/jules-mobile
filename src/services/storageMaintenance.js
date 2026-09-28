@@ -71,8 +71,8 @@ async function getStorageInfo() {
       for (const key of keys) {
         const c = await caches.open(key);
         const reqs = await c.keys();
-        for (const r of reqs) {
-          const res = await c.match(r);
+        const matches = await Promise.all(reqs.map(r => c.match(r)));
+        for (const res of matches) {
           if (res) {
             const cl = res.headers.get("content-length");
             if (cl) cache += parseInt(cl, 10);
