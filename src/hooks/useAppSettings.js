@@ -45,7 +45,7 @@ const useAppSettings = ({ onSessionLimitChange } = {}) => {
   const setNotifications = useCallback(async v => {
     if (v) {
       const ok = await requestNotificationPermission();
-      if (!ok) { alert("Please enable notifications in your browser settings."); return; }
+      if (ok !== 'granted') { alert("Please enable notifications in your browser settings."); return; }
     }
     saveNotify(v);
     setNotificationsRaw(v);

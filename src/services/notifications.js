@@ -4,11 +4,15 @@ import { SafeStorage } from './storage.js';
 function loadNotify() { return SafeStorage.loadNotify(); }
 function saveNotify(v) { SafeStorage.saveNotify(v); }
 
-function requestNotificationPermission() {
-  if (typeof window === "undefined" || !("Notification" in window)) return Promise.resolve(false);
-  if (Notification.permission === "granted") return Promise.resolve(true);
-  return Notification.requestPermission().then(p => p === "granted");
-}
+export const requestNotificationPermission = async () => {
+  if (typeof window === "undefined" || !('Notification' in window)) return 'unsupported';
+  if (Notification.permission === 'granted') return 'granted';
+  try {
+    return await Notification.requestPermission();
+  } catch (err) {
+    return 'denied';
+  }
+};
 
 async function sendNotification(title, body, tag) {
   if (!loadNotify()) return;
@@ -43,4 +47,4 @@ async function sendNotification(title, body, tag) {
   }
 }
 
-export { requestNotificationPermission, sendNotification };
+export { sendNotification };
