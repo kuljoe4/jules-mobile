@@ -440,7 +440,7 @@ const SafeStorage = {
       const drafts = this.loadDraftsBox();
       const newDraft = {
         ...cleanDraft,
-        id: cleanDraft.id || "dr_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7),
+        id: cleanDraft.id || "dr_" + crypto.randomUUID(),
         createdAt: cleanDraft.createdAt || Date.now(),
         updatedAt: Date.now()
       };
