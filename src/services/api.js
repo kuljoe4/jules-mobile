@@ -2,7 +2,7 @@ let quotaRetryAfter = 0;
 let lastQuotaError = null;
 const QUOTA_ERROR_CODES = [429, 403];
 
-// Security: Sanitizes HTTP error response payloads to prevent leaking raw HTML, stack traces, internal paths, or DoS bloat.
+// Security: Sanitizes HTTP error response payloads to prevent leaking raw HTML, stack traces, internal paths, DoS bloat, or sensitive API keys/tokens.
 export const sanitizeErrorMessage = (text, status = 500) => {
   let msg = text;
   try {
@@ -15,6 +15,10 @@ export const sanitizeErrorMessage = (text, status = 500) => {
       msg = `HTTP ${status} Error`;
     } else {
       msg = msg.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
+      // Security: Redact sensitive API credentials and personal access tokens from error strings
+      msg = msg
+        .replace(/AIza[0-9A-Za-z-_]{30,40}/g, "[REDACTED_KEY]")
+        .replace(/(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9_]{30,255}|github_pat_[A-Za-z0-9_]{20,255}/g, "[REDACTED_TOKEN]");
       if (msg.length > 300) msg = msg.slice(0, 297) + "...";
     }
   }

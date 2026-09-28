@@ -1225,6 +1225,9 @@ await assert.rejects(async () => { await apiCall('key', ''); }, { message: 'Inva
 assert.equal(sanitizeErrorMessage('{"error":{"message":"JSON Error Message"}}'), "JSON Error Message");
 assert.equal(sanitizeErrorMessage('{"message":"Another JSON Error"}'), "Another JSON Error");
 assert.equal(sanitizeErrorMessage('Plain text error'), "Plain text error");
+assert.equal(sanitizeErrorMessage('Invalid key AIzaSyTestKey1234567890TestTestTest provided'), "Invalid key [REDACTED_KEY] provided");
+assert.equal(sanitizeErrorMessage('Token ghp_123456789012345678901234567890123456 expired'), "Token [REDACTED_TOKEN] expired");
+assert.equal(sanitizeErrorMessage('Token github_pat_11AAAAAAA0123456789_abcdefghijklmnopqrstuvwxyz expired'), "Token [REDACTED_TOKEN] expired");
 assert.equal(sanitizeErrorMessage('<!DOCTYPE html><html><body>Error</body></html>', 503), "HTTP 503 Error");
 assert.equal(sanitizeErrorMessage('<html><body>Fatal Error</body></html>', 404), "HTTP 404 Error");
 assert.equal(sanitizeErrorMessage('Error with <b>bold</b> and <i>italic</i> tags'), "Error with bold and italic tags");
