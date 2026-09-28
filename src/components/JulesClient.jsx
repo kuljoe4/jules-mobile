@@ -541,7 +541,6 @@ function JulesClient() {
           const allActiveAccountedFor = activeIdsToVerify.size === seenActiveIds.size;
 
           if (reachedOlder && allActiveAccountedFor) {
-            console.log(`[FetchSessions] Smart delta sync complete on page ${iterations}: captured recent changes and verified all ${activeIdsToVerify.size} active sessions.`);
             break;
           }
         }
