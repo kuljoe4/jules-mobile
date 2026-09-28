@@ -15,7 +15,9 @@ class ErrorBoundary extends React.Component {
           </div>
           <div style={{ background: "#040507", border: `1px solid ${T.border}`, borderRadius: 8, padding: 12, marginBottom: 30, width: "100%", maxWidth: 500, overflow: "auto", maxHeight: 200 }}>
             <pre style={{ margin: 0, fontFamily: "'JetBrains Mono',monospace", fontSize: 12, color: T.red, textAlign: "left" }}>
-              {this.state.error?.toString()}
+              {(this.state.error?.toString() || "")
+                .replace(/AIza[0-9A-Za-z-_]{30,40}/g, "[REDACTED_KEY]")
+                .replace(/(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9_]{30,255}|github_pat_[A-Za-z0-9_]{20,255}/g, "[REDACTED_TOKEN]")}
             </pre>
           </div>
           <div style={{ display: "flex", gap: 12 }}>
