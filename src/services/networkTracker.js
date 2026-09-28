@@ -205,7 +205,7 @@ function makeNetTracker() {
         if (stats.dailyBuckets) delete stats.dailyBuckets[oldestKey];
       }
 
-      log.unshift({ id: Math.random(), label, bytesIn, bytesOut, status, ts: now.getTime() });
+      log.unshift({ id: crypto.randomUUID(), label, bytesIn, bytesOut, status, ts: now.getTime() });
       if (log.length > 80) log.length = 80;
 
       save();
