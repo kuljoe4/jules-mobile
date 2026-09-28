@@ -1234,4 +1234,110 @@ assert.equal(sanitizeErrorMessage(''), "HTTP 500 Error");
 assert.equal(sanitizeErrorMessage('', 400), "HTTP 400 Error");
 assert.equal(sanitizeErrorMessage(null), "HTTP 500 Error");
 
+
+
+// Test apiCall quota error handling
+{
+  const origFetch = globalThis.fetch;
+  const origDispatchEvent = globalThis.window?.dispatchEvent;
+  const origDateNow = Date.now;
+  const originalApiTimeout = globalThis.loadApiTimeout;
+  const originalBase = globalThis.BASE;
+  const originalNet = globalThis.NET;
+
+  try {
+    let dispatchedEvent = null;
+    if (typeof globalThis.CustomEvent === "undefined") { class CustomEvent { constructor(type, options) { this.type = type; Object.assign(this, options); } } globalThis.CustomEvent = CustomEvent; }
+    if (!globalThis.window) {
+      globalThis.window = {};
+    }
+
+    // Mock globals required by apiCall that might not be loaded in test suite
+    if (typeof globalThis.BASE === 'undefined') {
+      globalThis.BASE = "https://mock.api";
+    }
+    if (typeof globalThis.loadApiTimeout === 'undefined') {
+      globalThis.loadApiTimeout = () => 10000;
+    }
+    if (typeof globalThis.NET === 'undefined') {
+      globalThis.NET = { record: () => {} };
+    }
+
+    globalThis.window.dispatchEvent = (e) => {
+      dispatchedEvent = e;
+    };
+
+    globalThis.fetch = async () => {
+      return {
+        ok: false,
+        status: 429,
+        headers: new Headers({ 'Retry-After': '5' }),
+        text: async () => 'Quota exceeded',
+        clone: function() { return this; }
+      };
+    };
+
+    let caughtError = null;
+    try {
+      await apiCall(null, '/test');
+    } catch (err) {
+      caughtError = err;
+    }
+
+    assert.ok(caughtError);
+    assert.equal(caughtError.message, '429: Quota exceeded');
+
+    assert.ok(dispatchedEvent);
+    assert.equal(dispatchedEvent.type, 'quota-error');
+    assert.equal(dispatchedEvent.detail.status, 429);
+    assert.equal(dispatchedEvent.detail.msg, 'Quota exceeded');
+    assert.ok(dispatchedEvent.detail.retryAfter > Date.now());
+
+    // Second call should hit the local quota lock
+    let caughtLockError = null;
+    try {
+      await apiCall(null, '/test');
+    } catch (err) {
+      caughtLockError = err;
+    }
+
+    assert.ok(caughtLockError);
+    assert.equal(caughtLockError.status, 503);
+    assert.ok(caughtLockError.message.includes('Quota or temporary service error'));
+
+    // Fast forward time to bypass quota lock and reset it
+    Date.now = () => origDateNow() + 60000;
+
+    globalThis.fetch = async () => {
+      return {
+        ok: true,
+        status: 200,
+        headers: new Headers(),
+        text: async () => '{"success": true}',
+        clone: function() { return this; }
+      };
+    };
+
+    await apiCall(null, '/test');
+
+    console.log("apiCall quota test passed");
+  } finally {
+    globalThis.fetch = origFetch;
+    if (typeof global !== "undefined") global.fetch = origFetch;
+    if (typeof origDispatchEvent !== "undefined") {
+      globalThis.window.dispatchEvent = origDispatchEvent; } else { delete globalThis.window.dispatchEvent;
+    }
+    Date.now = origDateNow;
+
+    // Restore mocks
+    if (typeof originalApiTimeout !== 'undefined') globalThis.loadApiTimeout = originalApiTimeout;
+    else delete globalThis.loadApiTimeout;
+
+    if (typeof originalBase !== 'undefined') globalThis.BASE = originalBase;
+    else delete globalThis.BASE;
+
+    if (typeof originalNet !== 'undefined') globalThis.NET = originalNet;
+    else delete globalThis.NET;
+  }
+}
 console.log('Utility tests passed');
