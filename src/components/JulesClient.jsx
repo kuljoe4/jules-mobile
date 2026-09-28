@@ -571,7 +571,6 @@ function JulesClient() {
       if (sessionsAbortRef.current !== controller) return;
 
       setGlobalErr(null); // Clear error on success
-      console.log(`[FetchSessions] Loading sequence completed successfully. Total processed: ${incoming.length}`);
 
       // Update lastFetchTime with the latest numerical millisecond timestamp
       if (incoming.length > 0) {
