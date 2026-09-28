@@ -19,7 +19,7 @@ import { fastDeepEqual, getActivitiesSize, getApproxBytes, getPatchFileCount, ge
 import { parseUnidiffPatch, getWorkingSet } from '../src/utils/workingSet.js';
 import { getSmartTitle, getSmartBody } from '../src/utils/prTitle.js';
 import { apiCall, sanitizeErrorMessage } from '../src/services/api.js';
-import { sendNotification } from '../src/services/notifications.js';
+import { sendNotification, requestNotificationPermission } from '../src/services/notifications.js';
 
 if (typeof globalThis.localStorage === 'undefined') {
   const storageMap = new Map();
@@ -1244,6 +1244,56 @@ assert.equal(SafeStorage.saveCustomDaily(99999), false);
 assert.equal(SafeStorage.saveCustomDaily(0), false);
 assert.equal(SafeStorage.saveCustomDaily(10000), true);
 assert.equal(SafeStorage.loadCustomDaily(), 10000);
+
+
+// Test requestNotificationPermission
+const __originalWindow = globalThis.window;
+const __originalNotification = globalThis.Notification;
+
+// 1. Environment without window or Notification
+globalThis.window = undefined;
+globalThis.Notification = undefined;
+assert.equal(await requestNotificationPermission(), 'unsupported');
+
+globalThis.window = {};
+globalThis.Notification = undefined;
+assert.equal(await requestNotificationPermission(), 'unsupported');
+
+// 2. Notification supported, permission already granted
+globalThis.window = { Notification: true };
+globalThis.Notification = {
+  permission: "granted",
+  requestPermission: async () => "granted"
+};
+assert.equal(await requestNotificationPermission(), 'granted');
+
+// 3. Notification supported, request permission granted
+globalThis.window = { Notification: true };
+globalThis.Notification = {
+  permission: "default",
+  requestPermission: async () => "granted"
+};
+assert.equal(await requestNotificationPermission(), 'granted');
+
+// 4. Notification supported, request permission denied
+globalThis.window = { Notification: true };
+globalThis.Notification = {
+  permission: "default",
+  requestPermission: async () => "denied"
+};
+assert.equal(await requestNotificationPermission(), 'denied');
+
+// 5. Notification supported, request permission throws
+globalThis.window = { Notification: true };
+globalThis.Notification = {
+  permission: "default",
+  requestPermission: async () => { throw new Error("denied"); }
+};
+assert.equal(await requestNotificationPermission(), 'denied');
+
+// Restore original window and Notification
+globalThis.window = __originalWindow;
+globalThis.Notification = __originalNotification;
 
 // Test sendNotification sanitization logic against null bytes, control characters, non-string, and oversized payloads
 let sentTitle = null;
