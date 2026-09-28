@@ -11,8 +11,7 @@ const useScrollThreshold = (threshold = 60, hysteresis = 40, minScrollable = 180
 
     // Do NOT trigger header collapse if the content does not have enough scrollable height
     // to collapse without clamping scrollTop back to 0.
-    if (scrollable < minScrollable) {
-      if (scrolled) setScrolled(false);
+    if (!scrolled && scrollable < minScrollable) {
       return;
     }
 
