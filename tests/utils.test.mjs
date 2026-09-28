@@ -820,6 +820,37 @@ await assert.rejects(
   { message: "Deletion of protected primary branch 'MASTER' is strictly prohibited." }
 );
 
+
+// Test deleteBranch error path (e.g. 500 error)
+{
+  const origFetch = globalThis.fetch;
+  const mockFetch = async (url, opts) => {
+    return {
+      ok: false,
+      status: 500,
+      headers: new Map(),
+      json: async () => ({ message: "Internal Server Error" })
+    };
+  };
+
+  globalThis.fetch = mockFetch;
+  if (typeof global !== "undefined") global.fetch = mockFetch;
+
+  try {
+    SafeStorage.saveGithubToken("ghp_validTestToken123");
+    await assert.rejects(
+      async () => {
+        await deleteBranch("owner/repo", "feature-branch");
+      },
+      { message: "Internal Server Error" }
+    );
+  } finally {
+    globalThis.fetch = origFetch;
+    if (typeof global !== "undefined") global.fetch = origFetch;
+  }
+}
+
+
 // Test single-pass quota calculation partitioning logic
 const now = Date.now();
 const mockRegistry = {
