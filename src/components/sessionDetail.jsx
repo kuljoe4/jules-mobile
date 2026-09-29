@@ -1985,13 +1985,13 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                   )}
                   {/* PR Title & Desc */}
                   {pr.title && (
-                    <div style={{ marginBottom: 12 }}>
-                      <div style={{ fontSize: 15, fontWeight: 800, color: T.text, marginBottom: 4, fontFamily: "'IBM Plex Sans',sans-serif" }}>
+                    <div style={{ marginBottom: 16 }}>
+                      <div style={{ fontSize: 18, fontWeight: 800, color: T.text, marginBottom: 12, fontFamily: "'IBM Plex Sans',sans-serif" }}>
                         {pr.title}
                       </div>
                       {pr.body && (
-                        <div style={{ fontSize: 13, color: T.textDim, lineHeight: 1.4, fontFamily: "'IBM Plex Sans',sans-serif", whiteSpace: "pre-wrap", overflowWrap: "break-word", opacity: 0.85 }}>
-                          {pr.body.length > 300 ? pr.body.slice(0, 300) + "..." : pr.body}
+                        <div style={{ fontSize: 14, color: T.textDim, lineHeight: 1.6, fontFamily: "'IBM Plex Sans',sans-serif", whiteSpace: "pre-wrap", overflowWrap: "break-word" }}>
+                          <ExpandableContent text={pr.body} limit={300} showCopy={true} />
                         </div>
                       )}
                     </div>
