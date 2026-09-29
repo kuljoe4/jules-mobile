@@ -412,9 +412,22 @@ function JulesClient() {
       const queued = SafeStorage.loadQueuedSessions();
       if (queued.length > 0 && currentSessions.length > 0) {
         let processedAny = false;
-        const currentCompletedIds = new Set(
-          currentSessions.filter(s => s.state === "COMPLETED" || s.state === "FAILED").map(s => s.id)
-        );
+        const currentCompletedIds = new Set();
+        currentSessions.forEach(s => {
+          if (s.state === "FAILED") {
+            currentCompletedIds.add(s.id);
+          } else if (s.state === "COMPLETED") {
+            // getPR is available globally in the concatenated build, or imported if using modern build tools
+            const pr = typeof getPR === 'function' ? getPR(s) : null;
+            const isMerged = pr && pr.state === "merged";
+            const noPrNeeded = !s.sourceContext?.source || (s.automationMode !== "AUTO_CREATE_PR" && !pr);
+            // Either the PR is merged, or there is no PR required for this to be "done"
+            if (isMerged || noPrNeeded || typeof getPR !== 'function') {
+              currentCompletedIds.add(s.id);
+            }
+          }
+        });
+
         for (const qsSession of queued) {
            if (qsSession.dependsOnSessionId && currentCompletedIds.has(qsSession.dependsOnSessionId)) {
              try {
