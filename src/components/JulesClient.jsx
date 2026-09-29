@@ -301,6 +301,66 @@ function JulesClient() {
       const activeIdsToVerify = new Set(currentSessions.filter(s => ACTIVE_STATES.has(s.state)).map(s => s.id || s.name));
       const seenActiveIds = new Set();
 
+      // Check and process queued sessions before fetching
+      const queued = SafeStorage.loadQueuedSessions();
+      if (queued.length > 0 && currentSessions.length > 0) {
+        let processedAny = false;
+        const currentCompletedIds = new Set();
+        currentSessions.forEach(s => {
+          if (s.state === "FAILED") {
+            currentCompletedIds.add(s.id);
+          } else if (s.state === "COMPLETED") {
+            // getPR is available globally in the concatenated build, or imported if using modern build tools
+            const pr = typeof getPR === 'function' ? getPR(s) : null;
+            const isMerged = pr && pr.state === "merged";
+            const noPrNeeded = !s.sourceContext?.source || (s.automationMode !== "AUTO_CREATE_PR" && !pr);
+            // Either the PR is merged, or there is no PR required for this to be "done"
+            if (isMerged || noPrNeeded || typeof getPR !== 'function') {
+              currentCompletedIds.add(s.id);
+            }
+          }
+        });
+
+        for (const qsSession of queued) {
+           if (qsSession.dependsOnSessionId && currentCompletedIds.has(qsSession.dependsOnSessionId)) {
+             try {
+                // Dependency met, start the session
+                const body = {
+                   prompt: qsSession.prompt,
+                   requirePlanApproval: qsSession.requirePlanApproval,
+                };
+                if (qsSession.source) {
+                  body.sourceContext = {
+                    source: qsSession.source,
+                    githubRepoContext: { startingBranch: qsSession.branch }
+                  };
+                  if (qsSession.autoMode) {
+                    body.automationMode = "AUTO_CREATE_PR";
+                  }
+                }
+
+                await apiCall(apiKey, "/sessions", {
+                   method: "POST",
+                   body,
+                   timeout: 60000,
+                   attempts: 1,
+                   _label: "Start Queued Session"
+                });
+                SafeStorage.deleteQueuedSession(qsSession.id);
+                processedAny = true;
+             } catch (err) {
+                console.error("Failed to start queued session", qsSession, err);
+             }
+           }
+        }
+        if (processedAny) {
+           forceFull = true;
+           // If we're forcing a full fetch, we should update our loop control variables
+           isFull = true;
+           deltaPageSize = sessionLimit;
+        }
+      }
+
       do {
         const pageSize = isFull ? sessionLimit : deltaPageSize;
         const qs = `pageSize=${pageSize}${pageToken ? `&pageToken=${pageToken}` : ""}`;

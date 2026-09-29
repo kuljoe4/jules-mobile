@@ -26,6 +26,7 @@ const SafeStorage = {
     ACT_STATS: "jac_act_stats",
     SESSION_CACHE: "jac_session_cache",
     DRAFTS_BOX: "jac_drafts_box",
+    QUEUED_SESSIONS: "jac_queued_sessions",
     SESSION_REGISTRY: "jac_session_registry",
     ARCHIVED: "jac_archived",
     IGNORED: "jac_ignored",
@@ -430,6 +431,43 @@ const SafeStorage = {
   },
   saveDraftsBox(drafts) {
     this.setJSON(this.KEYS.DRAFTS_BOX, drafts);
+  },
+  loadQueuedSessions() {
+    return this.getJSON(this.KEYS.QUEUED_SESSIONS, []);
+  },
+  saveQueuedSessions(sessions) {
+    this.setJSON(this.KEYS.QUEUED_SESSIONS, sessions);
+  },
+  saveQueuedSession(session) {
+    if (!session || typeof session !== "object" || Array.isArray(session)) return null;
+    try {
+      const cleanSession = sanitizeObjectKeys(session);
+      if (cleanSession.id && !isValidStorageKey(cleanSession.id)) return null;
+      const queued = this.loadQueuedSessions();
+      const newSession = {
+        ...cleanSession,
+        id: cleanSession.id || "qs_" + crypto.randomUUID(),
+        createdAt: cleanSession.createdAt || Date.now(),
+        updatedAt: Date.now()
+      };
+      const idx = queued.findIndex(s => s.id === newSession.id);
+      if (idx >= 0) queued[idx] = newSession;
+      else queued.unshift(newSession);
+      this.saveQueuedSessions(queued);
+      return newSession;
+    } catch (e) {
+      return null;
+    }
+  },
+  deleteQueuedSession(id) {
+    if (!isValidStorageKey(id)) return false;
+    try {
+      const queued = this.loadQueuedSessions().filter(s => s.id !== id);
+      this.saveQueuedSessions(queued);
+      return true;
+    } catch {
+      return false;
+    }
   },
   // Security: Validates draft object and ID to prevent Prototype Pollution, property shadowing, and control character injection.
   saveDraftToBox(draft) {
