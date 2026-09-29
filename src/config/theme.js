@@ -25,4 +25,6 @@ const STATUS_META = {
   COMPLETED:             { label:"DONE",     color:T.brandLight,     bg:T.brandDim,              pulse:false, icon:"check" },
   FAILED:                { label:"FAILED",   color:T.redLight,      bg:T.redDim,                pulse:false, icon:"x" },
   HAS_DRAFT:             { label:"HAS DRAFT", color:T.amberLight, bg:T.amberDim,             pulse:false, icon:"layers" },
+  PR_OPEN:               { label:"OPEN PR",  color:T.brand,         bg:T.brandDim,              pulse:false, icon:"git_pull" },
+  PR_MERGED:             { label:"MERGED PR", color:T.purple,       bg:T.purpleDim,             pulse:false, icon:"git_merge" },
 };
