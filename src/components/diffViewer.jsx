@@ -75,11 +75,12 @@ export const DiffViewer = memo(({ activities = [], isDesktop = false }) => {
   // Flattened total key index set for calculating collapse state
   const allKeys = useMemo(() => {
     const keys = [];
-    patchGroups.forEach((pg, pi) => {
-      pg.groups.forEach((_, gi) => {
+    for (let pi = 0; pi < patchGroups.length; pi++) {
+      const groups = patchGroups[pi].groups;
+      for (let gi = 0; gi < groups.length; gi++) {
         keys.push(`${pi}-${gi}`);
-      });
-    });
+      }
+    }
     return keys;
   }, [patchGroups]);
 
@@ -117,13 +118,15 @@ export const DiffViewer = memo(({ activities = [], isDesktop = false }) => {
   const handleCopyPlain = (e, hunks, key) => {
     e.stopPropagation();
     const plainLines = [];
-    hunks.forEach(h => {
-      h.lines.forEach(line => {
+    for (let i = 0; i < hunks.length; i++) {
+      const lines = hunks[i].lines;
+      for (let j = 0; j < lines.length; j++) {
+        const line = lines[j];
         if (line.startsWith("+")) {
           plainLines.push(line.slice(1));
         }
-      });
-    });
+      }
+    }
     const plainText = plainLines.join("\n");
     copyToClipboard(plainText).then((success) => {
       if (success) {
