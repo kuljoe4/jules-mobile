@@ -26,3 +26,7 @@ This journal tracks critical refactoring learnings, extraction challenges, and d
 ## 2026-09-08 - Settings Tab Visual Sandbox Extraction
 **Learning:** Multi-tab view components (such as `SettingsView`) tend to accumulate visual auditing tools and interactive sandboxes directly inside the component body, inflating file length and polluting top-level state with tab-specific variables (e.g. `comparisonMode`). Extracting sub-tab sandboxes into standalone components (`DesignLab`) allows the extracted component to encapsulate its own isolated UI state without polluting parent settings, while registering the new module in `src/source-manifest.json` before its consumer preserves concatenation ordering in manifest-based bundling pipelines.
 **Action:** Isolate standalone visual tab sandboxes into dedicated files, move tab-specific state into the extracted component, and update `src/source-manifest.json` prior to parent components.
+
+## 2026-09-29 - Session Actions Hook Extraction
+**Learning:** Components responsible for routing and high-level structure (like `JulesClient`) shouldn't contain low-level bulk and individual item state mutations (e.g., bulk delete, archive, pause) along with API interactions.
+**Action:** Extract list item actions into custom hooks like `useSessionActions` passing dependencies such as setters and selections, then call those operations via destructuring. This cleans up top-level components and simplifies maintaining domain logic.
