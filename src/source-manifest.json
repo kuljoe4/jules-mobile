@@ -52,6 +52,7 @@
   "src/components/sessionList.jsx",
   "src/hooks/useQuotaTracker.js",
   "src/hooks/useAppSettings.js",
+  "src/hooks/useSessionActions.js",
   "src/components/JulesClient.jsx",
   "src/components/ErrorBoundary.jsx",
   "src/components/Shell.jsx",
