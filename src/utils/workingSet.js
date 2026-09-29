@@ -31,7 +31,9 @@ const parseUnidiffPatch = (patchOrObj, ts = null) => {
   if (isObj && PARSED_PATCH_CACHE.has(patchOrObj)) {
     const cached = PARSED_PATCH_CACHE.get(patchOrObj);
     if (ts !== null) {
-      cached.forEach(g => { g.ts = ts; });
+      for (let i = 0; i < cached.length; i++) {
+        cached[i].ts = ts;
+      }
     }
     return cached;
   }
@@ -40,8 +42,9 @@ const parseUnidiffPatch = (patchOrObj, ts = null) => {
   const lines = patch.split("\n");
   let currentGroup = null;
 
-  lines.forEach((line) => {
-    if (line.startsWith("--- ") || line.startsWith("diff --git")) return;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (line.startsWith("--- ") || line.startsWith("diff --git")) continue;
     if (line.startsWith("+++ ")) {
       const file = line.slice(4).replace(/^b\//, "");
       const header1 = `--- a/${file}`;
@@ -57,9 +60,9 @@ const parseUnidiffPatch = (patchOrObj, ts = null) => {
         rawLines: [header1, header2]
       };
       allGroups.push(currentGroup);
-      return;
+      continue;
     }
-    if (!currentGroup) return;
+    if (!currentGroup) continue;
 
     currentGroup.rawLines.push(line);
     currentGroup.rawSize += line.length + 1;
@@ -71,7 +74,7 @@ const parseUnidiffPatch = (patchOrObj, ts = null) => {
       if (line.startsWith("+")) currentGroup.adds++;
       else if (line.startsWith("-")) currentGroup.rems++;
     }
-  });
+  }
 
   if (isObj) {
     PARSED_PATCH_CACHE.set(patchOrObj, allGroups);

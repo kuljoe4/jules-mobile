@@ -85,3 +85,6 @@
 ## 2026-09-06 - Two-Tier Memoization for Input Search and Expensive Sorting
 **Learning:** Performing LocalStorage disk reads (`loadRepoStats`) and array sorting (`.sort()`) inside a single `useMemo` calculation that depends on a high-frequency input state (`sourceSearch`) forces synchronous disk I/O, object deserialization, and $O(N \log N)$ sorting on every single keystroke. Splitting the calculation into two memoized tiers—where `sortedSources` depends only on `sources`, and `filteredSources` depends on `sortedSources` and `sourceSearch`—completely eliminates disk I/O and re-sorting during search typing while maintaining full ranking functionality.
 **Action:** Always decouple expensive sorting or storage reads from high-frequency text filter state using two-tiered memoization (`useMemo` cascades).
+## 2026-09-29 - [Avoid .forEach in Tight Loops]
+**Learning:** Using .forEach() over traditional for loops incurs callback overhead that, when executed repeatedly within tight loops such as string processing for large unidiff patches, impacts performance measurably.
+**Action:** Default to using standard for loops instead of .forEach in tight and critical loops, particularly when mapping over or iterating through very long strings or large arrays of simple items.
