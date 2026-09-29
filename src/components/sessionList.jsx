@@ -1,5 +1,5 @@
-const FILTERS = ["ALL","QUEUED","PLANNING","AWAITING_PLAN_APPROVAL","AWAITING_USER_FEEDBACK","IN_PROGRESS","PAUSED","COMPLETED","FAILED","HAS_DRAFT"];
-const FILTER_LABELS = { AWAITING_PLAN_APPROVAL:"APPROVE", AWAITING_USER_FEEDBACK:"INPUT", PAUSED:"PAUSED", ALL:"ALL", HAS_DRAFT:"HAS DRAFT" };
+const FILTERS = ["ALL","QUEUED","PLANNING","AWAITING_PLAN_APPROVAL","AWAITING_USER_FEEDBACK","IN_PROGRESS","PAUSED","COMPLETED","FAILED","HAS_DRAFT","PR_OPEN","PR_MERGED"];
+const FILTER_LABELS = { AWAITING_PLAN_APPROVAL:"APPROVE", AWAITING_USER_FEEDBACK:"INPUT", PAUSED:"PAUSED", ALL:"ALL", HAS_DRAFT:"HAS DRAFT", PR_OPEN:"OPEN PR", PR_MERGED:"MERGED PR" };
 
 const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed, selectedId, isDesktop, onNew, onDrafts, onSettings, pollInterval, sessionLimit, countdown, plan, todayCount, searchQuery, setSearchQuery, archivedIds, showArchived, setShowArchived, activitiesMap = {}, activityStatsMap = {}, error, clearError, isBoosted, readMap, draftsMap = {}, ignoredIds = new Set(), filterResetTrigger, sidebarCollapsed, setSidebarCollapsed, onCloseMobileDrawer, onToggleMobileDrawer, statusFilter: propStatusFilter, setStatusFilter: propSetStatusFilter, repoFilter: propRepoFilter, setRepoFilter: propSetRepoFilter, onBulkDelete, onBulkArchive, onBulkUnarchive, onBulkIgnore, onBulkPause, onBulkResume }) => {
   const [localFilter, setLocalFilter] = useState("ALL");
@@ -153,8 +153,16 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
   const filtered = useMemo(() => {
     if (filter === "ALL") return baseFiltered;
     if (filter === "HAS_DRAFT") return baseFiltered.filter(s => draftsMap[s.id]);
+    if (filter === "PR_OPEN") return baseFiltered.filter(s => {
+      const pri = getPRInfo(s, activitiesMap[s.id] || EMPTY_ARR);
+      return pri && pri.state === "open";
+    });
+    if (filter === "PR_MERGED") return baseFiltered.filter(s => {
+      const pri = getPRInfo(s, activitiesMap[s.id] || EMPTY_ARR);
+      return pri && pri.state === "merged";
+    });
     return baseFiltered.filter(s => s.state === filter);
-  }, [filter, baseFiltered, draftsMap]);
+  }, [filter, baseFiltered, draftsMap, activitiesMap]);
 
   const active = useMemo(() => {
     let count = 0;
@@ -166,7 +174,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
 
   // Pre-aggregate filter counts in a single O(N) pass to avoid O(N * K) full array filters on every render tick
   const filterCountsMap = useMemo(() => {
-    const counts = { ALL: baseFiltered.length, HAS_DRAFT: 0 };
+    const counts = { ALL: baseFiltered.length, HAS_DRAFT: 0, PR_OPEN: 0, PR_MERGED: 0 };
     for (let i = 0; i < baseFiltered.length; i++) {
       const s = baseFiltered[i];
       if (draftsMap[s.id]) {
@@ -175,9 +183,15 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
       if (s.state) {
         counts[s.state] = (counts[s.state] || 0) + 1;
       }
+
+      const pri = getPRInfo(s, activitiesMap[s.id] || EMPTY_ARR);
+      if (pri) {
+        if (pri.state === "open") counts.PR_OPEN = (counts.PR_OPEN || 0) + 1;
+        if (pri.state === "merged") counts.PR_MERGED = (counts.PR_MERGED || 0) + 1;
+      }
     }
     return counts;
-  }, [baseFiltered, draftsMap]);
+  }, [baseFiltered, draftsMap, activitiesMap]);
 
   const hasDrafts = useMemo(() => {
     return Object.keys(draftsMap).length > 0 || loadDraftsBox().length > 0;
