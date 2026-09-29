@@ -135,7 +135,7 @@ const CreatePRModal = ({ defaultTitle, defaultBody, repo, headBranch, baseBranch
 
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-            <label style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: T.textDim, fontWeight: 700, letterSpacing: "0.08em" }}>
+            <label htmlFor="pr_title" style={{ cursor: "pointer", fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: T.textDim, fontWeight: 700, letterSpacing: "0.08em" }}>
               PULL REQUEST TITLE
             </label>
             <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: prTitle.length >= 200 ? T.red : T.muted }}>
@@ -143,6 +143,7 @@ const CreatePRModal = ({ defaultTitle, defaultBody, repo, headBranch, baseBranch
             </span>
           </div>
           <input
+            id="pr_title"
             type="text"
             value={prTitle}
             onChange={e => setPrTitle(e.target.value)}
@@ -160,7 +161,7 @@ const CreatePRModal = ({ defaultTitle, defaultBody, repo, headBranch, baseBranch
 
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-            <label style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: T.textDim, fontWeight: 700, letterSpacing: "0.08em" }}>
+            <label htmlFor="pr_description" style={{ cursor: "pointer", fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: T.textDim, fontWeight: 700, letterSpacing: "0.08em" }}>
               PR DESCRIPTION (OPTIONAL)
             </label>
             <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: prBody.length >= 2000 ? T.red : T.muted }}>
@@ -168,6 +169,7 @@ const CreatePRModal = ({ defaultTitle, defaultBody, repo, headBranch, baseBranch
             </span>
           </div>
           <textarea
+            id="pr_description"
             value={prBody}
             onChange={e => setPrBody(e.target.value)}
             placeholder="Describe the changes made in this session..."

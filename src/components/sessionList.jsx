@@ -508,6 +508,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
             <div style={{position:"relative", display:"flex", alignItems:"center"}}>
               <div style={{position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", pointerEvents:"none"}}><Ic n="search" s={14} c={T.blue}/></div>
               <input
+                id="search_sessions"
                 ref={searchInputRef}
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
