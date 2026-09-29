@@ -88,6 +88,7 @@ const getPayloadBreakdown = (activities = []) => {
   let patchCount = 0;
   const topPatches = [];
   const topMedia = [];
+  const seenPatches = new Set();
 
   for (let i = 0; i < activities.length; i++) {
     const act = activities[i];
@@ -110,19 +111,27 @@ const getPayloadBreakdown = (activities = []) => {
           }
         }
         if (art.changeSet) {
-          const pSize = getApproxBytes(art.changeSet);
-          patchBytes += pSize;
-          patchCount++;
+          const rawPatch = art.changeSet.gitPatch?.unidiffPatch;
+          const patchKey = rawPatch ? rawPatch.trim() : null;
 
-          const fileCount = getPatchFileCount(art.changeSet);
+          if (!patchKey || !seenPatches.has(patchKey)) {
+            if (patchKey) {
+              seenPatches.add(patchKey);
+            }
+            const pSize = getApproxBytes(art.changeSet);
+            patchBytes += pSize;
+            patchCount++;
 
-          topPatches.push({
-            id: act.id || `act-${i}`,
-            bytes: pSize,
-            ts: act.createTime,
-            fileCount,
-            unidiff: art.changeSet.gitPatch?.unidiffPatch
-          });
+            const fileCount = getPatchFileCount(art.changeSet);
+
+            topPatches.push({
+              id: act.id || `act-${i}`,
+              bytes: pSize,
+              ts: act.createTime,
+              fileCount,
+              unidiff: rawPatch
+            });
+          }
         }
       }
     }
