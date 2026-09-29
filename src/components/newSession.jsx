@@ -95,9 +95,10 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
               border: `1px solid ${T.border}`,
               transition: "all .2s cubic-bezier(0.4, 0, 0.2, 1)"
             }}>
-              <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.brand, fontWeight:800, letterSpacing:"0.1em", marginBottom:6}}>TARGET REPOSITORY</div>
+              <label htmlFor="target_repo" style={{display:"block", cursor:"pointer", fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.brand, fontWeight:800, letterSpacing:"0.1em", marginBottom:6}}>TARGET REPOSITORY</label>
               <div style={{position:"relative"}}>
                 <input
+                  id="target_repo"
                   value={sourceSearch}
                   onChange={e=>{setSourceSearch(e.target.value); setShowSources(true); setSourceInteracted(true);}}
                   onFocus={()=>{setShowSources(true); setSourceInteracted(true);}}
@@ -180,9 +181,10 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
 
             {source && (
               <div style={{background:T.surfaceHi, borderRadius:10, padding:12, border:`1px solid ${T.border}`}}>
-                <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.blue, fontWeight:800, letterSpacing:"0.1em", marginBottom:6}}>STARTING BRANCH</div>
+                <label htmlFor="starting_branch" style={{display:"block", cursor:"pointer", fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.blue, fontWeight:800, letterSpacing:"0.1em", marginBottom:6}}>STARTING BRANCH</label>
                 <div style={{position:"relative"}}>
                   <input
+                    id="starting_branch"
                     value={branch}
                     onChange={e=>{setBranch(e.target.value); setShowBranches(true);}}
                     onFocus={()=>setShowBranches(true)}
