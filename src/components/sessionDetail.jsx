@@ -884,6 +884,47 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     }
   }, [activities, tab]);
 
+  // Used by PlanView to split the plan into a new session
+  const handleSplitPlan = useCallback(async (stepIds, mode) => {
+    if (!isValidSessionId(session?.id)) return;
+    const planAct = activities.slice().reverse().find(a => a.planGenerated?.plan);
+    const plan = planAct?.planGenerated?.plan;
+    if (!plan) return;
+
+    const steps = plan.steps.filter(st => stepIds.includes(st.id));
+    if (!steps.length) return;
+
+    // Generate group ID
+    const shortParentId = session.id.split('-')[0] || session.id.substring(0, 8);
+    const groupId = `#group-${shortParentId}`;
+
+    const promptText = `Please execute the following steps:\n\n` +
+      steps.map((st, i) => `${i + 1}. ${st.title}\n${st.description || ""}`).join("\n\n") +
+      `\n\n${groupId}`;
+
+    const splitSession = {
+       prompt: promptText,
+       source: session.sourceContext?.source,
+       branch: session.sourceContext?.githubRepoContext?.startingBranch,
+       requirePlanApproval: true,
+       autoMode: false
+    };
+
+    if (mode === "queue") {
+       splitSession.dependsOnSessionId = session.id;
+       SafeStorage.saveQueuedSession(splitSession);
+    } else if (mode === "parallel") {
+       SafeStorage.saveDraftToBox(splitSession);
+    }
+
+    // After splitting, send a revision request to the current session to remove the split steps.
+    const stepsToRemoveText = steps.map((st, i) => `${i + 1}. ${st.title}`).join("\n");
+    const revisionPrompt = `I have split the following steps into a new session. Please revise the plan to remove them from this session:\n\n${stepsToRemoveText}`;
+
+    // Call the feedback function which updates the UI (sends the revision)
+    await handleSendFeedback(revisionPrompt, true);
+  }, [session, activities]);
+
   // Used by PlanView to send revision requests
   const handleSendFeedback = useCallback(async (prompt, stayOnTab = false) => {
     if (!isValidSessionId(session?.id)) return;
@@ -1122,7 +1163,19 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
               }}>
                 {session.title||session.prompt}
               </div>
-              <div style={{display:"flex", alignItems:"center", gap:8, marginTop: 2, animation:"fadeIn .2s ease", height: (repo || (scrolled && !headerExpanded)) ? 14 : 0, overflow: "hidden", transition: "all .2s cubic-bezier(0.4, 0, 0.2, 1)"}}>
+              <div style={{display:"flex", alignItems:"center", gap:8, marginTop: 2, animation:"fadeIn .2s ease", height: (repo || (session.prompt?.match(/#group-([a-zA-Z0-9]+)/)) || (scrolled && !headerExpanded)) ? 14 : 0, overflow: "hidden", transition: "all .2s cubic-bezier(0.4, 0, 0.2, 1)"}}>
+                 {(() => {
+                   const groupMatch = session.prompt?.match(/#group-([a-zA-Z0-9]+)/);
+                   if (groupMatch) {
+                     return (
+                       <div title={`Group: ${groupMatch[1]}`} style={{display:"flex", alignItems:"center", gap:4, minWidth:0, background:T.brandDim, padding:"1px 4px", borderRadius:4}}>
+                         <Ic n="layers" s={9} c={T.brand}/>
+                         <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:8, color:T.brand, fontWeight:700}}>#{groupMatch[1]}</span>
+                       </div>
+                     );
+                   }
+                   return null;
+                 })()}
                  {repo && (
                    <div style={{display:"flex", alignItems:"center", gap:4, minWidth:0}}>
                      <Ic n="code" s={9} c={T.dim}/>
@@ -2709,6 +2762,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
             apiKey={apiKey}
             onApprove={handleApprove}
             onSendFeedback={handleSendFeedback}
+            onSplitPlan={handleSplitPlan}
             busy={busy}
             allSessions={allSessions}
             activitiesMap={activitiesMap}

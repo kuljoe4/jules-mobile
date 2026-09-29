@@ -233,6 +233,12 @@ const useNewSessionFlow = ({ apiKey, personas, onCreate, initialDraft, onDraftSa
       finalPrompt += "\n\n" + activeDirective;
     }
 
+    // Heuristic for AI recommendations on splitting large payloads
+    const payloadEst = (((finalPrompt.length || 0) + (source?.length || 0) + (activeBranch?.length || 0) + 38) / 1024);
+    if (payloadEst > 0.5) { // Roughly 500+ characters, suggest splitting
+      finalPrompt += "\n\n[SYSTEM DIRECTIVE: Analyze the scope of this request. If the required changes are large, structure your plan into clear phases. Tag step titles with `[Parallel]` if they can run concurrently without race conditions, or `[Sequential: Step X]` if they depend on prior steps.]";
+    }
+
     const body = {
       prompt: finalPrompt,
       ...(source&&{

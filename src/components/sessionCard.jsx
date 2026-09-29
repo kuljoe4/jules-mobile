@@ -100,6 +100,10 @@ const SessionCard = memo(({ s, onPress, onSelect, isSelected, isBulkSelected, on
   const context = s.sourceContext?.githubRepoContext;
   const base = context?.startingBranch || "main";
 
+  // Check for group hashtag in prompt
+  const groupMatch = s.prompt?.match(/#group-([a-zA-Z0-9]+)/);
+  const groupId = groupMatch ? groupMatch[1] : null;
+
   useEffect(() => {
     const h = (e) => {
       const detail = e.detail || {};
@@ -246,6 +250,12 @@ const SessionCard = memo(({ s, onPress, onSelect, isSelected, isBulkSelected, on
 
       <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", gap:"6px 10px", marginLeft:26, flexWrap:"nowrap", overflow:"hidden"}}>
         <div style={{display:"flex", alignItems:"center", gap:8, flexWrap:"nowrap", minWidth:0, flex:"1 1 auto", overflow:"hidden"}}>
+          {groupId && (
+            <div title={`Group: ${groupId}`} style={{display:"flex", alignItems:"center", gap:4, opacity:0.8, flexShrink:0, background:T.brandDim, padding:"1px 4px", borderRadius:4}}>
+              <Ic n="layers" s={9} c={T.brand}/>
+              <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.brand,fontWeight:700}}>#{groupId}</span>
+            </div>
+          )}
           {repo && (
             <div title={rawRepo} style={{display:"flex", alignItems:"center", gap:4, opacity:0.45, flexShrink:1, minWidth:0, overflow:"hidden"}}>
               <Ic n="code" s={10} c={T.muted}/>
