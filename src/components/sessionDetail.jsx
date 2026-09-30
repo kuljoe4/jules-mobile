@@ -541,6 +541,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
       if (err.message && err.message.includes("404")) {
         isDeletedRef.current = true;
         setIsDeleted(true);
+        // Do not display raw 404 errors in the UI for recently created or missing sessions
+        return;
       }
       console.error("[LoadActivities] Error:", err);
       setErr(err.message);
@@ -563,6 +565,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
       if (err.message && err.message.includes("404")) {
         isDeletedRef.current = true;
         setIsDeleted(true);
+        // Do not display raw 404 errors in the UI for recently created or missing sessions
+        return;
       }
       console.error("[LoadSession] Error:", err);
       setErr(err.message);
