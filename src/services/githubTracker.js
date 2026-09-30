@@ -265,13 +265,27 @@ const GitHubTracker = {
         const checkRunsUrl = `https://api.github.com/repos/${owner}/${repo}/commits/${encHeadSha}/check-runs`;
         const commitsUrl = `https://api.github.com/repos/${owner}/${repo}/pulls/${number}/commits?per_page=10`;
 
-        const fetchCompare = this.githubFetch(compareUrl, headers).catch(() => null);
-        const fetchStatus = this.githubFetch(statusUrl, headers).catch(() => null);
-        const fetchCheckRuns = this.githubFetch(checkRunsUrl, headers).catch(() => null);
-        const fetchCommits = this.githubFetch(commitsUrl, headers).catch(() => []);
+        const catchErr = (err, fallback) => {
+          const msg = err.message || "";
+          if (msg.includes("403") || msg.includes("429") || msg.includes("422")) {
+            return { _failed: true };
+          }
+          return fallback;
+        };
+
+        const fetchCompare = this.githubFetch(compareUrl, headers).catch(err => catchErr(err, null));
+        const fetchStatus = this.githubFetch(statusUrl, headers).catch(err => catchErr(err, null));
+        const fetchCheckRuns = this.githubFetch(checkRunsUrl, headers).catch(err => catchErr(err, null));
+        const fetchCommits = this.githubFetch(commitsUrl, headers).catch(err => catchErr(err, []));
 
         return Promise.all([fetchCompare, fetchStatus, fetchCheckRuns, fetchCommits])
           .then(([compareData, statusData, checkRunsData, commitsData]) => {
+            const isFailed = compareData?._failed || statusData?._failed || checkRunsData?._failed || commitsData?._failed || false;
+
+            if (compareData?._failed) compareData = null;
+            if (statusData?._failed) statusData = null;
+            if (checkRunsData?._failed) checkRunsData = null;
+            if (commitsData?._failed) commitsData = [];
             let ahead = 0;
             let behind = 0;
             let statusState = "identical";
@@ -359,7 +373,7 @@ const GitHubTracker = {
                 url: checkRunsData?.check_runs?.[0]?.html_url || `https://github.com/${owner}/${repo}/actions`
               } : null,
               fetchedAt: Date.now(),
-              failed: false
+              failed: isFailed
             };
 
             GitHubTracker.GH_STATE_CACHE.set(url, updatedInfo);
@@ -419,6 +433,8 @@ const GitHubTracker = {
       })
       .catch(err => {
         this.GH_REPO_DEFAULT_BRANCH_IN_FLIGHT.delete(repo);
+        this.GH_REPO_DEFAULT_BRANCH_CACHE.set(repo, "main");
+        this.BRANCH_INFO_CACHE.clear();
       });
   },
 
@@ -579,13 +595,27 @@ const GitHubTracker = {
     const owner = repo.split("/")[0] || "";
     const pullsUrl = `https://api.github.com/repos/${repo}/pulls?head=${encodeURIComponent(owner)}:${encWorking}&state=all`;
 
-    const fetchCompare = this.githubFetch(compareUrl, headers).catch(() => null);
-    const fetchStatus = this.githubFetch(statusUrl, headers).catch(() => null);
-    const fetchCheckRuns = this.githubFetch(checkRunsUrl, headers).catch(() => null);
-    const fetchPulls = this.githubFetch(pullsUrl, headers).catch(() => []);
+    const catchErr = (err, fallback) => {
+      const msg = err.message || "";
+      if (msg.includes("403") || msg.includes("429") || msg.includes("422")) {
+        return { _failed: true };
+      }
+      return fallback;
+    };
+
+    const fetchCompare = this.githubFetch(compareUrl, headers).catch(err => catchErr(err, null));
+    const fetchStatus = this.githubFetch(statusUrl, headers).catch(err => catchErr(err, null));
+    const fetchCheckRuns = this.githubFetch(checkRunsUrl, headers).catch(err => catchErr(err, null));
+    const fetchPulls = this.githubFetch(pullsUrl, headers).catch(err => catchErr(err, []));
 
     Promise.all([fetchCompare, fetchStatus, fetchCheckRuns, fetchPulls])
       .then(([compareData, statusData, checkRunsData, pullsData]) => {
+        const isFailed = compareData?._failed || statusData?._failed || checkRunsData?._failed || pullsData?._failed || false;
+
+        if (compareData?._failed) compareData = null;
+        if (statusData?._failed) statusData = null;
+        if (checkRunsData?._failed) checkRunsData = null;
+        if (pullsData?._failed) pullsData = [];
         let ahead = 0;
         let behind = 0;
         let statusState = "identical";
@@ -680,7 +710,7 @@ const GitHubTracker = {
           } : null,
           livePR,
           fetchedAt: Date.now(),
-          failed: false
+          failed: isFailed
         };
 
         GitHubTracker.GH_BRANCH_STATE_CACHE.set(key, updatedInfo);
