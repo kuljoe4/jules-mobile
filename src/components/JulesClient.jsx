@@ -5,14 +5,6 @@ function JulesClient() {
   const [githubToken,setGithubToken] = useState(() => SafeStorage.loadGithubToken());
   const [ghRateLimitedReset, setGhRateLimitedReset] = useState(null);
 
-  useEffect(() => {
-    const handleGhRateLimit = (e) => {
-      setGhRateLimitedReset(e.detail?.resetAt || "soon");
-    };
-    window.addEventListener("gh-rate-limited", handleGhRateLimit);
-    return () => window.removeEventListener("gh-rate-limited", handleGhRateLimit);
-  }, []);
-
   const [sessions,setSessions] = useState(() => SafeStorage.loadSessionsList());
   const sessionsRef = useRef(sessions);
   useEffect(() => {
@@ -173,29 +165,13 @@ function JulesClient() {
     SafeStorage.saveSessionsList(sessions);
   }, [sessions]);
 
-  useEffect(() => {
-    const handleStorage = (e) => {
-      if (e.key === "jac_key") setApiKey(e.newValue || "");
-      if (e.key === SafeStorage.KEYS.ARCHIVED) {
-        setArchivedIds(new Set(SafeStorage.loadArchived()));
-      }
-      if (e.key === SafeStorage.KEYS.ACT_STATS) {
-        setActivityStatsMap(SafeStorage.loadActStats());
-      }
-      if (e.key === SafeStorage.KEYS.SESSIONS_LIST) {
-        setSessions(SafeStorage.loadSessionsList());
-      }
-    };
-    const handleCustomStats = (e) => {
-      if (e.detail) setActivityStatsMap(e.detail);
-    };
-    window.addEventListener("storage", handleStorage);
-    window.addEventListener("jac_stats_updated", handleCustomStats);
-    return () => {
-      window.removeEventListener("storage", handleStorage);
-      window.removeEventListener("jac_stats_updated", handleCustomStats);
-    };
-  }, []);
+  useGlobalEventListeners({
+    setApiKey,
+    setArchivedIds,
+    setActivityStatsMap,
+    setSessions,
+    setGhRateLimitedReset
+  });
 
   useEffect(() => {
     cleanupActivityStats(allSessions.map(s => s.id));

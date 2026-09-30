@@ -30,3 +30,7 @@ This journal tracks critical refactoring learnings, extraction challenges, and d
 ## 2026-09-29 - Session Actions Hook Extraction
 **Learning:** Components responsible for routing and high-level structure (like `JulesClient`) shouldn't contain low-level bulk and individual item state mutations (e.g., bulk delete, archive, pause) along with API interactions.
 **Action:** Extract list item actions into custom hooks like `useSessionActions` passing dependencies such as setters and selections, then call those operations via destructuring. This cleans up top-level components and simplifies maintaining domain logic.
+
+## 2026-10-01 - JulesClient Global Event Listener Logic Extraction
+**Learning:** Overwhelming components like `JulesClient` often accumulate global event listeners (like `gh-rate-limited`, `storage`, and `jac_stats_updated`) that are not directly related to its core layout or state coordination responsibilities. Extracting these global, cross-tab event listeners into a separate hook (`useGlobalEventListeners`) cleans up `JulesClient`, promotes the Single Responsibility Principle, and simplifies testing and debugging of cross-tab sync behavior.
+**Action:** Extract global event listener setups out of complex root components into their own custom hooks, passing only the required setters or actions to manage state.
