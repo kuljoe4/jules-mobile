@@ -587,6 +587,8 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
                   maxHeight:180, overflowY:"auto", boxShadow:"0 10px 25px rgba(0,0,0,0.5)", padding:4
                 }}>
                   <button
+                    title="Show all repositories"
+                    aria-label="Show all repositories"
                     onClick={() => { setRepoFilter("ALL"); setRepoPickerOpen(false); }}
                     style={{
                       width:"100%", padding:"8px 10px", background: repoFilter === "ALL" ? `${T.brand}20` : "none",
@@ -604,6 +606,8 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
                     return (
                       <button
                         key={repo}
+                        title={`Filter by repository: ${repo}`}
+                        aria-label={`Filter by repository: ${repo}`}
                         onClick={() => { setRepoFilter(repo); setRepoPickerOpen(false); }}
                         style={{
                           width:"100%", padding:"8px 10px", background: isSel ? `${T.brand}20` : "none",

@@ -200,6 +200,8 @@ const SessionCard = memo(({ s, onPress, onSelect, isSelected, isBulkSelected, on
         {/* Invisible button overlay to allow starting selection on long press or shift click, but keeping it simple for now, we can show checkbox on hover by adding a class, but inline styles are used. Let's just always render the checkbox if they hover over the index area */}
         {!selectionMode && (
           <button
+            title="Select session"
+            aria-label="Select session"
             onClick={(e) => { e.stopPropagation(); if (onToggleSelect) onToggleSelect(s.id); }}
             title="Select session"
             aria-label="Select session"
