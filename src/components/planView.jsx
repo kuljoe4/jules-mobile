@@ -73,16 +73,14 @@ export const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFe
     }
   }, [plan, hasAutoSelected]);
 
-  if (!plan) return (
-    <div style={{textAlign:"center",padding:"50px 24px",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>
-      {session.state === "PLANNING" ? "Jules is generating a plan…" : "No plan available"}
-    </div>
-  );
-
   const pendingApproval = session.state === "AWAITING_PLAN_APPROVAL" || !approved;
   const annotatedCount  = Object.values(stepNotes).filter(n=>n.trim()).length;
 
-  return (
+  return !plan ? (
+    <div style={{textAlign:"center",padding:"50px 24px",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>
+      {session.state === "PLANNING" ? "Jules is generating a plan…" : "No plan available"}
+    </div>
+  ) : (
     <div style={{paddingBottom:16}}>
       <ConflictRadar
         currentSource={session.sourceContext?.source}

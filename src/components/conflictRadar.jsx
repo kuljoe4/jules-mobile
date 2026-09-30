@@ -62,7 +62,7 @@ const ConflictRadar = memo(({ currentSource, currentBranch, currentPrompt, allSe
   }, [currentSource, currentBranch, debouncedPrompt, allSessions, activitiesMap, currentSessionId, startTime, limit]);
 
   if (collisions.length === 0) {
-    if (!currentSource || !currentPrompt.trim()) return null;
+    if (!currentSource || !currentPrompt?.trim()) return null;
     return (
       <div
         role="status"
@@ -103,7 +103,7 @@ const ConflictRadar = memo(({ currentSource, currentBranch, currentPrompt, allSe
         onMouseLeave={e => e.currentTarget.style.background = "none"}
       >
         <Ic n="wifi" s={16} c={T.red}/>
-        <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, fontWeight: 900, color: T.red, letterSpacing: "0.05em" }}>
+        <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 14, fontWeight: 900, color: T.red, letterSpacing: "0.05em" }}>
           CONFLICT RADAR
         </span>
         <div style={{ flex: 1, height: 1, background: `${T.red}20` }}/>
@@ -174,7 +174,7 @@ const ConflictRadar = memo(({ currentSource, currentBranch, currentPrompt, allSe
         </div>
 
         <div style={{ marginTop: 12, fontFamily: "'IBM Plex Sans',sans-serif", fontSize: 11, color: T.textDim, lineHeight: 1.5 }}>
-          <div style={{ color: T.red, fontWeight: 700, marginBottom: 4, fontSize: 10 }}>⚠️ POTENTIAL MERGE CONFLICTS</div>
+          <div style={{ color: T.red, fontWeight: 700, marginBottom: 4, fontSize: 12 }}>⚠️ POTENTIAL MERGE CONFLICTS</div>
           Jules is isolated. These sessions touch the same files or branch. To clear:
           <ul style={{ paddingLeft: 18, marginTop: 4, display: "flex", flexDirection: "column", gap: 2 }}>
             <li>Select a different starting branch for this session</li>
