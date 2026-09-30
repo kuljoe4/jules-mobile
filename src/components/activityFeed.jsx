@@ -415,6 +415,8 @@ const TimelineEvent = memo(({ act, onMediaClick, onReply }) => {
         {onReply && (
           <div style={{marginTop:6, display:"flex", justifyContent:"flex-end"}}>
             <button
+              title={`Reply to event: ${title}`}
+              aria-label={`Reply to event: ${title}`}
               onClick={(e) => { e.stopPropagation(); onReply(act, (title || "").toUpperCase()); }}
               style={{
                 background:"none", border:"none", padding:"2px 6px", cursor:"pointer",
@@ -580,7 +582,11 @@ const ActivityFeed = memo(({ activities, showAll, onShowAll, onMediaClick, onEdi
   return (
     <>
       {collapse && (
-        <button onClick={onShowAll} style={{
+        <button
+          onClick={onShowAll}
+          title="Show earlier events"
+          aria-label="Show earlier events"
+          style={{
           display:"block",width:"100%",marginBottom:14,
           background:T.surfaceHi,border:`1px solid ${T.border}`,
           borderRadius:6,padding:"8px 12px",cursor:"pointer",
