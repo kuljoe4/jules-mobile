@@ -34,7 +34,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   const [tab,setTab]             = useState("activity");
   const [scrolledActivityId, setScrolledActivityId] = useState(null);
   const isDeletedRef = useRef(false);
-  const notFoundCountRef = useRef(0);
+  const notFoundSinceRef = useRef(null);
   const [isDeleted, setIsDeleted] = useState(false);
 
   const scrollToActivityInChat = (targetId, isOriginal) => {
@@ -522,7 +522,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
       }
 
       // Success! Reset 404 counter
-      notFoundCountRef.current = 0;
+      notFoundSinceRef.current = null;
 
       // Update Session Cache
       if (cacheLimit > 0) {
@@ -543,8 +543,9 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     } catch (err) {
       if (err.name === 'AbortError') return;
       if (err.message && err.message.includes("404")) {
-        notFoundCountRef.current++;
-        if (notFoundCountRef.current >= 5) {
+        if (!notFoundSinceRef.current) {
+          notFoundSinceRef.current = Date.now();
+        } else if (Date.now() - notFoundSinceRef.current > 45000) { // 45 seconds tolerance
           isDeletedRef.current = true;
           setIsDeleted(true);
         }
@@ -568,11 +569,12 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
       const d = await apiCall(apiKey, `/sessions/${session.id}`, { _label:`Session ${session.id?.slice(0,6)}` });
       setSession(d);
       onSessionUpdate?.(d);
-      notFoundCountRef.current = 0; // Reset on success
+      notFoundSinceRef.current = null; // Reset on success
     } catch (err) {
       if (err.message && err.message.includes("404")) {
-        notFoundCountRef.current++;
-        if (notFoundCountRef.current >= 5) {
+        if (!notFoundSinceRef.current) {
+          notFoundSinceRef.current = Date.now();
+        } else if (Date.now() - notFoundSinceRef.current > 45000) { // 45 seconds tolerance
           isDeletedRef.current = true;
           setIsDeleted(true);
         }
