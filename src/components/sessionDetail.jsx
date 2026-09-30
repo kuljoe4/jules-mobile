@@ -33,6 +33,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   const [showAll,setShowAll]     = useState(false);
   const [tab,setTab]             = useState("activity");
   const [scrolledActivityId, setScrolledActivityId] = useState(null);
+  const isDeletedRef = useRef(false);
+  const [isDeleted, setIsDeleted] = useState(false);
 
   const scrollToActivityInChat = (targetId, isOriginal) => {
     setTab("activity");
@@ -406,7 +408,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   const lastTsRef = useRef(null);
   const loadActivities = useCallback(async (sinceTs=null) => {
     // Security: Validate session ID to prevent endpoint path manipulation or parameter pollution
-    if (!isValidSessionId(session?.id)) {
+    if (!isValidSessionId(session?.id) || isDeletedRef.current) {
       console.error("[LoadActivities] Aborting request due to invalid session ID:", session?.id);
       return;
     }
@@ -536,6 +538,10 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
       }
     } catch (err) {
       if (err.name === 'AbortError') return;
+      if (err.message && err.message.includes("404")) {
+        isDeletedRef.current = true;
+        setIsDeleted(true);
+      }
       console.error("[LoadActivities] Error:", err);
       setErr(err.message);
     } finally {
@@ -548,12 +554,16 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   }, [apiKey, session.id, activityLimit, cacheLimit]);
 
   const loadSession = useCallback(async () => {
-    if (!isValidSessionId(session?.id)) return;
+    if (!isValidSessionId(session?.id) || isDeletedRef.current) return;
     try {
       const d = await apiCall(apiKey, `/sessions/${session.id}`, { _label:`Session ${session.id?.slice(0,6)}` });
       setSession(d);
       onSessionUpdate?.(d);
     } catch (err) {
+      if (err.message && err.message.includes("404")) {
+        isDeletedRef.current = true;
+        setIsDeleted(true);
+      }
       console.error("[LoadSession] Error:", err);
       setErr(err.message);
     }
@@ -1060,7 +1070,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     loadSession,
     loadActivities,
     lastTsRef,
-    isFinished,
+    isFinished || isDeleted,
     busy,
     setBusy,
     setErr,
