@@ -34,6 +34,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   const [tab,setTab]             = useState("activity");
   const [scrolledActivityId, setScrolledActivityId] = useState(null);
   const isDeletedRef = useRef(false);
+  const notFoundCountRef = useRef(0);
   const [isDeleted, setIsDeleted] = useState(false);
 
   const scrollToActivityInChat = (targetId, isOriginal) => {
@@ -520,6 +521,9 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
         } catch (e) { console.error("Failed to save stats", e); }
       }
 
+      // Success! Reset 404 counter
+      notFoundCountRef.current = 0;
+
       // Update Session Cache
       if (cacheLimit > 0) {
         try {
@@ -539,9 +543,12 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     } catch (err) {
       if (err.name === 'AbortError') return;
       if (err.message && err.message.includes("404")) {
-        isDeletedRef.current = true;
-        setIsDeleted(true);
-        // Do not display raw 404 errors in the UI for recently created or missing sessions
+        notFoundCountRef.current++;
+        if (notFoundCountRef.current >= 5) {
+          isDeletedRef.current = true;
+          setIsDeleted(true);
+        }
+        // Do not display raw 404 errors in the UI for recently created or transiently missing sessions
         return;
       }
       console.error("[LoadActivities] Error:", err);
@@ -561,11 +568,15 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
       const d = await apiCall(apiKey, `/sessions/${session.id}`, { _label:`Session ${session.id?.slice(0,6)}` });
       setSession(d);
       onSessionUpdate?.(d);
+      notFoundCountRef.current = 0; // Reset on success
     } catch (err) {
       if (err.message && err.message.includes("404")) {
-        isDeletedRef.current = true;
-        setIsDeleted(true);
-        // Do not display raw 404 errors in the UI for recently created or missing sessions
+        notFoundCountRef.current++;
+        if (notFoundCountRef.current >= 5) {
+          isDeletedRef.current = true;
+          setIsDeleted(true);
+        }
+        // Do not display raw 404 errors in the UI for recently created or transiently missing sessions
         return;
       }
       console.error("[LoadSession] Error:", err);
