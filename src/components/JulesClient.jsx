@@ -268,13 +268,29 @@ function JulesClient() {
       // Calculate adaptive pageSize for delta polls using sessionsRef to avoid re-triggering effect on state update
       const currentSessions = sessionsRef.current || [];
       let deltaPageSize = sessionLimit;
+      // OPTIMIZATION (Bolt): Replace chained .filter().length and .filter().map() with a single O(N) loop
+      // to avoid 3 separate array traversals and 3 intermediate array allocations on every fetch tick.
+      let activeCount = 0;
+      let localRecentCount = 0;
+      const activeIdsToVerify = new Set();
+
+      const lastFetchRefVal = lastFetchTime.current || 0;
+      for (let i = 0; i < currentSessions.length; i++) {
+        const s = currentSessions[i];
+        const isActive = ACTIVE_STATES.has(s.state);
+        if (isActive) {
+          activeCount++;
+          activeIdsToVerify.add(s.id || s.name);
+        }
+        if (!isFull && parseDateMs(s.updateTime || s.createTime) > lastFetchRefVal) {
+          localRecentCount++;
+        }
+      }
+
       if (!isFull) {
-        const activeCount = currentSessions.filter(s => ACTIVE_STATES.has(s.state)).length;
-        const localRecentCount = currentSessions.filter(s => parseDateMs(s.updateTime || s.createTime) > (lastFetchTime.current || 0)).length;
         deltaPageSize = Math.min(sessionLimit, Math.max(12, localRecentCount + activeCount + 5));
       }
 
-      const activeIdsToVerify = new Set(currentSessions.filter(s => ACTIVE_STATES.has(s.state)).map(s => s.id || s.name));
       const seenActiveIds = new Set();
 
       // Check and process queued sessions before fetching
@@ -282,7 +298,9 @@ function JulesClient() {
       if (queued.length > 0 && currentSessions.length > 0) {
         let processedAny = false;
         const currentCompletedIds = new Set();
-        currentSessions.forEach(s => {
+        // OPTIMIZATION (Bolt): Use standard for loop to avoid callback overhead inside the render cycle.
+        for (let i = 0; i < currentSessions.length; i++) {
+          const s = currentSessions[i];
           if (s.state === "FAILED") {
             currentCompletedIds.add(s.id);
           } else if (s.state === "COMPLETED") {
@@ -295,7 +313,7 @@ function JulesClient() {
               currentCompletedIds.add(s.id);
             }
           }
-        });
+        }
 
         for (const qsSession of queued) {
            if (qsSession.dependsOnSessionId && currentCompletedIds.has(qsSession.dependsOnSessionId)) {
@@ -501,10 +519,13 @@ function JulesClient() {
 
       // Update lastFetchTime with the latest numerical millisecond timestamp
       if (incoming.length > 0) {
-        const latestTs = incoming.reduce((max, s) => {
+        // OPTIMIZATION (Bolt): Use standard for loop instead of .reduce() to avoid callback allocations
+        let latestTs = 0;
+        for (let i = 0; i < incoming.length; i++) {
+          const s = incoming[i];
           const ts = parseDateMs(s.updateTime || s.createTime);
-          return ts > max ? ts : max;
-        }, 0);
+          if (ts > latestTs) latestTs = ts;
+        }
         if (latestTs > 0) {
           lastFetchTime.current = Math.max(lastFetchTime.current || 0, latestTs);
         }
