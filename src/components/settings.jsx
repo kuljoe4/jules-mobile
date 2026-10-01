@@ -25,6 +25,27 @@ const SettingsView = ({ onBack, isDesktop, settings, personas, setPersonas, toda
 
   const [isAdding, setIsAdding] = useState(false);
   const [editingPersona, setEditingPersona] = useState(null);
+
+  const handleMovePersona = (index, direction) => {
+    if (direction === 'up' && index > 0) {
+      const newPersonas = [...personas];
+      const temp = newPersonas[index];
+      newPersonas[index] = newPersonas[index - 1];
+      newPersonas[index - 1] = temp;
+      const order = newPersonas.map(p => p.id);
+      savePersonasOrder(order);
+      setPersonas(newPersonas);
+    } else if (direction === 'down' && index < personas.length - 1) {
+      const newPersonas = [...personas];
+      const temp = newPersonas[index];
+      newPersonas[index] = newPersonas[index + 1];
+      newPersonas[index + 1] = temp;
+      const order = newPersonas.map(p => p.id);
+      savePersonasOrder(order);
+      setPersonas(newPersonas);
+    }
+  };
+
   const [newName, setNewName] = useState("");
   const [newPrompt, setNewPrompt] = useState("");
   const [newColor, setNewColor] = useState("#ffffff");
@@ -551,13 +572,19 @@ const SettingsView = ({ onBack, isDesktop, settings, personas, setPersonas, toda
                   <button onClick={() => { if(confirm("Reset all personas to defaults?")) { setPersonas(resetPersonas()); } }} title="Reset all personas to default values" aria-label="Reset all personas to default values" style={{background:"none", border:"none", cursor:"pointer", color:T.red, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700}}>RESET ALL</button>
                 </div>
               </div>
-              {personas.map(p => (
+              {personas.map((p, idx) => (
                 <div key={p.id} style={{background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:10, padding:14}}>
                   <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:10}}>
                     <div style={{width:8, height:8, borderRadius:"50%", background:p.color}}/>
                     <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:12, fontWeight:800, color:T.textHi}}>{p.label}</span>
                     {p.isCustom && <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:T.brand, background:`${T.brand}15`, padding:"1px 4px", borderRadius:4, fontWeight:700}}>CUSTOM</span>}
                     <span style={{flex:1}}/>
+                    {idx > 0 && (
+                      <button onClick={() => handleMovePersona(idx, 'up')} title="Move persona up" aria-label="Move persona up" style={{background:T.surface, border:`1px solid ${T.border}`, borderRadius:4, padding:"3px 6px", cursor:"pointer", color:T.text, fontSize:10, fontWeight:900, marginRight: 4}}>↑</button>
+                    )}
+                    {idx < personas.length - 1 && (
+                      <button onClick={() => handleMovePersona(idx, 'down')} title="Move persona down" aria-label="Move persona down" style={{background:T.surface, border:`1px solid ${T.border}`, borderRadius:4, padding:"3px 6px", cursor:"pointer", color:T.text, fontSize:10, fontWeight:900, marginRight: 8}}>↓</button>
+                    )}
                     <button onClick={() => {
                       setNewName(p.label);
                       setNewPrompt(p.prompt);
