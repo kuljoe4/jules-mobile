@@ -54,6 +54,7 @@
   "src/hooks/useAppSettings.js",
   "src/hooks/useSessionActions.js",
   "src/hooks/useGlobalEventListeners.js",
+  "src/hooks/useNavigation.js",
   "src/components/JulesClient.jsx",
   "src/components/ErrorBoundary.jsx",
   "src/components/Shell.jsx",

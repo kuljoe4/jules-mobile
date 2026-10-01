@@ -17,33 +17,19 @@ function JulesClient() {
   const [selected,setSelected] = useState(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const isDesktop = useIsDesktop();
-  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(() => typeof window !== "undefined" && window.innerWidth < 768);
-  const [drawerClosing, setDrawerClosing] = useState(false);
-  const [mobileScreen,setMobileRaw] = useState("detail");
 
-  const closeMobileDrawer = useCallback(() => {
-    if (!mobileDrawerOpen || drawerClosing) return;
-    setDrawerClosing(true);
-    setTimeout(() => {
-      setMobileDrawerOpen(false);
-      setDrawerClosing(false);
-    }, 220);
-  }, [mobileDrawerOpen, drawerClosing]);
+  const {
+    mobileDrawerOpen,
+    setMobileDrawerOpen,
+    drawerClosing,
+    mobileScreen,
+    desktopView,
+    setDesktop,
+    setMobile,
+    closeMobileDrawer,
+    openMobileDrawer
+  } = useNavigation();
 
-  const openMobileDrawer = useCallback(() => {
-    setDrawerClosing(false);
-    setMobileDrawerOpen(true);
-  }, []);
-
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === "Escape" && mobileDrawerOpen) {
-        closeMobileDrawer();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [mobileDrawerOpen, closeMobileDrawer]);
   const [justRefreshed, setJustRefreshed] = useState(false);
   const [supplementalSessions, setSupplementalSessions] = useState([]);
   // OPTIMIZATION (Bolt): Direct O(N) loop iteration over primary and supplemental sessions
@@ -71,7 +57,6 @@ function JulesClient() {
       return bTime - aTime;
     });
   }, [sessions, supplementalSessions]);
-  const [desktopView,setDesktop]   = useState("empty");
   const [selectedDraft, setSelectedDraft] = useState(null);
   const [filterResetTrigger, setFilterResetTrigger] = useState(0);
 
@@ -104,9 +89,6 @@ function JulesClient() {
     });
   }, []);
 
-  const setMobile = useCallback(s => {
-    setMobileRaw(s);
-  }, []);
   const [refreshing,setRefreshing] = useState(false);
 
   const lastFetchTime = useRef(null);
