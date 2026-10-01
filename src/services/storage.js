@@ -17,6 +17,7 @@ const SafeStorage = {
     CUSTOM_DAILY: "jac_custom_daily",
     PERSONA_PROMPTS: "jac_persona_prompts",
     CUSTOM_PERSONAS: "jac_custom_personas",
+    PERSONA_ORDER: "jac_persona_order",
     NET_STATS: "jac_net_stats",
     NS_DRAFT: "jac_ns_draft",
     REPO_STATS: "jac_repo_stats",
@@ -252,7 +253,27 @@ const SafeStorage = {
           const cleanColor = typeof c.color === "string" ? c.color.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "").trim().slice(0, 30) : "#ffffff";
           return { ...c, label: cleanLabel || "Custom Role", prompt: cleanPrompt, color: cleanColor || "#ffffff", isCustom: true };
         });
-      return [...mergedDefaults, ...cleanCustom];
+      const allPersonas = [...mergedDefaults, ...cleanCustom];
+
+      const order = this.getJSON(this.KEYS.PERSONA_ORDER, []);
+      if (!Array.isArray(order) || order.length === 0) {
+        return allPersonas;
+      }
+
+      const orderMap = new Map();
+      order.forEach((id, idx) => {
+        if (typeof id === 'string') {
+          orderMap.set(id, idx);
+        }
+      });
+
+      allPersonas.sort((a, b) => {
+        const indexA = orderMap.has(a.id) ? orderMap.get(a.id) : Infinity;
+        const indexB = orderMap.has(b.id) ? orderMap.get(b.id) : Infinity;
+        return indexA - indexB;
+      });
+
+      return allPersonas;
     } catch {
       return DEFAULT_PERSONAS;
     }
@@ -310,9 +331,19 @@ const SafeStorage = {
       return false;
     }
   },
+  savePersonasOrder(order) {
+    if (!Array.isArray(order)) return false;
+    try {
+      const cleanOrder = order.filter(id => typeof id === "string" && isValidStorageKey(id));
+      return this.setJSON(this.KEYS.PERSONA_ORDER, cleanOrder);
+    } catch {
+      return false;
+    }
+  },
   resetPersonas() {
     this.removeItem(this.KEYS.PERSONA_PROMPTS);
     this.removeItem(this.KEYS.CUSTOM_PERSONAS);
+    this.removeItem(this.KEYS.PERSONA_ORDER);
     return DEFAULT_PERSONAS;
   },
 

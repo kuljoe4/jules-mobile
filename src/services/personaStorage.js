@@ -23,6 +23,10 @@ function deleteCustomPersona(id) {
   SafeStorage.deleteCustomPersona(id);
 }
 
+function savePersonasOrder(order) {
+  SafeStorage.savePersonasOrder(order);
+}
+
 function resetPersonas() {
   return SafeStorage.resetPersonas();
 }
