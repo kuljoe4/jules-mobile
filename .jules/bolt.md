@@ -88,3 +88,6 @@
 ## 2026-09-29 - [Avoid .forEach in Tight Loops]
 **Learning:** Using .forEach() over traditional for loops incurs callback overhead that, when executed repeatedly within tight loops such as string processing for large unidiff patches, impacts performance measurably.
 **Action:** Default to using standard for loops instead of .forEach in tight and critical loops, particularly when mapping over or iterating through very long strings or large arrays of simple items.
+## 2024-10-01 - Consolidating Linked Array Traversals During High-Frequency Polling
+**Learning:** In polling components like JulesClient, chained array pipelines (`.filter().length` followed by another `.filter().map()`) operating on the same session list array create severe memory pressure (O(N) transient array allocations) and trigger multiple sequential loop traversals on every poll interval tick.
+**Action:** When deriving multiple state flags or counts from an array in high-frequency fetch loops, always merge the extraction logic into a single traditional `for` loop pass. Avoid using chained `.reduce()` or `.forEach()` callbacks which add measurable execution overhead within React effect closures.
