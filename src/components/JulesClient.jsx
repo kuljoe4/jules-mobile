@@ -178,6 +178,8 @@ function JulesClient() {
     handleBulkResume,
     handleBulkPause,
     handleBulkIgnore,
+    handlePause,
+    handleResume,
     handleArchive,
     handleUnarchive,
     handleIgnore,
@@ -687,6 +689,7 @@ function JulesClient() {
               isArchived={archivedIds.has(selected.id)}
               onArchive={handleArchive} onUnarchive={handleUnarchive}
               onIgnore={handleIgnore}
+              onPause={handlePause} onResume={handleResume}
               onDraftChange={handleDraftChange}/>
           )}
           {desktopView==="new"&&(
@@ -825,6 +828,7 @@ function JulesClient() {
             isArchived={archivedIds.has(selected.id)}
             onArchive={handleArchive} onUnarchive={handleUnarchive}
             onIgnore={handleIgnore}
+            onPause={handlePause} onResume={handleResume}
             onDraftChange={handleDraftChange}
             onToggleMobileDrawer={mobileDrawerOpen ? closeMobileDrawer : openMobileDrawer}/>
         ))}
