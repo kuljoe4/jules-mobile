@@ -3,7 +3,7 @@ import { isValidSessionId } from "../utils/validation.js";
 import { MediaModal } from "./mediaModal.jsx";
 
 // ─── Session Detail ───────────────────────────────────────────────────────────
-const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete, onSessionUpdate, onStatsUpdate, isDesktop, pollInterval, setPollInterval, isArchived, onArchive, onUnarchive, onIgnore, onPause, onResume, cacheLimit, activityLimit, allSessions = [], activitiesMap = {}, onDraftChange, onToggleMobileDrawer }) => {
+const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete, onSessionUpdate, onStatsUpdate, isDesktop, pollInterval, setPollInterval, isArchived, onArchive, onUnarchive, onIgnore, onPause, onResume, cacheLimit, activityLimit, allSessions = [], activitiesMap = {}, onDraftChange, onToggleMobileDrawer, onOpenSplitSession }) => {
   const [session,setSession]     = useState(initSession);
 
   useEffect(() => {
@@ -941,7 +941,11 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
        splitSession.dependsOnSessionId = session.id;
        SafeStorage.saveQueuedSession(splitSession);
     } else if (mode === "parallel") {
-       SafeStorage.saveDraftToBox(splitSession);
+       if (onOpenSplitSession) {
+         onOpenSplitSession(splitSession);
+       } else {
+         SafeStorage.saveDraftToBox(splitSession);
+       }
     }
 
     // After splitting, send a revision request to the current session to remove the split steps.
