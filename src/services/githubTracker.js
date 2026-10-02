@@ -779,13 +779,16 @@ const GitHubTracker = {
     const finalTitle = cleanTitle || `Merge changes from ${head}`;
     const finalBody = cleanBody || "Created via Jules Mobile Client";
 
+    const repoOwner = repo.split("/")[0] || "";
+    const qualifiedHead = head.includes(":") ? head : (repoOwner ? `${repoOwner}:${head}` : head);
+
     try {
       const res = await fetch(apiUrl, {
         method: "POST",
         headers,
         body: JSON.stringify({
           title: finalTitle,
-          head,
+          head: qualifiedHead,
           base: base || "main",
           body: finalBody
         }),

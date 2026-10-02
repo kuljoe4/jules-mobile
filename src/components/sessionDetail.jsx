@@ -219,7 +219,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
 
   const handleMergeBranchDirect = async () => {
     if (!repo || !b?.working) return;
-    const commitMsg = getSmartTitle(session, b);
+    const commitMsg = getSmartTitle(session, b, activities, pr?.state === "merged");
     if (!confirm(`⚡ MERGE AHEAD COMMITS DIRECTLY:\n\nAre you sure you want to merge branch '${b.working}' (${b.ahead || ahead} commits ahead) directly into '${b.base || "main"}'?`)) return;
 
     setBusy(true); setErr(null);
@@ -3013,8 +3013,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
       {/* ── Create PR Modal ── */}
       {showCreatePRModal && (
         <CreatePRModal
-          defaultTitle={getSmartTitle(session, b, activities)}
-          defaultBody={getSmartBody(session, b, activities)}
+          defaultTitle={getSmartTitle(session, b, activities, pr?.state === "merged")}
+          defaultBody={getSmartBody(session, b, activities, pr?.state === "merged")}
           repo={repo}
           headBranch={b?.working || "feature"}
           baseBranch={b?.base || "main"}
