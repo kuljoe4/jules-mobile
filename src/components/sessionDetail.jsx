@@ -2227,25 +2227,55 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                     </div>
                   )}
 
-                  {/* Post-Merge Branch Cleanup Option */}
-                  {pr.state === "merged" && b?.isNew && (
-                    <div style={{ marginTop: 12, padding: "10px 14px", background: `${T.purple}10`, border: `1px solid ${T.purple}30`, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
-                      <div style={{ fontFamily: "'IBM Plex Sans',sans-serif", fontSize: 12, color: T.text, fontWeight: 600 }}>
-                        PR merged! Feature branch <span style={{ fontFamily: "'JetBrains Mono',monospace", color: T.purple }}>{b.working}</span> can now be safely cleaned up.
-                      </div>
-                      <button
-                        onClick={handleDeleteBranch}
-                        disabled={busy}
-                        style={{
-                          background: T.redDim, color: T.red, border: `1px solid ${T.red}40`,
-                          borderRadius: 4, padding: "4px 10px", fontFamily: "'JetBrains Mono',monospace",
-                          fontSize: 10, fontWeight: 800, cursor: busy ? "not-allowed" : "pointer",
-                          display: "inline-flex", alignItems: "center", gap: 4
-                        }}
-                      >
-                        <Ic n="trash" s={12} c={T.red}/> DELETE BRANCH
-                      </button>
-                    </div>
+                  {/* Post-Merge Branch Actions */}
+                  {pr.state === "merged" && (
+                    <>
+                      {((b && typeof b.ahead === "number") ? b.ahead > 0 : (ahead > 0 || payloadBreakdown?.patchCount > 0)) ? (
+                        <div style={{ marginTop: 12, padding: "12px 14px", background: T.surfaceHi, border: `1px solid ${T.brand}40`, borderRadius: 6, display: "flex", flexDirection: "column", gap: 10 }}>
+                          <div style={{ fontFamily: "'IBM Plex Sans',sans-serif", fontSize: 13, color: T.text, fontWeight: 600 }}>
+                            This PR is merged, but you have <span style={{ color: T.brand }}>new ahead commits</span> on <span style={{ fontFamily: "'JetBrains Mono',monospace", color: T.brand }}>{b.working}</span>.
+                          </div>
+                          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                            <button onClick={handleOpenCreatePRModal} disabled={busy} style={{
+                              background: T.surfaceHi, color: T.brandLight, border: `1px solid ${T.brand}60`, borderRadius: 6,
+                              padding: "6px 12px", fontFamily: "'JetBrains Mono',monospace",
+                              fontSize: 11, fontWeight: 800, cursor: busy ? "not-allowed" : "pointer", flexShrink: 0,
+                              opacity: busy ? 0.6 : 1
+                            }} aria-label="Create new Pull Request via GitHub API" title="Create new Pull Request via GitHub API">
+                              + CREATE NEW PR
+                            </button>
+                            <button onClick={handleMergeBranchDirect} disabled={busy} style={{
+                              background: T.purple, color: "#000", border: "none", borderRadius: 6,
+                              padding: "6px 14px", fontFamily: "'JetBrains Mono',monospace",
+                              fontSize: 11, fontWeight: 900, cursor: busy ? "not-allowed" : "pointer", flexShrink: 0,
+                              opacity: busy ? 0.6 : 1, boxShadow: `0 4px 12px ${T.purple}30`
+                            }} aria-label="Directly merge ahead commits into base branch" title="Directly merge ahead commits into base branch via GitHub API">
+                              ⚡ MERGE AHEAD COMMITS
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        b?.isNew && (
+                          <div style={{ marginTop: 12, padding: "10px 14px", background: `${T.purple}10`, border: `1px solid ${T.purple}30`, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                            <div style={{ fontFamily: "'IBM Plex Sans',sans-serif", fontSize: 12, color: T.text, fontWeight: 600 }}>
+                              PR merged! Feature branch <span style={{ fontFamily: "'JetBrains Mono',monospace", color: T.purple }}>{b.working}</span> can now be safely cleaned up.
+                            </div>
+                            <button
+                              onClick={handleDeleteBranch}
+                              disabled={busy}
+                              style={{
+                                background: T.redDim, color: T.red, border: `1px solid ${T.red}40`,
+                                borderRadius: 4, padding: "4px 10px", fontFamily: "'JetBrains Mono',monospace",
+                                fontSize: 10, fontWeight: 800, cursor: busy ? "not-allowed" : "pointer",
+                                display: "inline-flex", alignItems: "center", gap: 4
+                              }}
+                            >
+                              <Ic n="trash" s={12} c={T.red}/> DELETE BRANCH
+                            </button>
+                          </div>
+                        )
+                      )}
+                    </>
                   )}
 
                   {/* High Density Commits list */}
