@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { copyToClipboard } from "../utils/format.js";
+import { copyToClipboard, formatPlanSteps } from "../utils/format.js";
 import { MediaModal } from "./mediaModal.jsx";
 
 const ACTIVITY_LINKS_CACHE = new WeakMap();
@@ -211,6 +211,31 @@ const ChatBubble = memo(({ act, type, onMediaClick, onEdit, onReply, forceExpand
 
 // ─── Timeline Event (non-message activities) ──────────────────────────────────
 const TimelineEvent = memo(({ act, onMediaClick, onReply }) => {
+  const [selectedSteps, setSelectedSteps] = useState(new Set());
+  const [copiedPlan, setCopiedPlan] = useState(false);
+  const [copiedStepId, setCopiedStepId] = useState(null);
+
+  const handleCopyPlan = () => {
+    if (copiedPlan || !act.planGenerated?.plan?.steps) return;
+    const text = formatPlanSteps(act.planGenerated.plan.steps, selectedSteps);
+    copyToClipboard(text).then(success => {
+      if (success) {
+        setCopiedPlan(true);
+        setTimeout(() => setCopiedPlan(false), 2000);
+      }
+    });
+  };
+
+  const handleCopyStep = (st) => {
+    if (copiedStepId === st.id) return;
+    const text = formatPlanSteps([st]);
+    copyToClipboard(text).then(success => {
+      if (success) {
+        setCopiedStepId(st.id);
+        setTimeout(() => setCopiedStepId(null), 2000);
+      }
+    });
+  };
   const type = getActType(act);
   const isMajor = ["sessionCompleted", "sessionFailed", "planGenerated", "planApproved"].includes(type);
   const desc = act.progressUpdated?.description || "";
@@ -236,6 +261,24 @@ const TimelineEvent = memo(({ act, onMediaClick, onReply }) => {
         <div style={{marginTop:10}}>
           {plan.steps.map((st,i) => (
             <div key={st.id||i} style={{display:"flex",gap:8,marginBottom:12,alignItems:"flex-start"}}>
+              <input
+                type="checkbox"
+                checked={selectedSteps.has(st.id)}
+                onChange={(e) => {
+                  const next = new Set(selectedSteps);
+                  if (e.target.checked) next.add(st.id);
+                  else next.delete(st.id);
+                  setSelectedSteps(next);
+                }}
+                style={{
+                  marginTop: 4,
+                  cursor: "pointer",
+                  width: 14,
+                  height: 14,
+                  accentColor: T.purple
+                }}
+                aria-label={`Select Step ${i + 1}`}
+              />
               <div style={{
                 width:20,height:20,borderRadius:3,flexShrink:0,
                 background:T.purpleDim,border:`1px solid ${T.purple}40`,
@@ -251,8 +294,37 @@ const TimelineEvent = memo(({ act, onMediaClick, onReply }) => {
                   <Markdown text={st.description}/>
                 </div>}
               </div>
+              <button
+                onClick={(e)=>{e.stopPropagation();handleCopyStep(st);}}
+                title={copiedStepId===st.id?"Step text copied to clipboard":"Copy step text"}
+                aria-label={copiedStepId===st.id?"Step text copied to clipboard":"Copy step text"}
+                style={{
+                  padding:"4px 8px",borderRadius:4,border:"none",cursor:"pointer",
+                  background:"transparent", outline:`1px solid ${copiedStepId===st.id?T.brand+"40":T.border}`,
+                  fontFamily:"'JetBrains Mono',monospace",fontSize:10,fontWeight:700,
+                  color:copiedStepId===st.id?T.brand:T.muted, display:"flex", alignItems:"center", gap:4,
+                  transition:"all .12s cubic-bezier(0.4, 0, 0.2, 1)",letterSpacing:"0.06em", flexShrink:0
+                }}
+              >
+                <Ic n={copiedStepId===st.id?"check":"copy"} s={10} c={copiedStepId===st.id?T.brand:T.muted}/>
+              </button>
             </div>
           ))}
+          <div style={{display:"flex", justifyContent:"flex-end", marginTop: 8}}>
+            <button
+              onClick={handleCopyPlan}
+              title={copiedPlan ? "Plan text copied to clipboard" : selectedSteps.size > 0 ? "Copy selected steps" : "Copy plan text"}
+              aria-label={copiedPlan ? "Plan text copied to clipboard" : selectedSteps.size > 0 ? "Copy selected steps" : "Copy plan text"}
+              style={{
+                background: "none", border: "none", padding: "0 2px", cursor: "pointer",
+                color: copiedPlan ? T.brand : T.muted, fontWeight: 800, fontSize: 10, letterSpacing: "0.05em",
+                display: "flex", alignItems: "center", gap: 4, transition: "color .2s cubic-bezier(0.4, 0, 0.2, 1)"
+              }}
+            >
+              <Ic n={copiedPlan ? "check" : "copy"} s={11} c={copiedPlan ? T.brand : T.muted}/>
+              {copiedPlan ? "COPIED" : selectedSteps.size > 0 ? `COPY (${selectedSteps.size})` : "COPY PLAN"}
+            </button>
+          </div>
         </div>
       );
       break;
