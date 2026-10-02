@@ -3,7 +3,7 @@ import { isValidSessionId } from "../utils/validation.js";
 import { MediaModal } from "./mediaModal.jsx";
 
 // ─── Session Detail ───────────────────────────────────────────────────────────
-const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete, onSessionUpdate, onStatsUpdate, isDesktop, pollInterval, setPollInterval, isArchived, onArchive, onUnarchive, onIgnore, cacheLimit, activityLimit, allSessions = [], activitiesMap = {}, onDraftChange, onToggleMobileDrawer }) => {
+const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete, onSessionUpdate, onStatsUpdate, isDesktop, pollInterval, setPollInterval, isArchived, onArchive, onUnarchive, onIgnore, onPause, onResume, cacheLimit, activityLimit, allSessions = [], activitiesMap = {}, onDraftChange, onToggleMobileDrawer }) => {
   const [session,setSession]     = useState(initSession);
 
   useEffect(() => {
@@ -1407,6 +1407,41 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                     >
                       <Ic n={isArchived ? "unarchive" : "archive"} s={14} c={T.purple}/> {isArchived ? "UNARCHIVE" : "ARCHIVE"}
                     </button>
+                    {(onPause || onResume) && session.state === "PAUSED" ? (
+                      <button
+                        onClick={() => { if(onResume) onResume(session.id); setShowMenu(false); }}
+                        onMouseEnter={e => e.currentTarget.style.background = T.border}
+                        onMouseLeave={e => e.currentTarget.style.background = "none"}
+                        onMouseDown={e => e.currentTarget.style.transform = "scale(0.96)"}
+                        onMouseUp={e => e.currentTarget.style.transform = "scale(1)"}
+                        style={{
+                          width:"100%", padding:"12px 14px", background:"none", border:"none",
+                          color:T.brand, textAlign:"left", fontFamily:"'JetBrains Mono',monospace",
+                          fontSize:11, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:10,
+                          borderBottom:`1px solid ${T.border}33`,
+                          transition: "all .1s cubic-bezier(0.4, 0, 0.2, 1)"
+                        }}
+                      >
+                        <Ic n="play" s={14} c={T.brand}/> RESUME
+                      </button>
+                    ) : (onPause || onResume) && session.state !== "COMPLETED" && session.state !== "FAILED" ? (
+                      <button
+                        onClick={() => { if(onPause) onPause(session.id); setShowMenu(false); }}
+                        onMouseEnter={e => e.currentTarget.style.background = T.border}
+                        onMouseLeave={e => e.currentTarget.style.background = "none"}
+                        onMouseDown={e => e.currentTarget.style.transform = "scale(0.96)"}
+                        onMouseUp={e => e.currentTarget.style.transform = "scale(1)"}
+                        style={{
+                          width:"100%", padding:"12px 14px", background:"none", border:"none",
+                          color:T.amber, textAlign:"left", fontFamily:"'JetBrains Mono',monospace",
+                          fontSize:11, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:10,
+                          borderBottom:`1px solid ${T.border}33`,
+                          transition: "all .1s cubic-bezier(0.4, 0, 0.2, 1)"
+                        }}
+                      >
+                        <Ic n="pause" s={14} c={T.amber}/> PAUSE
+                      </button>
+                    ) : null}
                     {onIgnore && (
                       <button
                         onClick={() => { onIgnore(session.id); setShowMenu(false); }}
@@ -1422,7 +1457,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                           transition: "all .1s cubic-bezier(0.4, 0, 0.2, 1)"
                         }}
                       >
-                        <Ic n="pause" s={14} c={T.amber}/> IGNORE
+                        <Ic n="x" s={14} c={T.amber}/> IGNORE
                       </button>
                     )}
                     <button

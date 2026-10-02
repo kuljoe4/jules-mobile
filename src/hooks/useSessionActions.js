@@ -109,6 +109,25 @@ const useSessionActions = ({
     }
   }, [selected, setIgnoredIds, setSelected, setDesktop, setMobile]);
 
+  const handlePause = useCallback(id => {
+    if (!isValidSessionId(id)) return;
+    if (!confirm("Are you sure you want to pause this session?")) return;
+
+    // Optimistic update
+    setSessions(prev => prev.map(s => s.id === id ? { ...s, state: "PAUSED" } : s));
+    lastStates.current.set(id, "PAUSED");
+    apiCall(apiKey, `/sessions/${id}:pause`, { method:"POST" }).catch(err => console.error(err));
+  }, [apiKey, setSessions, lastStates]);
+
+  const handleResume = useCallback(id => {
+    if (!isValidSessionId(id)) return;
+
+    // Optimistic update
+    setSessions(prev => prev.map(s => s.id === id ? { ...s, state: "QUEUED" } : s));
+    lastStates.current.set(id, "QUEUED");
+    apiCall(apiKey, `/sessions/${id}:resume`, { method:"POST" }).catch(err => console.error(err));
+  }, [apiKey, setSessions, lastStates]);
+
   const handleArchive = useCallback(id => {
     if (!isValidSessionId(id)) return;
     setArchivedIds(prev => {
@@ -163,6 +182,8 @@ const useSessionActions = ({
     handleBulkResume,
     handleBulkPause,
     handleBulkIgnore,
+    handlePause,
+    handleResume,
     handleArchive,
     handleUnarchive,
     handleIgnore,
