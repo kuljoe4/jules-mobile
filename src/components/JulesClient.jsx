@@ -585,6 +585,12 @@ function JulesClient() {
     if (isDesktop) setDesktop("detail"); else setMobile("detail");
   }, [isDesktop, mobileDrawerOpen, closeMobileDrawer]);
 
+  const handleOpenSplitSession = useCallback((draft) => {
+    setSelectedDraft(draft);
+    if (mobileDrawerOpen) closeMobileDrawer();
+    if (isDesktop) setDesktop("new"); else setMobile("new");
+  }, [isDesktop, mobileDrawerOpen, closeMobileDrawer, setDesktop, setMobile]);
+
   const handleCreate = useCallback(rawS => {
     if (!rawS) return;
     const s = normalizeSession(rawS);
@@ -690,7 +696,8 @@ function JulesClient() {
               onArchive={handleArchive} onUnarchive={handleUnarchive}
               onIgnore={handleIgnore}
               onPause={handlePause} onResume={handleResume}
-              onDraftChange={handleDraftChange}/>
+              onDraftChange={handleDraftChange}
+              onOpenSplitSession={handleOpenSplitSession}/>
           )}
           {desktopView==="new"&&(
             <NewSession
@@ -830,6 +837,7 @@ function JulesClient() {
             onIgnore={handleIgnore}
             onPause={handlePause} onResume={handleResume}
             onDraftChange={handleDraftChange}
+            onOpenSplitSession={handleOpenSplitSession}
             onToggleMobileDrawer={mobileDrawerOpen ? closeMobileDrawer : openMobileDrawer}/>
         ))}
         {mobileScreen==="new"&&(

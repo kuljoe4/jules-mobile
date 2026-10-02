@@ -57,13 +57,25 @@ export const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFe
   // Split recommendations state
   const [selectedSteps, setSelectedSteps] = useState(new Set());
   const [hasAutoSelected, setHasAutoSelected] = useState(false);
+  const [splitSteps, setSplitSteps] = useState(new Set());
 
   // Auto-select based on AI recommendations and initialization
   useEffect(() => {
+    if (!planAct?.id) return;
+
+    // Load split steps state from LocalStorage based on the current plan's ID
+    const lsKey = `jac_split_steps_${planAct.id}`;
+    let loadedSplitSteps = new Set();
+    try {
+      const stored = window.localStorage.getItem(lsKey);
+      if (stored) loadedSplitSteps = new Set(JSON.parse(stored));
+    } catch {}
+    setSplitSteps(loadedSplitSteps);
+
     if (!plan || hasAutoSelected) return;
     const recommended = new Set();
     plan.steps.forEach(st => {
-      if (st.title && (st.title.includes('[Parallel]') || st.title.includes('[Sequential:'))) {
+      if (st.title && (st.title.includes('[Parallel]') || st.title.includes('[Sequential:')) && !loadedSplitSteps.has(st.id)) {
         recommended.add(st.id);
       }
     });
@@ -71,7 +83,17 @@ export const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFe
       setSelectedSteps(recommended);
       setHasAutoSelected(true);
     }
-  }, [plan, hasAutoSelected]);
+  }, [plan, hasAutoSelected, planAct?.id]);
+
+  const recordSplitSteps = (stepsArray) => {
+    if (!planAct?.id) return;
+    const newSplit = new Set(splitSteps);
+    stepsArray.forEach(id => newSplit.add(id));
+    setSplitSteps(newSplit);
+    try {
+      window.localStorage.setItem(`jac_split_steps_${planAct.id}`, JSON.stringify(Array.from(newSplit)));
+    } catch {}
+  };
 
   const pendingApproval = session.state === "AWAITING_PLAN_APPROVAL" || !approved;
   const annotatedCount  = Object.values(stepNotes).filter(n=>n.trim()).length;
@@ -120,20 +142,24 @@ export const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFe
           const note     = stepNotes[st.id] || "";
           const isOpen   = activeNote === st.id;
           const hasNote  = note.trim().length > 0;
+          const isSplit  = splitSteps.has(st.id);
 
           return (
             <div key={st.id||i} style={{
               background:T.surface,border:`1px solid ${hasNote?T.amber+"50":T.border}`,
               borderLeft:`2px solid ${hasNote?T.amber:T.purple+"60"}`,
               borderRadius:6,overflow:"hidden",transition:"border-color .15s cubic-bezier(0.4, 0, 0.2, 1)",
+              opacity: isSplit ? 0.5 : 1,
             }}>
               {/* Step row */}
               <div style={{display:"flex",gap:10,alignItems:"flex-start",padding:"10px 12px"}}>
                 {pendingApproval && !approved && (
                   <input
                     type="checkbox"
-                    checked={selectedSteps.has(st.id)}
+                    checked={isSplit || selectedSteps.has(st.id)}
+                    disabled={isSplit}
                     onChange={(e) => {
+                      if (isSplit) return;
                       const next = new Set(selectedSteps);
                       if (e.target.checked) next.add(st.id);
                       else next.delete(st.id);
@@ -141,26 +167,37 @@ export const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFe
                     }}
                     style={{
                       marginTop: 5,
-                      cursor: "pointer",
+                      cursor: isSplit ? "not-allowed" : "pointer",
                       width: 16,
                       height: 16,
-                      accentColor: T.purple
+                      accentColor: isSplit ? T.textDim : T.purple
                     }}
                     aria-label={`Select Step ${i + 1} for splitting`}
                   />
                 )}
-                <div style={{
-                  width:24,height:24,borderRadius:4,flexShrink:0,marginTop:1,
-                  background:hasNote?T.amberDim:T.purpleDim,
-                  border:`1px solid ${hasNote?T.amber+"50":T.purple+"40"}`,
-                  display:"flex",alignItems:"center",justifyContent:"center",
-                  fontFamily:"'JetBrains Mono',monospace",fontSize:11,fontWeight:700,
-                  color:hasNote?T.amber:T.purple,
-                }}>{i+1}</div>
+                <div style={{display:"flex", alignItems:"center", gap: 8, marginTop:1}}>
+                  <div style={{
+                    width:24,height:24,borderRadius:4,flexShrink:0,
+                    background:hasNote?T.amberDim:T.purpleDim,
+                    border:`1px solid ${hasNote?T.amber+"50":T.purple+"40"}`,
+                    display:"flex",alignItems:"center",justifyContent:"center",
+                    fontFamily:"'JetBrains Mono',monospace",fontSize:11,fontWeight:700,
+                    color:hasNote?T.amber:T.purple,
+                  }}>{i+1}</div>
+                </div>
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:15,fontWeight:500,
-                    color:T.text,lineHeight:1.35,marginBottom:st.description?10:0}}>
+                    color:T.text,lineHeight:1.35,marginBottom:st.description?10:0, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap"}}>
                     <Markdown text={st.title} />
+                    {isSplit && (
+                      <span style={{
+                        background: T.surfaceHi, border: `1px solid ${T.border}`, padding: "2px 6px",
+                        borderRadius: 4, fontFamily: "'JetBrains Mono',monospace", fontSize: 10,
+                        color: T.textDim, fontWeight: 700
+                      }}>
+                        SPLIT ✓
+                      </span>
+                    )}
                   </div>
                   {st.description&&(
                     <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:13,color:T.textDim,lineHeight:1.45}}>
@@ -175,7 +212,7 @@ export const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFe
                     </div>
                   )}
                 </div>
-                {pendingApproval&&!approved&&(
+                {pendingApproval&&!approved&&!isSplit&&(
                   <button
                     onClick={()=>setActiveNote(isOpen?null:st.id)}
                     aria-expanded={isOpen}
@@ -245,7 +282,9 @@ export const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFe
           <div style={{ display: "flex", gap: 8 }}>
             <Btn
               onClick={() => {
-                onSplitPlan?.(Array.from(selectedSteps), "parallel");
+                const arr = Array.from(selectedSteps);
+                onSplitPlan?.(arr, "parallel");
+                recordSplitSteps(arr);
                 setSelectedSteps(new Set());
               }}
               color={T.purple} sm
@@ -256,7 +295,9 @@ export const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFe
             </Btn>
             <Btn
               onClick={() => {
-                onSplitPlan?.(Array.from(selectedSteps), "queue");
+                const arr = Array.from(selectedSteps);
+                onSplitPlan?.(arr, "queue");
+                recordSplitSteps(arr);
                 setSelectedSteps(new Set());
               }}
               color={T.brand} outline sm
