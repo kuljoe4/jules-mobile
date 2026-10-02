@@ -741,6 +741,27 @@ const SafeStorage = {
     if (!isValidSessionId(sessionId)) return false;
     return this.removeItem(`jac_draft_${sessionId}`);
   },
+
+  loadDraftsMap() {
+    const map = {};
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith("jac_draft_") && !key.startsWith("jac_drafts_box")) {
+          const val = this.getItem(key);
+          if (val && val.trim()) {
+            const id = key.slice("jac_draft_".length);
+            if (isValidSessionId(id)) {
+              map[id] = true;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Error scanning follow-up drafts", e);
+    }
+    return map;
+  },
 };
 
 export { SafeStorage };

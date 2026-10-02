@@ -60,27 +60,7 @@ function JulesClient() {
   const [selectedDraft, setSelectedDraft] = useState(null);
   const [filterResetTrigger, setFilterResetTrigger] = useState(0);
 
-  const [draftsMap, setDraftsMap] = useState(() => {
-    const map = {};
-    try {
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && key.startsWith("jac_draft_") && !key.startsWith("jac_drafts_box")) {
-          const val = localStorage.getItem(key);
-          if (val && val.trim()) {
-            const id = key.slice("jac_draft_".length);
-            // Security: Validate extracted session identifier before indexing to prevent LocalStorage key parameter pollution or path injection.
-            if (isValidSessionId(id)) {
-              map[id] = true;
-            }
-          }
-        }
-      }
-    } catch (e) {
-      console.error("Error scanning follow-up drafts", e);
-    }
-    return map;
-  });
+  const [draftsMap, setDraftsMap] = useState(() => SafeStorage.loadDraftsMap());
 
   const handleDraftChange = useCallback((id, hasDraft) => {
     setDraftsMap(prev => {

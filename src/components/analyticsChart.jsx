@@ -1,3 +1,5 @@
+import { SafeStorage } from '../services/storage.js';
+
 const AnalyticsChart = ({ getSessions }) => {
   const { useState, useEffect, useMemo, useRef } = window.React || globalThis.React;
   const [sessions, setSessions] = useState([]);
@@ -9,11 +11,7 @@ const AnalyticsChart = ({ getSessions }) => {
       setSessions(getSessions());
     } else {
       try {
-        const stored = window.localStorage.getItem("jac_sessions_list");
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          setSessions(Array.isArray(parsed) ? parsed : []);
-        }
+        setSessions(SafeStorage.loadSessionsList());
       } catch (err) {
         console.error("Failed to load sessions for analytics", err);
       }

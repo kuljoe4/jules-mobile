@@ -4,6 +4,7 @@
  * conflict radar warnings, and approval actions.
  */
 import { formatPlanSteps, copyToClipboard } from '../utils/format.js';
+import { SafeStorage } from '../services/storage.js';
 export const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFeedback, busy, allSessions = EMPTY_ARR, activitiesMap = EMPTY_OBJ, onSplitPlan }) => {
   const [stepNotes, setStepNotes]     = useState({}); // stepId → note string
   const [activeNote, setActiveNote]   = useState(null); // stepId currently expanded
@@ -64,11 +65,11 @@ export const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFe
   useEffect(() => {
     if (!planAct?.id) return;
 
-    // Load split steps state from LocalStorage based on the current plan's ID
+    // Load split steps state from SafeStorage based on the current plan's ID
     const lsKey = `jac_split_steps_${planAct.id}`;
     let loadedSplitSteps = new Set();
     try {
-      const stored = window.localStorage.getItem(lsKey);
+      const stored = SafeStorage.getItem(lsKey);
       if (stored) loadedSplitSteps = new Set(JSON.parse(stored));
     } catch {}
     setSplitSteps(loadedSplitSteps);
@@ -92,7 +93,7 @@ export const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFe
     stepsArray.forEach(id => newSplit.add(id));
     setSplitSteps(newSplit);
     try {
-      window.localStorage.setItem(`jac_split_steps_${planAct.id}`, JSON.stringify(Array.from(newSplit)));
+      SafeStorage.setItem(`jac_split_steps_${planAct.id}`, JSON.stringify(Array.from(newSplit)));
     } catch {}
   };
 
