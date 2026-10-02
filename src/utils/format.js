@@ -168,6 +168,24 @@ export const formatSmartDashItems = (text) => {
 
 // Resilient, asynchronous clipboard copy function with fallback for non-secure contexts (HTTP)
 // and unsupported browsers. Catches all rejections to prevent unhandled promise exceptions.
+export const formatPlanSteps = (steps, stepIds = null) => {
+  if (!steps || !Array.isArray(steps)) return "";
+  let stepsToFormat = steps;
+  if (stepIds && stepIds.size > 0) {
+    stepsToFormat = steps.filter(st => stepIds.has(st.id));
+  }
+  return stepsToFormat.map((st, i) => {
+    // Strip markdown formatting if any (basic stripping for clean text)
+    const title = (st.title || "").replace(/[*_`]/g, "");
+    let text = `${i + 1}. ${title}`;
+    if (st.description) {
+      const desc = st.description.replace(/[*_`]/g, "");
+      text += `\n   ${desc}`;
+    }
+    return text;
+  }).join("\n\n");
+};
+
 export const copyToClipboard = async (text) => {
   if (typeof text !== "string") text = String(text || "");
   if (typeof navigator !== "undefined" && navigator?.clipboard?.writeText) {
