@@ -194,7 +194,14 @@ const GitHubTracker = {
   },
 
   triggerGitHubFetch(url, force = false) {
-    if (!force && this.GH_IN_FLIGHT.has(url)) return;
+    if (!force) {
+      if (this.GH_IN_FLIGHT.has(url)) return;
+
+      const cached = this.GH_STATE_CACHE.get(url);
+      if (cached && (Date.now() - cached.fetchedAt < 30 * 1000)) {
+        return; // debounce background fetches to 30s max frequency unless forced
+      }
+    }
 
     const match = url.match(/https:\/\/github\.com\/([a-zA-Z0-9\-_.]+)\/([a-zA-Z0-9\-_.]+)\/pull\/(\d+)/);
     if (!match) return;
