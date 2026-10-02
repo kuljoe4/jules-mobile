@@ -676,11 +676,83 @@ const GitHubTracker = {
       });
   },
 
-  async createPullRequest(params) {
-    const data = await GitHubApi.createPullRequest(params);
-    if (data && data.html_url) {
-      this.GH_STATE_CACHE.delete(data.html_url);
-      this.triggerGitHubFetch(data.html_url, true);
+  async createPullRequest({ repo: rawRepo, head: rawHead, base: rawBase = "main", title, body }) {
+    // Sanitize repo string (strip sources/github/ prefix, .git suffix, whitespace)
+    let repo = (rawRepo || "").trim().replace(/^sources\/github\//, "").replace(/\.git$/, "").replace(/\/$/, "");
+    let head = (rawHead || "").trim().replace(/^refs\/heads\//, "");
+    let base = (rawBase || "main").trim().replace(/^refs\/heads\//, "");
+
+    if (!repo || !isValidGithubRepoName(repo)) {
+      throw new Error(`Invalid GitHub repository format ("${rawRepo || repo}"). Expected "owner/repo".`);
+    }
+    if (!head || !isValidGitBranchName(head)) {
+      throw new Error(`Invalid head branch name ("${rawHead || head}").`);
+    }
+    if (base && !isValidGitBranchName(base)) {
+      throw new Error(`Invalid base branch name ("${rawBase || base}").`);
+    }
+    if (head.toLowerCase() === base.toLowerCase()) {
+      throw new Error(`Head branch ("${head}") cannot be identical to base branch ("${base}"). Please specify a feature branch.`);
+    }
+    const token = SafeStorage.loadGithubToken();
+    if (!token || !isValidGithubToken(token)) {
+      throw new Error("GitHub Token required to create PR. Please set your token in Settings.");
+    }
+
+    const headers = {
+      "Accept": "application/vnd.github.v3+json",
+      "Content-Type": "application/json",
+      "Authorization": `token ${token}`
+    };
+
+    const apiUrl = `https://api.github.com/repos/${repo}/pulls`;
+    const controller = new AbortController();
+    const timeoutMs = SafeStorage.loadApiTimeout();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    // Security: Sanitize title and body to prevent control character/null-byte injection and payload bloat.
+    const cleanTitle = (typeof title === "string" ? title : "").replace(/[\x00-\x1F\x7F]/g, "").trim().slice(0, 250);
+    const cleanBody = (typeof body === "string" ? body : "").replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "").trim().slice(0, 10000);
+    const finalTitle = cleanTitle || `Merge changes from ${head}`;
+    const finalBody = cleanBody || "Created via Jules Mobile Client";
+
+    const repoOwner = repo.split("/")[0] || "";
+    const qualifiedHead = head.includes(":") ? head : (repoOwner ? `${repoOwner}:${head}` : head);
+
+    try {
+      const res = await fetch(apiUrl, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          title: finalTitle,
+          head: qualifiedHead,
+          base: base || "main",
+          body: finalBody
+        }),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
+      const data = await res.json();
+      if (!res.ok) {
+        let errDetail = data.message || `Failed to create PR (Status ${res.status})`;
+        if (data.errors && Array.isArray(data.errors) && data.errors.length > 0) {
+          const formattedErrors = data.errors
+            .map(e => e.message ? e.message : (e.field ? `${e.field}: ${e.code}` : JSON.stringify(e)))
+            .join("; ");
+          errDetail = `${data.message || "Validation Failed"}: ${formattedErrors}`;
+        }
+        throw new Error(errDetail);
+      }
+
+      if (data.html_url) {
+        this.GH_STATE_CACHE.delete(data.html_url);
+        this.triggerGitHubFetch(data.html_url, true);
+      }
+      return data;
+    } catch (err) {
+      clearTimeout(timeoutId);
+      throw err;
     }
     return data;
   },

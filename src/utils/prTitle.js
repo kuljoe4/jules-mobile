@@ -4,8 +4,8 @@
 
 import { getPendingPRProposal } from '../services/githubTracker.js';
 
-export function getSmartTitle(session, b, activities = []) {
-  const proposal = b?.pendingPRProposal || (typeof getPendingPRProposal === 'function' ? getPendingPRProposal(session, activities) : null);
+export function getSmartTitle(session, b, activities = [], ignoreProposal = false) {
+  const proposal = ignoreProposal ? null : (b?.pendingPRProposal || (typeof getPendingPRProposal === 'function' ? getPendingPRProposal(session, activities) : null));
   let rawTitle = "";
 
   if (proposal && proposal.title) {
@@ -51,8 +51,8 @@ export function getSmartTitle(session, b, activities = []) {
   return cleanTitle.length > 250 ? cleanTitle.slice(0, 247) + "..." : cleanTitle;
 }
 
-export function getSmartBody(session, b, activities = []) {
-  const proposal = b?.pendingPRProposal || (typeof getPendingPRProposal === 'function' ? getPendingPRProposal(session, activities) : null);
+export function getSmartBody(session, b, activities = [], ignoreProposal = false) {
+  const proposal = ignoreProposal ? null : (b?.pendingPRProposal || (typeof getPendingPRProposal === 'function' ? getPendingPRProposal(session, activities) : null));
   let rawBody = "";
 
   if (proposal && (proposal.description || proposal.title)) {
