@@ -1019,6 +1019,9 @@ assert.equal(loadedArray[1].id, "custom_2");
 
 // Test copyToClipboard helper with mock navigator.clipboard
 let copiedText = "";
+if (typeof globalThis.navigator === 'undefined') {
+  globalThis.navigator = {};
+}
 Object.defineProperty(globalThis.navigator, "clipboard", {
   value: {
     writeText: async (txt) => {
