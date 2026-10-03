@@ -10,7 +10,7 @@ export function getSmartTitle(session, b, activities = [], ignoreProposal = fals
 
   if (proposal && proposal.title) {
     rawTitle = proposal.title;
-  } else if (b?.commits && b.commits.length > 0 && b.commits[0].source !== "activity") {
+  } else if (!ignoreProposal && b?.commits && b.commits.length > 0 && b.commits[0].source !== "activity") {
     const firstTitle = b.commits[0].title || (b.commits[0].message || "").split("\n")[0].trim();
     if (firstTitle && firstTitle.length >= 3) {
       rawTitle = b.commits.length === 1 ? firstTitle : `${firstTitle} (+${b.commits.length - 1} more commits)`;
@@ -57,7 +57,7 @@ export function getSmartBody(session, b, activities = [], ignoreProposal = false
 
   if (proposal && (proposal.description || proposal.title)) {
     rawBody = proposal.description || proposal.title;
-  } else if (b?.commits && b.commits.length > 0 && b.commits[0].source !== "activity") {
+  } else if (!ignoreProposal && b?.commits && b.commits.length > 0 && b.commits[0].source !== "activity") {
     const commitLogs = b.commits.map(c => `- ${c.sha ? `[${c.sha}] ` : ""}${c.title || c.message}`).join("\n");
     rawBody = `### Ahead Commits\n\n${commitLogs}\n\nCreated via Jules Mobile Client`;
   } else {
