@@ -145,11 +145,23 @@ function makeNetTracker() {
     }
 
     const computeShares = (buckets) => {
-      const totalAll = Object.values(buckets).reduce((sum, b) => sum + b.total, 0);
-      return Object.entries(buckets).map(([name, data]) => {
+      // OPTIMIZATION (Bolt): Replace .reduce() and .map() with standard for loops
+      // to avoid callback allocations and array iterations on every network update tick.
+      let totalAll = 0;
+      const entries = Object.entries(buckets);
+      for (let i = 0; i < entries.length; i++) {
+        totalAll += entries[i][1].total;
+      }
+
+      const result = new Array(entries.length);
+      for (let i = 0; i < entries.length; i++) {
+        const name = entries[i][0];
+        const data = entries[i][1];
         const pct = totalAll > 0 ? (data.total / totalAll) * 100 : 0;
-        return { name, ...data, pct };
-      }).sort((a, b) => b.total - a.total);
+        result[i] = { name, ...data, pct };
+      }
+
+      return result.sort((a, b) => b.total - a.total);
     };
 
     return {
