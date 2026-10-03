@@ -29,12 +29,12 @@ export function getSmartTitle(session, b, activities = [], ignoreProposal = fals
 
   if (!rawTitle && session?.prompt) {
     const promptLine = session.prompt.split("\n")[0].trim();
-    if (promptLine) {
+    if (promptLine && promptLine.length >= 3) {
       rawTitle = promptLine;
     }
   }
 
-  if (!rawTitle && session?.title) {
+  if (!rawTitle && session?.title && session.title !== "New Session") {
     rawTitle = session.title;
   }
 
@@ -57,16 +57,21 @@ export function getSmartBody(session, b, activities = [], ignoreProposal = false
 
   if (proposal && (proposal.description || proposal.title)) {
     rawBody = proposal.description || proposal.title;
-  } else if (!ignoreProposal && b?.commits && b.commits.length > 0 && b.commits[0].source !== "activity") {
-    const commitLogs = b.commits.map(c => `- ${c.sha ? `[${c.sha}] ` : ""}${c.title || c.message}`).join("\n");
-    rawBody = `### Ahead Commits\n\n${commitLogs}\n\nCreated via Jules Mobile Client`;
   } else {
     const summary = session?.outputs?.find(o => o?.sessionSummary)?.sessionSummary?.summary;
     if (summary) {
       rawBody = summary;
-    } else {
-      rawBody = session?.prompt ? `### Prompt\n${session.prompt}` : "";
+    } else if (session?.prompt) {
+      rawBody = `### Prompt\n${session.prompt}`;
     }
+  }
+
+  if (!ignoreProposal && b?.commits && b.commits.length > 0 && b.commits[0].source !== "activity") {
+    const commitLogs = b.commits.map(c => `- ${c.sha ? `[${c.sha.slice(0, 7)}] ` : ""}${c.title || (c.message || "").split("\n")[0]}`).join("\n");
+    const commitSection = `### Ahead Commits\n\n${commitLogs}\n\nCreated via Jules Mobile Client`;
+    rawBody = rawBody ? `${rawBody}\n\n${commitSection}` : commitSection;
+  } else if (!rawBody) {
+    rawBody = "Created via Jules Mobile Client";
   }
 
   // Security: Sanitize body to prevent control character / null-byte injection while preserving multiline formatting (\n, \r, \t).

@@ -30,9 +30,9 @@ const GitHubTracker = {
   // Regex Configurations
   GH_PR_RE: /https:\/\/github\.com\/[a-zA-Z0-9\-_.]+\/[a-zA-Z0-9\-_.]+\/pull\/(\d+)/,
   CHECK_URL_RE: /https:\/\/github\.com\/[a-zA-Z0-9\-_.]+\/[a-zA-Z0-9\-_.]+\/(?:actions\/runs|deployments|actions)\/\d*/,
-  PUSH_RE: /push(?:ing|ed).* to (?:the |a )?([^\s\.\(\)\`]+)/i,
-  BRANCH_RE: /branch (?:named )?([^\s\.\(\)\`]+)/i,
-  CREATE_BRANCH_RE: /created.* branch ([^\s\.\(\)\`]+)/i,
+  PUSH_RE: /push(?:ing|ed).* to (?:the |a )?([^\s\(\)\`]+)/i,
+  BRANCH_RE: /branch (?:named )?([^\s\(\)\`]+)/i,
+  CREATE_BRANCH_RE: /created.* branch ([^\s\(\)\`]+)/i,
   TREE_LINK_RE: /https:\/\/github\.com\/[a-zA-Z0-9\-_.]+\/[a-zA-Z0-9\-_.]+\/tree\/([a-zA-Z0-9\-_.]+)/,
   BRANCH_LINK_RE: /https:\/\/github\.com\/[a-zA-Z0-9\-_.]+\/[a-zA-Z0-9\-_.]+\/branches\/([a-zA-Z0-9\-_.]+)/,
   COMPARE_LINK_RE: /https:\/\/github\.com\/[a-zA-Z0-9\-_.]+\/[a-zA-Z0-9\-_.]+\/compare\/[^\.]+\.\.\.([a-zA-Z0-9\-_.]+)/,
@@ -1167,7 +1167,7 @@ const GitHubTracker = {
         const desc1 = a.progressUpdated?.description || "";
         const m1 = desc1.match(this.PUSH_RE) || desc1.match(this.BRANCH_RE) || desc1.match(this.CREATE_BRANCH_RE);
         if (m1) {
-          const bname = m1[1].replace(/['"`\.]/g, "");
+          const bname = m1[1].replace(/\.$/, "").replace(/^['"`]+|['"`]+$/g, "");
           if (bname !== "main" && bname !== "master") {
             pushBranch = bname;
           }
