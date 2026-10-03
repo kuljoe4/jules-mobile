@@ -113,3 +113,6 @@
 ## 2026-09-25 - [Contextual Descriptions and Actionable CTAs for Feature Empty States]
 **Learning:** Empty states in secondary drawers or utility views (such as the Drafts Box) often leave users at a functional dead end when no items are saved. Replacing plain "No items" text with illustrative icons, clear contextual descriptions explaining how the feature works, and prominent, accessible Call-To-Action (CTA) triggers (like "START NEW SESSION") transforms static empty views into intuitive, guidance-driven user journeys.
 **Action:** When designing feature list views or drawer components, pair empty state titles with explanatory subtext and direct action buttons equipped with explicit `aria-label` and `title` attributes.
+## 2024-05-24 - Animated Empty States & Dynamic Copy Icons
+**Learning:** Empty states representing active async processes (like waiting for activities in a running session) cause user anxiety if they appear static. Copy buttons that change text but leave the icon unchanged feel disconnected and less satisfying.
+**Action:** Always include animated loading indicators (e.g., spinning refresh icon) in active empty states. Always dynamically swap icon identifiers (e.g., from 'copy' to 'check') alongside text labels when indicating a successful transient action.

@@ -2509,7 +2509,14 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
 
             {activities.length===0
               ?<div style={{textAlign:"center",padding:"50px 0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>
-                {ACTIVE_STATES.has(currentState)?"Waiting for activity…":"No activities yet"}
+                {ACTIVE_STATES.has(currentState)? (
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+                    <div style={{ animation: "spin 2s linear infinite", display: "flex" }}>
+                      <Ic n="refresh" s={24} c={T.brand}/>
+                    </div>
+                    Waiting for activity…
+                  </div>
+                ) : "No activities yet"}
               </div>
               :<ActivityFeed
                   activities={filteredActivities}
@@ -2755,7 +2762,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                       color:T.brand, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700, cursor:"pointer",
                       display:"inline-flex", alignItems:"center", gap:4
                     }} title="Copy original prompt text" aria-label="Copy original prompt text">
-                      <Ic n="copy" s={11} c={T.brand}/>
+                      <Ic n={copiedPrompts["original"] ? "check" : "copy"} s={11} c={T.brand}/>
                       {copiedPrompts["original"] ? "COPIED ✓" : "COPY"}
                     </button>
                     <button onClick={(e) => { e.stopPropagation(); scrollToActivityInChat(null, true); }} style={{
@@ -2829,7 +2836,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                         color:T.brand, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700, cursor:"pointer",
                         display:"inline-flex", alignItems:"center", gap:4
                       }} title={`Copy follow-up #${i+1} prompt text`} aria-label={`Copy follow-up #${i+1} prompt text`}>
-                        <Ic n="copy" s={11} c={T.brand}/>
+                        <Ic n={copiedPrompts[actKey] ? "check" : "copy"} s={11} c={T.brand}/>
                         {copiedPrompts[actKey] ? "COPIED ✓" : "COPY"}
                       </button>
                       <button onClick={(e) => { e.stopPropagation(); scrollToActivityInChat(actKey, false); }} style={{
