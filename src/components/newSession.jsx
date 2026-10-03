@@ -165,11 +165,28 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
                             onMouseLeave={e=>e.currentTarget.style.background="none"}
                           >
                             <Ic n="code" s={12} c={isSelected?T.brand:T.muted}/>
-                            <span style={{
-                              flex:1, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:14,
-                              color:isSelected?T.brand:T.text, fontWeight:isSelected?600:400,
-                              overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
-                            }}>{getSourceDisplay(s)}</span>
+                            {s && s.githubRepo ? (
+                              <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8, overflow: "hidden" }}>
+                                <span style={{
+                                  background: isSelected ? `${T.brand}22` : T.surface, border: `1px solid ${isSelected ? T.brand : T.border}`,
+                                  padding: "2px 6px", borderRadius: 4, fontFamily: "'JetBrains Mono',monospace", fontSize: 10,
+                                  color: isSelected ? T.brandLight : T.textDim, flexShrink: 0
+                                }}>
+                                  {s.githubRepo.owner}
+                                </span>
+                                <span style={{
+                                  fontFamily:"'IBM Plex Sans',sans-serif", fontSize:14,
+                                  color:isSelected?T.brand:T.text, fontWeight:isSelected?700:500,
+                                  overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
+                                }}>{s.githubRepo.repo}</span>
+                              </div>
+                            ) : (
+                              <span style={{
+                                flex:1, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:14,
+                                color:isSelected?T.brand:T.text, fontWeight:isSelected?600:400,
+                                overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
+                              }}>{getSourceDisplay(s)}</span>
+                            )}
                           </button>
                         );
                       })}

@@ -386,42 +386,26 @@ function JulesClient() {
             });
           }
 
-          // OPTIMIZATION (Bolt): Replace chained .filter().map() with single-pass for loops
-          // to eliminate intermediate array allocations in fetchSessions.
           let merged = [];
           if (currentIsFirstPageOfFull) {
             let oldestTs = 0;
-            const batchIds = new Set();
-            for (let i = 0; i < adjustedBatch.length; i++) {
-              const s = adjustedBatch[i];
-              const ts = parseDateMs(s.updateTime || s.createTime);
-              if (i === 0 || ts < oldestTs) oldestTs = ts;
-              batchIds.add(s.id || s.name);
+            if (adjustedBatch.length > 0) {
+              oldestTs = Math.min(...adjustedBatch.map(s => parseDateMs(s.updateTime || s.createTime)));
             }
-
-            const preserved = [];
-            for (let i = 0; i < prev.length; i++) {
-              const s = prev[i];
-              if (batchIds.has(s.id || s.name)) continue;
+            const batchIds = new Set(adjustedBatch.map(s => s.id || s.name));
+            const preserved = prev.filter(s => {
+              if (batchIds.has(s.id || s.name)) return false;
               const ts = parseDateMs(s.updateTime || s.createTime);
-              const isRecent = (Date.now() - ts) < 300000;
-              if (ts >= oldestTs || ACTIVE_STATES.has(s.state) || isRecent) {
-                preserved.push(s);
-              }
-            }
+              const isRecent = (Date.now() - parseDateMs(s.createTime || s.updateTime)) < 300000;
+              return ts >= oldestTs || ACTIVE_STATES.has(s.state) || isRecent;
+            });
             merged = [...adjustedBatch, ...preserved];
           } else {
-            const batchIds = new Set();
-            for (let i = 0; i < adjustedBatch.length; i++) {
-              batchIds.add(adjustedBatch[i].id || adjustedBatch[i].name);
-            }
-            const preserved = [];
-            for (let i = 0; i < prev.length; i++) {
-              if (!batchIds.has(prev[i].id || prev[i].name)) {
-                preserved.push(prev[i]);
-              }
-            }
-            merged = [...adjustedBatch, ...preserved];
+            const batchIds = new Set(adjustedBatch.map(s => s.id || s.name));
+            merged = [
+              ...adjustedBatch,
+              ...prev.filter(s => !batchIds.has(s.id || s.name))
+            ];
           }
 
           // Sort: Newly created first, then active first, then by latest update/create time
@@ -480,14 +464,7 @@ function JulesClient() {
           // Check if batch reached items older than lastFetchTime with a 30s clock-skew buffer
           const bufferMs = 30000;
           const thresholdTs = (lastFetchTime.current || Date.now()) - bufferMs;
-          let batchMinTs = 0;
-          if (batch.length > 0) {
-            batchMinTs = parseDateMs(batch[0].updateTime || batch[0].createTime);
-            for (let i = 1; i < batch.length; i++) {
-              const ts = parseDateMs(batch[i].updateTime || batch[i].createTime);
-              if (ts < batchMinTs) batchMinTs = ts;
-            }
-          }
+          const batchMinTs = batch.length > 0 ? Math.min(...batch.map(s => parseDateMs(s.updateTime || s.createTime))) : 0;
           const reachedOlder = batch.length > 0 && batchMinTs <= thresholdTs;
           const allActiveAccountedFor = activeIdsToVerify.size === seenActiveIds.size;
 
