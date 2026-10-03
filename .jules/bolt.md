@@ -91,3 +91,7 @@
 ## 2024-10-01 - Consolidating Linked Array Traversals During High-Frequency Polling
 **Learning:** In polling components like JulesClient, chained array pipelines (`.filter().length` followed by another `.filter().map()`) operating on the same session list array create severe memory pressure (O(N) transient array allocations) and trigger multiple sequential loop traversals on every poll interval tick.
 **Action:** When deriving multiple state flags or counts from an array in high-frequency fetch loops, always merge the extraction logic into a single traditional `for` loop pass. Avoid using chained `.reduce()` or `.forEach()` callbacks which add measurable execution overhead within React effect closures.
+
+## 2024-10-03 - Replacing reduce and map in Hot Aggregation Paths
+**Learning:** Using `Object.values().reduce()` chained with `Object.entries().map()` inside tick-based aggregation functions like `computeShares` in `networkTracker.js` creates unnecessary intermediate object mappings and callback closures on every invocation. When computing derived states over small known category maps, executing these in standard single-pass `for` loops prevents constant temporary array and string allocations that can pressure garbage collection over long user sessions.
+**Action:** Default to standard pre-allocated arrays and imperative `for` loops over `Object.entries()` in performance-sensitive state deriving functions instead of chaining `.reduce()` and `.map()`.
