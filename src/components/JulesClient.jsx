@@ -52,11 +52,17 @@ function JulesClient() {
       if (aIsNewest && !bIsNewest) return -1;
       if (!aIsNewest && bIsNewest) return 1;
 
-      const aTime = parseDateMs(a.updateTime || a.createTime);
-      const bTime = parseDateMs(b.updateTime || b.createTime);
-      return bTime - aTime;
+      if (sessionSort === "CREATETIME") {
+        const aTime = parseDateMs(a.createTime);
+        const bTime = parseDateMs(b.createTime);
+        return bTime - aTime;
+      } else {
+        const aTime = parseDateMs(a.updateTime || a.createTime);
+        const bTime = parseDateMs(b.updateTime || b.createTime);
+        return bTime - aTime;
+      }
     });
-  }, [sessions, supplementalSessions]);
+  }, [sessions, supplementalSessions, sessionSort]);
   const [selectedDraft, setSelectedDraft] = useState(null);
   const [filterResetTrigger, setFilterResetTrigger] = useState(0);
 
@@ -110,6 +116,11 @@ function JulesClient() {
   const setRepoFilter = useCallback((val) => {
     setRepoFilterState(val);
     SafeStorage.saveRepoFilter(val);
+  }, []);
+  const [sessionSort, setSessionSortState] = useState(() => SafeStorage.loadSessionSort());
+  const setSessionSort = useCallback((val) => {
+    setSessionSortState(val);
+    SafeStorage.saveSessionSort(val);
   }, []);
   const [searchQuery, setSearchQuery] = useState("");
   const [globalErr, setGlobalErr] = useState(null);
@@ -388,7 +399,7 @@ function JulesClient() {
             ];
           }
 
-          // Sort: Newly created first, then active first, then by latest update/create time
+          // Sort: Newly created first, then active first, then by selected sort (update/create time)
           const sorted = [...merged].sort((a, b) => {
             const aIsNewest = (a.id || a.name) === lastCreatedSessionIdRef.current;
             const bIsNewest = (b.id || b.name) === lastCreatedSessionIdRef.current;
@@ -399,9 +410,16 @@ function JulesClient() {
             const bActive = ACTIVE_STATES.has(b.state);
             if (aActive && !bActive) return -1;
             if (!aActive && bActive) return 1;
-            const aTime = parseDateMs(a.updateTime || a.createTime);
-            const bTime = parseDateMs(b.updateTime || b.createTime);
-            return bTime - aTime;
+
+            if (sessionSort === "CREATETIME") {
+              const aTime = parseDateMs(a.createTime);
+              const bTime = parseDateMs(b.createTime);
+              return bTime - aTime;
+            } else {
+              const aTime = parseDateMs(a.updateTime || a.createTime);
+              const bTime = parseDateMs(b.updateTime || b.createTime);
+              return bTime - aTime;
+            }
           });
 
           // ── No-Op Re-render Check ──
@@ -638,6 +656,7 @@ function JulesClient() {
             archivedIds={archivedIds} showArchived={showArchived} setShowArchived={setShowArchived}
             statusFilter={statusFilter} setStatusFilter={setStatusFilter}
             repoFilter={repoFilter} setRepoFilter={setRepoFilter}
+            sessionSort={sessionSort} setSessionSort={setSessionSort}
             activitiesMap={activitiesMap}
             activityStatsMap={activityStatsMap}
             sessions={allSessions}
@@ -755,7 +774,7 @@ function JulesClient() {
               flexDirection:"column",
               animation: drawerClosing ? "slideLeft .22s cubic-bezier(0.4, 0, 0.2, 1) forwards" : "slideRight .25s cubic-bezier(0.4, 0, 0.2, 1)"
             }}>
-              <SessionList sessions={allSessions} onBulkDelete={handleBulkDelete} onBulkArchive={handleBulkArchive} onBulkUnarchive={handleBulkUnarchive} onBulkIgnore={handleBulkIgnore} onBulkPause={handleBulkPause} onBulkResume={handleBulkResume} onSelect={handleSelect} onRefresh={()=>fetchSessions(false)}
+              <SessionList sessions={allSessions} sessionSort={sessionSort} setSessionSort={setSessionSort} onBulkDelete={handleBulkDelete} onBulkArchive={handleBulkArchive} onBulkUnarchive={handleBulkUnarchive} onBulkIgnore={handleBulkIgnore} onBulkPause={handleBulkPause} onBulkResume={handleBulkResume} onSelect={handleSelect} onRefresh={()=>fetchSessions(false)}
                 refreshing={refreshing} justRefreshed={justRefreshed} selectedId={selected?.id} isDesktop={false}
                 onNew={() => { setSelectedDraft(null); closeMobileDrawer(); setMobile("new"); }}
                 onDrafts={() => { closeMobileDrawer(); setMobile("drafts"); }}

@@ -38,6 +38,7 @@ const SafeStorage = {
     LEAN_MODE_REPOS: "jac_lean_mode_repos",
     LEAN_DIRECTIVE: "jac_lean_directive",
     SESSIONS_LIST: "jac_sessions_list",
+    SESSION_SORT: "jac_session_sort",
     REPO_FILTER: "jac_repo_filter",
   },
 
@@ -647,6 +648,19 @@ const SafeStorage = {
     if (!Array.isArray(sessions)) return false;
     const cleanSessions = sessions.map(item => (typeof item === "object" && item !== null && !Array.isArray(item)) ? sanitizeObjectKeys(item) : item);
     return this.setJSON(this.KEYS.SESSIONS_LIST, cleanSessions);
+  },
+
+  loadSessionSort() {
+    const v = this.getItem(this.KEYS.SESSION_SORT, "UPDATETIME");
+    if (v === "CREATETIME") return "CREATETIME";
+    return "UPDATETIME";
+  },
+  saveSessionSort(val) {
+    if (val === "CREATETIME" || val === "UPDATETIME") {
+      this.setItem(this.KEYS.SESSION_SORT, val);
+      return true;
+    }
+    return false;
   },
 
   loadRepoFilter() {

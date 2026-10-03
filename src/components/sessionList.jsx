@@ -1,7 +1,7 @@
 const FILTERS = ["ALL","QUEUED","PLANNING","AWAITING_PLAN_APPROVAL","AWAITING_USER_FEEDBACK","IN_PROGRESS","PAUSED","COMPLETED","FAILED","HAS_DRAFT","PR_OPEN","PR_MERGED"];
 const FILTER_LABELS = { AWAITING_PLAN_APPROVAL:"APPROVE", AWAITING_USER_FEEDBACK:"INPUT", PAUSED:"PAUSED", ALL:"ALL", HAS_DRAFT:"HAS DRAFT", PR_OPEN:"OPEN PR", PR_MERGED:"MERGED PR" };
 
-const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed, selectedId, isDesktop, onNew, onDrafts, onSettings, pollInterval, sessionLimit, countdown, plan, todayCount, searchQuery, setSearchQuery, archivedIds, showArchived, setShowArchived, activitiesMap = {}, activityStatsMap = {}, error, clearError, isBoosted, readMap, draftsMap = {}, ignoredIds = new Set(), filterResetTrigger, sidebarCollapsed, setSidebarCollapsed, onCloseMobileDrawer, onToggleMobileDrawer, statusFilter: propStatusFilter, setStatusFilter: propSetStatusFilter, repoFilter: propRepoFilter, setRepoFilter: propSetRepoFilter, onBulkDelete, onBulkArchive, onBulkUnarchive, onBulkIgnore, onBulkPause, onBulkResume }) => {
+const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed, selectedId, isDesktop, onNew, onDrafts, onSettings, pollInterval, sessionLimit, countdown, plan, todayCount, searchQuery, setSearchQuery, archivedIds, showArchived, setShowArchived, activitiesMap = {}, activityStatsMap = {}, error, clearError, isBoosted, readMap, draftsMap = {}, ignoredIds = new Set(), filterResetTrigger, sidebarCollapsed, setSidebarCollapsed, onCloseMobileDrawer, onToggleMobileDrawer, statusFilter: propStatusFilter, setStatusFilter: propSetStatusFilter, repoFilter: propRepoFilter, setRepoFilter: propSetRepoFilter, sessionSort, setSessionSort, onBulkDelete, onBulkArchive, onBulkUnarchive, onBulkIgnore, onBulkPause, onBulkResume }) => {
   const [localFilter, setLocalFilter] = useState("ALL");
   const [localRepoFilter, setLocalRepoFilter] = useState("ALL");
 
@@ -551,6 +551,19 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
             <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.textDim, letterSpacing:"0.08em", flexShrink:0, paddingRight:2}}>SESSIONS</span>
             <button onClick={() => setShowArchived(false)} aria-pressed={!showArchived ? "true" : "false"} aria-label="Show active sessions" title="Show active sessions" style={{flexShrink:0, minHeight:36, padding:"0 14px", display:"inline-flex", alignItems:"center", justifyContent:"center", borderRadius:20, border:"none", background:!showArchived ? T.brandDim : "transparent", border:`1px solid ${!showArchived ? T.brand+"60" : T.border}`, color:!showArchived ? T.brand : T.muted, fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:!showArchived?700:400, letterSpacing:"0.05em", cursor:"pointer", transition:"all .12s cubic-bezier(0.4, 0, 0.2, 1)"}}>ACTIVE</button>
             <button onClick={() => setShowArchived(true)} aria-pressed={showArchived ? "true" : "false"} aria-label="Show archived sessions" title="Show archived sessions" style={{flexShrink:0, minHeight:36, padding:"0 14px", display:"inline-flex", alignItems:"center", justifyContent:"center", borderRadius:20, border:"none", background:showArchived ? T.purpleDim : "transparent", border:`1px solid ${showArchived ? T.purple+"60" : T.border}`, color:showArchived ? T.purple : T.muted, fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:showArchived?700:400, letterSpacing:"0.05em", cursor:"pointer", transition:"all .12s cubic-bezier(0.4, 0, 0.2, 1)"}}>ARCHIVED</button>
+            <div style={{flex:1}}></div>
+            {setSessionSort && (
+              <button
+                onClick={() => setSessionSort(sessionSort === "CREATETIME" ? "UPDATETIME" : "CREATETIME")}
+                aria-pressed={sessionSort === "CREATETIME" ? "true" : "false"}
+                aria-label={`Sort by ${sessionSort === "CREATETIME" ? "newest created" : "recent activity"}`}
+                title={`Sort by ${sessionSort === "CREATETIME" ? "newest created" : "recent activity"}`}
+                style={{flexShrink:0, minHeight:36, padding:"0 14px", display:"inline-flex", alignItems:"center", justifyContent:"center", borderRadius:20, border:"none", background:sessionSort === "CREATETIME" ? `${T.blue}20` : "transparent", border:`1px solid ${sessionSort === "CREATETIME" ? `${T.blue}80` : T.border}`, color:sessionSort === "CREATETIME" ? T.blue : T.muted, fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:sessionSort === "CREATETIME"?700:400, letterSpacing:"0.05em", cursor:"pointer", transition:"all .12s cubic-bezier(0.4, 0, 0.2, 1)", gap: 6}}
+              >
+                <Ic n="clock" s={14} c={sessionSort === "CREATETIME" ? T.blue : T.muted} />
+                <span>{sessionSort === "CREATETIME" ? "NEWEST" : "ACTIVITY"}</span>
+              </button>
+            )}
           </div>
         )}
         {availableRepos.length > 0 && !sidebarCollapsed && (
