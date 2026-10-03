@@ -45,6 +45,52 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
+      - name: Deploy to GitHub Pages (Attempt 1)
+        id: deployment1
         uses: actions/deploy-pages@v4
+        continue-on-error: true
+
+      - name: Wait before retry 1
+        if: steps.deployment1.outcome == 'failure'
+        run: |
+          echo "Attempt 1 failed. Waiting 15 seconds before retrying..."
+          sleep 15
+
+      - name: Deploy to GitHub Pages (Attempt 2)
+        id: deployment2
+        if: steps.deployment1.outcome == 'failure'
+        uses: actions/deploy-pages@v4
+        continue-on-error: true
+
+      - name: Wait before retry 2
+        if: steps.deployment2.outcome == 'failure'
+        run: |
+          echo "Attempt 2 failed. Waiting 30 seconds before final retry..."
+          sleep 30
+
+      - name: Deploy to GitHub Pages (Attempt 3)
+        id: deployment3
+        if: steps.deployment2.outcome == 'failure'
+        uses: actions/deploy-pages@v4
+        continue-on-error: true
+
+      - name: Evaluate and Set Deployment URL
+        id: deployment
+        run: |
+          echo "Attempt 1 outcome: ${{ steps.deployment1.outcome }}"
+          echo "Attempt 2 outcome: ${{ steps.deployment2.outcome }}"
+          echo "Attempt 3 outcome: ${{ steps.deployment3.outcome }}"
+
+          if [ "${{ steps.deployment1.outcome }}" == "success" ]; then
+            echo "page_url=${{ steps.deployment1.outputs.page_url }}" >> "$GITHUB_OUTPUT"
+            echo "Deployment succeeded on Attempt 1"
+          elif [ "${{ steps.deployment2.outcome }}" == "success" ]; then
+            echo "page_url=${{ steps.deployment2.outputs.page_url }}" >> "$GITHUB_OUTPUT"
+            echo "Deployment succeeded on Attempt 2"
+          elif [ "${{ steps.deployment3.outcome }}" == "success" ]; then
+            echo "page_url=${{ steps.deployment3.outputs.page_url }}" >> "$GITHUB_OUTPUT"
+            echo "Deployment succeeded on Attempt 3"
+          else
+            echo "::error::Deployment failed after 3 attempts. Please check githubstatus.com for Pages outages."
+            exit 1
+          fi
