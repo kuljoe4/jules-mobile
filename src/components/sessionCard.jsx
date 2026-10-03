@@ -203,8 +203,6 @@ const SessionCard = memo(({ s, onPress, onSelect, isSelected, isBulkSelected, on
             title="Select session"
             aria-label="Select session"
             onClick={(e) => { e.stopPropagation(); if (onToggleSelect) onToggleSelect(s.id); }}
-            title="Select session"
-            aria-label="Select session"
             style={{ position: "absolute", inset: -4, opacity: 0, cursor: "pointer", border: "none", background: "transparent" }}
           />
         )}
