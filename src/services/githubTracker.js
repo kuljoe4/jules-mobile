@@ -686,74 +686,21 @@ const GitHubTracker = {
     return data;
   },
 
-  async mergeBranch({ repo: rawRepo, base: rawBase = "main", head: rawHead, commitMessage }) {
-    let repo = (rawRepo || "").trim().replace(/^sources\/github\//, "").replace(/\.git$/, "").replace(/\/$/, "");
-    let base = (rawBase || "main").trim().replace(/^refs\/heads\//, "");
-    let head = (rawHead || "").trim().replace(/^refs\/heads\//, "");
+  async mergeBranch(params) {
+    const { data, repo } = await GitHubApi.mergeBranch(params);
 
-    if (!repo || !isValidGithubRepoName(repo)) {
-      throw new Error(`Invalid GitHub repository format ("${rawRepo || repo}"). Expected "owner/repo".`);
-    }
-    if (!head || !isValidGitBranchName(head)) {
-      throw new Error(`Invalid head branch name ("${rawHead || head}").`);
-    }
-    if (!base || !isValidGitBranchName(base)) {
-      throw new Error(`Invalid base branch name ("${rawBase || base}").`);
-    }
-    if (head.toLowerCase() === base.toLowerCase()) {
-      throw new Error(`Head branch ("${head}") cannot be identical to base branch ("${base}").`);
+    this.GH_BRANCH_STATE_CACHE.clear();
+    this.BRANCH_INFO_CACHE.clear();
+    this.PR_INFO_CACHE.clear();
+    this.PENDING_PR_PROPOSAL_CACHE.clear();
+
+    if (typeof window !== "undefined") {
+      let head = (params.head || "").trim().replace(/^refs\/heads\//, "");
+      let base = (params.base || "main").trim().replace(/^refs\/heads\//, "");
+      window.dispatchEvent(new CustomEvent("gh-pr-updated", { detail: { repo, mergedBranch: head, intoBase: base } }));
     }
 
-    const token = SafeStorage.loadGithubToken();
-    if (!token || !isValidGithubToken(token)) {
-      throw new Error("GitHub Token required to merge branch. Please set your token in Settings.");
-    }
-
-    const headers = {
-      "Accept": "application/vnd.github.v3+json",
-      "Content-Type": "application/json",
-      "Authorization": `token ${token}`
-    };
-
-    const apiUrl = `https://api.github.com/repos/${repo}/merges`;
-    const controller = new AbortController();
-    const timeoutMs = SafeStorage.loadApiTimeout();
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
-    // Security: Sanitize commitMessage to prevent control character/null-byte injection and payload bloat.
-    const cleanMsg = (typeof commitMessage === "string" ? commitMessage : "").replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "").trim().slice(0, 2000);
-    const finalMsg = cleanMsg || `Merge branch '${head}' into '${base}'`;
-
-    try {
-      const res = await fetch(apiUrl, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          base,
-          head,
-          commit_message: finalMsg
-        }),
-        signal: controller.signal
-      });
-      clearTimeout(timeoutId);
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.message || `Failed to merge branch (Status ${res.status})`);
-      }
-
-      this.GH_BRANCH_STATE_CACHE.clear();
-      this.BRANCH_INFO_CACHE.clear();
-      this.PR_INFO_CACHE.clear();
-      this.PENDING_PR_PROPOSAL_CACHE.clear();
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("gh-pr-updated", { detail: { repo, mergedBranch: head, intoBase: base } }));
-      }
-      return data;
-    } catch (err) {
-      clearTimeout(timeoutId);
-      throw err;
-    }
+    return data;
   },
 
   async createAndMergePR({ repo, head, base = "main", title, body, mergeMethod = "merge" }) {
