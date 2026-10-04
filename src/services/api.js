@@ -116,7 +116,7 @@ export async function apiCall(apiKey, path, opts={}) {
       }
 
       if (err instanceof TypeError) {
-        console.error(`[apiCall] Fetch failed with TypeError on attempt ${attempt} for ${url}:`, err);
+        console.error(`[apiCall] Fetch failed with TypeError on attempt ${attempt} for ${url}:`, sanitizeErrorMessage(err.toString()));
         if (attempt < maxAttempts) {
           // Robust connection waiter: if offline, wait up to 10s for connection to recover
           if (typeof navigator !== 'undefined' && navigator.onLine === false) {
@@ -141,7 +141,7 @@ export async function apiCall(apiKey, path, opts={}) {
           }
 
           const delay = attempt * retryDelayMultiplier;
-          console.warn(`[apiCall] Transient network failure on attempt ${attempt}. Retrying in ${delay}ms...`, err);
+          console.warn(`[apiCall] Transient network failure on attempt ${attempt}. Retrying in ${delay}ms...`, sanitizeErrorMessage(err.toString()));
           await new Promise(resolve => setTimeout(resolve, delay));
           continue;
         }
@@ -200,7 +200,7 @@ export async function apiCall(apiKey, path, opts={}) {
           detail: { retryAfter: quotaRetryAfter, msg, status: res.status }
         }));
       } catch (e) {
-        console.error("Failed to dispatch quota-error event:", e);
+        console.error("Failed to dispatch quota-error event:", sanitizeErrorMessage(e.toString()));
       }
     }
 
