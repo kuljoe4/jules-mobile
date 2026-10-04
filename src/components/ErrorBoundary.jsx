@@ -1,7 +1,9 @@
+import { sanitizeErrorMessage } from "../services/api.js";
+
 class ErrorBoundary extends React.Component {
   constructor(props) { super(props); this.state = { hasError: false, error: null }; }
   static getDerivedStateFromError(error) { return { hasError: true, error }; }
-  componentDidCatch(error, errorInfo) { console.error("Uncaught component error:", error, errorInfo); }
+  componentDidCatch(error, errorInfo) { console.error("Uncaught component error:", sanitizeErrorMessage(error.toString())); }
   render() {
     if (this.state.hasError) {
       return (
