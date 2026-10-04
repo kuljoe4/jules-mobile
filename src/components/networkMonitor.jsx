@@ -94,7 +94,17 @@ const RecentActivityLog = memo(({ log, total }) => {
 
       <div style={{background:T.surfaceHi, borderRadius:12, border:`1px solid ${T.border}`, overflow:"hidden"}} role="list">
         {log.length === 0 ? (
-          <div style={{textAlign:"center",padding:"32px",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>No requests recorded</div>
+          <div role="status" aria-label="No network requests recorded" style={{textAlign:"center",padding:"48px 24px",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim, display:"flex", flexDirection:"column", alignItems:"center", gap:12}}>
+            <div style={{width:48, height:48, borderRadius:12, background:T.surface, border:`1px dashed ${T.border}`, display:"flex", alignItems:"center", justifyContent:"center"}}>
+              <Ic n="activity" s={20} c={T.muted}/>
+            </div>
+            <div>
+              <div style={{color:T.text, fontWeight:800, fontSize:13, marginBottom:4}}>NO REQUESTS RECORDED</div>
+              <div style={{fontFamily:"'IBM Plex Sans',sans-serif", fontSize:13, color:T.textDim, maxWidth:240, margin:"0 auto"}}>
+                Network activity will appear here once the application makes API calls.
+              </div>
+            </div>
+          </div>
         ) : mode === "chrono" ? (
           log.map((r, i) => (
             <div key={r.id} style={{display:"flex",gap:12,alignItems:"center",padding:"12px 16px",borderBottom:i<log.length-1?`1px solid ${T.border}`:"none"}} role="listitem">
