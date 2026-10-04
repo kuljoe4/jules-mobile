@@ -204,6 +204,7 @@ const GitHubTracker = {
     if (!isValidGithubRepoName(repoFull)) return;
 
     this.GH_IN_FLIGHT.add(url);
+    if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("gh-pr-updated", { detail: { url, isUpdating: true } }));
 
     const token = SafeStorage.loadGithubToken();
     const headers = {
@@ -429,6 +430,7 @@ const GitHubTracker = {
     if (!force && this.GH_DEPLOYMENT_IN_FLIGHT.has(repo)) return;
 
     this.GH_DEPLOYMENT_IN_FLIGHT.add(repo);
+    if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("gh-pr-updated", { detail: { repo, isUpdating: true } }));
 
     const token = SafeStorage.loadGithubToken();
     const headers = { "Accept": "application/vnd.github.v3+json" };
@@ -490,13 +492,20 @@ const GitHubTracker = {
 
     const cached = this.GH_DEPLOYMENT_STATE_CACHE.get(repo);
     // If it's a negative cache hit (null), or if it failed, increase TTL to 5 minutes to avoid spamming
-    const ttl = (cached && (cached.deployment === null || cached.failed)) ? 5 * 60 * 1000 : 30 * 1000;
+    const ttl = (cached && (cached.deployment === null || cached.failed)) ? 5 * 60 * 1000 : 60 * 1000;
+    let isUpdating = this.GH_DEPLOYMENT_IN_FLIGHT.has(repo);
     if (!force && cached && (Date.now() - cached.fetchedAt < ttl)) {
-      return cached.deployment === null ? null : cached;
+      // cache hit
+    } else {
+      this.triggerGitHubDeploymentFetch(repo, force);
+      isUpdating = true;
     }
 
-    this.triggerGitHubDeploymentFetch(repo, force);
-    return (cached && cached.deployment !== null) ? cached : null;
+    if (!cached || cached.deployment === null) {
+      return isUpdating ? { deployment: null, isUpdating: true } : null;
+    }
+
+    return { ...cached, isUpdating };
   },
 
   async deleteBranch(repo, branch) {
@@ -518,6 +527,7 @@ const GitHubTracker = {
     if (!force && this.GH_BRANCH_IN_FLIGHT.has(key)) return;
 
     this.GH_BRANCH_IN_FLIGHT.add(key);
+    if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("gh-pr-updated", { detail: { key, isUpdating: true } }));
 
     const token = SafeStorage.loadGithubToken();
     const headers = {
@@ -802,8 +812,10 @@ const GitHubTracker = {
     let failed = false;
 
     const ghCached = this.GH_STATE_CACHE.get(pr.url);
-    const ttl = (ghCached && ghCached.state === "open" && !ghCached.failed) ? 30 * 1000 : 5 * 60 * 1000;
+    const ttl = (ghCached && ghCached.state === "open" && !ghCached.failed) ? 60 * 1000 : 5 * 60 * 1000;
     let fetchedAt = null;
+    let isUpdating = this.GH_IN_FLIGHT.has(pr.url);
+
     if (!force && ghCached && (Date.now() - ghCached.fetchedAt < ttl)) {
       state = ghCached.state;
       additions = ghCached.additions;
@@ -821,6 +833,7 @@ const GitHubTracker = {
       fetchedAt = ghCached.fetchedAt;
     } else {
       this.triggerGitHubFetch(pr.url, force);
+      isUpdating = true;
     }
 
     const result = {
@@ -839,7 +852,8 @@ const GitHubTracker = {
       checks,
       fetchedAt,
       failed,
-      expiresAt: Date.now() + (5 * 60 * 1000)
+      expiresAt: Date.now() + (5 * 60 * 1000),
+      isUpdating
     };
 
     if (sid !== "temp") {
@@ -1015,13 +1029,15 @@ const GitHubTracker = {
     let checksSource = "working";
     let failed = false;
     let fetchedAt = null;
+    let isUpdating = false;
 
     const activeWorking = working || base;
     if (sid !== "temp" && repo && base) {
       if (activeWorking && activeWorking !== base) {
         const bKey = `${repo}:${base}:${activeWorking}`;
+        isUpdating = isUpdating || this.GH_BRANCH_IN_FLIGHT.has(bKey);
         const bCached = this.GH_BRANCH_STATE_CACHE.get(bKey);
-        const bTtl = bCached?.failed ? 5 * 60 * 1000 : 30 * 1000;
+        const bTtl = bCached?.failed ? 5 * 60 * 1000 : 60 * 1000;
         if (!force && bCached && (Date.now() - bCached.fetchedAt < bTtl)) {
           ahead = bCached.ahead || 0;
           behind = bCached.behind || 0;
@@ -1033,20 +1049,23 @@ const GitHubTracker = {
           failed = bCached.failed || false;
         } else {
           this.triggerGitHubBranchFetch(repo, base, activeWorking, force);
+          isUpdating = true;
         }
       }
 
       // Fallback: If working branch has no checks available, check base (default) branch checks
       if (!checks && base) {
         const defaultKey = `${repo}:${base}:${base}`;
+        isUpdating = isUpdating || this.GH_BRANCH_IN_FLIGHT.has(defaultKey);
         const defaultCached = this.GH_BRANCH_STATE_CACHE.get(defaultKey);
-        const defaultTtl = defaultCached?.failed ? 5 * 60 * 1000 : 30 * 1000;
+        const defaultTtl = defaultCached?.failed ? 5 * 60 * 1000 : 60 * 1000;
         if (defaultCached && (Date.now() - defaultCached.fetchedAt < defaultTtl)) {
           checks = defaultCached.checks || null;
           if (checks) checksSource = "base";
           if (!fetchedAt) fetchedAt = defaultCached.fetchedAt;
         } else {
           this.triggerGitHubBranchFetch(repo, base, base, force);
+          isUpdating = true;
         }
       }
     }
@@ -1114,7 +1133,8 @@ const GitHubTracker = {
       checksSource,
       deployment,
       fetchedAt,
-      failed
+      failed,
+      isUpdating
     };
     if (sid !== "temp") {
       if (this.BRANCH_INFO_CACHE.size > 500) this.BRANCH_INFO_CACHE.clear();

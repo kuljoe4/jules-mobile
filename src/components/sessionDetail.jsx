@@ -2004,9 +2004,19 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                   }}>G</div>
                   <span>GITHUB PULL REQUEST #{pr.number}</span>
                   <div style={{ height: 1, flex: 1, background: pr.state === "merged" ? `${T.purple}20` : `${T.brand}20` }}/>
-                  {pr.fetchedAt && (
+                  {(pr.fetchedAt || pr.isUpdating) && (
                     <span style={{ color: T.brandLight, fontSize: 9, fontWeight: 700, background: `${T.brand}15`, padding: "2px 6px", borderRadius: 4, border: `1px solid ${T.brand}30`, display: "flex", alignItems: "center", gap: 4 }}>
-                      CHECKED {(fmtAgo(pr.fetchedAt) || "").toUpperCase()}
+                      {pr.isUpdating ? (
+                        <>
+                          <Ic n="refresh" s={12} style={{ animation: "spin 1s linear infinite" }} />
+                          UPDATING
+                        </>
+                      ) : (
+                        <>
+                          <Ic n="check" s={12} />
+                          CACHED {(fmtAgo(pr.fetchedAt) || "").toUpperCase()}
+                        </>
+                      )}
                     </span>
                   )}
                   <button
@@ -2322,9 +2332,19 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                   }}>B</div>
                   <span>GITHUB BRANCH STATUS</span>
                   <div style={{ height: 1, flex: 1, background: `${T.blue}20` }}/>
-                  {b.fetchedAt && (
+                  {(b.fetchedAt || b.isUpdating) && (
                     <span style={{ color: T.blue, fontSize: 9, fontWeight: 700, background: `${T.blue}15`, padding: "2px 6px", borderRadius: 4, border: `1px solid ${T.blue}30`, display: "flex", alignItems: "center", gap: 4 }}>
-                      CHECKED {(fmtAgo(b.fetchedAt) || "").toUpperCase()}
+                      {b.isUpdating ? (
+                        <>
+                          <Ic n="refresh" s={12} style={{ animation: "spin 1s linear infinite" }} />
+                          UPDATING
+                        </>
+                      ) : (
+                        <>
+                          <Ic n="check" s={12} />
+                          CACHED {(fmtAgo(b.fetchedAt) || "").toUpperCase()}
+                        </>
+                      )}
                     </span>
                   )}
                   <button
