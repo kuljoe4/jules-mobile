@@ -170,20 +170,26 @@ export const formatSmartDashItems = (text) => {
 // and unsupported browsers. Catches all rejections to prevent unhandled promise exceptions.
 export const formatPlanSteps = (steps, stepIds = null) => {
   if (!steps || !Array.isArray(steps)) return "";
-  let stepsToFormat = steps;
-  if (stepIds && stepIds.size > 0) {
-    stepsToFormat = steps.filter(st => stepIds.has(st.id));
-  }
-  return stepsToFormat.map((st, i) => {
+  // OPTIMIZATION (Bolt): Replace chained .filter().map() with a single O(N) loop
+  // to avoid intermediate array allocations and reduce garbage collection churn.
+  const parts = [];
+  const filterIds = stepIds && stepIds.size > 0;
+
+  for (let i = 0, displayIdx = 1; i < steps.length; i++) {
+    const st = steps[i];
+    if (filterIds && !stepIds.has(st.id)) continue;
+
     // Strip markdown formatting if any (basic stripping for clean text)
     const title = (st.title || "").replace(/[*_`]/g, "");
-    let text = `${i + 1}. ${title}`;
+    let text = `${displayIdx}. ${title}`;
     if (st.description) {
       const desc = st.description.replace(/[*_`]/g, "");
       text += `\n   ${desc}`;
     }
-    return text;
-  }).join("\n\n");
+    parts.push(text);
+    displayIdx++;
+  }
+  return parts.join("\n\n");
 };
 
 export const copyToClipboard = async (text) => {
