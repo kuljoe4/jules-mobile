@@ -206,16 +206,8 @@ const GitHubTracker = {
     this.GH_IN_FLIGHT.add(url);
     if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("gh-pr-updated", { detail: { url, isUpdating: true } }));
 
-    const token = SafeStorage.loadGithubToken();
-    const headers = {
-      "Accept": "application/vnd.github.v3+json"
-    };
-    if (token && isValidGithubToken(token)) {
-      headers["Authorization"] = `token ${token}`;
-    }
-
-    this.githubFetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${number}`, headers)
-      .then(prData => {
+    GitHubApi.fetchPullRequestData(owner, repo, number)
+      .then(({ prData, compareData, statusData, checkRunsData, commitsData }) => {
         let state = "open";
         if (prData.merged) state = "merged";
         else if (prData.state === "closed") state = "closed";
@@ -229,146 +221,115 @@ const GitHubTracker = {
         const mergeable = prData.mergeable !== undefined ? prData.mergeable : null;
         const mergeableState = prData.mergeable_state || "";
 
-        const baseRef = prData.base?.ref || "main";
-        const headRef = prData.head?.ref || "main";
-        const headSha = prData.head?.sha || headRef;
+        const isFailed = compareData?._failed || statusData?._failed || checkRunsData?._failed || commitsData?._failed || false;
 
-        // Security: URL-encode ref and commit SHA parameters to prevent REST API Endpoint Parameter Pollution
-        // and URL Path Manipulation when fetching PR compare details, statuses, and check runs.
-        const encBaseRef = encodeURIComponent(baseRef);
-        const encHeadRef = encodeURIComponent(headRef);
-        const encHeadSha = encodeURIComponent(headSha);
+        if (compareData?._failed) compareData = null;
+        if (statusData?._failed) statusData = null;
+        if (checkRunsData?._failed) checkRunsData = null;
+        if (commitsData?._failed) commitsData = [];
+        let ahead = 0;
+        let behind = 0;
+        let statusState = "identical";
+        if (compareData) {
+          ahead = compareData.ahead_by || 0;
+          behind = compareData.behind_by || 0;
+          statusState = compareData.status || "identical";
+        }
 
-        const compareUrl = `https://api.github.com/repos/${owner}/${repo}/compare/${encBaseRef}...${encHeadRef}`;
-        const statusUrl = `https://api.github.com/repos/${owner}/${repo}/commits/${encHeadSha}/status`;
-        const checkRunsUrl = `https://api.github.com/repos/${owner}/${repo}/commits/${encHeadSha}/check-runs`;
-        const commitsUrl = `https://api.github.com/repos/${owner}/${repo}/pulls/${number}/commits?per_page=10`;
+        let finalState = null;
+        let finalLabel = "";
+        let checkCount = 0;
+        let successCount = 0;
+        let failureCount = 0;
+        let pendingCount = 0;
 
-        const catchErr = (err, fallback) => {
-          const msg = err.message || "";
-          if (msg.includes("403") || msg.includes("429") || msg.includes("422")) {
-            return { _failed: true };
+        if (statusData && Array.isArray(statusData.statuses) && statusData.statuses.length > 0) {
+          for (const s of statusData.statuses) {
+            checkCount++;
+            if (s.state === "success") successCount++;
+            else if (s.state === "failure" || s.state === "error") failureCount++;
+            else pendingCount++;
           }
-          return fallback;
+        }
+
+        if (checkRunsData && checkRunsData.check_runs) {
+          for (const run of checkRunsData.check_runs) {
+            checkCount++;
+            if (run.status === "completed") {
+              if (run.conclusion === "success" || run.conclusion === "neutral") successCount++;
+              else if (run.conclusion === "failure" || run.conclusion === "timed_out" || run.conclusion === "action_required") failureCount++;
+              else successCount++;
+            } else {
+              pendingCount++;
+            }
+          }
+        }
+
+        if (checkCount === 0) {
+          finalState = "not_run";
+          finalLabel = "NOT RUN";
+        } else if (failureCount > 0) {
+          finalState = "failure";
+          finalLabel = `${successCount}/${checkCount} FAILED`;
+        } else if (pendingCount > 0) {
+          finalState = "pending";
+          finalLabel = `${successCount}/${checkCount} RUNNING`;
+        } else {
+          finalState = "success";
+          finalLabel = `${successCount}/${checkCount} PASSED`;
+        }
+
+        const commitsList = (Array.isArray(commitsData) ? commitsData : []).map(c => {
+          const fullMsg = c.commit?.message || "";
+          const lines = fullMsg.trim().split("\n");
+          const commitTitle = lines[0] ? lines[0].trim() : "";
+          const description = lines.slice(1).join("\n").trim();
+          return {
+            sha: c.sha ? c.sha.slice(0, 7) : "",
+            message: fullMsg,
+            title: commitTitle,
+            description,
+            author: c.commit?.author?.name || "",
+            date: c.commit?.author?.date || ""
+          };
+        });
+
+        const updatedInfo = {
+          state,
+          additions,
+          deletions,
+          changedFiles,
+          commitsCount,
+          title,
+          body,
+          commitsList,
+          ahead,
+          behind,
+          statusState,
+          mergeable,
+          mergeableState,
+          checks: finalState ? {
+            state: finalState,
+            label: finalLabel,
+            url: checkRunsData?.check_runs?.[0]?.html_url || `https://github.com/${owner}/${repo}/actions`
+          } : null,
+          fetchedAt: Date.now(),
+          failed: isFailed
         };
 
-        const fetchCompare = this.githubFetch(compareUrl, headers).catch(err => catchErr(err, null));
-        const fetchStatus = this.githubFetch(statusUrl, headers).catch(err => catchErr(err, null));
-        const fetchCheckRuns = this.githubFetch(checkRunsUrl, headers).catch(err => catchErr(err, null));
-        const fetchCommits = this.githubFetch(commitsUrl, headers).catch(err => catchErr(err, []));
+        const existing = GitHubTracker.GH_STATE_CACHE.get(url);
+        if (!existing || (existing.state !== state && (state === "merged" || state === "closed"))) {
+          GitHubTracker.GH_BRANCH_STATE_CACHE.clear();
+          GitHubTracker.BRANCH_INFO_CACHE.clear();
+        }
 
-        return Promise.all([fetchCompare, fetchStatus, fetchCheckRuns, fetchCommits])
-          .then(([compareData, statusData, checkRunsData, commitsData]) => {
-            const isFailed = compareData?._failed || statusData?._failed || checkRunsData?._failed || commitsData?._failed || false;
+        GitHubTracker.GH_STATE_CACHE.set(url, updatedInfo);
+        GitHubTracker.GH_IN_FLIGHT.delete(url);
+        GitHubTracker.PR_INFO_CACHE.clear();
 
-            if (compareData?._failed) compareData = null;
-            if (statusData?._failed) statusData = null;
-            if (checkRunsData?._failed) checkRunsData = null;
-            if (commitsData?._failed) commitsData = [];
-            let ahead = 0;
-            let behind = 0;
-            let statusState = "identical";
-            if (compareData) {
-              ahead = compareData.ahead_by || 0;
-              behind = compareData.behind_by || 0;
-              statusState = compareData.status || "identical";
-            }
-
-            let finalState = null;
-            let finalLabel = "";
-            let checkCount = 0;
-            let successCount = 0;
-            let failureCount = 0;
-            let pendingCount = 0;
-
-            if (statusData && Array.isArray(statusData.statuses) && statusData.statuses.length > 0) {
-              for (const s of statusData.statuses) {
-                checkCount++;
-                if (s.state === "success") successCount++;
-                else if (s.state === "failure" || s.state === "error") failureCount++;
-                else pendingCount++;
-              }
-            }
-
-            if (checkRunsData && checkRunsData.check_runs) {
-              for (const run of checkRunsData.check_runs) {
-                checkCount++;
-                if (run.status === "completed") {
-                  if (run.conclusion === "success" || run.conclusion === "neutral") successCount++;
-                  else if (run.conclusion === "failure" || run.conclusion === "timed_out" || run.conclusion === "action_required") failureCount++;
-                  else successCount++;
-                } else {
-                  pendingCount++;
-                }
-              }
-            }
-
-            if (checkCount === 0) {
-              finalState = "not_run";
-              finalLabel = "NOT RUN";
-            } else if (failureCount > 0) {
-              finalState = "failure";
-              finalLabel = `${successCount}/${checkCount} FAILED`;
-            } else if (pendingCount > 0) {
-              finalState = "pending";
-              finalLabel = `${successCount}/${checkCount} RUNNING`;
-            } else {
-              finalState = "success";
-              finalLabel = `${successCount}/${checkCount} PASSED`;
-            }
-
-            const commitsList = (Array.isArray(commitsData) ? commitsData : []).map(c => {
-              const fullMsg = c.commit?.message || "";
-              const lines = fullMsg.trim().split("\n");
-              const title = lines[0] ? lines[0].trim() : "";
-              const description = lines.slice(1).join("\n").trim();
-              return {
-                sha: c.sha ? c.sha.slice(0, 7) : "",
-                message: fullMsg,
-                title,
-                description,
-                author: c.commit?.author?.name || "",
-                date: c.commit?.author?.date || ""
-              };
-            });
-
-            const updatedInfo = {
-              state,
-              additions,
-              deletions,
-              changedFiles,
-              commitsCount,
-              title,
-              body,
-              commitsList,
-              ahead,
-              behind,
-              statusState,
-              mergeable,
-              mergeableState,
-              checks: finalState ? {
-                state: finalState,
-                label: finalLabel,
-                url: checkRunsData?.check_runs?.[0]?.html_url || `https://github.com/${owner}/${repo}/actions`
-              } : null,
-              fetchedAt: Date.now(),
-              failed: isFailed
-            };
-
-            const existing = GitHubTracker.GH_STATE_CACHE.get(url);
-            if (!existing || (existing.state !== state && (state === "merged" || state === "closed"))) {
-              GitHubTracker.GH_BRANCH_STATE_CACHE.clear();
-              GitHubTracker.BRANCH_INFO_CACHE.clear();
-            }
-
-            GitHubTracker.GH_STATE_CACHE.set(url, updatedInfo);
-            GitHubTracker.GH_IN_FLIGHT.delete(url);
-            GitHubTracker.PR_INFO_CACHE.clear();
-
-            if (typeof window !== "undefined") {
-              window.dispatchEvent(new CustomEvent("gh-pr-updated", { detail: { url, ...updatedInfo } }));
-            }
-          });
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("gh-pr-updated", { detail: { url, ...updatedInfo } }));
+        }
       })
       .catch(err => {
         GitHubTracker.GH_IN_FLIGHT.delete(url);
@@ -402,13 +363,7 @@ const GitHubTracker = {
 
     this.GH_REPO_DEFAULT_BRANCH_IN_FLIGHT.add(repo);
 
-    const token = SafeStorage.loadGithubToken();
-    const headers = { "Accept": "application/vnd.github.v3+json" };
-    if (token && isValidGithubToken(token)) {
-      headers["Authorization"] = `token ${token}`;
-    }
-
-    this.githubFetch(`https://api.github.com/repos/${repo}`, headers)
+    GitHubApi.fetchRepoData(repo)
       .then(repoData => {
         const defaultBranch = repoData.default_branch || "main";
         this.GH_REPO_DEFAULT_BRANCH_CACHE.set(repo, defaultBranch);
@@ -432,16 +387,8 @@ const GitHubTracker = {
     this.GH_DEPLOYMENT_IN_FLIGHT.add(repo);
     if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("gh-pr-updated", { detail: { repo, isUpdating: true } }));
 
-    const token = SafeStorage.loadGithubToken();
-    const headers = { "Accept": "application/vnd.github.v3+json" };
-    if (token && isValidGithubToken(token)) {
-      headers["Authorization"] = `token ${token}`;
-    }
-
-    const deploymentsUrl = `https://api.github.com/repos/${repo}/deployments?per_page=5`;
-
-    this.githubFetch(deploymentsUrl, headers)
-      .then(deployments => {
+    GitHubApi.fetchDeploymentData(repo)
+      .then(({ deployments, statuses }) => {
         if (!Array.isArray(deployments) || deployments.length === 0) {
           const info = { deployment: null, fetchedAt: Date.now() };
           this.GH_DEPLOYMENT_STATE_CACHE.set(repo, info);
@@ -451,33 +398,28 @@ const GitHubTracker = {
         }
 
         const latest = deployments[0];
-        const statusUrl = `https://api.github.com/repos/${repo}/deployments/${latest.id}/statuses`;
+        const latestStatus = (Array.isArray(statuses) && statuses.length > 0) ? statuses[0] : null;
+        const state = latestStatus?.state || "queued";
+        let label = "DEPLOYING";
+        if (state === "success") label = "DEPLOYED";
+        else if (state === "failure" || state === "error") label = "DEPLOY FAILED";
+        else if (state === "in_progress" || state === "queued" || state === "pending") label = "DEPLOYING";
 
-        return this.githubFetch(statusUrl, headers)
-          .then(statuses => {
-            const latestStatus = (Array.isArray(statuses) && statuses.length > 0) ? statuses[0] : null;
-            const state = latestStatus?.state || "queued";
-            let label = "DEPLOYING";
-            if (state === "success") label = "DEPLOYED";
-            else if (state === "failure" || state === "error") label = "DEPLOY FAILED";
-            else if (state === "in_progress" || state === "queued" || state === "pending") label = "DEPLOYING";
+        const deploymentInfo = {
+          id: latest.id,
+          environment: latest.environment || "github-pages",
+          state,
+          label,
+          environmentUrl: latestStatus?.environment_url || latest.environment_url || null,
+          targetUrl: latestStatus?.target_url || latest.statuses_url || `https://github.com/${repo}/deployments`,
+          updatedAt: latestStatus?.created_at || latest.created_at || null,
+          fetchedAt: Date.now()
+        };
 
-            const deploymentInfo = {
-              id: latest.id,
-              environment: latest.environment || "github-pages",
-              state,
-              label,
-              environmentUrl: latestStatus?.environment_url || latest.environment_url || null,
-              targetUrl: latestStatus?.target_url || latest.statuses_url || `https://github.com/${repo}/deployments`,
-              updatedAt: latestStatus?.created_at || latest.created_at || null,
-              fetchedAt: Date.now()
-            };
-
-            this.GH_DEPLOYMENT_STATE_CACHE.set(repo, deploymentInfo);
-            this.GH_DEPLOYMENT_IN_FLIGHT.delete(repo);
-            this.BRANCH_INFO_CACHE.clear();
-            window.dispatchEvent(new CustomEvent("gh-pr-updated", { detail: { repo, deployment: deploymentInfo } }));
-          });
+        this.GH_DEPLOYMENT_STATE_CACHE.set(repo, deploymentInfo);
+        this.GH_DEPLOYMENT_IN_FLIGHT.delete(repo);
+        this.BRANCH_INFO_CACHE.clear();
+        window.dispatchEvent(new CustomEvent("gh-pr-updated", { detail: { repo, deployment: deploymentInfo } }));
       })
       .catch(err => {
         this.GH_DEPLOYMENT_IN_FLIGHT.delete(repo);
@@ -521,43 +463,14 @@ const GitHubTracker = {
     if (!repo || !base || !working) return;
     if (!isValidGithubRepoName(repo)) return;
     if (!isValidGitBranchName(base) || !isValidGitBranchName(working)) return;
-    const encBase = encodeURIComponent(base);
-    const encWorking = encodeURIComponent(working);
     const key = `${repo}:${base}:${working}`;
     if (!force && this.GH_BRANCH_IN_FLIGHT.has(key)) return;
 
     this.GH_BRANCH_IN_FLIGHT.add(key);
     if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("gh-pr-updated", { detail: { key, isUpdating: true } }));
 
-    const token = SafeStorage.loadGithubToken();
-    const headers = {
-      "Accept": "application/vnd.github.v3+json"
-    };
-    if (token && isValidGithubToken(token)) {
-      headers["Authorization"] = `token ${token}`;
-    }
-
-    const compareUrl = `https://api.github.com/repos/${repo}/compare/${encBase}...${encWorking}`;
-    const statusUrl = `https://api.github.com/repos/${repo}/commits/${encWorking}/status`;
-    const checkRunsUrl = `https://api.github.com/repos/${repo}/commits/${encWorking}/check-runs`;
-    const owner = repo.split("/")[0] || "";
-    const pullsUrl = `https://api.github.com/repos/${repo}/pulls?head=${encodeURIComponent(owner)}:${encWorking}&state=all`;
-
-    const catchErr = (err, fallback) => {
-      const msg = err.message || "";
-      if (msg.includes("403") || msg.includes("429") || msg.includes("422")) {
-        return { _failed: true };
-      }
-      return fallback;
-    };
-
-    const fetchCompare = this.githubFetch(compareUrl, headers).catch(err => catchErr(err, null));
-    const fetchStatus = this.githubFetch(statusUrl, headers).catch(err => catchErr(err, null));
-    const fetchCheckRuns = this.githubFetch(checkRunsUrl, headers).catch(err => catchErr(err, null));
-    const fetchPulls = this.githubFetch(pullsUrl, headers).catch(err => catchErr(err, []));
-
-    Promise.all([fetchCompare, fetchStatus, fetchCheckRuns, fetchPulls])
-      .then(([compareData, statusData, checkRunsData, pullsData]) => {
+    GitHubApi.fetchBranchData(repo, base, working)
+      .then(({ compareData, statusData, checkRunsData, pullsData }) => {
         const isFailed = compareData?._failed || statusData?._failed || checkRunsData?._failed || pullsData?._failed || false;
 
         if (compareData?._failed) compareData = null;
