@@ -2544,6 +2544,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                   showAll={showAll}
                   justUpdated={justUpdated}
                   scrolledActivityId={scrolledActivityId}
+                  onSendFollowup={handleSendFeedback}
                   onShowAll={handleShowAll}
                   onMediaClick={setActiveMedia}
                   onEditMessage={handleEditMessage}
