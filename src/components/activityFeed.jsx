@@ -76,7 +76,88 @@ const MediaArtifacts = memo(({ artifacts, ts, onMediaClick }) => {
 });
 
 // ─── Chat Bubble ──────────────────────────────────────────────────────────────
-const ChatBubble = memo(({ act, type, onMediaClick, onEdit, onReply, forceExpanded = false }) => {
+
+function extractOptions(text) {
+  if (!text) return [];
+  const options = [];
+  const lowerText = text.toLowerCase();
+
+  if (
+    /\b(shall i|should i|would you like me to|ready to|can i) proceed\b/.test(lowerText) ||
+    /\b(let me know if|tell me if) you.*proceed\b/.test(lowerText) ||
+    /\bdo you want me to proceed\b/.test(lowerText) ||
+    /\bplease let me know how you would like to proceed\b/.test(lowerText) ||
+    /\bhow would you like to proceed\b/.test(lowerText) ||
+    /\bready to proceed\b/.test(lowerText)
+  ) {
+    options.push("Proceed");
+  }
+
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+  const listItems = [];
+
+  let inList = false;
+  let listEnded = false;
+
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i];
+    const m = line.match(/^[-*]\s+(.+)$/) || line.match(/^\d+\.\s+(.+)$/);
+
+    if (m) {
+      if (listEnded) {
+        continue;
+      }
+      const item = m[1].trim();
+      if (item.length < 150) {
+        listItems.unshift(item);
+        inList = true;
+      }
+    } else {
+      if (inList) {
+        listEnded = true;
+        if (/(options|would you like|choose|proceed|follow up|next steps|how would you like|please select)/i.test(line)) {
+          break;
+        } else {
+          const distFromBottom = (lines.length - 1) - (i + listItems.length);
+          if (distFromBottom > 1) {
+            listItems.length = 0;
+          }
+          break;
+        }
+      } else {
+         const distFromBottom = (lines.length - 1) - i;
+         if (distFromBottom > 3 && listItems.length === 0) {
+             break;
+         }
+      }
+    }
+  }
+
+  if (listItems.length > 0) {
+    for (let item of listItems) {
+      item = item.replace(/\*\*(.+?)\*\*/g, '$1');
+      item = item.replace(/`(.+?)`/g, '$1');
+      if (item.toLowerCase() === "proceed") {
+         if (!options.includes("Proceed")) options.push("Proceed");
+      } else {
+         options.push(item);
+      }
+    }
+  }
+
+  const finalOptions = [...new Set(options)];
+
+  if (finalOptions.includes("Proceed") && finalOptions.length > 1) {
+      const hasProceedItem = finalOptions.some(opt => opt !== "Proceed" && opt.toLowerCase().startsWith("proceed"));
+      if (hasProceedItem) {
+          return finalOptions.filter(opt => opt !== "Proceed");
+      }
+  }
+
+  return finalOptions;
+}
+
+const ChatBubble = memo(({ act, type, onMediaClick, onEdit, onReply, onSendFollowup, forceExpanded = false }) => {
   const isUser = type === "userMessaged";
   const text   = isUser ? act.userMessaged?.userMessage : act.agentMessaged?.agentMessage;
   const time   = fmtTime(parseDateMs(act.createTime));
@@ -95,6 +176,7 @@ const ChatBubble = memo(({ act, type, onMediaClick, onEdit, onReply, forceExpand
   };
 
   const key = getActKey(act);
+  const options = useMemo(() => isUser || isTemp ? [] : extractOptions(text), [text, isUser, isTemp]);
 
   return (
     <div id={`chat-activity-${key}`} style={{ marginBottom: 24, width: "100%", animation: "fadeIn .25s ease-out" }}>
@@ -134,6 +216,32 @@ const ChatBubble = memo(({ act, type, onMediaClick, onEdit, onReply, forceExpand
         </div>
 
         <MediaArtifacts artifacts={act.artifacts} ts={act.createTime} onMediaClick={onMediaClick}/>
+        {options.length > 0 && onSendFollowup && (
+          <div style={{
+            marginTop: 16, display: "flex", gap: 8, flexWrap: "wrap",
+            paddingTop: 12, borderTop: `1px solid ${T.border}33`
+          }}>
+            {options.map((opt, i) => (
+              <button
+                key={i}
+                onClick={(e) => { e.stopPropagation(); onSendFollowup(opt); }}
+                style={{
+                  background: T.brand, color: "#000", border: "none", borderRadius: 20,
+                  padding: "6px 14px", fontFamily: "'IBM Plex Sans',sans-serif",
+                  fontSize: 12, fontWeight: 700, cursor: "pointer",
+                  display: "inline-flex", alignItems: "center", gap: 6,
+                  transition: "all .15s ease", boxShadow: `0 2px 8px ${T.brand}40`
+                }}
+                onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = `0 4px 12px ${T.brand}60`; }}
+                onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = `0 2px 8px ${T.brand}40`; }}
+              >
+                {opt}
+                <Ic n="arrow_right" s={12} c="#000"/>
+              </button>
+            ))}
+          </div>
+        )}
+
 
         {/* Footer Actions Strip */}
         <div style={{
@@ -581,7 +689,7 @@ const DriftCluster = ({ cluster }) => {
 const COLLAPSE_THRESHOLD = 35;
 const COLLAPSE_SHOW      = 25;
 
-const ActivityFeed = memo(({ activities, showAll, onShowAll, onMediaClick, onEditMessage, onReply, driftSessions = [], justUpdated = false, scrolledActivityId = null }) => {
+const ActivityFeed = memo(({ activities, showAll, onShowAll, onMediaClick, onEditMessage, onReply, onSendFollowup, driftSessions = [], justUpdated = false, scrolledActivityId = null }) => {
   const collapse  = !showAll && activities.length > COLLAPSE_THRESHOLD;
 
   // OPTIMIZATION: Memoize the sliced visible activities array. Since activities is reference-stable
@@ -676,7 +784,7 @@ const ActivityFeed = memo(({ activities, showAll, onShowAll, onMediaClick, onEdi
         const type = getActType(act);
         const key  = getActKey(act);
         if (type === "userMessaged" || type === "agentMessaged") {
-          return <ChatBubble key={key} act={act} type={type} onMediaClick={onMediaClick} onEdit={onEditMessage} onReply={onReply} forceExpanded={scrolledActivityId === key}/>;
+          return <ChatBubble key={key} act={act} type={type} onMediaClick={onMediaClick} onEdit={onEditMessage} onReply={onReply} onSendFollowup={onSendFollowup} forceExpanded={scrolledActivityId === key}/>;
         }
         return (
           <div key={key} id={`chat-activity-${key}`} style={{
