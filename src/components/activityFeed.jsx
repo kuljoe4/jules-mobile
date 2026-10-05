@@ -88,9 +88,32 @@ function extractOptions(text) {
     /\bdo you want me to proceed\b/.test(lowerText) ||
     /\bplease let me know how you would like to proceed\b/.test(lowerText) ||
     /\bhow would you like to proceed\b/.test(lowerText) ||
-    /\bready to proceed\b/.test(lowerText)
+    /\bready to proceed\b/.test(lowerText) ||
+    /\b(would you like me to|shall i|should i|can i) continue\b/.test(lowerText) ||
+    /\bdo you want me to continue\b/.test(lowerText)
   ) {
     options.push("Proceed");
+  }
+
+  // Parse conversational "Should I [A], or [B]?"
+  const conversationalMatch = text.match(/(?:Should I|Would you like me to|Do you want me to) ([^,?.!]+)(?:, or| or) ([^?.!]+)\?/i);
+  if (conversationalMatch) {
+    let opt1 = conversationalMatch[1].trim();
+    let opt2 = conversationalMatch[2].trim();
+    opt1 = opt1.charAt(0).toUpperCase() + opt1.slice(1);
+    opt2 = opt2.charAt(0).toUpperCase() + opt2.slice(1);
+    if (!options.includes(opt1)) options.push(opt1);
+    if (!options.includes(opt2)) options.push(opt2);
+  }
+
+  const conversationalMatch2 = text.match(/before I (proceed|continue)/i);
+  if (conversationalMatch2) {
+    if (!options.includes("Proceed")) options.push("Proceed");
+  }
+
+  const conversationalMatch3 = text.match(/Does this sound like/i);
+  if (conversationalMatch3) {
+      if (!options.includes("Yes, proceed")) options.push("Yes, proceed");
   }
 
   const lines = text.split('\n').map(l => l.trim()).filter(l => l);
@@ -140,7 +163,7 @@ function extractOptions(text) {
       if (item.toLowerCase() === "proceed") {
          if (!options.includes("Proceed")) options.push("Proceed");
       } else {
-         options.push(item);
+         if (!options.includes(item)) options.push(item);
       }
     }
   }
@@ -320,7 +343,7 @@ const ChatBubble = memo(({ act, type, onMediaClick, onEdit, onReply, onSendFollo
 });
 
 // ─── Timeline Event (non-message activities) ──────────────────────────────────
-const TimelineEvent = memo(({ act, onMediaClick, onReply }) => {
+const TimelineEvent = memo(({ act, onMediaClick, onReply, onSendFollowup }) => {
   const [selectedSteps, setSelectedSteps] = useState(new Set());
   const [copiedPlan, setCopiedPlan] = useState(false);
   const [copiedStepId, setCopiedStepId] = useState(null);
@@ -557,12 +580,43 @@ const TimelineEvent = memo(({ act, onMediaClick, onReply }) => {
       );
       break;
     }
-    case "sessionFailed":
+
+    case "sessionFailed": {
       title = "Session failed";
-      detail = act.sessionFailed?.reason && (
-        <div style={{fontSize:13,color:T.red,marginTop:6,fontFamily:"'IBM Plex Sans',sans-serif",lineHeight:1.5}}>{act.sessionFailed.reason}</div>
+      const reason = act.sessionFailed?.reason;
+      const options = extractOptions(reason);
+      detail = reason && (
+        <div style={{marginTop:6}}>
+          <div style={{fontSize:13,color:T.red,fontFamily:"'IBM Plex Sans',sans-serif",lineHeight:1.5}}>{reason}</div>
+          {options.length > 0 && onSendFollowup && (
+            <div style={{
+              marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap"
+            }}>
+              {options.map((opt, i) => (
+                <button
+                  key={i}
+                  onClick={(e) => { e.stopPropagation(); onSendFollowup(opt); }}
+                  style={{
+                    background: T.brand, color: "#000", border: "none", borderRadius: 20,
+                    padding: "6px 14px", fontFamily: "'IBM Plex Sans',sans-serif",
+                    fontSize: 12, fontWeight: 700, cursor: "pointer",
+                    display: "inline-flex", alignItems: "center", gap: 6,
+                    transition: "all .15s ease", boxShadow: `0 2px 8px ${T.brand}40`
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = `0 4px 12px ${T.brand}60`; }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = `0 2px 8px ${T.brand}40`; }}
+                >
+                  {opt}
+                  <Ic n="arrow_right" s={12} c="#000"/>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       );
       break;
+    }
+
     case "planApproved": title = "Plan approved"; break;
     default: title = act.description || "System event"; break;
   }
@@ -792,7 +846,7 @@ const ActivityFeed = memo(({ activities, showAll, onShowAll, onMediaClick, onEdi
           <div key={key} id={`chat-activity-${key}`} style={{
             animation: justUpdated && idx >= combined.length - 5 ? "shimmerPulse 0.8s ease-out" : "none"
           }}>
-            <TimelineEvent act={act} onMediaClick={onMediaClick} onReply={onReply}/>
+            <TimelineEvent act={act} onMediaClick={onMediaClick} onReply={onReply} onSendFollowup={onSendFollowup}/>
           </div>
         );
       })}

@@ -32,7 +32,7 @@ const useSessionActions = ({
     }
 
     for (const id of ids) {
-      apiCall(apiKey, `/sessions/${id}`, { method:"DELETE" }).catch(err => console.error(err));
+      apiCall(apiKey, `/sessions/${id}`, { method:"DELETE" }).catch(err => console.error(sanitizeErrorMessage(err.toString())));
     }
   }, [apiKey, selected, setSessions, setDraftsMap, setSelected, setDesktop, setMobile, lastStates]);
 
@@ -70,7 +70,7 @@ const useSessionActions = ({
 
     for (const id of ids) {
       lastStates.current.set(id, "QUEUED");
-      apiCall(apiKey, `/sessions/${id}:resume`, { method:"POST" }).catch(err => console.error(err));
+      apiCall(apiKey, `/sessions/${id}:resume`, { method:"POST" }).catch(err => console.error(sanitizeErrorMessage(err.toString())));
     }
   }, [apiKey, setSessions, lastStates]);
 
@@ -88,7 +88,7 @@ const useSessionActions = ({
 
     for (const id of ids) {
       lastStates.current.set(id, "PAUSED");
-      apiCall(apiKey, `/sessions/${id}:pause`, { method:"POST" }).catch(err => console.error(err));
+      apiCall(apiKey, `/sessions/${id}:pause`, { method:"POST" }).catch(err => console.error(sanitizeErrorMessage(err.toString())));
     }
   }, [apiKey, setSessions, lastStates]);
 
@@ -116,7 +116,7 @@ const useSessionActions = ({
     // Optimistic update
     setSessions(prev => prev.map(s => s.id === id ? { ...s, state: "PAUSED" } : s));
     lastStates.current.set(id, "PAUSED");
-    apiCall(apiKey, `/sessions/${id}:pause`, { method:"POST" }).catch(err => console.error(err));
+    apiCall(apiKey, `/sessions/${id}:pause`, { method:"POST" }).catch(err => console.error(sanitizeErrorMessage(err.toString())));
   }, [apiKey, setSessions, lastStates]);
 
   const handleResume = useCallback(id => {
@@ -125,7 +125,7 @@ const useSessionActions = ({
     // Optimistic update
     setSessions(prev => prev.map(s => s.id === id ? { ...s, state: "QUEUED" } : s));
     lastStates.current.set(id, "QUEUED");
-    apiCall(apiKey, `/sessions/${id}:resume`, { method:"POST" }).catch(err => console.error(err));
+    apiCall(apiKey, `/sessions/${id}:resume`, { method:"POST" }).catch(err => console.error(sanitizeErrorMessage(err.toString())));
   }, [apiKey, setSessions, lastStates]);
 
   const handleArchive = useCallback(id => {
