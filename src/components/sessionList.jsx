@@ -115,6 +115,10 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
     return { availableRepos: repos, repoCountsMap: counts };
   }, [sessions]);
 
+
+
+
+
   const baseFiltered = useMemo(() => {
     // OPTIMIZATION (Bolt): Single-pass O(N) session filtering.
     // Combining archive/ignore status, repository filter matching, and search query matching into a single loop pass
@@ -163,6 +167,35 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
     });
     return baseFiltered.filter(s => s.state === filter);
   }, [filter, baseFiltered, draftsMap, activitiesMap]);
+
+  // Compute maximum time gap between adjacent sessions
+  const gapInfo = useMemo(() => {
+    if (!filtered || filtered.length < 2) return null;
+    let maxGap = 0;
+    let maxGapIndex = -1;
+
+    for (let i = 0; i < filtered.length - 1; i++) {
+      const s1 = filtered[i];
+      const s2 = filtered[i + 1];
+      const t1 = parseDateMs(s1.updateTime || s1.createTime);
+      const t2 = parseDateMs(s2.updateTime || s2.createTime);
+      const gap = Math.abs(t1 - t2);
+      if (gap > maxGap && gap > 1000 * 60 * 60) {
+        maxGap = gap;
+        maxGapIndex = i;
+      }
+    }
+
+    if (maxGapIndex !== -1) {
+      return {
+        index: maxGapIndex,
+        gapMs: maxGap,
+        duration: typeof fmtDuration === 'function' ? fmtDuration(maxGap) : Math.floor(maxGap/(1000*60*60)) + 'h'
+      };
+    }
+    return null;
+  }, [filtered]);
+
 
   const active = useMemo(() => {
     let count = 0;
@@ -708,6 +741,33 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
                   </div>
                 </div>
               </div>
+
+              {gapInfo && (
+                <button
+                  onClick={() => {
+                    const gapEl = document.getElementById('max-time-gap');
+                    if (gapEl) gapEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }}
+                  title={`Jump to ${gapInfo.duration} gap`}
+                  aria-label={`Jump to ${gapInfo.duration} gap`}
+                  style={{
+                    flexShrink:0, minHeight:36, padding:"0 12px",
+                    display:"inline-flex", alignItems:"center", gap:6,
+                    borderRadius:20, border:"none",
+                    background: `${T.brand}20`,
+                    border:`1px solid ${T.brand}80`,
+                    color: T.brand,
+                    fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:700,
+                    letterSpacing:"0.06em", cursor:"pointer",
+                    transition:"all .12s cubic-bezier(0.4, 0, 0.2, 1)"
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = `${T.brand}30`}
+                  onMouseLeave={e => e.currentTarget.style.background = `${T.brand}20`}
+                >
+                  <Ic n="clock" s={12} c={T.brand}/>
+                  <span>GAP: {gapInfo.duration.toUpperCase()}</span>
+                </button>
+              )}
               {FILTERS.map(f => {
                 const cnt = filterCountsMap[f] || 0;
                 if (cnt===0 && f!=="ALL" && f!==filter) return null;
@@ -826,7 +886,48 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
             })}
           </div>
         ) : (
-          filtered.map((s,i)=><SessionCard key={s.id||s.name} index={i+1} s={s} onSelect={onSelect} isSelected={s.id===selectedId} isBulkSelected={selectedIds.has(s.id)} onToggleSelect={handleToggleSelect} selectionMode={selectionMode} activities={activitiesMap[s.id] || EMPTY_ARR} stats={activityStatsMap[s.id]} lastReadTs={readMap[s.id]} latestCompletedTime={latestCompletedTimeByRepo[s.sourceContext?.source]} hasFollowupDraft={!!draftsMap[s.id]}/>)
+          filtered.map((s, i) => {
+            const isGapBefore = gapInfo && gapInfo.index === i - 1;
+            const isGapAfter = gapInfo && gapInfo.index === i;
+
+            return (
+              <div key={s.id || s.name} style={{display: "contents"}}>
+                <SessionCard
+                  index={i + 1}
+                  s={s}
+                  onSelect={onSelect}
+                  isSelected={s.id === selectedId}
+                  isBulkSelected={selectedIds.has(s.id)}
+                  onToggleSelect={handleToggleSelect}
+                  selectionMode={selectionMode}
+                  activities={activitiesMap[s.id] || EMPTY_ARR}
+                  stats={activityStatsMap[s.id]}
+                  lastReadTs={readMap[s.id]}
+                  latestCompletedTime={latestCompletedTimeByRepo[s.sourceContext?.source]}
+                  hasFollowupDraft={!!draftsMap[s.id]}
+                  isGapAdjacent={isGapBefore || isGapAfter}
+                />
+                {isGapAfter && (
+                  <div
+                    id="max-time-gap"
+                    style={{
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      padding: "8px 0", margin: "4px 0", gap: 12, opacity: 0.8
+                    }}
+                  >
+                    <div style={{flex: 1, height: 1, background: `${T.brand}40`}} />
+                    <div style={{display: "flex", alignItems: "center", gap: 6, background: `${T.brand}15`, padding: "2px 8px", borderRadius: 12, border: `1px dashed ${T.brand}60`}}>
+                      <Ic n="clock" s={12} c={T.brand} />
+                      <span style={{fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: T.brand, fontWeight: 800, letterSpacing: "0.05em"}}>
+                        {gapInfo.duration} GAP
+                      </span>
+                    </div>
+                    <div style={{flex: 1, height: 1, background: `${T.brand}40`}} />
+                  </div>
+                )}
+              </div>
+            );
+          })
         )}
       </div>
     </div>
