@@ -225,6 +225,8 @@ const ChatBubble = memo(({ act, type, onMediaClick, onEdit, onReply, onSendFollo
               <button
                 key={i}
                 onClick={(e) => { e.stopPropagation(); onSendFollowup(opt); }}
+                title={`Send follow-up: ${opt}`}
+                aria-label={`Send follow-up: ${opt}`}
                 style={{
                   background: T.brand, color: "#000", border: "none", borderRadius: 20,
                   padding: "6px 14px", fontFamily: "'IBM Plex Sans',sans-serif",

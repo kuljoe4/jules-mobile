@@ -1364,6 +1364,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                         setShowMenu(false);
                         setTimeout(() => txtRef.current?.focus(), 100);
                       }}
+                      title="Sync and rebase session with remote branch"
+                      aria-label="Sync and rebase session with remote branch"
                       onMouseEnter={e => e.currentTarget.style.background = T.border}
                       onMouseLeave={e => e.currentTarget.style.background = "none"}
                       onMouseDown={e => e.currentTarget.style.transform = "scale(0.96)"}
@@ -1381,6 +1383,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                     <button
                       onClick={() => { handleRefresh(); setShowMenu(false); }}
                       disabled={busy}
+                      title="Refresh session details"
+                      aria-label="Refresh session details"
                       onMouseEnter={e => e.currentTarget.style.background = T.border}
                       onMouseLeave={e => e.currentTarget.style.background = "none"}
                       onMouseDown={e => e.currentTarget.style.transform = "scale(0.96)"}
@@ -1397,6 +1401,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                     </button>
                     <button
                       onClick={() => { isArchived ? onUnarchive(session.id) : onArchive(session.id); setShowMenu(false); }}
+                      title={isArchived ? "Unarchive session" : "Archive session"}
+                      aria-label={isArchived ? "Unarchive session" : "Archive session"}
                       onMouseEnter={e => e.currentTarget.style.background = T.border}
                       onMouseLeave={e => e.currentTarget.style.background = "none"}
                       onMouseDown={e => e.currentTarget.style.transform = "scale(0.96)"}
@@ -1414,6 +1420,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                     {(onPause || onResume) && session.state === "PAUSED" ? (
                       <button
                         onClick={() => { if(onResume) onResume(session.id); setShowMenu(false); }}
+                        title="Resume paused session"
+                        aria-label="Resume paused session"
                         onMouseEnter={e => e.currentTarget.style.background = T.border}
                         onMouseLeave={e => e.currentTarget.style.background = "none"}
                         onMouseDown={e => e.currentTarget.style.transform = "scale(0.96)"}
@@ -1431,6 +1439,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                     ) : (onPause || onResume) && session.state !== "COMPLETED" && session.state !== "FAILED" ? (
                       <button
                         onClick={() => { if(onPause) onPause(session.id); setShowMenu(false); }}
+                        title="Pause active session"
+                        aria-label="Pause active session"
                         onMouseEnter={e => e.currentTarget.style.background = T.border}
                         onMouseLeave={e => e.currentTarget.style.background = "none"}
                         onMouseDown={e => e.currentTarget.style.transform = "scale(0.96)"}
@@ -1449,6 +1459,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                     {onIgnore && (
                       <button
                         onClick={() => { onIgnore(session.id); setShowMenu(false); }}
+                        title="Ignore session warnings/errors"
+                        aria-label="Ignore session warnings or errors"
                         onMouseEnter={e => e.currentTarget.style.background = T.border}
                         onMouseLeave={e => e.currentTarget.style.background = "none"}
                         onMouseDown={e => e.currentTarget.style.transform = "scale(0.96)"}
@@ -1467,6 +1479,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                     <button
                       onClick={() => { if(confirm("Delete session?")) { handleDelete(); setShowMenu(false); } }}
                       disabled={busy}
+                      title="Delete session permanently"
+                      aria-label="Delete session permanently"
                       onMouseEnter={e => e.currentTarget.style.background = T.border}
                       onMouseLeave={e => e.currentTarget.style.background = "none"}
                       onMouseDown={e => e.currentTarget.style.transform = "scale(0.96)"}
