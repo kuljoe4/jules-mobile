@@ -4,4 +4,4 @@ const ACTIVE_STATES = new Set(["QUEUED","PLANNING","AWAITING_PLAN_APPROVAL","AWA
 const MSG_TYPES     = new Set(["userMessaged","agentMessaged"]);
 export const EMPTY_ARR = [];
 export const EMPTY_OBJ = {};
-export const DEFAULT_LEAN_DIRECTIVE = "[System Directive: Do not capture or attach visual media artifacts (screenshots or videos) unless specifically requested for visual bug verification.]";
+export const DEFAULT_LEAN_DIRECTIVE = "[System Directive: Do not capture or attach visual media artifacts (screenshots or videos) unless specifically requested for visual bug verification. Format follow up options as a numbered list.]";
