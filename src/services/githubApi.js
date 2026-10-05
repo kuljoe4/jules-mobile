@@ -2,6 +2,123 @@ import { SafeStorage } from './storage.js';
 import { isValidGitBranchName, isValidGithubRepoName, isValidGithubToken } from '../utils/validation.js';
 
 export const GitHubApi = {
+  async fetchRepoData(repo) {
+    const token = SafeStorage.loadGithubToken();
+    const headers = { "Accept": "application/vnd.github.v3+json" };
+    if (token && isValidGithubToken(token)) {
+      headers["Authorization"] = `token ${token}`;
+    }
+    return this.githubFetch(`https://api.github.com/repos/${repo}`, headers);
+  },
+
+  async fetchDeploymentData(repo) {
+    const token = SafeStorage.loadGithubToken();
+    const headers = { "Accept": "application/vnd.github.v3+json" };
+    if (token && isValidGithubToken(token)) {
+      headers["Authorization"] = `token ${token}`;
+    }
+
+    const deploymentsUrl = `https://api.github.com/repos/${repo}/deployments?per_page=5`;
+    const deployments = await this.githubFetch(deploymentsUrl, headers);
+
+    let statuses = null;
+    if (Array.isArray(deployments) && deployments.length > 0) {
+      const latest = deployments[0];
+      const statusUrl = `https://api.github.com/repos/${repo}/deployments/${latest.id}/statuses`;
+      statuses = await this.githubFetch(statusUrl, headers);
+    }
+    return { deployments, statuses };
+  },
+
+  async fetchBranchData(repo, base, working) {
+    const token = SafeStorage.loadGithubToken();
+    const headers = {
+      "Accept": "application/vnd.github.v3+json"
+    };
+    if (token && isValidGithubToken(token)) {
+      headers["Authorization"] = `token ${token}`;
+    }
+
+    const encBase = encodeURIComponent(base);
+    const encWorking = encodeURIComponent(working);
+
+    const compareUrl = `https://api.github.com/repos/${repo}/compare/${encBase}...${encWorking}`;
+    const statusUrl = `https://api.github.com/repos/${repo}/commits/${encWorking}/status`;
+    const checkRunsUrl = `https://api.github.com/repos/${repo}/commits/${encWorking}/check-runs`;
+    const owner = repo.split("/")[0] || "";
+    const pullsUrl = `https://api.github.com/repos/${repo}/pulls?head=${encodeURIComponent(owner)}:${encWorking}&state=all`;
+
+    const catchErr = (err, fallback) => {
+      const msg = err.message || "";
+      if (msg.includes("403") || msg.includes("429") || msg.includes("422")) {
+        return { _failed: true };
+      }
+      return fallback;
+    };
+
+    const fetchCompare = this.githubFetch(compareUrl, headers).catch(err => catchErr(err, null));
+    const fetchStatus = this.githubFetch(statusUrl, headers).catch(err => catchErr(err, null));
+    const fetchCheckRuns = this.githubFetch(checkRunsUrl, headers).catch(err => catchErr(err, null));
+    const fetchPulls = this.githubFetch(pullsUrl, headers).catch(err => catchErr(err, []));
+
+    const [compareData, statusData, checkRunsData, pullsData] = await Promise.all([
+      fetchCompare, fetchStatus, fetchCheckRuns, fetchPulls
+    ]);
+
+    return { compareData, statusData, checkRunsData, pullsData };
+  },
+
+  async fetchPullRequestData(owner, repo, number) {
+    const token = SafeStorage.loadGithubToken();
+    const headers = {
+      "Accept": "application/vnd.github.v3+json"
+    };
+    if (token && isValidGithubToken(token)) {
+      headers["Authorization"] = `token ${token}`;
+    }
+
+    const prUrl = `https://api.github.com/repos/${owner}/${repo}/pulls/${number}`;
+    const prData = await this.githubFetch(prUrl, headers);
+
+    const baseRef = prData.base?.ref || "main";
+    const headRef = prData.head?.ref || "main";
+    const headSha = prData.head?.sha || headRef;
+
+    const encBaseRef = encodeURIComponent(baseRef);
+    const encHeadRef = encodeURIComponent(headRef);
+    const encHeadSha = encodeURIComponent(headSha);
+
+    const compareUrl = `https://api.github.com/repos/${owner}/${repo}/compare/${encBaseRef}...${encHeadRef}`;
+    const statusUrl = `https://api.github.com/repos/${owner}/${repo}/commits/${encHeadSha}/status`;
+    const checkRunsUrl = `https://api.github.com/repos/${owner}/${repo}/commits/${encHeadSha}/check-runs`;
+    const commitsUrl = `https://api.github.com/repos/${owner}/${repo}/pulls/${number}/commits?per_page=10`;
+
+    const catchErr = (err, fallback) => {
+      const msg = err.message || "";
+      if (msg.includes("403") || msg.includes("429") || msg.includes("422")) {
+        return { _failed: true };
+      }
+      return fallback;
+    };
+
+    const fetchCompare = this.githubFetch(compareUrl, headers).catch(err => catchErr(err, null));
+    const fetchStatus = this.githubFetch(statusUrl, headers).catch(err => catchErr(err, null));
+    const fetchCheckRuns = this.githubFetch(checkRunsUrl, headers).catch(err => catchErr(err, null));
+    const fetchCommits = this.githubFetch(commitsUrl, headers).catch(err => catchErr(err, []));
+
+    const [compareData, statusData, checkRunsData, commitsData] = await Promise.all([
+      fetchCompare, fetchStatus, fetchCheckRuns, fetchCommits
+    ]);
+
+    return {
+      prData,
+      compareData,
+      statusData,
+      checkRunsData,
+      commitsData
+    };
+  },
+
   githubFetch(url, headers) {
     const controller = new AbortController();
     const timeoutMs = SafeStorage.loadApiTimeout();

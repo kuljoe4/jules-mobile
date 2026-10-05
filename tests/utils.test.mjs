@@ -17,6 +17,7 @@ import { fmtAgo, fmtDuration, fmtTime, parseDateMs } from '../src/utils/date.js'
 import { GitHubTracker, getPR, getPRInfo, getBranchInfo, getCheckStatus, getDeploymentInfo, createPullRequest, mergeBranch, deleteBranch, getPendingPRProposal } from '../src/services/githubTracker.js';
 import { fastDeepEqual, getActivitiesSize, getApproxBytes, getPatchFileCount, getPayloadBreakdown } from '../src/utils/performance.js';
 import { parseUnidiffPatch, getWorkingSet } from '../src/utils/workingSet.js';
+import { GitHubApi } from '../src/services/githubApi.js';
 import { getSmartTitle, getSmartBody } from '../src/utils/prTitle.js';
 import { apiCall, sanitizeErrorMessage } from '../src/services/api.js';
 import { sendNotification, requestNotificationPermission } from '../src/services/notifications.js';
@@ -564,11 +565,11 @@ assert.equal(GitHubTracker.GH_IN_FLIGHT.has(invalidRepoPrUrl), false);
 
 // Test GitHubTracker.triggerGitHubFetch URL parameter encoding for refs with special characters
 {
-  const origGithubFetch = GitHubTracker.githubFetch;
+  const origGithubFetch = GitHubApi.githubFetch;
   const fetchedUrls = [];
-  GitHubTracker.githubFetch = async (url, headers) => {
+  GitHubApi.githubFetch = async (url, headers) => {
     fetchedUrls.push(url);
-    if (url.includes('/pulls/999')) {
+    if (url.includes('/pulls/999') && !url.includes('/commits')) {
       return {
         state: 'open',
         base: { ref: 'main' },
@@ -587,7 +588,7 @@ assert.equal(GitHubTracker.GH_IN_FLIGHT.has(invalidRepoPrUrl), false);
 
   await new Promise(resolve => setTimeout(resolve, 50));
 
-  GitHubTracker.githubFetch = origGithubFetch;
+  GitHubApi.githubFetch = origGithubFetch;
 
   assert.equal(fetchedUrls.some(u => u.includes('/compare/main...feature%2Fbranch%231')), true);
   assert.equal(fetchedUrls.some(u => u.includes('/commits/sha%2Fwith%2Fslash%23123/status')), true);
