@@ -381,7 +381,15 @@ function JulesClient() {
           if (currentIsFirstPageOfFull) {
             let oldestTs = 0;
             if (adjustedBatch.length > 0) {
-              oldestTs = Math.min(...adjustedBatch.map(s => parseDateMs(s.updateTime || s.createTime)));
+              // OPTIMIZATION (Bolt): Replace Math.min(...array.map(...)) with standard for loop
+              // to prevent maximum call stack size exceeded errors on large arrays and avoid intermediate allocations.
+              let minTs = Infinity;
+              for (let i = 0; i < adjustedBatch.length; i++) {
+                const s = adjustedBatch[i];
+                const ts = parseDateMs(s.updateTime || s.createTime);
+                if (ts < minTs) minTs = ts;
+              }
+              oldestTs = minTs === Infinity ? 0 : minTs;
             }
             const batchIds = new Set(adjustedBatch.map(s => s.id || s.name));
             const preserved = prev.filter(s => {
@@ -462,7 +470,19 @@ function JulesClient() {
           // Check if batch reached items older than lastFetchTime with a 30s clock-skew buffer
           const bufferMs = 30000;
           const thresholdTs = (lastFetchTime.current || Date.now()) - bufferMs;
-          const batchMinTs = batch.length > 0 ? Math.min(...batch.map(s => parseDateMs(s.updateTime || s.createTime))) : 0;
+
+          // OPTIMIZATION (Bolt): Replace Math.min(...array.map(...)) with standard for loop
+          let batchMinTs = 0;
+          if (batch.length > 0) {
+            let minTs = Infinity;
+            for (let i = 0; i < batch.length; i++) {
+              const s = batch[i];
+              const ts = parseDateMs(s.updateTime || s.createTime);
+              if (ts < minTs) minTs = ts;
+            }
+            batchMinTs = minTs === Infinity ? 0 : minTs;
+          }
+
           const reachedOlder = batch.length > 0 && batchMinTs <= thresholdTs;
           const allActiveAccountedFor = activeIdsToVerify.size === seenActiveIds.size;
 
