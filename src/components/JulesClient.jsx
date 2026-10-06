@@ -1125,35 +1125,34 @@ function JulesClient() {
             todayCount={todayCount} />
         )}
       </div>
-      <nav aria-label="Main navigation" style={{
-        display:"flex", alignItems:"center", height:58,
-        borderTop:`1px solid ${T.border}`, background:"rgba(13,17,23,0.94)",
-        backdropFilter:"blur(12px)", WebkitBackdropFilter:"blur(12px)",
-        transform:"translateZ(0)", flexShrink:0, zIndex:40
-      }}>
-        {[
-          {id:"list",    n:"tasks", label:"SESSIONS", onClick:() => {
-            setShowArchived(false);
-            if (mobileDrawerOpen && !showArchived) closeMobileDrawer();
-            else openMobileDrawer();
-          }},
-          {id:"archive", n:"archive", label:"ARCHIVE", onClick:() => {
-            setShowArchived(true);
-            if (mobileDrawerOpen && showArchived) closeMobileDrawer();
-            else openMobileDrawer();
-          }},
-          {id:"new",     n:"plus",  label:"NEW", onClick:() => { if (mobileDrawerOpen) closeMobileDrawer(); setSelectedDraft(null); setMobile("new"); }},
-          {id:"drafts",  n:"layers", label:"DRAFTS", onClick:() => { if (mobileDrawerOpen) closeMobileDrawer(); setMobile("drafts"); }},
-          {id:"settings",n:"settings", label:"SETTINGS", onClick:() => { if (mobileDrawerOpen) closeMobileDrawer(); setMobile("settings"); }},
-        ].map(({id,n,label,onClick})=>{
-          const isAct = (id === "list" && mobileDrawerOpen && !showArchived) ||
-                        (id === "archive" && mobileDrawerOpen && showArchived) ||
-                        (!mobileDrawerOpen && mobileScreen === id && id !== "list" && id !== "archive");
+      {/* OPTIMIZATION (Bolt): Hoist hasAlert calculation outside of the navigation items .map() loop
+          and replace .includes() with direct equality checks to reduce O(5N) render complexity to O(N). */}
+      {(() => {
+        const hasAlert = sessions.some(s => s.state === "AWAITING_PLAN_APPROVAL" || s.state === "AWAITING_USER_FEEDBACK");
+        return (
+          <nav aria-label="Main navigation" style={{display:"flex",borderTop:`1px solid ${T.border}`,background:T.surface,transform:"translateZ(0)",flexShrink:0}}>
+            {[
+              {id:"list",    n:"tasks", label:"SESSIONS", onClick:() => {
+                setShowArchived(false);
+                if (mobileDrawerOpen && !showArchived) closeMobileDrawer();
+                else openMobileDrawer();
+              }},
+              {id:"archive", n:"archive", label:"ARCHIVE", onClick:() => {
+                setShowArchived(true);
+                if (mobileDrawerOpen && showArchived) closeMobileDrawer();
+                else openMobileDrawer();
+              }},
+              {id:"new",     n:"plus",  label:"NEW", onClick:() => { if (mobileDrawerOpen) closeMobileDrawer(); setSelectedDraft(null); setMobile("new"); }},
+              {id:"drafts",  n:"layers", label:"DRAFTS", onClick:() => { if (mobileDrawerOpen) closeMobileDrawer(); setMobile("drafts"); }},
+              {id:"settings",n:"settings", label:"SETTINGS", onClick:() => { if (mobileDrawerOpen) closeMobileDrawer(); setMobile("settings"); }},
+            ].map(({id,n,label,onClick})=>{
+              const isAct = (id === "list" && mobileDrawerOpen && !showArchived) ||
+                            (id === "archive" && mobileDrawerOpen && showArchived) ||
+                            (!mobileDrawerOpen && mobileScreen === id && id !== "list" && id !== "archive");
 
-          const hasAlert = sessions.some(s=>["AWAITING_PLAN_APPROVAL","AWAITING_USER_FEEDBACK"].includes(s.state));
-          const buttonTitle = `${label}${hasAlert ? " (attention needed)" : ""}${isAct ? " (active view)" : ""}`;
-          return (
-            <button
+              const buttonTitle = `${label}${hasAlert ? " (attention needed)" : ""}${isAct ? " (active view)" : ""}`;
+              return (
+                <button
               key={id}
               onClick={onClick}
               aria-label={buttonTitle}
