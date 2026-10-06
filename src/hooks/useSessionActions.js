@@ -70,7 +70,12 @@ const useSessionActions = ({
 
     for (const id of ids) {
       lastStates.current.set(id, "QUEUED");
-      apiCall(apiKey, `/sessions/${id}:resume`, { method:"POST" }).catch(err => console.error(sanitizeErrorMessage(err.toString())));
+      apiCall(apiKey, `/sessions/${id}:resume`, { method:"POST" }).then(updated => {
+        if (updated && updated.id) {
+          lastStates.current.set(updated.id, updated.state);
+          setSessions(prev => prev.map(s => s.id === updated.id ? updated : s));
+        }
+      }).catch(err => console.error(sanitizeErrorMessage(err.toString())));
     }
   }, [apiKey, setSessions, lastStates]);
 
@@ -88,7 +93,12 @@ const useSessionActions = ({
 
     for (const id of ids) {
       lastStates.current.set(id, "PAUSED");
-      apiCall(apiKey, `/sessions/${id}:pause`, { method:"POST" }).catch(err => console.error(sanitizeErrorMessage(err.toString())));
+      apiCall(apiKey, `/sessions/${id}:pause`, { method:"POST" }).then(updated => {
+        if (updated && updated.id) {
+          lastStates.current.set(updated.id, updated.state);
+          setSessions(prev => prev.map(s => s.id === updated.id ? updated : s));
+        }
+      }).catch(err => console.error(sanitizeErrorMessage(err.toString())));
     }
   }, [apiKey, setSessions, lastStates]);
 
@@ -116,7 +126,12 @@ const useSessionActions = ({
     // Optimistic update
     setSessions(prev => prev.map(s => s.id === id ? { ...s, state: "PAUSED" } : s));
     lastStates.current.set(id, "PAUSED");
-    apiCall(apiKey, `/sessions/${id}:pause`, { method:"POST" }).catch(err => console.error(sanitizeErrorMessage(err.toString())));
+    apiCall(apiKey, `/sessions/${id}:pause`, { method:"POST" }).then(updated => {
+      if (updated && updated.id) {
+        lastStates.current.set(updated.id, updated.state);
+        setSessions(prev => prev.map(s => s.id === updated.id ? updated : s));
+      }
+    }).catch(err => console.error(sanitizeErrorMessage(err.toString())));
   }, [apiKey, setSessions, lastStates]);
 
   const handleResume = useCallback(id => {
@@ -125,7 +140,12 @@ const useSessionActions = ({
     // Optimistic update
     setSessions(prev => prev.map(s => s.id === id ? { ...s, state: "QUEUED" } : s));
     lastStates.current.set(id, "QUEUED");
-    apiCall(apiKey, `/sessions/${id}:resume`, { method:"POST" }).catch(err => console.error(sanitizeErrorMessage(err.toString())));
+    apiCall(apiKey, `/sessions/${id}:resume`, { method:"POST" }).then(updated => {
+      if (updated && updated.id) {
+        lastStates.current.set(updated.id, updated.state);
+        setSessions(prev => prev.map(s => s.id === updated.id ? updated : s));
+      }
+    }).catch(err => console.error(sanitizeErrorMessage(err.toString())));
   }, [apiKey, setSessions, lastStates]);
 
   const handleArchive = useCallback(id => {
