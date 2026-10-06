@@ -1185,6 +1185,8 @@ function JulesClient() {
           );
         })}
       </nav>
+        );
+      })()}
     </Shell>
   );
 }
