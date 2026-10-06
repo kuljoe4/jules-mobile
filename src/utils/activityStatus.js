@@ -75,7 +75,7 @@ const getAheadCount = (activities = []) => {
 const IS_ACTUALLY_DONE_CACHE = new WeakMap();
 
 const getIsActuallyDone = (sState, activities = []) => {
-  if (ACTIVE_STATES.has(sState)) return false;
+  if (sState === "PAUSED" || ACTIVE_STATES.has(sState)) return false;
   if (sState === "COMPLETED") return true;
   if (sState === "FAILED" || sState === "CANCELLED") return false;
   if (!activities || !Array.isArray(activities)) return false;
