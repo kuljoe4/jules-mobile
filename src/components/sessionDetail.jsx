@@ -1,4 +1,3 @@
-import { sanitizeErrorMessage } from "../services/api.js";
 import { copyToClipboard } from "../utils/format.js";
 import { isValidSessionId } from "../utils/validation.js";
 import { MediaModal } from "./mediaModal.jsx";
@@ -411,7 +410,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   const loadActivities = useCallback(async (sinceTs=null) => {
     // Security: Validate session ID to prevent endpoint path manipulation or parameter pollution
     if (!isValidSessionId(session?.id) || isDeletedRef.current) {
-      console.error("[LoadActivities] Aborting request due to invalid session ID:", sanitizeErrorMessage(String(session?.id)));
+      console.error("[LoadActivities] Aborting request due to invalid session ID:", session?.id);
       return;
     }
     if (activitiesAbortRef.current) {
@@ -519,7 +518,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
           SafeStorage.saveActStats(allStats);
           onStatsUpdate?.(session.id, stats);
           window.dispatchEvent(new CustomEvent("jac_stats_updated", { detail: allStats }));
-        } catch (e) { console.error("Failed to save stats", sanitizeErrorMessage(e.message || String(e))); }
+        } catch (e) { console.error("Failed to save stats", e); }
       }
 
       // Success! Reset 404 counter
@@ -553,7 +552,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
         // Do not display raw 404 errors in the UI for recently created or transiently missing sessions
         return;
       }
-      console.error("[LoadActivities] Error:", sanitizeErrorMessage(err.message || String(err)));
+      console.error("[LoadActivities] Error:", err);
       setErr(err.message);
     } finally {
       if (activitiesAbortRef.current === controller) {
@@ -582,7 +581,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
         // Do not display raw 404 errors in the UI for recently created or transiently missing sessions
         return;
       }
-      console.error("[LoadSession] Error:", sanitizeErrorMessage(err.message || String(err)));
+      console.error("[LoadSession] Error:", err);
       setErr(err.message);
     }
   }, [apiKey, session.id, onSessionUpdate]);
@@ -1277,9 +1276,6 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                 {!scrolled && "STALE"}
               </span>
             )}
-            {busy && (
-              <JulesThinkingIndicator compact label="Jules is thinking..." />
-            )}
             <Pill status={currentState} small hideLabel={!headerExpanded && scrolled}/>
 
             <div style={{position:"relative"}}>
@@ -1822,11 +1818,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
         )}
 
 
-        <div role="tablist" aria-label="Session detail tabs" style={{
-          display:"flex", gap:3, padding:"3px", borderRadius:8,
-          background:T.surfaceHi, border:`1px solid ${T.border}`,
-          marginBottom:scrolled?6:10, transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)"
-        }}>
+        <div role="tablist" aria-label="Session detail tabs" style={{display:"flex", paddingBottom:scrolled?4:0, transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)"}}>
           {TABS.map(t=>(
             <button key={t.id} role="tab" aria-selected={tab===t.id?"true":"false"} aria-label={t.label + " tab"} onClick={()=>setTab(t.id)} style={{
               flex:1,padding:"6px 0",background:"none",border:"none",
@@ -2583,15 +2575,6 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                   onReply={handleReply}
                 />
             }
-            {busy && (
-              <div style={{ marginTop: 14, marginBottom: 6, animation: "fadeIn .2s ease" }}>
-                <JulesThinkingIndicator
-                  inline
-                  label="Jules is thinking..."
-                  subtext="Processing request on Gemini server…"
-                />
-              </div>
-            )}
             <div style={{
               marginTop: 20, marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "center",
             }}>
@@ -3157,16 +3140,6 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
           )}
 
           {!composerMinimized && <MultiPersonaPicker personas={personas} selectedIds={selectedPersonas} onToggle={togglePersona} style={{marginBottom:10}} />}
-
-          {busy && (
-            <div style={{ marginBottom: 10, animation: "fadeIn .2s ease" }}>
-              <JulesThinkingIndicator
-                inline
-                label="Jules is thinking..."
-                subtext="Sending message to Gemini server…"
-              />
-            </div>
-          )}
 
           <div style={{position:"relative", display:"flex", flexDirection:"column"}}>
             {!composerMinimized ? (

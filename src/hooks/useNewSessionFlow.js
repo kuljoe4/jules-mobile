@@ -1,4 +1,3 @@
-import { sanitizeErrorMessage } from "../services/api.js";
 const useNewSessionFlow = ({ apiKey, personas, onCreate, initialDraft, onDraftSaved }) => {
   const draft = useMemo(() => initialDraft || loadDraft(), [initialDraft]);
   const hasSavedOrSubmitted = useRef(false);
@@ -268,7 +267,7 @@ const useNewSessionFlow = ({ apiKey, personas, onCreate, initialDraft, onDraftSa
         onCreate(normalizeSession(d));
       }
     } catch (err) {
-      console.error("[useNewSessionFlow] Error starting session:", sanitizeErrorMessage(err.message || String(err)));
+      console.error("[useNewSessionFlow] Error starting session:", err);
       setErr(err.message || "Failed to start session. Please check your network connection or parameters.");
     } finally {
       setSub(false);
