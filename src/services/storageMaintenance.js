@@ -1,4 +1,3 @@
-import { sanitizeErrorMessage } from "./api.js";
 // ─── Daily session counter ────────────────────────────────────────────────────
 
 
@@ -51,7 +50,7 @@ async function getStorageInfo() {
       str += k + localStorage.getItem(k);
     }
     local = str.length * 2; // UTF-16 characters are 2 bytes
-  } catch (err) { console.warn("[Storage] LocalStorage estimate failed", sanitizeErrorMessage(err.message || String(err))); }
+  } catch (err) { console.warn("[Storage] LocalStorage estimate failed", err); }
 
   // 2. Navigator Storage API
   try {
@@ -63,7 +62,7 @@ async function getStorageInfo() {
         cache = est.usageDetails.caches;
       }
     }
-  } catch (err) { console.warn("[Storage] Estimate API failed", sanitizeErrorMessage(err.message || String(err))); }
+  } catch (err) { console.warn("[Storage] Estimate API failed", err); }
 
   // 3. Manual Cache Fallback (for browsers without usageDetails)
   if (cache === 0 && "caches" in window) {
@@ -81,7 +80,7 @@ async function getStorageInfo() {
           }
         }
       }
-    } catch (err) { console.warn("[Storage] Manual cache scan failed", sanitizeErrorMessage(err.message || String(err))); }
+    } catch (err) { console.warn("[Storage] Manual cache scan failed", err); }
   }
 
   // Final adjusted total (API used often doesn't include localStorage)

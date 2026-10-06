@@ -16,10 +16,7 @@ function Shell({ children, desktop=false }) {
   return (
     <div style={{
       width:"100%",background:T.bg,display:"flex",isolation:"isolate",
-      fontFamily:"'Plus Jakarta Sans','IBM Plex Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",
-      WebkitFontSmoothing:"antialiased",
-      MozOsxFontSmoothing:"grayscale",
-      overflow:"hidden",
+      fontFamily:"'IBM Plex Sans',sans-serif",overflow:"hidden",
       ...(desktop
         ? { minHeight:"100vh", flexDirection:"row" }
         : { width:"100%", height:"100dvh", flexDirection:"column" }
@@ -62,22 +59,6 @@ function Shell({ children, desktop=false }) {
           50% { left: 100%; transform: translateX(0%); }
           100% { left: 0%; transform: translateX(-100%); }
         }
-        @keyframes thinkingWave {
-          0%, 60%, 100% { transform: translateY(0); opacity: 0.35; }
-          30% { transform: translateY(-4px); opacity: 1; }
-        }
-        @keyframes thinkingGlow {
-          0%, 100% { box-shadow: 0 0 10px rgba(6,182,212,0.25), inset 0 0 8px rgba(6,182,212,0.15); }
-          50% { box-shadow: 0 0 22px rgba(6,182,212,0.5), inset 0 0 14px rgba(6,182,212,0.3); }
-        }
-        @keyframes thinkingPulse {
-          0%, 100% { opacity: 0.85; transform: scale(1); }
-          50% { opacity: 1; transform: scale(1.04); }
-        }
-        @keyframes slideDownFade {
-          0% { opacity: 0; transform: translate(-50%, -12px) scale(0.96); }
-          100% { opacity: 1; transform: translate(-50%, 0) scale(1); }
-        }
         @media (prefers-reduced-motion: reduce) {
           *, ::before, ::after {
             animation-delay: -1ms !important;
@@ -108,7 +89,6 @@ function Shell({ children, desktop=false }) {
         }
       `}</style>
       <PWABanner/>
-      <GlobalThinkingBar/>
       {children}
     </div>
   );

@@ -1,4 +1,3 @@
-import { sanitizeErrorMessage } from "../services/api.js";
 const useAutoPoll = (interval, fn) => {
   const [countdown, setCountdown] = useState(0);
   const nextRefAt = useRef(0);
@@ -24,7 +23,7 @@ const useAutoPoll = (interval, fn) => {
 
       timer = setTimeout(async () => {
         if (!active) return;
-        try { await fnRef.current(); } catch (err) { console.error("Poll failed", sanitizeErrorMessage(err.message || String(err))); }
+        try { await fnRef.current(); } catch (err) { console.error("Poll failed", err); }
         if (active) run();
       }, interval);
     };
@@ -40,7 +39,7 @@ const useAutoPoll = (interval, fn) => {
 
     const handleResume = () => {
       if (active && document.visibilityState === "visible") {
-        try { fnRef.current(); } catch (err) { console.error("Poll on resume failed", sanitizeErrorMessage(err.message || String(err))); }
+        try { fnRef.current(); } catch (err) { console.error("Poll on resume failed", err); }
       }
     };
     window.addEventListener("visibilitychange", handleResume);

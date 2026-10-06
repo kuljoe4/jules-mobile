@@ -319,16 +319,6 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
                 )}
               </div>
             )}
-
-            {submitting && (
-              <div style={{ marginTop: 8 }}>
-                <JulesThinkingIndicator
-                  inline
-                  label="Jules is thinking..."
-                  subtext="Creating task on Gemini server…"
-                />
-              </div>
-            )}
           </div>
         </Modal>
       )}
@@ -338,11 +328,11 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
         {/* Draft indicator */}
         {draft&&(prompt||branch!=="main")&&!savedFlash&&(
           <button onClick={handleClearDraft} title="Clear saved draft" aria-label="Clear saved draft" style={{
-            display:"flex",alignItems:"center",gap:5,padding:"3px 8px",borderRadius:4,
+            display:"flex",alignItems:"center",gap:5,padding:"3px 9px",borderRadius:20,
             background:T.amberDim,border:`1px solid ${T.amber}40`,cursor:"pointer",
-            fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.amber,letterSpacing:"0.05em",
+            fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.amber,letterSpacing:"0.07em",
           }}>
-            <span style={{width:5,height:5,borderRadius:"50%",background:T.amber,flexShrink:0}}/>
+            <span style={{width:4,height:4,borderRadius:"50%",background:T.amber,flexShrink:0}}/>
             DRAFT
           </button>
         )}
@@ -476,23 +466,14 @@ const NewSession = ({ apiKey, personas, onBack, onCreate, isDesktop, plan, today
             }
 
             return (
-              <div style={{display:"flex", flexDirection:"column", gap:10}}>
-                <div style={{display:"flex", gap:10}}>
-                  <Btn onClick={handleSaveToBox} disabled={(!prompt.trim() && selectedPersonas.size === 0) || submitting} outline title={draftBtnTitle} aria-label={draftBtnTitle} style={{flex:1}}>
-                    <Ic n="archive" s={14} c={T.brand}/>
-                    SAVE DRAFT
-                  </Btn>
-                  <Btn onClick={() => setShowConfirm(true)} disabled={(!prompt.trim() && selectedPersonas.size === 0) || submitting || loadingSrc || isOverQuota} title={startBtnTitle} aria-label={startBtnTitle} style={{flex:2}}>
-                    {submitting?"SENDING…":"ASSIGN TO JULES →"}
-                  </Btn>
-                </div>
-                {submitting && (
-                  <JulesThinkingIndicator
-                    inline
-                    label="Jules is thinking..."
-                    subtext="Submitting prompt to Gemini server…"
-                  />
-                )}
+              <div style={{display:"flex", gap:10}}>
+                <Btn onClick={handleSaveToBox} disabled={(!prompt.trim() && selectedPersonas.size === 0) || submitting} outline title={draftBtnTitle} aria-label={draftBtnTitle} style={{flex:1}}>
+                  <Ic n="archive" s={14} c={T.brand}/>
+                  SAVE DRAFT
+                </Btn>
+                <Btn onClick={() => setShowConfirm(true)} disabled={(!prompt.trim() && selectedPersonas.size === 0) || submitting || loadingSrc || isOverQuota} title={startBtnTitle} aria-label={startBtnTitle} style={{flex:2}}>
+                  {submitting?"SENDING…":"ASSIGN TO JULES →"}
+                </Btn>
               </div>
             );
           })()}
