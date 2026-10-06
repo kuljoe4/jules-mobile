@@ -1,3 +1,4 @@
+import { sanitizeErrorMessage } from "../services/api.js";
 // Bounded Map cache for high-performance byte string formatting.
 // OPTIMIZATION (Bolt): Caching formatted byte strings in `FMT_BYTES_CACHE` turns repeat byte formatting
 // operations into O(1) cache hits (~8x faster), bypassing `toFixed()` float operations and string allocations.
@@ -201,7 +202,7 @@ export const copyToClipboard = async (text) => {
     } catch (err) {
       // Suppress console warning in test environment
       if (typeof process === "undefined" || process.env.NODE_ENV !== "test") {
-        console.warn("[copyToClipboard] navigator.clipboard.writeText failed:", err);
+        console.warn("[copyToClipboard] navigator.clipboard.writeText failed:", sanitizeErrorMessage(err.message || String(err)));
       }
     }
   }
@@ -219,7 +220,7 @@ export const copyToClipboard = async (text) => {
       document.body.removeChild(textArea);
       return successful;
     } catch (err) {
-      console.warn("[copyToClipboard] execCommand fallback failed:", err);
+      console.warn("[copyToClipboard] execCommand fallback failed:", sanitizeErrorMessage(err.message || String(err)));
       return false;
     }
   }

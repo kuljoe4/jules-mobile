@@ -10,6 +10,7 @@ const SettingsView = ({ onBack, isDesktop, settings, personas, setPersonas, toda
     activePollInterval, setActivePollInterval,
     sessionLimit, setSessionLimit,
     activityLimit, setActivityLimit,
+    gapThreshold, setGapThreshold,
     cacheLimit, setCacheLimit,
     notifications, setNotifications,
     planId, setPlanId,
@@ -288,6 +289,21 @@ const SettingsView = ({ onBack, isDesktop, settings, personas, setPersonas, toda
                   </div>
                   <div style={{marginTop:6, fontSize:10, color:T.textDim, fontFamily:"'IBM Plex Sans',sans-serif"}}>
                     Controls the maximum number of activity items loaded and stored per session.
+                  </div>
+                </div>
+
+                <div style={{marginBottom:20}}>
+                  <div style={{fontSize:11, color:T.textDim, marginBottom:8, fontFamily:"'JetBrains Mono',monospace", fontWeight:700}}>TIME GAP HIGHLIGHT</div>
+                  <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                    {GAP_THRESHOLD_OPTIONS.map(opt => {
+                      const isAct = opt.val === gapThreshold;
+                      return (
+                        <PickerBtn key={opt.label} label={opt.label} isAct={isAct} onClick={()=>{setGapThreshold(opt.val); triggerSaveFeedback();}} />
+                      );
+                    })}
+                  </div>
+                  <div style={{marginTop:6, fontSize:10, color:T.textDim, fontFamily:"'IBM Plex Sans',sans-serif"}}>
+                    Highlight adjacent sessions with significant gaps within this timeframe.
                   </div>
                 </div>
 

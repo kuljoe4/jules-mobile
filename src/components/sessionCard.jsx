@@ -153,29 +153,30 @@ const SessionCard = memo(({ s, onPress, onSelect, isSelected, isBulkSelected, on
     ? { color: T.amber, fontWeight: 800, background: `${T.amber}20`, padding: "1px 4px", borderRadius: 3, opacity: 1 }
     : {};
 
-  const bg = isSelected ? `${T.brand}15` : T.surface;
-  const borderColor = isSelected ? "transparent" : `${T.border}44`;
+  const bg = isSelected ? T.brandDim : T.surface;
+  const borderColor = isSelected ? `${T.brand}55` : T.border;
 
   return (
     <button ref={cardRef} onClick={handleClick}
       aria-label={`Session ${index}: ${s.title || s.prompt}. Status: ${m.label}. ${isUnread ? "New activity." : ""}`}
       style={{
         width:"100%", background:bg, textAlign:"left", cursor:"pointer",
-        border: isSelected ? "none" : `1px solid ${borderColor}`,
-        borderRadius:8, padding:"11px 14px", marginBottom:8, transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)",
+        border: `1px solid ${borderColor}`,
+        borderRadius:8, padding:"12px 14px", marginBottom:8, transition:"all .18s cubic-bezier(0.16, 1, 0.3, 1)",
         position:"relative",
-        minHeight:48,
-        transform:isSelected?"translateX(4px) scale(1.005)":"none",
+        minHeight:52,
         outline:"none",
-        boxShadow: "none",
+        boxShadow: isSelected ? `0 0 16px ${T.brand}14, inset 0 0 0 1px ${T.brand}30` : "0 1px 3px rgba(0,0,0,0.25)",
         zIndex: isSelected ? 2 : 1,
       }}
+      onMouseEnter={e => { if (!isSelected) { e.currentTarget.style.borderColor = T.borderHi; e.currentTarget.style.background = T.surfaceHi; } }}
+      onMouseLeave={e => { if (!isSelected) { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.background = T.surface; } }}
       onFocus={e => e.currentTarget.style.borderColor = T.brand}
       onBlur={e => e.currentTarget.style.borderColor = borderColor}
     >
       <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6,flexWrap:"nowrap",width:"100%",overflow:"hidden"}}>
 
-        <div style={{ position: "relative", width: 16, height: 16, flexShrink: 0, marginRight: 4 }}>
+        <div style={{ position: "relative", width: 16, height: 16, flexShrink: 0, marginRight: 2 }}>
         {selectionMode ? (
           <button
             onClick={(e) => { e.stopPropagation(); if (onToggleSelect) onToggleSelect(s.id); }}
@@ -184,26 +185,24 @@ const SessionCard = memo(({ s, onPress, onSelect, isSelected, isBulkSelected, on
             aria-checked={isBulkSelected}
             role="checkbox"
             style={{
-              width: 16, height: 16, borderRadius: 4, flexShrink: 0,
+              width: 18, height: 18, borderRadius: 4, flexShrink: 0,
               border: `1px solid ${isBulkSelected ? T.brand : T.border}`,
               background: isBulkSelected ? T.brand : "transparent",
               display: "flex", alignItems: "center", justifyContent: "center",
               cursor: "pointer", transition: "all .15s ease",
-              marginRight: 4
             }}
           >
-            {isBulkSelected && <Ic n="check" s={10} c="#000" />}
+            {isBulkSelected && <Ic n="check" s={11} c="#07090e" />}
           </button>
         ) : (
-          <div style={{width:16, height:16, display:"flex", alignItems:"center", fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.muted,fontWeight:800,opacity:0.35,flexShrink:0}}>{index}</div>
+          <div style={{width:16, height:16, display:"flex", alignItems:"center", fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.muted,fontWeight:700,opacity:0.4,flexShrink:0}}>{index}</div>
         )}
-        {/* Invisible button overlay to allow starting selection on long press or shift click, but keeping it simple for now, we can show checkbox on hover by adding a class, but inline styles are used. Let's just always render the checkbox if they hover over the index area */}
         {!selectionMode && (
           <button
             title="Select session"
             aria-label="Select session"
             onClick={(e) => { e.stopPropagation(); if (onToggleSelect) onToggleSelect(s.id); }}
-            style={{ position: "absolute", inset: -4, opacity: 0, cursor: "pointer", border: "none", background: "transparent" }}
+            style={{ position: "absolute", inset: -6, opacity: 0, cursor: "pointer", border: "none", background: "transparent" }}
           />
         )}
       </div>
@@ -213,15 +212,16 @@ const SessionCard = memo(({ s, onPress, onSelect, isSelected, isBulkSelected, on
           aria-label={`Status: ${m.label}`}
           style={{display:"flex",alignItems:"center",justifyContent:"center",width:18,height:18,background:"transparent",flexShrink:0}}
         >
-          <div style={{ display: "flex", animation: currentState === "IN_PROGRESS" ? "spin 3s linear infinite" : "none" }}>
-            <Ic n={m.icon} s={11} c={m.color}/>
+          <div style={{ display: "flex", animation: currentState === "IN_PROGRESS" ? "spin 2.5s linear infinite" : "none" }}>
+            <Ic n={m.icon} s={12} c={m.color}/>
           </div>
         </div>
         <div
           title={activeCheck ? `Base branch check status: ${activeCheck.label || activeCheck.state}` : undefined}
           style={{
-            flex:1, minWidth:0, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:13, fontWeight:600,
-            lineHeight:1.3, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
+            flex:1, minWidth:0, fontFamily:"'Plus Jakarta Sans','IBM Plex Sans',sans-serif", fontSize:13, fontWeight:600,
+            lineHeight:1.35, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
+            letterSpacing:"-0.01em",
             transition: "all .15s ease",
             ...titleStyle
           }}
@@ -243,38 +243,40 @@ const SessionCard = memo(({ s, onPress, onSelect, isSelected, isBulkSelected, on
             )}
           </div>
         )}
-        <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.muted,fontWeight:500,opacity:0.45,flexShrink:0,marginLeft:activeCheck ? 2 : "auto"}}>
+        <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9.5,color:T.muted,fontWeight:500,opacity:0.6,flexShrink:0,marginLeft:activeCheck ? 2 : "auto"}}>
           {fmtAgo(parseDateMs(s.updateTime||s.createTime))}
         </div>
       </div>
 
-      <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", gap:"6px 10px", marginLeft:26, flexWrap:"nowrap", overflow:"hidden"}}>
-        <div style={{display:"flex", alignItems:"center", gap:8, flexWrap:"nowrap", minWidth:0, flex:"1 1 auto", overflow:"hidden"}}>
+      <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", gap:"6px 10px", marginLeft:24, flexWrap:"nowrap", overflow:"hidden"}}>
+        <div style={{display:"flex", alignItems:"center", gap:6, flexWrap:"nowrap", minWidth:0, flex:"1 1 auto", overflow:"hidden"}}>
           {groupId && (
-            <div title={`Group: ${groupId}`} style={{display:"flex", alignItems:"center", gap:4, opacity:0.8, flexShrink:0, background:T.brandDim, padding:"1px 4px", borderRadius:4}}>
+            <div title={`Group: ${groupId}`} style={{display:"flex", alignItems:"center", gap:3, flexShrink:0, color:T.brand}}>
               <Ic n="layers" s={9} c={T.brand}/>
-              <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.brand,fontWeight:700}}>#{groupId}</span>
+              <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9.5,fontWeight:700}}>#{groupId}</span>
+              <span style={{color:T.dim, fontSize:9, padding:"0 2px"}}>·</span>
             </div>
           )}
           {repo && (
-            <div title={rawRepo} style={{display:"flex", alignItems:"center", gap:4, opacity:0.45, flexShrink:1, minWidth:0, overflow:"hidden"}}>
-              <Ic n="code" s={10} c={T.muted}/>
-              <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.muted,fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{repo}</span>
+            <div title={rawRepo} style={{display:"flex", alignItems:"center", gap:3, color:T.muted, flexShrink:1, minWidth:0, overflow:"hidden"}}>
+              <Ic n="code" s={10} c={T.dim}/>
+              <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9.5,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{repo}</span>
             </div>
           )}
           {pri && (
-            <div style={{display:"flex", alignItems:"center", gap:4, color:pri.state==="merged"?T.purple:T.brand, opacity:0.95, flexShrink:0}}>
+            <div style={{display:"flex", alignItems:"center", gap:3, color:pri.state==="merged"?T.purple:T.brand, flexShrink:0}}>
+              <span style={{color:T.dim, fontSize:9, padding:"0 2px"}}>·</span>
               <Ic n={pri.state==="merged"?"git_merge":"git_pull"} s={10} c={pri.state==="merged"?T.purple:T.brand}/>
-              <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:900}}>#{pri.number}</span>
-              {pri.ahead > 0 && <span aria-label={`${pri.ahead} commits ahead`} style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900,color:T.brandLight,background:T.brandDim,padding:"1px 3px",borderRadius:2}}>↑{pri.ahead}</span>}
+              <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9.5,fontWeight:700}}>#{pri.number}</span>
+              {pri.ahead > 0 && <span aria-label={`${pri.ahead} commits ahead`} style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8.5,fontWeight:700,color:T.brandLight,marginLeft:2}}>↑{pri.ahead}</span>}
             </div>
           )}
           {(!pri || pri.state === "closed") && b?.isNew && (
-            <div style={{display:"flex", alignItems:"center", gap:4, color:T.blue, opacity:0.95, flexShrink:1, minWidth:0, overflow:"hidden"}}>
+            <div style={{display:"flex", alignItems:"center", gap:3, color:T.blue, flexShrink:1, minWidth:0, overflow:"hidden"}}>
+              <span style={{color:T.dim, fontSize:9, padding:"0 2px"}}>·</span>
               <Ic n="branch" s={10} c={T.blue}/>
-              <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:900,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{b.working} → {b.base || "main"}</span>
-              {b.ahead > 0 && <span aria-label={`${b.ahead} commits ahead`} style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900,color:T.brandLight,background:T.brandDim,padding:"1px 3px",borderRadius:2,flexShrink:0}}>↑{b.ahead}</span>}
-              {!b.ahead && ahead > 0 && <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900,color:T.blue,flexShrink:0}}>+{ahead}</span>}
+              <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9.5,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{b.working}</span>
+              {b.ahead > 0 && <span aria-label={`${b.ahead} commits ahead`} style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8.5,fontWeight:700,color:T.brandLight,marginLeft:2}}>↑{b.ahead}</span>}
             </div>
           )}
           {driftDetected && (
@@ -282,13 +284,12 @@ const SessionCard = memo(({ s, onPress, onSelect, isSelected, isBulkSelected, on
               title="Repository base branch has updated (STALE)"
               aria-label="Repository base branch has updated (STALE)"
               style={{
-                display:"flex", alignItems:"center", gap:3, color:T.amber, opacity:0.85,
-                background:`${T.amber}15`, padding:"1px 5px", borderRadius:4, border:`1px solid ${T.amber}30`,
-                flexShrink: 0
+                display:"flex", alignItems:"center", gap:2, color:T.amber, flexShrink:0
               }}
             >
+              <span style={{color:T.dim, fontSize:9, padding:"0 2px"}}>·</span>
               <Ic n="wifi" s={9} c={T.amber}/>
-              <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900}}>S</span>
+              <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:700}}>outdated</span>
             </div>
           )}
           {hasFollowupDraft && (
@@ -296,33 +297,32 @@ const SessionCard = memo(({ s, onPress, onSelect, isSelected, isBulkSelected, on
               title="Has unsent follow-up message draft"
               aria-label="Has unsent follow-up message draft"
               style={{
-                display:"flex", alignItems:"center", gap:3, color:T.amberLight, opacity:0.95,
-                background:`${T.amber}15`, padding:"1px 5px", borderRadius:4, border:`1px solid ${T.amber}30`,
-                flexShrink: 0
+                display:"flex", alignItems:"center", gap:2, color:T.amberLight, flexShrink:0
               }}
             >
+              <span style={{color:T.dim, fontSize:9, padding:"0 2px"}}>·</span>
               <Ic n="layers" s={9} c={T.amberLight}/>
-              <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:900}}>D</span>
+              <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:700}}>draft</span>
             </div>
           )}
-          {isUnread && <div style={{width:4,height:4,borderRadius:"50%",background:T.indigo,animation:"dot 1s infinite",flexShrink:0}}/>}
+          {isUnread && <div style={{width:5,height:5,borderRadius:"50%",background:T.brandLight,boxShadow:`0 0 6px ${T.brandLight}`,animation:"dot 1.2s infinite",flexShrink:0,marginLeft:4}}/>}
         </div>
 
         <div style={{
-          display:"flex", alignItems:"center", gap:4,
+          display:"flex", alignItems:"center", gap:3,
           background: flash ? `${T.brand}20` : "transparent",
           padding: "1px 4px", borderRadius: 4,
           transition: flash ? "none" : "background 5s cubic-bezier(0.4, 0, 0.2, 1)",
-          color: T.dim,
+          color: T.muted,
           fontWeight: 500,
-          opacity: 0.65,
+          opacity: 0.75,
           flexShrink: 0,
           marginLeft: "auto",
           fontFamily: "'JetBrains Mono',monospace",
-          fontSize: 9
+          fontSize: 9.5
         }}>
           <span style={highActivityStyle}>{activityStats.count}</span>
-          <span>·</span>
+          <span>/</span>
           <span style={highActivityStyle}>{fmtBytes(activityStats.size/1024)}</span>
         </div>
       </div>
