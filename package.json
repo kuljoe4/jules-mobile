@@ -5,10 +5,9 @@
   "type": "module",
   "scripts": {
     "build": "node build.js",
-    "start": "node server.js",
-    "dev": "node server.js",
     "test": "node tests/utils.test.mjs",
-    "watch": "nodemon -e js,jsx,html --ignore dist/ -x 'npm run build'"
+    "dev": "npm run build && npx http-server dist -p 8080 -c-1",
+    "watch": "nodemon -e js,html --ignore dist/ -x 'npm run build'"
   },
   "devDependencies": {
     "@babel/core": "^7.29.7",
@@ -17,8 +16,5 @@
     "@babel/preset-react": "^7.29.7",
     "@playwright/test": "^1.61.0",
     "nodemon": "^3.1.14"
-  },
-  "dependencies": {
-    "express": "^5.2.1"
   }
 }

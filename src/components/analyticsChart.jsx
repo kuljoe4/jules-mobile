@@ -1,4 +1,3 @@
-import { sanitizeErrorMessage } from "../services/api.js";
 import { SafeStorage } from '../services/storage.js';
 
 const AnalyticsChart = ({ getSessions }) => {
@@ -14,7 +13,7 @@ const AnalyticsChart = ({ getSessions }) => {
       try {
         setSessions(SafeStorage.loadSessionsList());
       } catch (err) {
-        console.error("Failed to load sessions for analytics", sanitizeErrorMessage(err.message || String(err)));
+        console.error("Failed to load sessions for analytics", err);
       }
     }
   }, [getSessions]);

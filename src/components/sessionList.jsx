@@ -302,14 +302,14 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
             </div>
           </div>
         ) : (
-<div style={{display:"flex",alignItems:"center",justifyContent:sidebarCollapsed?"center":"flex-start",gap:sidebarCollapsed?4:10,marginBottom:(scrolled||sidebarCollapsed)?0:10}}>
-          <div style={{width:scrolled?22:32,height:scrolled?22:32,borderRadius:7,background:"linear-gradient(135deg, #22d3ee, #0891b2)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace",fontSize:scrolled?12:17,fontWeight:900,color:"#07090e",boxShadow:scrolled?"none":`0 2px 10px ${T.brandDark}50`,flexShrink:0,transition:"all .2s cubic-bezier(0.16, 1, 0.3, 1)"}}>J</div>
+<div style={{display:"flex",alignItems:"center",justifyContent:sidebarCollapsed?"center":"flex-start",gap:sidebarCollapsed?4:8,marginBottom:(scrolled||sidebarCollapsed)?0:10}}>
+          <div style={{width:scrolled?20:32,height:scrolled?20:32,borderRadius:6,background:T.brand,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace",fontSize:scrolled?11:18,fontWeight:900,color:"#000",boxShadow:scrolled?"none":`0 0 12px ${T.brandDark}40`,flexShrink:0,transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)"}}>J</div>
           {!sidebarCollapsed && (
             <div style={{minWidth:0, transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)", flex: 1}}>
               <div style={{display:"flex", alignItems:"center", gap:6}}>
-                <div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:scrolled?12:14,fontWeight:700,letterSpacing:"-0.02em",color:T.text}}>Jules Agent</div>
+                <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:scrolled?12:14,fontWeight:700,color:T.text}}>JULES</div>
                 {active > 0 && !scrolled && (
-                  <span aria-label={`${active} active sessions`} style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:700,color:T.amberLight,background:T.amberDim,padding:"1px 5px",borderRadius:4,border:`1px solid ${T.amber}30`}}>⚡ {active}</span>
+                  <span aria-label={`${active} active sessions`} style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:800,color:T.amber,background:T.amberDim,padding:"1px 5px",borderRadius:4,border:`1px solid ${T.amber}30`}}>⚡ {active}</span>
                 )}
               </div>
               {!scrolled && (
@@ -317,7 +317,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
                   role="status"
                   aria-live="polite"
                   aria-label={`Session list state: ${refreshing ? "Fast delta sync in progress" : justRefreshed ? "Up to date" : countdown > 0 ? `Synced, next auto delta sync in ${countdown} seconds` : "Stale, click to sync"}`}
-                  style={{display:"flex", alignItems:"center", gap:5, marginTop:2}}
+                  style={{display:"flex", alignItems:"center", gap:4, marginTop:1}}
                 >
                   <div style={{
                     width: 6, height: 6, borderRadius: "50%", flexShrink: 0,
@@ -326,13 +326,12 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
                     animation: refreshing ? "dot 0.8s infinite alternate" : countdown > 0 ? "none" : "dot 1.5s infinite"
                   }}/>
                   <span style={{
-                    fontFamily:"'JetBrains Mono',monospace", fontSize:9, fontWeight:600,
+                    fontFamily:"'JetBrains Mono',monospace", fontSize:9, fontWeight:700,
                     color: refreshing ? T.brandLight : justRefreshed ? "#34d399" : countdown > 0 ? T.muted : T.amber,
-                    letterSpacing:"0.03em"
+                    letterSpacing:"0.04em"
                   }}>
-                    {refreshing ? "JULES THINKING…" : justRefreshed ? "UP TO DATE" : countdown > 0 ? `FAST SYNC · ${countdown}S` : "STALE · SYNC"}
+                    {refreshing ? "FAST SYNC..." : justRefreshed ? "UP TO DATE" : countdown > 0 ? `FAST SYNC · ${countdown}S` : "STALE · SYNC"}
                   </span>
-                  {refreshing && <JulesThinkingIndicator compact label="Querying Gemini…" style={{ padding: "1px 5px", fontSize: 9 }} />}
                 </div>
               )}
             </div>
@@ -340,13 +339,13 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
 
           <div style={{marginLeft:"auto",display:"flex",gap:4,alignItems:"center",flexShrink:0}}>
             {!sidebarCollapsed && !selectionMode && (
-              <button onClick={() => { if (filtered.length > 0) handleToggleSelect(filtered[0].id); }} title="Select items" aria-label="Select items" style={{width:32,height:32,borderRadius:6,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",transition:"background .15s ease"}} onMouseEnter={e => e.currentTarget.style.background = T.surfaceHi} onMouseLeave={e => e.currentTarget.style.background = "transparent"}><Ic n="check" s={14} c={T.muted}/></button>
+              <button onClick={() => { if (filtered.length > 0) handleToggleSelect(filtered[0].id); }} title="Select items" aria-label="Select items" style={{width:28,height:28,borderRadius:5,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="check" s={14} c={T.muted}/></button>
             )}
 
             {!sidebarCollapsed && (
               <>
-                <button onClick={toggleSearch} title="Search sessions (Press /)" aria-label="Search sessions (Press forward slash to search)" style={{width:32,height:32,borderRadius:6,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",transition:"background .15s ease"}} onMouseEnter={e => e.currentTarget.style.background = T.surfaceHi} onMouseLeave={e => e.currentTarget.style.background = "transparent"}><Ic n="search" s={14} c={searchOpen||searchQuery?T.blue:T.muted}/></button>
-                {(isDesktop || onNew) && <button onClick={onNew} title="New Session" aria-label="New Session" style={{width:32,height:32,borderRadius:6,background:`${T.brand}15`,border:`1px solid ${T.brand}30`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",transition:"all .15s ease"}} onMouseEnter={e => { e.currentTarget.style.background = `${T.brand}25`; e.currentTarget.style.borderColor = T.brand; }} onMouseLeave={e => { e.currentTarget.style.background = `${T.brand}15`; e.currentTarget.style.borderColor = `${T.brand}30`; }}><Ic n="plus" s={14} c={T.brand}/></button>}
+                <button onClick={toggleSearch} title="Search sessions (Press /)" aria-label="Search sessions (Press forward slash to search)" style={{width:28,height:28,borderRadius:5,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="search" s={14} c={searchOpen||searchQuery?T.blue:T.muted}/></button>
+                {(isDesktop || onNew) && <button onClick={onNew} title="New Session" aria-label="New Session" style={{width:28,height:28,borderRadius:5,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic n="plus" s={14} c={T.brand}/></button>}
 
                 {/* 3-Dots Context Menu */}
                 <div style={{position:"relative"}}>
@@ -357,19 +356,17 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
                     aria-expanded={menuOpen}
                     aria-haspopup="true"
                     style={{
-                      width:32, height:32, borderRadius:6,
+                      width:28, height:28, borderRadius:5,
                       background: menuOpen ? `${T.brand}20` : "transparent",
                       border: menuOpen ? `1px solid ${T.brand}60` : "none",
                       display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer",
                       position:"relative", transition:"all .15s ease"
                     }}
-                    onMouseEnter={e => { if (!menuOpen) e.currentTarget.style.background = T.surfaceHi; }}
-                    onMouseLeave={e => { if (!menuOpen) e.currentTarget.style.background = "transparent"; }}
                   >
                     <Ic n="more" s={14} c={menuOpen ? T.brand : T.muted}/>
                     {hasDrafts && !menuOpen && (
                       <span style={{
-                        position:"absolute", top:5, right:5, width:5, height:5,
+                        position:"absolute", top:4, right:4, width:5, height:5,
                         borderRadius:"50%", background:T.amber, boxShadow:`0 0 4px ${T.amber}`
                       }}/>
                     )}
@@ -508,9 +505,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
                 onClick={onCloseMobileDrawer}
                 title="Close Drawer"
                 aria-label="Close Drawer"
-                style={{width:32,height:32,borderRadius:6,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",transition:"background .15s ease"}}
-                onMouseEnter={e => e.currentTarget.style.background = T.surfaceHi}
-                onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                style={{width:28,height:28,borderRadius:5,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}
               >
                 <Ic n="x" s={14} c={T.muted}/>
               </button>
@@ -520,9 +515,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
                 onClick={onToggleMobileDrawer}
                 title="Open Sidebar Drawer"
                 aria-label="Open Sidebar Drawer"
-                style={{width:32,height:32,borderRadius:6,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",transition:"background .15s ease"}}
-                onMouseEnter={e => e.currentTarget.style.background = T.surfaceHi}
-                onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                style={{width:28,height:28,borderRadius:5,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}
               >
                 <Ic n="layout_toggle" s={14} c={T.brand}/>
               </button>
@@ -532,9 +525,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
                 onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
                 title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
                 aria-label={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
-                style={{width:32,height:32,borderRadius:6,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",transition:"background .15s ease"}}
-                onMouseEnter={e => e.currentTarget.style.background = T.surfaceHi}
-                onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                style={{width:28,height:28,borderRadius:5,background:"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}
               >
                 <Ic n={sidebarCollapsed ? "chevron_right" : "layout_toggle"} s={14} c={T.muted}/>
               </button>
@@ -597,41 +588,10 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
           </div>
         )}
         {isDesktop && !sidebarCollapsed && (
-          <div style={{display:"flex", gap:6, alignItems:"center", height:scrolled?0:34, overflow:"hidden", opacity:scrolled?0:1, marginBottom:scrolled?0:8, padding:scrolled?0:"2px 2px", transition:"all .25s cubic-bezier(0.4, 0, 0.2, 1)", pointerEvents:scrolled?"none":"auto"}}>
-            <div style={{display:"flex", background:T.surfaceHi, padding:2, borderRadius:6, border:`1px solid ${T.border}`}}>
-              <button
-                onClick={() => setShowArchived(false)}
-                aria-pressed={!showArchived ? "true" : "false"}
-                aria-label="Show active sessions"
-                title="Show active sessions"
-                style={{
-                  minHeight:26, padding:"0 10px", display:"inline-flex", alignItems:"center", justifyContent:"center",
-                  borderRadius:4, border:"none",
-                  background: !showArchived ? T.brandDim : "transparent",
-                  color: !showArchived ? T.brandLight : T.muted,
-                  fontFamily:"'JetBrains Mono',monospace", fontSize:10.5, fontWeight: !showArchived ? 700 : 500,
-                  letterSpacing:"0.04em", cursor:"pointer", transition:"all .12s ease"
-                }}
-              >
-                ACTIVE
-              </button>
-              <button
-                onClick={() => setShowArchived(true)}
-                aria-pressed={showArchived ? "true" : "false"}
-                aria-label="Show archived sessions"
-                title="Show archived sessions"
-                style={{
-                  minHeight:26, padding:"0 10px", display:"inline-flex", alignItems:"center", justifyContent:"center",
-                  borderRadius:4, border:"none",
-                  background: showArchived ? T.purpleDim : "transparent",
-                  color: showArchived ? T.purpleLight : T.muted,
-                  fontFamily:"'JetBrains Mono',monospace", fontSize:10.5, fontWeight: showArchived ? 700 : 500,
-                  letterSpacing:"0.04em", cursor:"pointer", transition:"all .12s ease"
-                }}
-              >
-                ARCHIVED
-              </button>
-            </div>
+          <div style={{display:"flex", gap:4, alignItems:"center", height:scrolled?0:22, overflow:"hidden", opacity:scrolled?0:1, marginBottom:scrolled?0:8, padding:scrolled?0:"4px 2px", transition:"all .25s cubic-bezier(0.4, 0, 0.2, 1)", pointerEvents:scrolled?"none":"auto"}}>
+            <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.textDim, letterSpacing:"0.08em", flexShrink:0, paddingRight:2}}>SESSIONS</span>
+            <button onClick={() => setShowArchived(false)} aria-pressed={!showArchived ? "true" : "false"} aria-label="Show active sessions" title="Show active sessions" style={{flexShrink:0, minHeight:36, padding:"0 14px", display:"inline-flex", alignItems:"center", justifyContent:"center", borderRadius:20, border:"none", background:!showArchived ? T.brandDim : "transparent", border:`1px solid ${!showArchived ? T.brand+"60" : T.border}`, color:!showArchived ? T.brand : T.muted, fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:!showArchived?700:400, letterSpacing:"0.05em", cursor:"pointer", transition:"all .12s cubic-bezier(0.4, 0, 0.2, 1)"}}>ACTIVE</button>
+            <button onClick={() => setShowArchived(true)} aria-pressed={showArchived ? "true" : "false"} aria-label="Show archived sessions" title="Show archived sessions" style={{flexShrink:0, minHeight:36, padding:"0 14px", display:"inline-flex", alignItems:"center", justifyContent:"center", borderRadius:20, border:"none", background:showArchived ? T.purpleDim : "transparent", border:`1px solid ${showArchived ? T.purple+"60" : T.border}`, color:showArchived ? T.purple : T.muted, fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:showArchived?700:400, letterSpacing:"0.05em", cursor:"pointer", transition:"all .12s cubic-bezier(0.4, 0, 0.2, 1)"}}>ARCHIVED</button>
             <div style={{flex:1}}></div>
             {setSessionSort && (
               <button
@@ -639,17 +599,9 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
                 aria-pressed={sessionSort === "CREATETIME" ? "true" : "false"}
                 aria-label={`Sort by ${sessionSort === "CREATETIME" ? "newest created" : "recent activity"}`}
                 title={`Sort by ${sessionSort === "CREATETIME" ? "newest created" : "recent activity"}`}
-                style={{
-                  minHeight:30, padding:"0 10px", display:"inline-flex", alignItems:"center", justifyContent:"center",
-                  borderRadius:6,
-                  background: sessionSort === "CREATETIME" ? `${T.blue}18` : T.surfaceHi,
-                  border: `1px solid ${sessionSort === "CREATETIME" ? `${T.blue}55` : T.border}`,
-                  color: sessionSort === "CREATETIME" ? T.blue : T.muted,
-                  fontFamily:"'JetBrains Mono',monospace", fontSize:10.5, fontWeight: sessionSort === "CREATETIME" ? 700 : 500,
-                  letterSpacing:"0.04em", cursor:"pointer", transition:"all .12s ease", gap: 5
-                }}
+                style={{flexShrink:0, minHeight:36, padding:"0 14px", display:"inline-flex", alignItems:"center", justifyContent:"center", borderRadius:20, border:"none", background:sessionSort === "CREATETIME" ? `${T.blue}20` : "transparent", border:`1px solid ${sessionSort === "CREATETIME" ? `${T.blue}80` : T.border}`, color:sessionSort === "CREATETIME" ? T.blue : T.muted, fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:sessionSort === "CREATETIME"?700:400, letterSpacing:"0.05em", cursor:"pointer", transition:"all .12s cubic-bezier(0.4, 0, 0.2, 1)", gap: 6}}
               >
-                <Ic n="clock" s={12} c={sessionSort === "CREATETIME" ? T.blue : T.muted} />
+                <Ic n="clock" s={14} c={sessionSort === "CREATETIME" ? T.blue : T.muted} />
                 <span>{sessionSort === "CREATETIME" ? "NEWEST" : "ACTIVITY"}</span>
               </button>
             )}
@@ -744,17 +696,21 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
                 aria-label={`Quota usage: ${todayCount.total} of ${plan?.daily || 15} tasks started, ${todayCount.done} PRs created`}
                 title={`QUOTA USAGE\nStarted: ${todayCount.total} of ${plan?.daily || 15}\nPRs Created: ${todayCount.done}\nIn Progress: ${todayCount.total - todayCount.done}\nNext Recovery: ${todayCount.nextResetTs ? fmtTime(todayCount.nextResetTs) : "N/A"} (${todayCount.resetIn})`}
                 style={{
-                  display:"flex", alignItems:"center", gap:8, padding:"5px 10px", borderRadius:6,
-                  background: T.surfaceHi,
-                  border:`1px solid ${T.border}`, marginRight:6, flexShrink:0, cursor:"help",
-                  boxShadow:`0 1px 3px rgba(0,0,0,0.3)`,
-                  transition:"all .15s cubic-bezier(0.16, 1, 0.3, 1)", position:"relative", overflow:"hidden"
+                  display:"flex", alignItems:"center", gap:9, padding:"6px 14px", borderRadius:22,
+                  background:`linear-gradient(135deg, ${T.surfaceHi}, ${T.bg})`,
+                  border:`1px solid ${T.borderHi}`, marginRight:10, flexShrink:0, cursor:"help",
+                  boxShadow:`0 4px 12px rgba(0,0,0,0.3), inset 0 0 10px ${T.brand}05`,
+                  transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)", position:"relative", overflow:"hidden"
                 }}
                 onMouseEnter={e => {
-                  e.currentTarget.style.borderColor = T.borderHi;
+                  e.currentTarget.style.transform = "translateY(-1px)";
+                  e.currentTarget.style.borderColor = T.brandDark;
+                  e.currentTarget.style.boxShadow = `0 6px 16px rgba(0,0,0,0.4), inset 0 0 15px ${T.brand}10`;
                 }}
                 onMouseLeave={e => {
-                  e.currentTarget.style.borderColor = T.border;
+                  e.currentTarget.style.transform = "none";
+                  e.currentTarget.style.borderColor = T.borderHi;
+                  e.currentTarget.style.boxShadow = `0 4px 12px rgba(0,0,0,0.3), inset 0 0 10px ${T.brand}05`;
                 }}
               >
                 {/* Visual indicator bar */}
@@ -762,32 +718,32 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
                   position:"absolute", bottom:0, left:0, height:2,
                   width:`${Math.min(100, (todayCount.total / (plan?.daily || 15)) * 100)}%`,
                   background:todayCount.total >= (plan?.daily||15) ? T.red : todayCount.total / (plan?.daily||15) > 0.8 ? T.amber : T.brand,
-                  opacity:0.8, transition:"width .5s cubic-bezier(0.4, 0, 0.2, 1)"
+                  opacity:0.6, transition:"width .5s cubic-bezier(0.4, 0, 0.2, 1)"
                 }}/>
 
                 <div style={{
-                  width:6, height:6, borderRadius:"50%",
+                  width:7, height:7, borderRadius:"50%",
                   background:todayCount.total >= (plan?.daily||15) ? T.red : todayCount.total / (plan?.daily||15) > 0.8 ? T.amber : T.brandLight,
-                  boxShadow:`0 0 6px ${todayCount.total / (plan?.daily||15) > 0.8 ? T.amber : T.brandLight}`,
+                  boxShadow:`0 0 10px ${todayCount.total / (plan?.daily||15) > 0.8 ? T.amber : T.brandLight}80`,
                   animation: todayCount.total >= (plan?.daily||15) ? "dot 1s infinite" : "none"
                 }}/>
 
                 <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                  <div style={{ display: "flex", alignItems: "baseline", gap: 2 }}>
-                    <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:12, fontWeight:700, color:T.text, letterSpacing:"-0.02em"}}>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 1 }}>
+                    <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:13, fontWeight:800, color:T.text, letterSpacing:"-0.03em"}}>
                       {todayCount.total}
                     </span>
                     <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:T.dim, fontWeight:500}}>/</span>
-                    <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:9.5, color:T.muted, fontWeight:600}}>
+                    <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.dim, fontWeight:700}}>
                       {plan?.daily || 15}
                     </span>
                   </div>
 
-                  <div style={{ width: 1, height: 10, background: T.border, margin: "0 3px" }} />
+                  <div style={{ width: 1, height: 12, background: T.border, margin: "0 4px" }} />
 
-                  <div style={{ display: "flex", alignItems: "center", gap: 3, color: T.brandLight }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 3, background:T.brandDim, padding:"2px 6px", borderRadius:4, border:`1px solid ${T.brand}20` }}>
                     <Ic n="git_pull" s={11} c={T.brandLight}/>
-                    <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:700, color:T.brandLight}}>
+                    <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:900, color:T.brandLight}}>
                       {todayCount.done}
                     </span>
                   </div>
@@ -803,20 +759,20 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
                   title={`Jump to ${gapInfo.duration} gap`}
                   aria-label={`Jump to ${gapInfo.duration} gap`}
                   style={{
-                    flexShrink:0, minHeight:30, padding:"0 10px",
-                    display:"inline-flex", alignItems:"center", gap:5,
-                    borderRadius:6,
-                    background: `${T.brand}15`,
-                    border:`1px solid ${T.brand}40`,
+                    flexShrink:0, minHeight:36, padding:"0 12px",
+                    display:"inline-flex", alignItems:"center", gap:6,
+                    borderRadius:20, border:"none",
+                    background: `${T.brand}20`,
+                    border:`1px solid ${T.brand}80`,
                     color: T.brand,
-                    fontFamily:"'JetBrains Mono',monospace", fontSize:10.5, fontWeight:700,
-                    letterSpacing:"0.04em", cursor:"pointer",
-                    transition:"all .15s cubic-bezier(0.16, 1, 0.3, 1)"
+                    fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:700,
+                    letterSpacing:"0.06em", cursor:"pointer",
+                    transition:"all .12s cubic-bezier(0.4, 0, 0.2, 1)"
                   }}
-                  onMouseEnter={e => e.currentTarget.style.background = `${T.brand}25`}
-                  onMouseLeave={e => e.currentTarget.style.background = `${T.brand}15`}
+                  onMouseEnter={e => e.currentTarget.style.background = `${T.brand}30`}
+                  onMouseLeave={e => e.currentTarget.style.background = `${T.brand}20`}
                 >
-                  <Ic n="clock" s={11} c={T.brand}/>
+                  <Ic n="clock" s={12} c={T.brand}/>
                   <span>GAP: {gapInfo.duration.toUpperCase()}</span>
                 </button>
               )}
@@ -835,28 +791,25 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
                     aria-label={`Filter by ${labelText}${cnt > 0 ? `, ${cnt} sessions` : ""}`}
                     title={`Filter by ${labelText}${cnt > 0 ? ` (${cnt})` : ""}`}
                     style={{
-                      flexShrink:0, minHeight:30, padding:"0 10px",
-                      display:"inline-flex", alignItems:"center", gap:5,
-                      borderRadius:6,
-                      background: isAct ? T.surfaceHi : "transparent",
-                      border: `1px solid ${isAct ? `${ac}55` : T.border}`,
-                      color: isAct ? T.textHi : T.muted,
-                      boxShadow: isAct ? "0 1px 3px rgba(0,0,0,0.3)" : "none",
-                      fontFamily:"'JetBrains Mono',monospace", fontSize:10.5, fontWeight:isAct?700:500,
-                      letterSpacing:"0.03em", cursor:"pointer",
-                      transition:"all .15s cubic-bezier(0.16, 1, 0.3, 1)"
+                      flexShrink:0, minHeight:36, padding:"0 12px",
+                      display:"inline-flex", alignItems:"center", gap:6,
+                      borderRadius:20, border:"none",
+                      background:isAct?`${ac}20`:"transparent",
+                      border:`1px solid ${isAct?`${ac}80`:T.border}`,
+                      color:isAct?ac:T.muted,
+                      fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:700,
+                      letterSpacing:"0.06em", cursor:"pointer",
+                      transition:"all .12s cubic-bezier(0.4, 0, 0.2, 1)"
                     }}
-                    onMouseEnter={e => { if (!isAct) e.currentTarget.style.background = T.surfaceHi; }}
-                    onMouseLeave={e => { if (!isAct) e.currentTarget.style.background = "transparent"; }}
                   >
-                    <Ic n={iconName} s={11} c={isAct ? ac : T.muted}/>
+                    <Ic n={iconName} s={12} c={isAct ? ac : T.muted}/>
                     <span>{labelText}</span>
                     {cnt > 0 && (
                       <span style={{
-                        fontSize: 9, fontWeight: 700,
-                        background: isAct ? `${ac}25` : "rgba(255,255,255,0.06)",
-                        color: isAct ? ac : T.dim,
-                        padding: "1px 5px", borderRadius: 4,
+                        fontSize: 9, fontWeight: 900,
+                        background: isAct ? `${ac}30` : T.surfaceHi,
+                        padding: "1px 5px", borderRadius: 10,
+                        border: `1px solid ${isAct ? `${ac}50` : T.border}`
                       }}>
                         {cnt}
                       </span>
