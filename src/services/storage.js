@@ -1,3 +1,4 @@
+import { sanitizeErrorMessage } from './api.js';
 import { DEFAULT_LEAN_DIRECTIVE } from "../config/constants.js";
 import { DEFAULT_PERSONAS } from "../config/personas.js";
 import { isValidGithubRepoName, isValidGithubToken, isValidGoogleApiKey, isValidSessionId, isValidStorageKey, sanitizeObjectKeys } from "../utils/validation.js";
@@ -40,6 +41,7 @@ const SafeStorage = {
     SESSIONS_LIST: "jac_sessions_list",
     SESSION_SORT: "jac_session_sort",
     REPO_FILTER: "jac_repo_filter",
+    GAP_THRESHOLD: "jac_gap_threshold",
   },
 
   // ─── CORE GENERIC HELPERS ──────────────────────────────────────────────────
@@ -199,6 +201,30 @@ const SafeStorage = {
   },
   saveLimit(v) {
     this.setItem(this.KEYS.LIMIT, v);
+  },
+
+  loadGapThreshold() {
+    try {
+      const fallback = typeof DEFAULT_GAP_THRESHOLD !== "undefined" ? DEFAULT_GAP_THRESHOLD : 18;
+      const v = parseInt(this.getItem(this.KEYS.GAP_THRESHOLD), 10);
+      const validOptions = typeof GAP_THRESHOLD_OPTIONS !== "undefined" ? GAP_THRESHOLD_OPTIONS.map(o => o.val) : [12, 18, 24, 48];
+      return validOptions.includes(v) ? v : fallback;
+    } catch {
+      return 18;
+    }
+  },
+  saveGapThreshold(v) {
+    try {
+      const validOptions = typeof GAP_THRESHOLD_OPTIONS !== "undefined" ? GAP_THRESHOLD_OPTIONS.map(o => o.val) : [12, 18, 24, 48];
+      const num = parseInt(v, 10);
+      if (validOptions.includes(num)) {
+        this.setItem(this.KEYS.GAP_THRESHOLD, num);
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
   },
 
   loadPlan() {
@@ -772,7 +798,7 @@ const SafeStorage = {
         }
       }
     } catch (e) {
-      console.error("Error scanning follow-up drafts", e);
+      console.error("Error scanning follow-up drafts", sanitizeErrorMessage(e.message || String(e)));
     }
     return map;
   },

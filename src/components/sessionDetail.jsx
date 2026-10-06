@@ -1,3 +1,4 @@
+import { sanitizeErrorMessage } from "../services/api.js";
 import { copyToClipboard } from "../utils/format.js";
 import { isValidSessionId } from "../utils/validation.js";
 import { MediaModal } from "./mediaModal.jsx";
@@ -410,7 +411,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   const loadActivities = useCallback(async (sinceTs=null) => {
     // Security: Validate session ID to prevent endpoint path manipulation or parameter pollution
     if (!isValidSessionId(session?.id) || isDeletedRef.current) {
-      console.error("[LoadActivities] Aborting request due to invalid session ID:", session?.id);
+      console.error("[LoadActivities] Aborting request due to invalid session ID:", sanitizeErrorMessage(String(session?.id)));
       return;
     }
     if (activitiesAbortRef.current) {
@@ -518,7 +519,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
           SafeStorage.saveActStats(allStats);
           onStatsUpdate?.(session.id, stats);
           window.dispatchEvent(new CustomEvent("jac_stats_updated", { detail: allStats }));
-        } catch (e) { console.error("Failed to save stats", e); }
+        } catch (e) { console.error("Failed to save stats", sanitizeErrorMessage(e.message || String(e))); }
       }
 
       // Success! Reset 404 counter
@@ -552,7 +553,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
         // Do not display raw 404 errors in the UI for recently created or transiently missing sessions
         return;
       }
-      console.error("[LoadActivities] Error:", err);
+      console.error("[LoadActivities] Error:", sanitizeErrorMessage(err.message || String(err)));
       setErr(err.message);
     } finally {
       if (activitiesAbortRef.current === controller) {
@@ -581,7 +582,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
         // Do not display raw 404 errors in the UI for recently created or transiently missing sessions
         return;
       }
-      console.error("[LoadSession] Error:", err);
+      console.error("[LoadSession] Error:", sanitizeErrorMessage(err.message || String(err)));
       setErr(err.message);
     }
   }, [apiKey, session.id, onSessionUpdate]);
@@ -1276,6 +1277,9 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                 {!scrolled && "STALE"}
               </span>
             )}
+            {busy && (
+              <JulesThinkingIndicator compact label="Jules is thinking..." />
+            )}
             <Pill status={currentState} small hideLabel={!headerExpanded && scrolled}/>
 
             <div style={{position:"relative"}}>
@@ -1818,14 +1822,20 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
         )}
 
 
-        <div role="tablist" aria-label="Session detail tabs" style={{display:"flex", paddingBottom:scrolled?4:0, transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)"}}>
+        <div role="tablist" aria-label="Session detail tabs" style={{
+          display:"flex", gap:3, padding:"3px", borderRadius:8,
+          background:T.surfaceHi, border:`1px solid ${T.border}`,
+          marginBottom:scrolled?6:10, transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)"
+        }}>
           {TABS.map(t=>(
             <button key={t.id} role="tab" aria-selected={tab===t.id?"true":"false"} onClick={()=>setTab(t.id)} style={{
-              flex:1,padding:"6px 0",background:"none",border:"none",
-              borderBottom:`2px solid ${tab===t.id?T.brand:"transparent"}`,
-              color:tab===t.id?T.brand:T.muted,cursor:"pointer",
-              fontFamily:"'JetBrains Mono',monospace",fontSize:10,fontWeight:800,letterSpacing:"0.05em",
-              transition:"color .15s cubic-bezier(0.4, 0, 0.2, 1), border-color .15s cubic-bezier(0.4, 0, 0.2, 1)",
+              flex:1, minHeight:32, padding:"0 8px", background:tab===t.id?T.surface:"transparent",
+              border:tab===t.id?`1px solid ${T.borderHi}`:"1px solid transparent",
+              borderRadius:6,
+              boxShadow:tab===t.id?"0 1px 3px rgba(0,0,0,0.4)":"none",
+              color:tab===t.id?T.brandLight:T.muted,cursor:"pointer",
+              fontFamily:"'JetBrains Mono',monospace",fontSize:10.5,fontWeight:tab===t.id?700:500,letterSpacing:"0.04em",
+              transition:"all .15s cubic-bezier(0.16, 1, 0.3, 1)",
             }}>{t.label}</button>
           ))}
         </div>
@@ -1835,22 +1845,25 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
         {tab==="activity"&&(
           <>
             <div style={{display:"flex", alignItems:"center", gap:6, marginBottom:16, flexWrap:"wrap"}}>
-              {["ALL", "MESSAGES", "REVIEWS", "SYSTEM"].map(f => (
-                <button
-                  key={f}
-                  onClick={() => setChatFilter(f)}
-                  style={{
-                    minHeight: 36, padding: "0 14px", display: "inline-flex", alignItems: "center", justifyContent: "center", borderRadius: 12, border: "none",
-                    background: chatFilter === f ? T.brandDim : "transparent",
-                    color: chatFilter === f ? T.brand : T.muted,
-                    fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 800,
-                    cursor: "pointer", border: chatFilter === f ? `1px solid ${T.brand}40` : `1px solid ${T.border}`,
-                    transition: "all .15s cubic-bezier(0.4, 0, 0.2, 1)"
-                  }}
-                >
-                  {f}
-                </button>
-              ))}
+              <div style={{display:"flex", alignItems:"center", gap:3, padding:"3px", background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:8}}>
+                {["ALL", "MESSAGES", "REVIEWS", "SYSTEM"].map(f => (
+                  <button
+                    key={f}
+                    onClick={() => setChatFilter(f)}
+                    style={{
+                      minHeight: 28, padding: "0 10px", display: "inline-flex", alignItems: "center", justifyContent: "center",
+                      borderRadius: 6, border: chatFilter === f ? `1px solid ${T.borderHi}` : "1px solid transparent",
+                      background: chatFilter === f ? T.surface : "transparent",
+                      color: chatFilter === f ? T.textHi : T.muted,
+                      boxShadow: chatFilter === f ? "0 1px 3px rgba(0,0,0,0.4)" : "none",
+                      fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: chatFilter === f ? 700 : 500,
+                      cursor: "pointer", transition: "all .15s cubic-bezier(0.16, 1, 0.3, 1)"
+                    }}
+                  >
+                    {f}
+                  </button>
+                ))}
+              </div>
               <div style={{flex:1}}/>
               <button
                 onClick={() => {
@@ -2565,6 +2578,15 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                   onReply={handleReply}
                 />
             }
+            {busy && (
+              <div style={{ marginTop: 14, marginBottom: 6, animation: "fadeIn .2s ease" }}>
+                <JulesThinkingIndicator
+                  inline
+                  label="Jules is thinking..."
+                  subtext="Processing request on Gemini server…"
+                />
+              </div>
+            )}
             <div style={{
               marginTop: 20, marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "center",
             }}>
@@ -3126,6 +3148,16 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
           )}
 
           {!composerMinimized && <MultiPersonaPicker personas={personas} selectedIds={selectedPersonas} onToggle={togglePersona} style={{marginBottom:10}} />}
+
+          {busy && (
+            <div style={{ marginBottom: 10, animation: "fadeIn .2s ease" }}>
+              <JulesThinkingIndicator
+                inline
+                label="Jules is thinking..."
+                subtext="Sending message to Gemini server…"
+              />
+            </div>
+          )}
 
           <div style={{position:"relative", display:"flex", flexDirection:"column"}}>
             {!composerMinimized ? (

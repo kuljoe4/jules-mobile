@@ -23,12 +23,6 @@ const getExtractedLinks = (pu) => {
   return res;
 };
 
-const inputSt = {
-  width:"100%",background:T.surfaceHi,border:`1px solid ${T.border}`,borderRadius:6,
-  padding:"10px 12px",color:T.text,fontFamily:"'IBM Plex Sans',sans-serif",fontSize:15,
-  outline:"none",boxSizing:"border-box",transition:"border-color .18s cubic-bezier(0.4, 0, 0.2, 1)",
-};
-
 // ─── Media Artifacts ──────────────────────────────────────────────────────────
 const MediaArtifacts = memo(({ artifacts, ts, onMediaClick }) => {
   const mediaItems = (artifacts || []).filter(a => a.media?.data);
