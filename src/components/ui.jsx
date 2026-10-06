@@ -43,6 +43,12 @@ const Ic = ({n,s=16,c=T.muted,style, ...props}) => (
   </svg>
 );
 
+const inputSt = {
+  width:"100%",background:T.surfaceHi,border:`1px solid ${T.border}`,borderRadius:6,
+  padding:"10px 14px",color:T.text,fontFamily:"'Plus Jakarta Sans','IBM Plex Sans',sans-serif",fontSize:14,
+  outline:"none",boxSizing:"border-box",transition:"all .15s cubic-bezier(0.16, 1, 0.3, 1)",
+};
+
 // ─── UI Primitives ────────────────────────────────────────────────────────────
 const Pill = ({status,small=false,hideLabel=false}) => {
   const m = STATUS_META[status] || STATUS_META.QUEUED;
@@ -52,14 +58,17 @@ const Pill = ({status,small=false,hideLabel=false}) => {
       title={m.label}
       aria-label={`Status: ${m.label}`}
       style={{
-      display:"inline-flex",alignItems:"center",gap:4,
-      padding:small?(hideLabel?"4px":"2px 8px"):"4px 10px",borderRadius:4,
-      background:m.bg,border:`1px solid ${m.color}40`,
+      display:"inline-flex",alignItems:"center",gap:5,
+      padding:small?(hideLabel?"3px 5px":"2px 6px"):"3px 8px",borderRadius:4,
+      background:m.bg,border:`1px solid ${m.color}25`,
       fontFamily:"'JetBrains Mono',monospace",
-      fontSize:small?10:11,fontWeight:800,letterSpacing:"0.08em",color:m.color,flexShrink:0,
+      fontSize:small?10:11,fontWeight:700,letterSpacing:"0.04em",color:m.color,flexShrink:0,
+      lineHeight:1.2,
       boxShadow:"none",
     }}>
-      {m.pulse && status !== "COMPLETED" && <span style={{width:4,height:4,borderRadius:"50%",background:pulseColor,animation:"dot 1.2s ease-in-out infinite",flexShrink:0}}/>}
+      {m.pulse && status !== "COMPLETED" && (
+        <span style={{width:5,height:5,borderRadius:"50%",background:pulseColor,boxShadow:`0 0 6px ${pulseColor}`,animation:"dot 1.2s ease-in-out infinite",flexShrink:0}}/>
+      )}
       {hideLabel ? (
         <div style={{ display: "flex", animation: status === "IN_PROGRESS" ? "spin 2s linear infinite" : "none" }}>
           <Ic n={m.icon} s={11} c={m.color}/>
@@ -111,14 +120,15 @@ const Bar = ({pct,status,syncing,secondaryPct=0}) => {
 const Btn = ({children,onClick,color=T.brand,disabled=false,outline=false,sm=false,style:s={},...props}) => (
   <button onClick={onClick} disabled={disabled} {...props} style={{
     background:outline?"transparent":(disabled?T.dim:color),
-    border:`1px solid ${disabled?T.border:color+(outline?"77":"00")}`,
-    borderRadius:6,cursor:disabled?"default":"pointer",
-    padding:sm?"8px 14px":"12px 18px",
-    color:disabled?T.muted:(outline?color:"#000"),
-    fontFamily:"'JetBrains Mono',monospace",fontSize:sm?11:12,fontWeight:800,letterSpacing:"0.08em",
-    transition:"all .15s cubic-bezier(0.4, 0, 0.2, 1)",opacity:disabled?.5:1,
-    display:"flex",alignItems:"center",justifyContent:"center",gap:8,
-    boxShadow:outline?"none":(disabled?"none":`0 4px 12px ${color}30`),
+    border:`1px solid ${disabled?T.border:(outline?`${color}60`:"transparent")}`,
+    borderRadius:6,cursor:disabled?"not-allowed":"pointer",
+    padding:sm?"7px 14px":"10px 20px",
+    minHeight: sm ? 36 : 44,
+    color:disabled?T.muted:(outline?color:"#07090e"),
+    fontFamily:"'Plus Jakarta Sans','IBM Plex Sans',sans-serif",fontSize:sm?12:13.5,fontWeight:700,letterSpacing:"0.01em",
+    transition:"all .15s cubic-bezier(0.16, 1, 0.3, 1)",opacity:disabled?.5:1,
+    display:"inline-flex",alignItems:"center",justifyContent:"center",gap:8,
+    boxShadow:outline?"none":(disabled?"none":`0 2px 10px ${color}25`),
     ...s,
   }}>{children}</button>
 );
@@ -143,13 +153,14 @@ const PickerBtn = ({ label, isAct, onClick, activeColor=T.brand, activeBg=null, 
     title={title || (typeof label === "string" ? label : undefined)}
     {...props}
     style={{
-      flexShrink:0, minHeight:36, padding:"0 14px", borderRadius:20, border:"none",
+      flexShrink:0, minHeight:34, padding:"0 12px", borderRadius:6,
       display:"inline-flex", alignItems:"center", justifyContent:"center",
-      background:isAct ? (activeBg || `${activeColor}15`) : "transparent",
-      border:`1px solid ${isAct ? `${activeColor}60` : T.border}`,
-      color:isAct ? activeColor : T.muted,
-      fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:isAct?700:400,
-      letterSpacing:"0.05em", cursor:"pointer", transition:"all .12s cubic-bezier(0.4, 0, 0.2, 1)",
+      background: isAct ? (activeBg || T.surfaceHi) : "transparent",
+      border:`1px solid ${isAct ? `${activeColor}55` : T.border}`,
+      color: isAct ? T.textHi : T.muted,
+      boxShadow: isAct ? `0 1px 4px rgba(0,0,0,0.4), inset 0 0 0 1px ${activeColor}33` : "none",
+      fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:isAct?700:500,
+      letterSpacing:"0.04em", cursor:"pointer", transition:"all .15s cubic-bezier(0.16, 1, 0.3, 1)",
       ...s,
     }}
   >{label}</button>
@@ -158,6 +169,340 @@ const PickerBtn = ({ label, isAct, onClick, activeColor=T.brand, activeBg=null, 
 const Backdrop = ({ onClick, zIndex=100 }) => (
   <div style={{ position:"fixed", inset:0, zIndex }} onClick={onClick}/>
 );
+
+// ─── Jules Thinking Indicator & Hook ───────────────────────────────────────────
+const useJulesThinking = (localBusy = false, localLabel = "") => {
+  const [globalState, setGlobalState] = useState(() => ({
+    isThinking: false,
+    count: 0,
+    label: ""
+  }));
+
+  useEffect(() => {
+    const handleEvent = (e) => {
+      if (e?.detail) setGlobalState(e.detail);
+    };
+    window.addEventListener("jules-thinking-state", handleEvent);
+    return () => window.removeEventListener("jules-thinking-state", handleEvent);
+  }, []);
+
+  const isThinking = Boolean(localBusy || globalState.isThinking);
+  const label = localLabel || globalState.label || "Jules is thinking...";
+
+  return { isThinking, count: globalState.count, label };
+};
+
+const JulesThinkingIndicator = ({
+  inline = false,
+  compact = false,
+  label = "Jules is thinking...",
+  subtext = "Consulting Gemini server…",
+  style: customStyle = {}
+}) => {
+  const [elapsed, setElapsed] = useState("0.0");
+
+  useEffect(() => {
+    const start = Date.now();
+    const interval = setInterval(() => {
+      setElapsed(((Date.now() - start) / 1000).toFixed(1));
+    }, 100);
+    return () => clearInterval(interval);
+  }, []);
+
+  if (compact) {
+    return (
+      <div
+        role="status"
+        aria-live="polite"
+        title="Jules is processing request on Gemini server"
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 7,
+          padding: "3px 9px",
+          borderRadius: 6,
+          background: "rgba(6, 182, 212, 0.12)",
+          border: `1px solid ${T.brand}40`,
+          boxShadow: `0 0 14px rgba(6, 182, 212, 0.15)`,
+          fontFamily: "'JetBrains Mono',monospace",
+          fontSize: 10.5,
+          fontWeight: 700,
+          color: T.brandLight,
+          animation: "fadeIn .2s ease",
+          ...customStyle
+        }}
+      >
+        <div style={{ position: "relative", width: 7, height: 7, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ position: "absolute", width: 7, height: 7, borderRadius: "50%", background: T.brand, animation: "thinkingWave 1.4s ease-in-out infinite" }} />
+          <div style={{ width: 11, height: 11, borderRadius: "50%", border: `1px solid ${T.brand}`, animation: "dot 1.4s ease-in-out infinite", opacity: 0.6 }} />
+        </div>
+        <span>{label}</span>
+        <div style={{ display: "inline-flex", gap: 2.5, alignItems: "center", marginLeft: 1 }}>
+          <span style={{ width: 3, height: 3, borderRadius: "50%", background: T.brand, animation: "thinkingWave 1.2s infinite ease-in-out", animationDelay: "0ms" }} />
+          <span style={{ width: 3, height: 3, borderRadius: "50%", background: T.brand, animation: "thinkingWave 1.2s infinite ease-in-out", animationDelay: "200ms" }} />
+          <span style={{ width: 3, height: 3, borderRadius: "50%", background: T.brand, animation: "thinkingWave 1.2s infinite ease-in-out", animationDelay: "400ms" }} />
+        </div>
+      </div>
+    );
+  }
+
+  if (inline) {
+    return (
+      <div
+        role="status"
+        aria-live="polite"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          padding: "8px 12px",
+          borderRadius: 8,
+          background: "rgba(6, 182, 212, 0.08)",
+          border: `1px solid ${T.brand}33`,
+          fontFamily: "'Plus Jakarta Sans',sans-serif",
+          fontSize: 12.5,
+          color: T.text,
+          animation: "fadeIn .2s ease",
+          ...customStyle
+        }}
+      >
+        <div style={{
+          width: 22, height: 22, borderRadius: 6,
+          background: "linear-gradient(135deg, #22d3ee, #0891b2)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 900, color: "#090d14",
+          boxShadow: `0 0 10px rgba(6, 182, 212, 0.4)`,
+          animation: "pulseRepo 2s infinite ease-in-out",
+          flexShrink: 0
+        }}>
+          J
+        </div>
+        <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontWeight: 700, color: T.brandLight }}>{label}</span>
+          <div style={{ display: "inline-flex", gap: 2.5, alignItems: "center" }}>
+            <span style={{ width: 3.5, height: 3.5, borderRadius: "50%", background: T.brand, animation: "thinkingWave 1.2s infinite ease-in-out", animationDelay: "0ms" }} />
+            <span style={{ width: 3.5, height: 3.5, borderRadius: "50%", background: T.brand, animation: "thinkingWave 1.2s infinite ease-in-out", animationDelay: "200ms" }} />
+            <span style={{ width: 3.5, height: 3.5, borderRadius: "50%", background: T.brand, animation: "thinkingWave 1.2s infinite ease-in-out", animationDelay: "400ms" }} />
+          </div>
+          {subtext && <span style={{ color: T.muted, fontSize: 11 }}>· {subtext}</span>}
+        </div>
+        <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, color: T.dim, fontVariantNumeric: "tabular-nums" }}>
+          {elapsed}s
+        </span>
+      </div>
+    );
+  }
+
+  // Full Card banner variant
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 10,
+        padding: "14px 16px",
+        borderRadius: 10,
+        background: `linear-gradient(135deg, rgba(6,182,212,0.1), rgba(129,140,248,0.06)), ${T.surfaceHi}`,
+        border: `1px solid ${T.brand}44`,
+        boxShadow: `0 8px 24px rgba(0,0,0,0.3), 0 0 16px rgba(6,182,212,0.12)`,
+        animation: "fadeIn .25s ease-out",
+        ...customStyle
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{
+            width: 28, height: 28, borderRadius: 8,
+            background: "linear-gradient(135deg, #22d3ee, #0891b2)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontFamily: "'JetBrains Mono',monospace", fontSize: 14, fontWeight: 900, color: "#090d14",
+            boxShadow: `0 0 12px rgba(6, 182, 212, 0.45)`,
+            animation: "pulseRepo 2.4s infinite ease-in-out",
+            flexShrink: 0
+          }}>
+            J
+          </div>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontSize: 13, fontWeight: 700, color: T.textHi }}>
+                {label}
+              </span>
+              <div style={{ display: "inline-flex", gap: 3, alignItems: "center" }}>
+                <span style={{ width: 3.5, height: 3.5, borderRadius: "50%", background: T.brandLight, animation: "thinkingWave 1.2s infinite ease-in-out", animationDelay: "0ms" }} />
+                <span style={{ width: 3.5, height: 3.5, borderRadius: "50%", background: T.brandLight, animation: "thinkingWave 1.2s infinite ease-in-out", animationDelay: "200ms" }} />
+                <span style={{ width: 3.5, height: 3.5, borderRadius: "50%", background: T.brandLight, animation: "thinkingWave 1.2s infinite ease-in-out", animationDelay: "400ms" }} />
+              </div>
+            </div>
+            <div style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontSize: 11.5, color: T.muted }}>
+              {subtext}
+            </div>
+          </div>
+        </div>
+        <div style={{
+          display: "flex", alignItems: "center", gap: 6,
+          padding: "3px 8px", borderRadius: 4, background: "rgba(0,0,0,0.3)", border: `1px solid ${T.border}`
+        }}>
+          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: T.brand, fontWeight: 700 }}>
+            GEMINI SERVER
+          </span>
+          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, color: T.textHi, fontVariantNumeric: "tabular-nums", fontWeight: 700 }}>
+            {elapsed}s
+          </span>
+        </div>
+      </div>
+      {/* Animated shimmer track */}
+      <div style={{ width: "100%", height: 3, background: "rgba(255,255,255,0.06)", borderRadius: 2, overflow: "hidden", position: "relative" }}>
+        <div style={{
+          position: "absolute", top: 0, bottom: 0, width: "40%",
+          background: `linear-gradient(90deg, transparent, ${T.brand}, ${T.indigoLight}, transparent)`,
+          animation: "barIndeterminate 1.8s infinite ease-in-out"
+        }} />
+      </div>
+    </div>
+  );
+};
+
+const GlobalThinkingBar = () => {
+  const { isThinking, count, label } = useJulesThinking();
+  const [elapsed, setElapsed] = useState("0.0");
+  const startRef = useRef(null);
+
+  useEffect(() => {
+    if (isThinking) {
+      startRef.current = Date.now();
+      const interval = setInterval(() => {
+        if (startRef.current) {
+          setElapsed(((Date.now() - startRef.current) / 1000).toFixed(1));
+        }
+      }, 100);
+      return () => clearInterval(interval);
+    } else {
+      startRef.current = null;
+      setElapsed("0.0");
+    }
+  }, [isThinking]);
+
+  if (!isThinking) return null;
+
+  return (
+    <aside
+      role="status"
+      aria-live="polite"
+      aria-label="Jules is thinking and processing request on Gemini server"
+      style={{
+        position: "fixed",
+        top: 14,
+        left: "50%",
+        transform: "translateX(-50%)",
+        zIndex: 9999,
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: "7px 16px",
+        borderRadius: 24,
+        background: "rgba(14, 20, 32, 0.94)",
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
+        border: `1px solid ${T.brand}55`,
+        boxShadow: `0 8px 32px rgba(0,0,0,0.55), 0 0 24px rgba(6, 182, 212, 0.28)`,
+        animation: "slideDownFade .25s cubic-bezier(0.16, 1, 0.3, 1)",
+        pointerEvents: "auto",
+        maxWidth: "92vw",
+        overflow: "hidden"
+      }}
+    >
+      {/* Pulsing indicator node */}
+      <div style={{
+        position: "relative",
+        width: 18,
+        height: 18,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexShrink: 0
+      }}>
+        <div style={{
+          position: "absolute",
+          inset: 0,
+          borderRadius: "50%",
+          background: "rgba(6, 182, 212, 0.25)",
+          animation: "thinkingGlow 1.8s infinite ease-in-out"
+        }} />
+        <div style={{
+          width: 8,
+          height: 8,
+          borderRadius: "50%",
+          background: T.brand,
+          boxShadow: `0 0 10px ${T.brandLight}`,
+          animation: "dot 1.2s infinite ease-in-out"
+        }} />
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
+        <span style={{
+          fontFamily: "'Plus Jakarta Sans',sans-serif",
+          fontSize: 12.5,
+          fontWeight: 700,
+          color: T.textHi,
+          letterSpacing: "-0.01em",
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis"
+        }}>
+          {label || "Jules is thinking..."}
+        </span>
+        {/* Animated wave dots */}
+        <div style={{ display: "inline-flex", gap: 3, alignItems: "center", flexShrink: 0 }}>
+          <span style={{ width: 3.5, height: 3.5, borderRadius: "50%", background: T.brandLight, animation: "thinkingWave 1.2s infinite ease-in-out", animationDelay: "0ms" }} />
+          <span style={{ width: 3.5, height: 3.5, borderRadius: "50%", background: T.brandLight, animation: "thinkingWave 1.2s infinite ease-in-out", animationDelay: "200ms" }} />
+          <span style={{ width: 3.5, height: 3.5, borderRadius: "50%", background: T.brandLight, animation: "thinkingWave 1.2s infinite ease-in-out", animationDelay: "400ms" }} />
+        </div>
+      </div>
+
+      <div style={{ width: 1, height: 12, background: T.borderHi, flexShrink: 0 }} />
+
+      <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+        <span style={{
+          fontFamily: "'JetBrains Mono',monospace",
+          fontSize: 9.5,
+          color: T.brand,
+          fontWeight: 700,
+          letterSpacing: "0.04em",
+          textTransform: "uppercase"
+        }}>
+          GEMINI SERVER
+        </span>
+        <span style={{
+          fontFamily: "'JetBrains Mono',monospace",
+          fontSize: 11,
+          color: T.textHi,
+          fontWeight: 700,
+          fontVariantNumeric: "tabular-nums"
+        }}>
+          {elapsed}s
+        </span>
+      </div>
+
+      {count > 1 && (
+        <span style={{
+          background: `${T.brand}22`,
+          border: `1px solid ${T.brand}44`,
+          color: T.brandLight,
+          fontFamily: "'JetBrains Mono',monospace",
+          fontSize: 9.5,
+          fontWeight: 700,
+          padding: "1px 6px",
+          borderRadius: 10,
+          flexShrink: 0
+        }}>
+          {count} active
+        </span>
+      )}
+    </aside>
+  );
+};
 
 const SearchPicker = ({ value, search, onSearch, onSelect, onHide, options, placeholder, icon, isOpen, getDisplay, getVal, renderExtra }) => {
   return (
