@@ -930,9 +930,9 @@ function JulesClient() {
               title={buttonTitle}
               style={{flex:1,padding:"11px 0 13px",background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:4}}
             >
-              <div style={{position:"relative"}}>
-                <Ic n={n} s={22} c={isAct?T.brand:T.muted}/>
-                {hasAlert&&<div style={{position:"absolute",top:-2,right:-4,width:7,height:7,borderRadius:"50%",background:T.purple,border:`1.5px solid ${T.surface}`,animation:"dot 1.5s ease-in-out infinite"}}/>}
+              <div style={{position:"relative", display:"flex", alignItems:"center", justifyContent:"center"}}>
+                <Ic n={n} s={20} c={isAct?T.brandLight:T.muted}/>
+                {hasAlert&&<div style={{position:"absolute",top:-2,right:-4,width:7,height:7,borderRadius:"50%",background:T.purple,border:`1.5px solid ${T.surface}`}}/>}
               </div>
               <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:isAct?T.brand:T.muted,fontWeight:isAct?700:400,letterSpacing:"0.07em"}}>{label}</span>
             </button>
