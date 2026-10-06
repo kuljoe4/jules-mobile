@@ -1,0 +1,7 @@
+{
+  "name": "Jules Agent",
+  "description": "Jules AI coding agent client — monitor sessions, review plans, send messages",
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

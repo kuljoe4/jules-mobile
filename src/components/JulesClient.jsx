@@ -1,3 +1,4 @@
+import { sanitizeErrorMessage } from "../services/api.js";
 import { isValidSessionId } from "../utils/validation.js";
 
 function JulesClient() {
@@ -318,7 +319,7 @@ function JulesClient() {
                 SafeStorage.deleteQueuedSession(qsSession.id);
                 processedAny = true;
              } catch (err) {
-                console.error("Failed to start queued session", qsSession, err);
+                console.error("Failed to start queued session", qsSession, sanitizeErrorMessage(err.message || String(err)));
              }
            }
         }
@@ -541,7 +542,7 @@ function JulesClient() {
       }
     } catch (err) {
       if (err.name === 'AbortError') return;
-      console.error("[FetchSessions] Error:", err);
+      console.error("[FetchSessions] Error:", sanitizeErrorMessage(err.message || String(err)));
       if (!quiet) setGlobalErr(err.message);
     } finally {
       if (sessionsAbortRef.current === controller) {
@@ -693,10 +694,235 @@ function JulesClient() {
         {/* Main panel */}
         <div style={{flex:1,display:"flex",flexDirection:"column",height:"100vh",overflow:"hidden",minWidth:0}}>
           {desktopView==="empty"&&(
-            <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:14,padding:32}}>
-              <div style={{width:48,height:48,borderRadius:11,background:T.brandDim,border:`1px solid ${T.brand}25`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace",fontSize:26,fontWeight:900,color:T.brand}}>J</div>
-              <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim,textAlign:"center",lineHeight:2}}>
-                SELECT A SESSION ←{"\u00A0"}{"\u00A0"}OR{"\u00A0"}{"\u00A0"}NEW ↖
+            <div style={{
+              flex:1, display:"flex", flexDirection:"column", height:"100%", overflowY:"auto",
+              background:`radial-gradient(ellipse 700px 350px at 50% 15%, rgba(6,182,212,0.08), transparent 70%), ${T.bg}`,
+              position:"relative"
+            }}>
+              {/* Header Top Bar Contract */}
+              <div style={{
+                display:"flex", alignItems:"center", justifyContent:"space-between",
+                padding:"14px 28px", borderBottom:`1px solid ${T.border}`, background:T.surface,
+                flexShrink:0
+              }}>
+                <div style={{display:"flex", alignItems:"center", gap:8, fontSize:12, color:T.muted, fontFamily:"'JetBrains Mono',monospace"}}>
+                  <span style={{color:T.dim}}>Workspace</span>
+                  <span style={{color:T.dim}}>·</span>
+                  <span style={{color:T.textHi, fontWeight:700}}>Jules Agent</span>
+                </div>
+                <div style={{display:"flex", alignItems:"center", gap:8}}>
+                  <Btn sm outline color={T.muted} onClick={()=>setDesktop("drafts")}>
+                    <Ic n="layers" s={13} c={T.muted}/>
+                    <span>Drafts</span>
+                  </Btn>
+                  <Btn sm outline color={T.muted} onClick={()=>setDesktop("settings")}>
+                    <Ic n="settings" s={13} c={T.muted}/>
+                    <span>Settings</span>
+                  </Btn>
+                  <Btn sm color={T.brand} onClick={()=>setDesktop("new")}>
+                    <Ic n="plus" s={13} c="#07090e"/>
+                    <span>New Session</span>
+                  </Btn>
+                </div>
+              </div>
+
+              {/* Main Hub Canvas */}
+              <div style={{
+                flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
+                padding:"48px 32px", maxWidth:880, margin:"0 auto", width:"100%", boxSizing:"border-box"
+              }}>
+                {/* Agent Insignia */}
+                <div style={{
+                  width:68, height:68, borderRadius:16,
+                  background:"linear-gradient(135deg, #22d3ee, #0891b2)",
+                  display:"flex", alignItems:"center", justifyContent:"center",
+                  fontFamily:"'JetBrains Mono',monospace", fontSize:32, fontWeight:900, color:"#07090e",
+                  boxShadow:`0 8px 32px rgba(6,182,212,0.35)`,
+                  marginBottom:22
+                }}>J</div>
+
+                {/* Typography Heading */}
+                <h1 style={{
+                  fontFamily:"'Plus Jakarta Sans',sans-serif", fontSize:24, fontWeight:700,
+                  color:T.textHi, letterSpacing:"-0.03em", textAlign:"center", margin:0, marginBottom:10
+                }}>
+                  Autonomous Coding Agent Workspace
+                </h1>
+
+                <p style={{
+                  fontFamily:"'Plus Jakarta Sans',sans-serif", fontSize:14, lineHeight:1.6,
+                  color:T.muted, textAlign:"center", maxWidth:560, margin:"0 0 32px"
+                }}>
+                  Monitor real-time task execution, review proposed implementation plans, inspect unified patches, and track pull requests across repositories.
+                </p>
+
+                {/* Primary Action Buttons */}
+                <div style={{display:"flex", gap:12, alignItems:"center", marginBottom:42}}>
+                  <Btn color={T.brand} onClick={()=>setDesktop("new")} style={{minWidth:160, padding:"12px 24px"}}>
+                    <Ic n="plus" s={15} c="#07090e"/>
+                    <span>Create Session</span>
+                  </Btn>
+                  <Btn outline color={T.muted} onClick={()=>setDesktop("drafts")} style={{minWidth:140, padding:"12px 20px"}}>
+                    <Ic n="layers" s={15} c={T.muted}/>
+                    <span>Saved Drafts</span>
+                  </Btn>
+                </div>
+
+                {/* 3 Metrics Cards */}
+                <div style={{display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:14, width:"100%", marginBottom:36}}>
+                  <div style={{
+                    background:T.surface, border:`1px solid ${T.border}`, borderRadius:10, padding:"16px 18px",
+                    display:"flex", flexDirection:"column", gap:6, boxShadow:"0 1px 4px rgba(0,0,0,0.25)"
+                  }}>
+                    <div style={{display:"flex", alignItems:"center", justifyContent:"space-between"}}>
+                      <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.dim, fontWeight:700}}>ACTIVE AGENTS</span>
+                      <Ic n="tasks" s={14} c={T.brand}/>
+                    </div>
+                    <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:22, fontWeight:800, color:T.textHi}}>
+                      {allSessions.filter(s => ACTIVE_STATES.has(s.state)).length}
+                    </div>
+                    <span style={{fontSize:11.5, color:T.muted}}>Tasks currently in progress</span>
+                  </div>
+
+                  <div style={{
+                    background:T.surface, border:`1px solid ${T.border}`, borderRadius:10, padding:"16px 18px",
+                    display:"flex", flexDirection:"column", gap:6, boxShadow:"0 1px 4px rgba(0,0,0,0.25)"
+                  }}>
+                    <div style={{display:"flex", alignItems:"center", justifyContent:"space-between"}}>
+                      <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.dim, fontWeight:700}}>DAILY CAPACITY</span>
+                      <Ic n="clock" s={14} c={T.amber}/>
+                    </div>
+                    <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:22, fontWeight:800, color:T.textHi}}>
+                      {todayCount.total} <span style={{fontSize:14, color:T.dim, fontWeight:500}}>/ {plan?.daily || 15}</span>
+                    </div>
+                    <span style={{fontSize:11.5, color:T.muted}}>Daily tasks initiated</span>
+                  </div>
+
+                  <div style={{
+                    background:T.surface, border:`1px solid ${T.border}`, borderRadius:10, padding:"16px 18px",
+                    display:"flex", flexDirection:"column", gap:6, boxShadow:"0 1px 4px rgba(0,0,0,0.25)"
+                  }}>
+                    <div style={{display:"flex", alignItems:"center", justifyContent:"space-between"}}>
+                      <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.dim, fontWeight:700}}>PULL REQUESTS</span>
+                      <Ic n="git_pull" s={14} c={T.purple}/>
+                    </div>
+                    <div style={{fontFamily:"'JetBrains Mono',monospace", fontSize:22, fontWeight:800, color:T.textHi}}>
+                      {allSessions.filter(s => getPR(s)).length}
+                    </div>
+                    <span style={{fontSize:11.5, color:T.muted}}>PR branches generated</span>
+                  </div>
+                </div>
+
+                {/* Quick Task Starters */}
+                <div style={{width:"100%", marginBottom:32}}>
+                  <div style={{
+                    display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12
+                  }}>
+                    <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:T.textDim, fontWeight:700, letterSpacing:"0.06em"}}>
+                      QUICK TASK STARTERS
+                    </span>
+                    <span style={{fontSize:11, color:T.muted}}>1-click prompt presets</span>
+                  </div>
+                  <div style={{display:"grid", gridTemplateColumns:"repeat(2, 1fr)", gap:10}}>
+                    {[
+                      {
+                        title: "Fix Bug & Add Regression Tests",
+                        prompt: "Investigate and resolve the reported issue. Write comprehensive regression tests verifying the fix.",
+                        icon: "check",
+                        color: T.emerald
+                      },
+                      {
+                        title: "Refactor Module Architecture",
+                        prompt: "Refactor this module to improve separation of concerns, extract reusable utility functions, and ensure clean types.",
+                        icon: "code",
+                        color: T.brand
+                      },
+                      {
+                        title: "Security & Dependency Hardening",
+                        prompt: "Audit input validation, sanitize API payloads, and patch security vulnerabilities across services.",
+                        icon: "key",
+                        color: T.purple
+                      },
+                      {
+                        title: "Implement Feature Prototype",
+                        prompt: "Build an end-to-end prototype for the new feature with clean component hierarchy and error boundaries.",
+                        icon: "tasks",
+                        color: T.blue
+                      }
+                    ].map(preset => (
+                      <button
+                        key={preset.title}
+                        onClick={() => {
+                          setSelectedDraft({ prompt: preset.prompt });
+                          setDesktop("new");
+                        }}
+                        style={{
+                          background:T.surface, border:`1px solid ${T.border}`, borderRadius:8,
+                          padding:"12px 14px", textAlign:"left", cursor:"pointer",
+                          display:"flex", alignItems:"flex-start", gap:10,
+                          transition:"all .15s ease"
+                        }}
+                        onMouseEnter={e => {
+                          e.currentTarget.style.background = T.surfaceHi;
+                          e.currentTarget.style.borderColor = T.borderHi;
+                          e.currentTarget.style.transform = "translateY(-1px)";
+                        }}
+                        onMouseLeave={e => {
+                          e.currentTarget.style.background = T.surface;
+                          e.currentTarget.style.borderColor = T.border;
+                          e.currentTarget.style.transform = "none";
+                        }}
+                      >
+                        <div style={{
+                          width:26, height:26, borderRadius:6, background:`${preset.color}15`,
+                          display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, marginTop:1
+                        }}>
+                          <Ic n={preset.icon} s={13} c={preset.color}/>
+                        </div>
+                        <div style={{flex:1, minWidth:0}}>
+                          <div style={{
+                            fontFamily:"'Plus Jakarta Sans',sans-serif", fontSize:12.5, fontWeight:700,
+                            color:T.text, marginBottom:3, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"
+                          }}>
+                            {preset.title}
+                          </div>
+                          <div style={{
+                            fontFamily:"'Plus Jakarta Sans',sans-serif", fontSize:11, color:T.muted,
+                            lineHeight:1.4, display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden"
+                          }}>
+                            {preset.prompt}
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Shortcuts Cheatsheet Bar */}
+                <div style={{
+                  display:"flex", alignItems:"center", gap:16, flexWrap:"wrap", justifyContent:"center",
+                  padding:"10px 18px", background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:8
+                }}>
+                  <div style={{display:"flex", alignItems:"center", gap:6}}>
+                    <kbd style={{background:T.surface, border:`1px solid ${T.borderHi}`, borderRadius:4, padding:"2px 6px", fontFamily:"'JetBrains Mono',monospace", fontSize:10.5, color:T.textDim}}>N</kbd>
+                    <span style={{fontSize:11, color:T.muted}}>New Session</span>
+                  </div>
+                  <span style={{color:T.dim}}>·</span>
+                  <div style={{display:"flex", alignItems:"center", gap:6}}>
+                    <kbd style={{background:T.surface, border:`1px solid ${T.borderHi}`, borderRadius:4, padding:"2px 6px", fontFamily:"'JetBrains Mono',monospace", fontSize:10.5, color:T.textDim}}>/</kbd>
+                    <span style={{fontSize:11, color:T.muted}}>Search List</span>
+                  </div>
+                  <span style={{color:T.dim}}>·</span>
+                  <div style={{display:"flex", alignItems:"center", gap:6}}>
+                    <kbd style={{background:T.surface, border:`1px solid ${T.borderHi}`, borderRadius:4, padding:"2px 6px", fontFamily:"'JetBrains Mono',monospace", fontSize:10.5, color:T.textDim}}>D</kbd>
+                    <span style={{fontSize:11, color:T.muted}}>Saved Drafts</span>
+                  </div>
+                  <span style={{color:T.dim}}>·</span>
+                  <div style={{display:"flex", alignItems:"center", gap:6}}>
+                    <kbd style={{background:T.surface, border:`1px solid ${T.borderHi}`, borderRadius:4, padding:"2px 6px", fontFamily:"'JetBrains Mono',monospace", fontSize:10.5, color:T.textDim}}>Esc</kbd>
+                    <span style={{fontSize:11, color:T.muted}}>Clear View</span>
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -899,7 +1125,12 @@ function JulesClient() {
             todayCount={todayCount} />
         )}
       </div>
-      <nav aria-label="Main navigation" style={{display:"flex",borderTop:`1px solid ${T.border}`,background:T.surface,transform:"translateZ(0)",flexShrink:0}}>
+      <nav aria-label="Main navigation" style={{
+        display:"flex", alignItems:"center", height:58,
+        borderTop:`1px solid ${T.border}`, background:"rgba(13,17,23,0.94)",
+        backdropFilter:"blur(12px)", WebkitBackdropFilter:"blur(12px)",
+        transform:"translateZ(0)", flexShrink:0, zIndex:40
+      }}>
         {[
           {id:"list",    n:"tasks", label:"SESSIONS", onClick:() => {
             setShowArchived(false);
@@ -928,13 +1159,29 @@ function JulesClient() {
               aria-label={buttonTitle}
               aria-current={isAct ? "page" : undefined}
               title={buttonTitle}
-              style={{flex:1,padding:"11px 0 13px",background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:4}}
+              style={{
+                flex:1, height:"100%", minHeight:48, background:"none", border:"none",
+                cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center",
+                justifyContent:"center", gap:3, padding:"6px 0",
+                transition:"all .15s cubic-bezier(0.16, 1, 0.3, 1)"
+              }}
             >
               <div style={{position:"relative", display:"flex", alignItems:"center", justifyContent:"center"}}>
                 <Ic n={n} s={20} c={isAct?T.brandLight:T.muted}/>
                 {hasAlert&&<div style={{position:"absolute",top:-2,right:-4,width:7,height:7,borderRadius:"50%",background:T.purple,border:`1.5px solid ${T.surface}`}}/>}
               </div>
-              <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:isAct?T.brand:T.muted,fontWeight:isAct?700:400,letterSpacing:"0.07em"}}>{label}</span>
+              <span style={{
+                fontFamily:"'JetBrains Mono',monospace", fontSize:9.5,
+                color:isAct?T.brandLight:T.muted, fontWeight:isAct?700:500, letterSpacing:"0.05em"
+              }}>
+                {label}
+              </span>
+              {isAct && (
+                <div style={{
+                  width:16, height:2, borderRadius:1, background:T.brand,
+                  position:"absolute", bottom:2, boxShadow:`0 0 6px ${T.brand}`
+                }}/>
+              )}
             </button>
           );
         })}

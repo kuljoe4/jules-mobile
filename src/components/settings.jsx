@@ -10,6 +10,7 @@ const SettingsView = ({ onBack, isDesktop, settings, personas, setPersonas, toda
     activePollInterval, setActivePollInterval,
     sessionLimit, setSessionLimit,
     activityLimit, setActivityLimit,
+    gapThreshold, setGapThreshold,
     cacheLimit, setCacheLimit,
     notifications, setNotifications,
     planId, setPlanId,
@@ -92,7 +93,7 @@ const SettingsView = ({ onBack, isDesktop, settings, personas, setPersonas, toda
         </div>
           <div role="tablist" aria-label="Settings tabs" style={{display:"flex", gap:16, position:"relative", borderBottom:`1px solid ${T.border}33`, overflowX: "auto", scrollbarWidth: "none", WebkitOverflowScrolling: "touch"}}>
           {TABS.map(t => (
-            <button key={t.id} role="tab" aria-selected={tab===t.id?"true":"false"} aria-label={t.label + " tab"} onClick={() => setTab(t.id)} style={{
+            <button key={t.id} role="tab" aria-selected={tab===t.id?"true":"false"} onClick={() => setTab(t.id)} style={{
               padding:"8px 4px", background:"none", border:"none", cursor:"pointer",
               borderBottom:`2px solid ${tab===t.id?T.brand:"transparent"}`,
               marginBottom: -1, whiteSpace: "nowrap",
@@ -288,6 +289,21 @@ const SettingsView = ({ onBack, isDesktop, settings, personas, setPersonas, toda
                   </div>
                   <div style={{marginTop:6, fontSize:10, color:T.textDim, fontFamily:"'IBM Plex Sans',sans-serif"}}>
                     Controls the maximum number of activity items loaded and stored per session.
+                  </div>
+                </div>
+
+                <div style={{marginBottom:20}}>
+                  <div style={{fontSize:11, color:T.textDim, marginBottom:8, fontFamily:"'JetBrains Mono',monospace", fontWeight:700}}>TIME GAP HIGHLIGHT</div>
+                  <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                    {GAP_THRESHOLD_OPTIONS.map(opt => {
+                      const isAct = opt.val === gapThreshold;
+                      return (
+                        <PickerBtn key={opt.label} label={opt.label} isAct={isAct} onClick={()=>{setGapThreshold(opt.val); triggerSaveFeedback();}} />
+                      );
+                    })}
+                  </div>
+                  <div style={{marginTop:6, fontSize:10, color:T.textDim, fontFamily:"'IBM Plex Sans',sans-serif"}}>
+                    Highlight adjacent sessions with significant gaps within this timeframe.
                   </div>
                 </div>
 
@@ -713,7 +729,7 @@ const SettingsView = ({ onBack, isDesktop, settings, personas, setPersonas, toda
                 <label htmlFor="new-persona-label" style={{fontSize:10, color:T.textDim, fontFamily:"'JetBrains Mono',monospace", fontWeight:700, cursor:"pointer"}}>PERSONA LABEL</label>
                 <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:T.textDim, opacity:0.8}}>{newName.length}/100</span>
               </div>
-              <input id="new-persona-label" aria-label="New Persona Label" type="text" value={newName} onChange={e => setNewName(e.target.value)} maxLength={100} placeholder="e.g. UX Expert" style={{width:"100%", background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:8, padding:10, color:T.text, fontSize:13, fontFamily:"'JetBrains Mono',monospace", boxSizing:"border-box"}} />
+              <input id="new-persona-label" type="text" value={newName} onChange={e => setNewName(e.target.value)} maxLength={100} placeholder="e.g. UX Expert" style={{width:"100%", background:T.surfaceHi, border:`1px solid ${T.border}`, borderRadius:8, padding:10, color:T.text, fontSize:13, fontFamily:"'JetBrains Mono',monospace", boxSizing:"border-box"}} />
             </div>
             <div>
               <div style={{fontSize:10, color:T.textDim, fontFamily:"'JetBrains Mono',monospace", fontWeight:700, marginBottom:6}}>THEME COLOR</div>
@@ -787,7 +803,7 @@ const SettingsView = ({ onBack, isDesktop, settings, personas, setPersonas, toda
                 <label htmlFor="edit-persona-label" style={{fontSize:10, color:T.textDim, fontFamily:"'JetBrains Mono',monospace", fontWeight:700, cursor: editingPersona.isCustom ? "pointer" : "not-allowed"}}>PERSONA LABEL</label>
                 {editingPersona.isCustom && <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:T.textDim, opacity:0.8}}>{newName.length}/100</span>}
               </div>
-              <input id="edit-persona-label" aria-label="Edit Persona Label" type="text" value={newName} onChange={e => setNewName(e.target.value)} maxLength={100} disabled={!editingPersona.isCustom} placeholder="e.g. UX Expert" style={{width:"100%", background:editingPersona.isCustom ? T.surfaceHi : `${T.surface}88`, border:`1px solid ${T.border}`, borderRadius:8, padding:10, color:editingPersona.isCustom ? T.text : T.textDim, fontSize:13, fontFamily:"'JetBrains Mono',monospace", boxSizing:"border-box", cursor: editingPersona.isCustom ? "text" : "not-allowed"}} />
+              <input id="edit-persona-label" type="text" value={newName} onChange={e => setNewName(e.target.value)} maxLength={100} disabled={!editingPersona.isCustom} placeholder="e.g. UX Expert" style={{width:"100%", background:editingPersona.isCustom ? T.surfaceHi : `${T.surface}88`, border:`1px solid ${T.border}`, borderRadius:8, padding:10, color:editingPersona.isCustom ? T.text : T.textDim, fontSize:13, fontFamily:"'JetBrains Mono',monospace", boxSizing:"border-box", cursor: editingPersona.isCustom ? "text" : "not-allowed"}} />
             </div>
             {editingPersona.isCustom && (
               <div>
