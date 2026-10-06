@@ -1,3 +1,4 @@
+import { sanitizeErrorMessage } from './api.js';
 import { DEFAULT_LEAN_DIRECTIVE } from "../config/constants.js";
 import { DEFAULT_PERSONAS } from "../config/personas.js";
 import { isValidGithubRepoName, isValidGithubToken, isValidGoogleApiKey, isValidSessionId, isValidStorageKey, sanitizeObjectKeys } from "../utils/validation.js";
@@ -772,7 +773,7 @@ const SafeStorage = {
         }
       }
     } catch (e) {
-      console.error("Error scanning follow-up drafts", e);
+      console.error("Error scanning follow-up drafts", sanitizeErrorMessage(e.message || String(e)));
     }
     return map;
   },
