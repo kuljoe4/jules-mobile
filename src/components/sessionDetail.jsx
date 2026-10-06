@@ -1820,7 +1820,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
 
         <div role="tablist" aria-label="Session detail tabs" style={{display:"flex", paddingBottom:scrolled?4:0, transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)"}}>
           {TABS.map(t=>(
-            <button key={t.id} role="tab" aria-selected={tab===t.id?"true":"false"} onClick={()=>setTab(t.id)} style={{
+            <button key={t.id} role="tab" aria-selected={tab===t.id?"true":"false"} aria-label={t.label + " tab"} onClick={()=>setTab(t.id)} style={{
               flex:1,padding:"6px 0",background:"none",border:"none",
               borderBottom:`2px solid ${tab===t.id?T.brand:"transparent"}`,
               color:tab===t.id?T.brand:T.muted,cursor:"pointer",
@@ -1839,6 +1839,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                 <button
                   key={f}
                   onClick={() => setChatFilter(f)}
+                  aria-label={`Filter activity feed by ${f.toLowerCase()}`}
                   style={{
                     minHeight: 36, padding: "0 14px", display: "inline-flex", alignItems: "center", justifyContent: "center", borderRadius: 12, border: "none",
                     background: chatFilter === f ? T.brandDim : "transparent",
@@ -1891,6 +1892,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
               }}>
                 <button
                   onClick={() => setDriftExpanded(p => !p)}
+                  aria-expanded={driftExpanded}
+                  aria-label="Toggle stale base warning details"
                   style={{
                     width: "100%", background: "none", border: "none", cursor: "pointer",
                     display: "flex", alignItems: "center", gap: 10, padding: "10px 14px",
@@ -1928,6 +1931,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                         setComposerVisible(true);
                         setTimeout(() => txtRef.current?.focus(), 100);
                       }}
+                      aria-label="Request Jules to sync and rebase"
                       style={{
                         background: T.amber, border: "none", borderRadius: 4, padding: "6px 12px",
                         fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 900,
@@ -1936,6 +1940,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                     >SYNC / REBASE</button>
                     <button
                       onClick={() => setShowDriftWarning(false)}
+                      aria-label="Dismiss stale base warning"
                       style={{
                         background: "transparent", border: `1px solid ${T.border}`, borderRadius: 4,
                         padding: "6px 12px", fontFamily: "'JetBrains Mono',monospace", fontSize: 10,
@@ -2201,6 +2206,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                           <button
                             key={st.id}
                             onClick={() => setMergeMethod(st.id)}
+                            aria-label={`Select ${st.label} merge strategy`}
+                            aria-pressed={mergeMethod === st.id}
                             style={{
                               padding: "4px 10px", borderRadius: 4,
                               background: mergeMethod === st.id ? `${T.purple}25` : T.surfaceHi,
@@ -2287,6 +2294,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                             <button
                               onClick={handleDeleteBranch}
                               disabled={busy}
+                              aria-label="Delete merged branch"
                               style={{
                                 background: T.redDim, color: T.red, border: `1px solid ${T.red}40`,
                                 borderRadius: 4, padding: "4px 10px", fontFamily: "'JetBrains Mono',monospace",
@@ -2509,6 +2517,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                       });
                     }
                   }}
+                  aria-expanded={headerPromptExpanded}
+                  aria-label="Toggle original prompt visibility"
                   style={{
                     width: "100%", background: "none", border: "none", cursor: "pointer",
                     display: "flex", alignItems: "center", justifyContent: "space-between", padding: 0,
@@ -2571,6 +2581,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
               <button
                 onClick={handleRefresh}
                 disabled={busy}
+                aria-label="Refresh activity feed"
                 onMouseEnter={e => { e.currentTarget.style.borderColor = T.brand; e.currentTarget.style.background = T.brandDim; }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.background = "transparent"; }}
                 onMouseDown={e => { e.currentTarget.style.transform = "scale(0.95)"; }}
@@ -2919,6 +2930,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                 <button
                   key={i}
                   onClick={() => setActiveMedia({ ...m, data: base64Data, mimeType: mime })}
+                  aria-label={`View media artifact ${i + 1}`}
                   style={{
                     background:T.surface, border:`1px solid ${T.border}`, borderRadius:8,
                     overflow:"hidden", cursor:"pointer", padding:0, textAlign:"left",
@@ -2988,6 +3000,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                   setActiveFreshnessModal(prev => prev ? { ...prev, fetchedAt: Date.now() } : null);
                 }}
                 disabled={activeFreshnessModal.type === "PR" ? refreshingPRStatus : refreshingBranchStatus}
+                aria-label={`Force refresh ${activeFreshnessModal.type} status`}
                 style={{
                   background: T.brand, color: "#000", border: "none", borderRadius: 6,
                   padding: "8px 14px", fontFamily: "'JetBrains Mono',monospace", fontSize: 11,
@@ -3112,6 +3125,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
               </div>
               <button
                 onClick={() => setReplyingTo(null)}
+                aria-label="Cancel reply"
                 style={{
                   background: "none", border: "none", cursor: "pointer", padding: 4,
                   display: "flex", alignItems: "center", justifyContent: "center",
@@ -3219,6 +3233,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
             ) : (
               <button
                 onClick={handleExpandComposer}
+                aria-label="Expand message composer"
                 style={{
                   width:"100%", background:T.surfaceHi, border:`1px solid ${T.borderHi}`,
                   borderRadius:8, padding:"12px 16px", display:"flex", alignItems:"center",
