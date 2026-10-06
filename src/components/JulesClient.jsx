@@ -1,3 +1,4 @@
+import { sanitizeErrorMessage } from "../services/api.js";
 import { isValidSessionId } from "../utils/validation.js";
 
 function JulesClient() {
@@ -318,7 +319,7 @@ function JulesClient() {
                 SafeStorage.deleteQueuedSession(qsSession.id);
                 processedAny = true;
              } catch (err) {
-                console.error("Failed to start queued session", qsSession, err);
+                console.error("Failed to start queued session", qsSession, sanitizeErrorMessage(err.message || String(err)));
              }
            }
         }
@@ -541,7 +542,7 @@ function JulesClient() {
       }
     } catch (err) {
       if (err.name === 'AbortError') return;
-      console.error("[FetchSessions] Error:", err);
+      console.error("[FetchSessions] Error:", sanitizeErrorMessage(err.message || String(err)));
       if (!quiet) setGlobalErr(err.message);
     } finally {
       if (sessionsAbortRef.current === controller) {
