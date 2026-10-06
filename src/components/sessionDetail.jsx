@@ -959,6 +959,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   // Used by PlanView to send revision requests
   const handleSendFeedback = useCallback(async (prompt, stayOnTab = false) => {
     if (!isValidSessionId(session?.id)) return;
+    userSentRef.current = true;
     let text = prompt;
     if (selectedPersonas.size > 0) {
       const personaPrompts = Array.from(selectedPersonas)
