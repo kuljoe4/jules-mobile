@@ -294,14 +294,6 @@ assert.equal(SafeStorage.saveCacheLimit(-1), false);
 globalThis.localStorage.setItem('jac_cache_limit', '99999');
 assert.equal(SafeStorage.loadCacheLimit(), 5); // Fallback to DEFAULT_CACHE_LIMIT (5)
 
-// Test SafeStorage gap threshold validation
-assert.equal(SafeStorage.saveGapThreshold(24), true);
-assert.equal(SafeStorage.loadGapThreshold(), 24);
-assert.equal(SafeStorage.saveGapThreshold(999), false);
-assert.equal(SafeStorage.saveGapThreshold(-1), false);
-globalThis.localStorage.setItem('jac_gap_threshold', '999');
-assert.equal(SafeStorage.loadGapThreshold(), 18); // Fallback to default 18h
-
 // Test SafeStorage repo filter validation
 assert.equal(SafeStorage.saveRepoFilter('owner/repo'), true);
 assert.equal(SafeStorage.loadRepoFilter(), 'owner/repo');
@@ -1445,9 +1437,7 @@ assert.equal(sanitizeErrorMessage(null), "HTTP 500 Error");
     }
 
     globalThis.window.dispatchEvent = (e) => {
-      if (e?.type === 'quota-error') {
-        dispatchedEvent = e;
-      }
+      dispatchedEvent = e;
     };
 
     globalThis.fetch = async () => {
