@@ -30,3 +30,11 @@ const ACTIVITY_LIMIT_OPTIONS = [
   { label:"500", val:500 },
 ];
 const DEFAULT_ACTIVITY_LIMIT = 100;
+
+const GAP_THRESHOLD_OPTIONS = [
+  { label: "12h", val: 12 },
+  { label: "18h", val: 18 },
+  { label: "24h", val: 24 },
+  { label: "48h", val: 48 },
+];
+const DEFAULT_GAP_THRESHOLD = 18;

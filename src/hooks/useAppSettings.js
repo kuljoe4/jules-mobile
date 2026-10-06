@@ -3,6 +3,7 @@ const useAppSettings = ({ onSessionLimitChange } = {}) => {
   const [actPollInterval, setActPollIntervalRaw] = useState(loadActPollMs);
   const [activePollInterval, setActivePollIntervalRaw] = useState(loadActivePollMs);
   const [sessionLimit, setSessionLimitRaw] = useState(loadLimit);
+  const [gapThreshold, setGapThresholdRaw] = useState(loadGapThreshold);
   const [activityLimit, setActivityLimitRaw] = useState(loadActivityLimit);
   const [cacheLimit, setCacheLimitRaw] = useState(loadCacheLimit);
   const [notifications, setNotificationsRaw] = useState(loadNotify);
@@ -24,6 +25,11 @@ const useAppSettings = ({ onSessionLimitChange } = {}) => {
   const setActivePollInterval = useCallback(ms => {
     saveActivePollMs(ms);
     setActivePollIntervalRaw(ms);
+  }, []);
+
+  const setGapThreshold = useCallback(v => {
+    saveGapThreshold(v);
+    setGapThresholdRaw(v);
   }, []);
 
   const setSessionLimit = useCallback(v => {
@@ -82,6 +88,7 @@ const useAppSettings = ({ onSessionLimitChange } = {}) => {
     actPollInterval, setActPollInterval,
     activePollInterval, setActivePollInterval,
     sessionLimit, setSessionLimit,
+    gapThreshold, setGapThreshold,
     activityLimit, setActivityLimit,
     cacheLimit, setCacheLimit,
     notifications, setNotifications,
