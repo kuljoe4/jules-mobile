@@ -76,20 +76,12 @@ const SessionCard = memo(({ s, onPress, onSelect, isSelected, isBulkSelected, on
     if (!activeCheck) {
       return {
         color: isSelected ? T.textHi : T.textDim,
-        background: "transparent",
-        padding: "0",
-        borderRadius: 0,
-        border: "none"
       };
     }
     const isFailure = activeCheck.state === "failure";
     const highlightColor = isFailure ? T.red : T.amber;
     return {
       color: isSelected ? T.textHi : highlightColor,
-      background: `${highlightColor}15`,
-      padding: "2px 6px",
-      borderRadius: 4,
-      border: `1px solid ${highlightColor}30`
     };
   }, [activeCheck, isSelected]);
 
@@ -305,7 +297,7 @@ const SessionCard = memo(({ s, onPress, onSelect, isSelected, isBulkSelected, on
               <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:700}}>draft</span>
             </div>
           )}
-          {isUnread && <div style={{width:5,height:5,borderRadius:"50%",background:T.brandLight,boxShadow:`0 0 6px ${T.brandLight}`,animation:"dot 1.2s infinite",flexShrink:0,marginLeft:4}}/>}
+          {isUnread && <div style={{width:5,height:5,borderRadius:"50%",background:T.brandLight,flexShrink:0,marginLeft:4}}/>}
         </div>
 
         <div style={{

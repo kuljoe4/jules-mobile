@@ -1168,7 +1168,7 @@ function JulesClient() {
             >
               <div style={{position:"relative", display:"flex", alignItems:"center", justifyContent:"center"}}>
                 <Ic n={n} s={20} c={isAct?T.brandLight:T.muted}/>
-                {hasAlert&&<div style={{position:"absolute",top:-2,right:-4,width:7,height:7,borderRadius:"50%",background:T.purple,border:`1.5px solid ${T.surface}`,animation:"dot 1.5s ease-in-out infinite"}}/>}
+                {hasAlert&&<div style={{position:"absolute",top:-2,right:-4,width:7,height:7,borderRadius:"50%",background:T.purple,border:`1.5px solid ${T.surface}`}}/>}
               </div>
               <span style={{
                 fontFamily:"'JetBrains Mono',monospace", fontSize:9.5,
