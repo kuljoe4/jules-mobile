@@ -1,7 +1,7 @@
 const FILTERS = ["ALL","QUEUED","PLANNING","AWAITING_PLAN_APPROVAL","AWAITING_USER_FEEDBACK","IN_PROGRESS","PAUSED","COMPLETED","FAILED","HAS_DRAFT","PR_OPEN","PR_MERGED"];
 const FILTER_LABELS = { AWAITING_PLAN_APPROVAL:"APPROVE", AWAITING_USER_FEEDBACK:"INPUT", PAUSED:"PAUSED", ALL:"ALL", HAS_DRAFT:"HAS DRAFT", PR_OPEN:"OPEN PR", PR_MERGED:"MERGED PR" };
 
-const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed, selectedId, isDesktop, onNew, onDrafts, onSettings, pollInterval, sessionLimit, countdown, plan, todayCount, searchQuery, setSearchQuery, archivedIds, showArchived, setShowArchived, activitiesMap = {}, activityStatsMap = {}, error, clearError, isBoosted, readMap, draftsMap = {}, ignoredIds = new Set(), filterResetTrigger, sidebarCollapsed, setSidebarCollapsed, onCloseMobileDrawer, onToggleMobileDrawer, statusFilter: propStatusFilter, setStatusFilter: propSetStatusFilter, repoFilter: propRepoFilter, setRepoFilter: propSetRepoFilter, sessionSort, setSessionSort, onBulkDelete, onBulkArchive, onBulkUnarchive, onBulkIgnore, onBulkPause, onBulkResume }) => {
+const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed, selectedId, isDesktop, onNew, onDrafts, onSettings, pollInterval, sessionLimit, countdown, plan, todayCount, searchQuery, setSearchQuery, archivedIds, showArchived, setShowArchived, activitiesMap = {}, activityStatsMap = {}, error, clearError, isBoosted, readMap, draftsMap = {}, ignoredIds = new Set(), filterResetTrigger, sidebarCollapsed, setSidebarCollapsed, onCloseMobileDrawer, onToggleMobileDrawer, statusFilter: propStatusFilter, setStatusFilter: propSetStatusFilter, repoFilter: propRepoFilter, setRepoFilter: propSetRepoFilter, sessionSort, setSessionSort, onBulkDelete, onBulkArchive, onBulkUnarchive, onBulkIgnore, onBulkPause, onBulkResume, gapThreshold = 18 }) => {
   const [localFilter, setLocalFilter] = useState("ALL");
   const [localRepoFilter, setLocalRepoFilter] = useState("ALL");
 
@@ -174,7 +174,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
     let maxGap = 0;
     let maxGapIndex = -1;
 
-    const threshold24h = Date.now() - (24 * 60 * 60 * 1000);
+    const threshold = Date.now() - (gapThreshold * 60 * 60 * 1000);
 
     for (let i = 0; i < filtered.length - 1; i++) {
       const s1 = filtered[i];
@@ -182,8 +182,8 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
       const t1 = parseDateMs(s1.updateTime || s1.createTime);
       const t2 = parseDateMs(s2.updateTime || s2.createTime);
 
-      // Only consider gaps where at least one of the adjacent sessions is within the last 24 hours
-      if (t1 < threshold24h && t2 < threshold24h) {
+      // Only consider gaps where at least one of the adjacent sessions is within the configurable gapThreshold
+      if (t1 < threshold && t2 < threshold) {
         continue;
       }
 
@@ -202,7 +202,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
       };
     }
     return null;
-  }, [filtered]);
+  }, [filtered, gapThreshold]);
 
 
   const active = useMemo(() => {

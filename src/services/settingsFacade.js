@@ -18,6 +18,9 @@ function loadActivityLimit() { return SafeStorage.loadActivityLimit(); }
 function saveActivityLimit(v) { SafeStorage.saveActivityLimit(v); }
 
 function loadLimit() { return SafeStorage.loadLimit(); }
+
+function loadGapThreshold() { return SafeStorage.loadGapThreshold(); }
+function saveGapThreshold(v) { SafeStorage.saveGapThreshold(v); }
 function saveLimit(v) { SafeStorage.saveLimit(v); }
 
 
