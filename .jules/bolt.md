@@ -98,3 +98,7 @@
 ## 2024-10-06 - Replacing Math.min spread operations with for loops
 **Learning:** Using the spread operator with `Math.min(...array.map(...))` on large arrays inside the data fetching pipelines of components like `JulesClient` causes intermediate array allocations (via `.map()`) and pushes all array elements onto the function call stack simultaneously. For large session datasets, this can trigger a 'Maximum call stack size exceeded' error and place unnecessary pressure on garbage collection.
 **Action:** When finding the minimum or maximum value in potentially large lists or mapped arrays, default to an imperative `for` loop tracking the current min/max value iteratively. This executes faster and entirely prevents call stack overflow and intermediate allocations.
+
+## 2024-10-06 - Hoist Array Calculations out of map Render Loops
+**Learning:** Performing a global array check like `sessions.some(s => ['AWAITING_PLAN_APPROVAL'].includes(s.state))` inside a `.map()` that loops over UI elements (e.g., navigation tabs) causes the `.some()` check to re-execute for every element on every render. If there are 5 elements, it runs 5 times instead of 1, resulting in O(M*N) complexity.
+**Action:** Always hoist global or invariant array calculations outside of `.map()` render loops to compute them exactly once per render. Replace `.includes()` inside loops with direct string equality checks (`===`) where practical to further minimize function overhead.
