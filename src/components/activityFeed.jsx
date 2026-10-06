@@ -80,22 +80,28 @@ const MediaArtifacts = memo(({ artifacts, ts, onMediaClick }) => {
 function extractOptions(text) {
   if (!text) return [];
   const options = [];
-  const lowerText = text.toLowerCase();
 
-  if (
-    /\b(shall i|should i|would you like me to|ready to|can i) proceed\b/.test(lowerText) ||
-    /\b(let me know if|tell me if) you.*proceed\b/.test(lowerText) ||
-    /\bdo you want me to proceed\b/.test(lowerText) ||
-    /\bplease let me know how you would like to proceed\b/.test(lowerText) ||
-    /\bhow would you like to proceed\b/.test(lowerText) ||
-    /\bready to proceed\b/.test(lowerText) ||
-    /\b(would you like me to|shall i|should i|can i) continue\b/.test(lowerText) ||
-    /\bdo you want me to continue\b/.test(lowerText)
-  ) {
+  const proceedRegexes = [
+    /\b(?:shall|should|can|could) (?:i|we) (?:proceed|continue|move forward)\b/i,
+    /\b(?:would you like|do you want) (?:me|us)? (?:to )?(?:proceed|continue|move forward)\b/i,
+    /\b(?:let me know|tell me) (?:how|if) you(?:'d| would)? like to (?:proceed|continue|move forward)\b/i,
+    /\bready to (?:proceed|continue|move forward)\b/i,
+    /\bplease (?:let me know|advise) how (?:you would like|to) proceed\b/i,
+    /\bbefore i (?:proceed|continue)\b/i,
+    /\bdo you want me to proceed\b/i,
+    /\b(would you like me to|shall i|should i|can i) continue\b/i,
+    /\bdo you want me to continue\b/i,
+    /\bhow would you like to proceed\b/i,
+    /\bplease let me know how you would like to proceed\b/i,
+    /\b(?:let me know if|tell me if) you.*(?:proceed|continue|move forward)\b/i,
+    /\b(?:what|how) (?:should|do) (?:we|i) (?:proceed|continue|do next)\b/i,
+    /\bare you ready to (?:proceed|continue)\b/i
+  ];
+
+  if (proceedRegexes.some(r => r.test(text))) {
     options.push("Proceed");
   }
 
-  // Parse conversational "Should I [A], or [B]?"
   const conversationalMatch = text.match(/(?:Should I|Would you like me to|Do you want me to) ([^,?.!]+)(?:, or| or) ([^?.!]+)\?/i);
   if (conversationalMatch) {
     let opt1 = conversationalMatch[1].trim();
@@ -106,60 +112,88 @@ function extractOptions(text) {
     if (!options.includes(opt2)) options.push(opt2);
   }
 
-  const conversationalMatch2 = text.match(/before I (proceed|continue)/i);
-  if (conversationalMatch2) {
-    if (!options.includes("Proceed")) options.push("Proceed");
-  }
-
-  const conversationalMatch3 = text.match(/Does this sound like/i);
+  const conversationalMatch3 = text.match(/Does this sound (?:good|like|okay|correct)/i);
   if (conversationalMatch3) {
       if (!options.includes("Yes, proceed")) options.push("Yes, proceed");
   }
 
   const lines = text.split('\n').map(l => l.trim()).filter(l => l);
-  const listItems = [];
+  const allLists = [];
+  let currentList = [];
+  let hasIntro = false;
 
-  let inList = false;
-  let listEnded = false;
-
-  for (let i = lines.length - 1; i >= 0; i--) {
+  for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    const m = line.match(/^[-*]\s+(.+)$/) || line.match(/^\d+\.\s+(.+)$/);
+    const lowerLine = line.toLowerCase();
 
+    // Look for phrases that introduce options
+    const isIntro = /(?:options|would you like|choose|proceed|follow up|next steps|how would you like|please select|here are some options|you can|shall we|what to do|let me know|are you ready)/i.test(lowerLine);
+
+    // Match standard Markdown list items (*, -, 1.)
+    const m = line.match(/^[-*]\s+(.+)$/) || line.match(/^\d+\.\s+(.+)$/);
     if (m) {
-      if (listEnded) {
-        continue;
-      }
-      const item = m[1].trim();
-      if (item.length < 150) {
-        listItems.unshift(item);
-        inList = true;
+      let item = m[1].trim();
+      item = item.replace(/\*\*(.+?)\*\*/g, '$1'); // strip bold
+      item = item.replace(/`(.+?)`/g, '$1');      // strip inline code
+      if (item.length > 0 && item.length < 150) {
+         currentList.push(item);
       }
     } else {
-      if (inList) {
-        listEnded = true;
-        if (/(options|would you like|choose|proceed|follow up|next steps|how would you like|please select)/i.test(line)) {
-          break;
-        } else {
-          const distFromBottom = (lines.length - 1) - (i + listItems.length);
-          if (distFromBottom > 1) {
-            listItems.length = 0;
-          }
-          break;
-        }
+      // If we were building a list and it ended
+      if (currentList.length > 0) {
+        allLists.push({ items: currentList, hasIntro });
+        currentList = [];
+        hasIntro = false;
+      }
+      if (isIntro) {
+        hasIntro = true;
       } else {
-         const distFromBottom = (lines.length - 1) - i;
-         if (distFromBottom > 3 && listItems.length === 0) {
-             break;
-         }
+        // Reset intro flag if there's a long paragraph between intro and list
+        if (line.length > 100) {
+           hasIntro = false;
+        }
+      }
+    }
+  }
+  // Add any trailing list
+  if (currentList.length > 0) {
+    allLists.push({ items: currentList, hasIntro });
+  }
+
+  // Pick the most likely options list
+  let selectedList = [];
+  if (allLists.length > 0) {
+    const listsWithIntro = allLists.filter(l => l.hasIntro);
+    if (listsWithIntro.length > 0) {
+      // Prefer the last list that had an intro
+      selectedList = listsWithIntro[listsWithIntro.length - 1].items;
+    } else {
+      // Otherwise, see if the very last list in the message is at the very end
+      const lastList = allLists[allLists.length - 1].items;
+      let linesAfter = 0;
+      let inLastList = false;
+      for (let i = lines.length - 1; i >= 0; i--) {
+        const line = lines[i];
+        const m = line.match(/^[-*]\s+(.+)$/) || line.match(/^\d+\.\s+(.+)$/);
+        if (m) {
+          inLastList = true;
+        } else if (inLastList) {
+          break; // Exited the list backwards
+        } else {
+          linesAfter++;
+        }
+      }
+      // If the list is within the last 3 lines, it's likely a summary of options
+      if (linesAfter <= 3) {
+        selectedList = lastList;
       }
     }
   }
 
-  if (listItems.length > 0) {
-    for (let item of listItems) {
-      item = item.replace(/\*\*(.+?)\*\*/g, '$1');
-      item = item.replace(/`(.+?)`/g, '$1');
+  // 5. Merge list items into our options
+  if (selectedList.length > 0) {
+    for (let item of selectedList) {
+      item = item.charAt(0).toUpperCase() + item.slice(1); // capitalize first letter
       if (item.toLowerCase() === "proceed") {
          if (!options.includes("Proceed")) options.push("Proceed");
       } else {
@@ -168,13 +202,29 @@ function extractOptions(text) {
     }
   }
 
-  const finalOptions = [...new Set(options)];
-
-  if (finalOptions.includes("Proceed") && finalOptions.length > 1) {
-      const hasProceedItem = finalOptions.some(opt => opt !== "Proceed" && opt.toLowerCase().startsWith("proceed"));
-      if (hasProceedItem) {
-          return finalOptions.filter(opt => opt !== "Proceed");
+  // 6. Deduplicate case-insensitively
+  let finalOptions = [];
+  const lowerFinals = new Set();
+  for (const opt of options) {
+      const l = opt.toLowerCase();
+      if (!lowerFinals.has(l)) {
+          lowerFinals.add(l);
+          finalOptions.push(opt);
       }
+  }
+
+  // 7. Cleanup: If we extracted specific options (from a list or "A or B" match),
+  // drop generic "Proceed" unless it was explicitly part of the selected list.
+  if (finalOptions.includes("Proceed") && finalOptions.length > 1) {
+    const proceedInList = selectedList.some(item => item.toLowerCase() === 'proceed');
+    if (!proceedInList) {
+        finalOptions = finalOptions.filter(opt => opt !== "Proceed");
+    }
+  }
+
+  // Handle conversational Yes/No correctly (don't mix generic Yes proceed with other specific ones)
+  if (finalOptions.includes("Yes, proceed") && finalOptions.length > 1) {
+    finalOptions = finalOptions.filter(opt => opt !== "Yes, proceed");
   }
 
   return finalOptions;
