@@ -302,38 +302,36 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
             </div>
           </div>
         ) : (
-<div style={{display:"flex",alignItems:"center",justifyContent:sidebarCollapsed?"center":"flex-start",gap:sidebarCollapsed?4:8,marginBottom:(scrolled||sidebarCollapsed)?0:10}}>
-          <div style={{width:scrolled?20:32,height:scrolled?20:32,borderRadius:6,background:T.brand,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace",fontSize:scrolled?11:18,fontWeight:900,color:"#000",boxShadow:scrolled?"none":`0 0 12px ${T.brandDark}40`,flexShrink:0,transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)"}}>J</div>
+<div style={{display:"flex",alignItems:"center",justifyContent:sidebarCollapsed?"center":"flex-start",gap:sidebarCollapsed?4:8,marginBottom:sidebarCollapsed?0:8,minHeight:36}}>
+          <div style={{width:28,height:28,borderRadius:6,background:T.brand,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace",fontSize:15,fontWeight:900,color:"#000",boxShadow:`0 0 10px ${T.brandDark}35`,flexShrink:0}}>J</div>
           {!sidebarCollapsed && (
-            <div style={{minWidth:0, transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)", flex: 1}}>
+            <div style={{minWidth:0, flex: 1}}>
               <div style={{display:"flex", alignItems:"center", gap:6}}>
-                <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:scrolled?12:14,fontWeight:700,color:T.text}}>JULES</div>
-                {active > 0 && !scrolled && (
-                  <span aria-label={`${active} active sessions`} style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:800,color:T.amber,background:T.amberDim,padding:"1px 5px",borderRadius:4,border:`1px solid ${T.amber}30`}}>⚡ {active}</span>
+                <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:13,fontWeight:700,color:T.text}}>JULES</div>
+                {active > 0 && (
+                  <span aria-label={`${active} active sessions`} style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:800,color:T.amber,background:T.amberDim,padding:"1px 5px",borderRadius:4,border:`1px solid ${T.amber}30`,lineHeight:1.3}}>⚡ {active}</span>
                 )}
               </div>
-              {!scrolled && (
-                <div
-                  role="status"
-                  aria-live="polite"
-                  aria-label={`Session list state: ${refreshing ? "Fast delta sync in progress" : justRefreshed ? "Up to date" : countdown > 0 ? `Synced, next auto delta sync in ${countdown} seconds` : "Stale, click to sync"}`}
-                  style={{display:"flex", alignItems:"center", gap:4, marginTop:1}}
-                >
-                  <div style={{
-                    width: 6, height: 6, borderRadius: "50%", flexShrink: 0,
-                    background: refreshing ? T.brandLight : justRefreshed ? "#34d399" : countdown > 0 ? T.brand : T.amber,
-                    boxShadow: refreshing ? `0 0 6px ${T.brandLight}` : justRefreshed ? "0 0 6px #34d399" : countdown > 0 ? `0 0 6px ${T.brand}` : `0 0 6px ${T.amber}`,
-                    animation: refreshing ? "dot 0.8s infinite alternate" : countdown > 0 ? "none" : "dot 1.5s infinite"
-                  }}/>
-                  <span style={{
-                    fontFamily:"'JetBrains Mono',monospace", fontSize:9, fontWeight:700,
-                    color: refreshing ? T.brandLight : justRefreshed ? "#34d399" : countdown > 0 ? T.muted : T.amber,
-                    letterSpacing:"0.04em"
-                  }}>
-                    {refreshing ? "FAST SYNC..." : justRefreshed ? "UP TO DATE" : countdown > 0 ? `FAST SYNC · ${countdown}S` : "STALE · SYNC"}
-                  </span>
-                </div>
-              )}
+              <div
+                role="status"
+                aria-live="polite"
+                aria-label={`Session list state: ${refreshing ? "Fast delta sync in progress" : justRefreshed ? "Up to date" : countdown > 0 ? `Synced, next auto delta sync in ${countdown} seconds` : "Stale, click to sync"}`}
+                style={{display:"flex", alignItems:"center", gap:4, marginTop:1}}
+              >
+                <div style={{
+                  width: 5, height: 5, borderRadius: "50%", flexShrink: 0,
+                  background: refreshing ? T.brandLight : justRefreshed ? "#34d399" : countdown > 0 ? T.brand : T.amber,
+                  boxShadow: refreshing ? `0 0 6px ${T.brandLight}` : justRefreshed ? "0 0 6px #34d399" : countdown > 0 ? `0 0 6px ${T.brand}` : `0 0 6px ${T.amber}`,
+                  animation: refreshing ? "dot 0.8s infinite alternate" : countdown > 0 ? "none" : "dot 1.5s infinite"
+                }}/>
+                <span style={{
+                  fontFamily:"'JetBrains Mono',monospace", fontSize:9, fontWeight:600,
+                  color: refreshing ? T.brandLight : justRefreshed ? "#34d399" : countdown > 0 ? T.muted : T.amber,
+                  letterSpacing:"0.04em"
+                }}>
+                  {refreshing ? "FAST SYNC..." : justRefreshed ? "UP TO DATE" : countdown > 0 ? `FAST SYNC · ${countdown}S` : "STALE · SYNC"}
+                </span>
+              </div>
             </div>
           )}
 
@@ -588,10 +586,10 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
           </div>
         )}
         {isDesktop && !sidebarCollapsed && (
-          <div style={{display:"flex", gap:4, alignItems:"center", height:scrolled?0:22, overflow:"hidden", opacity:scrolled?0:1, marginBottom:scrolled?0:8, padding:scrolled?0:"4px 2px", transition:"all .25s cubic-bezier(0.4, 0, 0.2, 1)", pointerEvents:scrolled?"none":"auto"}}>
+          <div style={{display:"flex", gap:4, alignItems:"center", marginBottom:8, padding:"2px 2px"}}>
             <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:T.textDim, letterSpacing:"0.08em", flexShrink:0, paddingRight:2}}>SESSIONS</span>
-            <button onClick={() => setShowArchived(false)} aria-pressed={!showArchived ? "true" : "false"} aria-label="Show active sessions" title="Show active sessions" style={{flexShrink:0, minHeight:36, padding:"0 14px", display:"inline-flex", alignItems:"center", justifyContent:"center", borderRadius:20, border:"none", background:!showArchived ? T.brandDim : "transparent", border:`1px solid ${!showArchived ? T.brand+"60" : T.border}`, color:!showArchived ? T.brand : T.muted, fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:!showArchived?700:400, letterSpacing:"0.05em", cursor:"pointer", transition:"all .12s cubic-bezier(0.4, 0, 0.2, 1)"}}>ACTIVE</button>
-            <button onClick={() => setShowArchived(true)} aria-pressed={showArchived ? "true" : "false"} aria-label="Show archived sessions" title="Show archived sessions" style={{flexShrink:0, minHeight:36, padding:"0 14px", display:"inline-flex", alignItems:"center", justifyContent:"center", borderRadius:20, border:"none", background:showArchived ? T.purpleDim : "transparent", border:`1px solid ${showArchived ? T.purple+"60" : T.border}`, color:showArchived ? T.purple : T.muted, fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:showArchived?700:400, letterSpacing:"0.05em", cursor:"pointer", transition:"all .12s cubic-bezier(0.4, 0, 0.2, 1)"}}>ARCHIVED</button>
+            <button onClick={() => setShowArchived(false)} aria-pressed={!showArchived ? "true" : "false"} aria-label="Show active sessions" title="Show active sessions" style={{flexShrink:0, minHeight:28, padding:"0 10px", display:"inline-flex", alignItems:"center", justifyContent:"center", borderRadius:16, border:"none", background:!showArchived ? T.brandDim : "transparent", border:`1px solid ${!showArchived ? T.brand+"60" : T.border}`, color:!showArchived ? T.brand : T.muted, fontFamily:"'JetBrains Mono',monospace", fontSize:10.5, fontWeight:!showArchived?700:400, letterSpacing:"0.05em", cursor:"pointer", transition:"all .12s cubic-bezier(0.4, 0, 0.2, 1)"}}>ACTIVE</button>
+            <button onClick={() => setShowArchived(true)} aria-pressed={showArchived ? "true" : "false"} aria-label="Show archived sessions" title="Show archived sessions" style={{flexShrink:0, minHeight:28, padding:"0 10px", display:"inline-flex", alignItems:"center", justifyContent:"center", borderRadius:16, border:"none", background:showArchived ? T.purpleDim : "transparent", border:`1px solid ${showArchived ? T.purple+"60" : T.border}`, color:showArchived ? T.purple : T.muted, fontFamily:"'JetBrains Mono',monospace", fontSize:10.5, fontWeight:showArchived?700:400, letterSpacing:"0.05em", cursor:"pointer", transition:"all .12s cubic-bezier(0.4, 0, 0.2, 1)"}}>ARCHIVED</button>
             <div style={{flex:1}}></div>
             {setSessionSort && (
               <button
@@ -599,9 +597,9 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
                 aria-pressed={sessionSort === "CREATETIME" ? "true" : "false"}
                 aria-label={`Sort by ${sessionSort === "CREATETIME" ? "newest created" : "recent activity"}`}
                 title={`Sort by ${sessionSort === "CREATETIME" ? "newest created" : "recent activity"}`}
-                style={{flexShrink:0, minHeight:36, padding:"0 14px", display:"inline-flex", alignItems:"center", justifyContent:"center", borderRadius:20, border:"none", background:sessionSort === "CREATETIME" ? `${T.blue}20` : "transparent", border:`1px solid ${sessionSort === "CREATETIME" ? `${T.blue}80` : T.border}`, color:sessionSort === "CREATETIME" ? T.blue : T.muted, fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:sessionSort === "CREATETIME"?700:400, letterSpacing:"0.05em", cursor:"pointer", transition:"all .12s cubic-bezier(0.4, 0, 0.2, 1)", gap: 6}}
+                style={{flexShrink:0, minHeight:28, padding:"0 10px", display:"inline-flex", alignItems:"center", justifyContent:"center", borderRadius:16, border:"none", background:sessionSort === "CREATETIME" ? `${T.blue}20` : "transparent", border:`1px solid ${sessionSort === "CREATETIME" ? `${T.blue}80` : T.border}`, color:sessionSort === "CREATETIME" ? T.blue : T.muted, fontFamily:"'JetBrains Mono',monospace", fontSize:10.5, fontWeight:sessionSort === "CREATETIME"?700:400, letterSpacing:"0.05em", cursor:"pointer", transition:"all .12s cubic-bezier(0.4, 0, 0.2, 1)", gap: 5}}
               >
-                <Ic n="clock" s={14} c={sessionSort === "CREATETIME" ? T.blue : T.muted} />
+                <Ic n="clock" s={12} c={sessionSort === "CREATETIME" ? T.blue : T.muted} />
                 <span>{sessionSort === "CREATETIME" ? "NEWEST" : "ACTIVITY"}</span>
               </button>
             )}

@@ -252,12 +252,12 @@ const ChatBubble = memo(({ act, type, onMediaClick, onEdit, onReply, onSendFollo
   const options = useMemo(() => isUser || isTemp ? [] : extractOptions(text), [text, isUser, isTemp]);
 
   return (
-    <div id={`chat-activity-${key}`} style={{ marginBottom: 24, width: "100%", animation: "fadeIn .25s ease-out" }}>
+    <div id={`chat-activity-${key}`} style={{ marginBottom: 16, width: "100%", animation: "messageFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)" }}>
       {/* Header Accent Row */}
       <div style={{
         fontFamily: "'JetBrains Mono',monospace", fontSize: 11,
         color: isUser ? T.blue : T.brand, fontWeight: 800,
-        letterSpacing: "0.1em", marginBottom: 12,
+        letterSpacing: "0.1em", marginBottom: 8,
         display: "flex", alignItems: "center", gap: 8
       }}>
         <div style={{
@@ -277,13 +277,15 @@ const ChatBubble = memo(({ act, type, onMediaClick, onEdit, onReply, onSendFollo
       <div style={{
         background: "transparent", border: "none",
         borderLeft: `3px solid ${isUser ? T.blue : T.brand}`,
-        borderRadius: 0, padding: "12px 0 12px 20px", position: "relative",
+        borderRadius: 0, padding: "8px 0 8px 16px", position: "relative",
         boxShadow: "none", transition: "all .2s cubic-bezier(0.4, 0, 0.2, 1)",
         width: "100%", opacity: isTemp ? 0.6 : 1
       }}>
         <div style={{
-          fontSize: 16, color: T.text, lineHeight: 1.6,
+          fontSize: 15, color: T.text, lineHeight: 1.55,
           fontFamily: "'IBM Plex Sans',sans-serif",
+          overflowWrap: "break-word",
+          wordBreak: "normal"
         }}>
           <ExpandableContent text={text} limit={400} forceExpanded={forceExpanded} />
         </div>

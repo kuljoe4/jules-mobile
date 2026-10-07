@@ -11,6 +11,7 @@ const SafeStorage = {
     ACT_POLL: "jac_act_poll_ms",
     ACTIVE_POLL: "jac_active_poll_ms",
     LIMIT: "jac_limit",
+    GAP_THRESHOLD: "jac_gap_threshold",
     CACHE_LIMIT: "jac_cache_limit",
     ACTIVITY_LIMIT: "jac_activity_limit",
     PLAN: "jac_plan",
@@ -199,6 +200,30 @@ const SafeStorage = {
   },
   saveLimit(v) {
     this.setItem(this.KEYS.LIMIT, v);
+  },
+
+  loadGapThreshold() {
+    try {
+      const fallback = typeof DEFAULT_GAP_THRESHOLD !== "undefined" ? DEFAULT_GAP_THRESHOLD : 18;
+      const v = parseInt(this.getItem(this.KEYS.GAP_THRESHOLD), 10);
+      const valid = typeof GAP_THRESHOLD_OPTIONS !== "undefined"
+        ? GAP_THRESHOLD_OPTIONS.some(o => o.val === v)
+        : [12, 18, 24, 48].includes(v);
+      return valid ? v : fallback;
+    } catch {
+      return 18;
+    }
+  },
+  saveGapThreshold(v) {
+    const num = parseInt(v, 10);
+    const valid = typeof GAP_THRESHOLD_OPTIONS !== "undefined"
+      ? GAP_THRESHOLD_OPTIONS.some(o => o.val === num)
+      : [12, 18, 24, 48].includes(num);
+    if (valid) {
+      this.setItem(this.KEYS.GAP_THRESHOLD, num);
+      return true;
+    }
+    return false;
   },
 
   loadPlan() {

@@ -1,7 +1,7 @@
 from playwright.sync_api import sync_playwright
 
 def run_cuj(page):
-    page.goto("http://localhost:8080")
+    page.goto("http://localhost:3000")
 
     page.wait_for_timeout(2000)
 
@@ -22,7 +22,7 @@ def run_cuj(page):
         // we can inject some mock activities that match PR regex
 
     """)
-    page.goto("http://localhost:8080")
+    page.goto("http://localhost:3000")
     page.wait_for_timeout(2000)
 
     # Check if OPEN PR is visible

@@ -59,6 +59,14 @@ function Shell({ children, desktop=false }) {
           50% { left: 100%; transform: translateX(0%); }
           100% { left: 0%; transform: translateX(-100%); }
         }
+        @keyframes messageFadeIn {
+          0% { opacity: 0; transform: translateY(6px); }
+          100% { opacity: 1; transform: translateY(0); }
+        }
+        * {
+          overflow-wrap: break-word;
+          word-break: normal;
+        }
         @media (prefers-reduced-motion: reduce) {
           *, ::before, ::after {
             animation-delay: -1ms !important;

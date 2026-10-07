@@ -76,12 +76,16 @@ const SessionCard = memo(({ s, onPress, onSelect, isSelected, isBulkSelected, on
     if (!activeCheck) {
       return {
         color: isSelected ? T.textHi : T.textDim,
+        border: "none",
+        background: "transparent",
       };
     }
     const isFailure = activeCheck.state === "failure";
     const highlightColor = isFailure ? T.red : T.amber;
     return {
       color: isSelected ? T.textHi : highlightColor,
+      border: "none",
+      background: "transparent",
     };
   }, [activeCheck, isSelected]);
 
@@ -146,17 +150,17 @@ const SessionCard = memo(({ s, onPress, onSelect, isSelected, isBulkSelected, on
     : {};
 
   const bg = isSelected ? `${T.brand}15` : T.surface;
-  const borderColor = isSelected ? "transparent" : `${T.border}44`;
+  const borderColor = isSelected ? `${T.brand}60` : "transparent";
 
   return (
     <button ref={cardRef} onClick={handleClick}
       aria-label={`Session ${index}: ${s.title || s.prompt}. Status: ${m.label}. ${isUnread ? "New activity." : ""}`}
       style={{
         width:"100%", background:bg, textAlign:"left", cursor:"pointer",
-        border: isSelected ? "none" : `1px solid ${borderColor}`,
-        borderRadius:8, padding:"11px 14px", marginBottom:8, transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)",
+        border: `1px solid ${borderColor}`,
+        borderRadius:8, padding:"10px 12px", marginBottom:6, transition:"all .15s cubic-bezier(0.4, 0, 0.2, 1)",
         position:"relative",
-        minHeight:48,
+        minHeight:46,
         transform:isSelected?"translateX(4px) scale(1.005)":"none",
         outline:"none",
         boxShadow: "none",

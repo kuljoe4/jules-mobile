@@ -294,6 +294,17 @@ assert.equal(SafeStorage.saveCacheLimit(-1), false);
 globalThis.localStorage.setItem('jac_cache_limit', '99999');
 assert.equal(SafeStorage.loadCacheLimit(), 5); // Fallback to DEFAULT_CACHE_LIMIT (5)
 
+// Test SafeStorage gap threshold validation
+assert.equal(SafeStorage.saveGapThreshold(24), true);
+assert.equal(SafeStorage.loadGapThreshold(), 24);
+assert.equal(SafeStorage.saveGapThreshold(12), true);
+assert.equal(SafeStorage.loadGapThreshold(), 12);
+assert.equal(SafeStorage.saveGapThreshold(999), false);
+assert.equal(SafeStorage.saveGapThreshold(-5), false);
+
+globalThis.localStorage.setItem('jac_gap_threshold', '999');
+assert.equal(SafeStorage.loadGapThreshold(), 18); // Fallback to default (18)
+
 // Test SafeStorage repo filter validation
 assert.equal(SafeStorage.saveRepoFilter('owner/repo'), true);
 assert.equal(SafeStorage.loadRepoFilter(), 'owner/repo');
