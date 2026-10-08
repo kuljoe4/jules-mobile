@@ -382,6 +382,7 @@ const ChatBubble = memo(({ act, type, onMediaClick, onEdit, onReply, onSendFollo
                   display: "flex", alignItems: "center", gap: 4
                 }}
               >
+                <Ic n="pencil" s={11} c={T.brand}/>
                 EDIT
               </button>
             </>

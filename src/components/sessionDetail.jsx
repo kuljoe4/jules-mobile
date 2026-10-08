@@ -2822,8 +2822,9 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                     </button>
                     <button onClick={(e) => { e.stopPropagation(); onEditMessage(session.prompt); }} style={{
                       background:T.brandDim, border:"none", borderRadius:4, padding:"4px 8px",
-                      color:T.brand, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700, cursor:"pointer"
-                    }} title="Edit message prompt" aria-label="Edit message prompt">EDIT</button>
+                      color:T.brand, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700, cursor:"pointer",
+                      display:"inline-flex", alignItems:"center", gap:4
+                    }} title="Edit message prompt" aria-label="Edit message prompt"><Ic n="pencil" s={11} c={T.brand}/> EDIT</button>
                   </div>
                 </div>
               </div>
@@ -2896,8 +2897,9 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                       </button>
                       <button onClick={(e) => { e.stopPropagation(); onEditMessage(followupText); }} style={{
                         background:T.brandDim, border:"none", borderRadius:4, padding:"4px 8px",
-                        color:T.brand, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700, cursor:"pointer"
-                      }} title="Edit follow-up prompt" aria-label="Edit follow-up prompt">EDIT</button>
+                        color:T.brand, fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700, cursor:"pointer",
+                        display:"inline-flex", alignItems:"center", gap:4
+                      }} title="Edit follow-up prompt" aria-label="Edit follow-up prompt"><Ic n="pencil" s={11} c={T.brand}/> EDIT</button>
                     </div>
                   </div>
                 </div>
