@@ -36,6 +36,7 @@
   "src/components/setup.jsx",
   "src/components/sessionCard.jsx",
   "src/hooks/useSessionPolling.js",
+  "src/hooks/useSessionActivities.js",
   "src/components/sessionDetail.jsx",
   "src/services/activityStats.js",
   "src/hooks/useNewSessionFlow.js",
