@@ -79,7 +79,151 @@ const MediaArtifacts = memo(({ artifacts, ts, onMediaClick }) => {
 
 function extractOptions(text) {
   if (!text) return [];
-  return ["Proceed"];
+  const options = [];
+
+  const proceedRegexes = [
+    /\b(?:shall|should|can|could) (?:i|we) (?:proceed|continue|move forward)\b/i,
+    /\b(?:would you like|do you want) (?:me|us)? (?:to )?(?:proceed|continue|move forward)\b/i,
+    /\b(?:let me know|tell me) (?:how|if) you(?:'d| would)? like to (?:proceed|continue|move forward)\b/i,
+    /\bready to (?:proceed|continue|move forward)\b/i,
+    /\bplease (?:let me know|advise) how (?:you would like|to) proceed\b/i,
+    /\bbefore i (?:proceed|continue)\b/i,
+    /\bdo you want me to proceed\b/i,
+    /\b(would you like me to|shall i|should i|can i) continue\b/i,
+    /\bdo you want me to continue\b/i,
+    /\bhow would you like to proceed\b/i,
+    /\bplease let me know how you would like to proceed\b/i,
+    /\b(?:let me know if|tell me if) you.*(?:proceed|continue|move forward)\b/i,
+    /\b(?:what|how) (?:should|do) (?:we|i) (?:proceed|continue|do next)\b/i,
+    /\bare you ready to (?:proceed|continue)\b/i
+  ];
+
+  if (proceedRegexes.some(r => r.test(text))) {
+    options.push("Proceed");
+  }
+
+  const conversationalMatch = text.match(/(?:Should I|Would you like me to|Do you want me to) ([^,?.!]+)(?:, or| or) ([^?.!]+)\?/i);
+  if (conversationalMatch) {
+    let opt1 = conversationalMatch[1].trim();
+    let opt2 = conversationalMatch[2].trim();
+    opt1 = opt1.charAt(0).toUpperCase() + opt1.slice(1);
+    opt2 = opt2.charAt(0).toUpperCase() + opt2.slice(1);
+    if (!options.includes(opt1)) options.push(opt1);
+    if (!options.includes(opt2)) options.push(opt2);
+  }
+
+  const conversationalMatch3 = text.match(/Does this sound (?:good|like|okay|correct)/i);
+  if (conversationalMatch3) {
+      if (!options.includes("Yes, proceed")) options.push("Yes, proceed");
+  }
+
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+  const allLists = [];
+  let currentList = [];
+  let hasIntro = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const lowerLine = line.toLowerCase();
+
+    // Look for phrases that introduce options
+    const isIntro = /(?:options|would you like|choose|proceed|follow up|next steps|how would you like|please select|here are some options|you can|shall we|what to do|let me know|are you ready)/i.test(lowerLine);
+
+    // Match standard Markdown list items (*, -, 1.)
+    const m = line.match(/^[-*]\s+(.+)$/) || line.match(/^\d+\.\s+(.+)$/);
+    if (m) {
+      let item = m[1].trim();
+      item = item.replace(/\*\*(.+?)\*\*/g, '$1'); // strip bold
+      item = item.replace(/`(.+?)`/g, '$1');      // strip inline code
+      if (item.length > 0 && item.length < 150) {
+         currentList.push(item);
+      }
+    } else {
+      // If we were building a list and it ended
+      if (currentList.length > 0) {
+        allLists.push({ items: currentList, hasIntro });
+        currentList = [];
+        hasIntro = false;
+      }
+      if (isIntro) {
+        hasIntro = true;
+      } else {
+        // Reset intro flag if there's a long paragraph between intro and list
+        if (line.length > 100) {
+           hasIntro = false;
+        }
+      }
+    }
+  }
+  // Add any trailing list
+  if (currentList.length > 0) {
+    allLists.push({ items: currentList, hasIntro });
+  }
+
+  // Pick the most likely options list
+  let selectedList = [];
+  if (allLists.length > 0) {
+    const listsWithIntro = allLists.filter(l => l.hasIntro);
+    if (listsWithIntro.length > 0) {
+      // Prefer the last list that had an intro
+      selectedList = listsWithIntro[listsWithIntro.length - 1].items;
+    } else {
+      // Otherwise, see if the very last list in the message is at the very end
+      const lastList = allLists[allLists.length - 1].items;
+      let linesAfter = 0;
+      let inLastList = false;
+      for (let i = lines.length - 1; i >= 0; i--) {
+        const line = lines[i];
+        const m = line.match(/^[-*]\s+(.+)$/) || line.match(/^\d+\.\s+(.+)$/);
+        if (m) {
+          inLastList = true;
+        } else if (inLastList) {
+          break; // Exited the list backwards
+        } else {
+          linesAfter++;
+        }
+      }
+      // If the list is within the last 3 lines, it's likely a summary of options
+      if (linesAfter <= 3) {
+        selectedList = lastList;
+      }
+    }
+  }
+
+  // 5. Merge list items into our options
+  if (selectedList.length > 0) {
+    for (let item of selectedList) {
+      item = item.charAt(0).toUpperCase() + item.slice(1); // capitalize first letter
+      if (item.toLowerCase() === "proceed") {
+         if (!options.includes("Proceed")) options.push("Proceed");
+      } else {
+         if (!options.includes(item)) options.push(item);
+      }
+    }
+  }
+
+  // 6. Ensure "Proceed" is always present
+  if (!options.includes("Proceed")) {
+    options.unshift("Proceed"); // Add to the beginning
+  }
+
+  // 7. Deduplicate case-insensitively
+  let finalOptions = [];
+  const lowerFinals = new Set();
+  for (const opt of options) {
+      const l = opt.toLowerCase();
+      if (!lowerFinals.has(l)) {
+          lowerFinals.add(l);
+          finalOptions.push(opt);
+      }
+  }
+
+  // Handle conversational Yes/No correctly (don't mix generic Yes proceed with other specific ones)
+  if (finalOptions.includes("Yes, proceed") && finalOptions.length > 1) {
+    finalOptions = finalOptions.filter(opt => opt !== "Yes, proceed");
+  }
+
+  return finalOptions;
 }
 
 const ChatBubble = memo(({ act, type, onMediaClick, onEdit, onReply, onSendFollowup, forceExpanded = false }) => {
