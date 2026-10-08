@@ -79,7 +79,15 @@ const useNewSessionFlow = ({ apiKey, personas, onCreate, initialDraft, onDraftSa
     if (!srcObj) { setBranches([]); setDefault(""); return; }
     const repo = srcObj.githubRepo;
     if (!repo) { setBranches([]); setDefault(""); return; }
-    const bs   = (repo.branches || []).map(b => b.displayName).filter(Boolean);
+    // OPTIMIZATION (Bolt): Replace chained .map().filter() with a single loop to eliminate
+    // intermediate array allocations and reduce garbage collection churn on branch processing.
+    const bs = [];
+    if (repo.branches) {
+      for (let i = 0; i < repo.branches.length; i++) {
+        const b = repo.branches[i];
+        if (b && b.displayName) bs.push(b.displayName);
+      }
+    }
     const def  = repo.defaultBranch?.displayName || bs[0] || "main";
     setBranches(bs);
     setDefault(def);

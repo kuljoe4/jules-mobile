@@ -98,3 +98,6 @@
 ## 2024-10-06 - Replacing Math.min spread operations with for loops
 **Learning:** Using the spread operator with `Math.min(...array.map(...))` on large arrays inside the data fetching pipelines of components like `JulesClient` causes intermediate array allocations (via `.map()`) and pushes all array elements onto the function call stack simultaneously. For large session datasets, this can trigger a 'Maximum call stack size exceeded' error and place unnecessary pressure on garbage collection.
 **Action:** When finding the minimum or maximum value in potentially large lists or mapped arrays, default to an imperative `for` loop tracking the current min/max value iteratively. This executes faster and entirely prevents call stack overflow and intermediate allocations.
+## 2023-10-24 - [Avoid chained array allocations in useNewSessionFlow]
+**Learning:** Found chained `.map(b => b.displayName).filter(Boolean)` on branch processing in `src/hooks/useNewSessionFlow.js` which creates intermediate arrays.
+**Action:** Replaced chained methods with a traditional single-pass `for` loop, eliminating callback overhead and intermediate array allocations in a frequently re-rendered hook.
