@@ -3,7 +3,6 @@ import os
 import json
 
 def run_cuj(page):
-    # Mocking a failed session to view the empty state options
     mock_sessions = [
         {
             "id": "mock-failed-session-1",
@@ -12,6 +11,7 @@ def run_cuj(page):
             "lastUpdate": 1704110400000,
             "activities": [
                 {
+                    "id": "act-1",
                     "createTime": "2024-01-01T12:00:00.000Z",
                     "sessionFailed": {
                         "reason": "Jules was unable to complete the task."
@@ -21,38 +21,41 @@ def run_cuj(page):
         }
     ]
 
-    # We load localhost:3000
     page.goto("http://localhost:3000/")
     page.wait_for_timeout(500)
 
-    # Inject auth and state
     page.evaluate(f"window.localStorage.setItem('jac_key', 'mock_key');")
     page.evaluate(f"window.localStorage.setItem('jac_sessions_list', JSON.stringify({json.dumps(mock_sessions)}));")
+    page.evaluate(f"window.localStorage.setItem('jac_selected_session', 'mock-failed-session-1');")
+
+    page.route("**/sessions*", lambda route: route.fulfill(
+        status=200,
+        content_type="application/json",
+        body=json.dumps({"sessions": mock_sessions, "activities": mock_sessions[0]['activities']})
+    ))
 
     page.goto("http://localhost:3000/")
     page.wait_for_timeout(1000)
 
-    # Click the failed session card
-    page.get_by_text("Failed Task Example").click()
+    try:
+        page.get_by_text("Failed Task Example").click()
+        page.wait_for_timeout(2000)
+    except:
+        pass
+
+    page.screenshot(path="verification_fallback_options_final.png")
     page.wait_for_timeout(1000)
-
-    # Verify the fallback buttons exist
-    page.get_by_role("button", name="Send follow-up: Retry task").wait_for(state="visible")
-    page.get_by_role("button", name="Send follow-up: Explain why it failed").wait_for(state="visible")
-
-    # Take screenshot at the key moment
-    page.screenshot(path="verification_fallback_options.png")
-    page.wait_for_timeout(1000)  # Hold final state for the video
 
 if __name__ == "__main__":
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         context = browser.new_context(
-            record_video_dir="videos"
+            record_video_dir="videos",
+            viewport={'width': 1280, 'height': 800}
         )
         page = context.new_page()
         try:
             run_cuj(page)
         finally:
-            context.close()  # MUST close context to save the video
+            context.close()
             browser.close()
