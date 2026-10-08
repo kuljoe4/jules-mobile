@@ -202,7 +202,12 @@ function extractOptions(text) {
     }
   }
 
-  // 6. Deduplicate case-insensitively
+  // 6. Ensure "Proceed" is always present
+  if (!options.includes("Proceed")) {
+    options.unshift("Proceed"); // Add to the beginning
+  }
+
+  // 7. Deduplicate case-insensitively
   let finalOptions = [];
   const lowerFinals = new Set();
   for (const opt of options) {
@@ -211,15 +216,6 @@ function extractOptions(text) {
           lowerFinals.add(l);
           finalOptions.push(opt);
       }
-  }
-
-  // 7. Cleanup: If we extracted specific options (from a list or "A or B" match),
-  // drop generic "Proceed" unless it was explicitly part of the selected list.
-  if (finalOptions.includes("Proceed") && finalOptions.length > 1) {
-    const proceedInList = selectedList.some(item => item.toLowerCase() === 'proceed');
-    if (!proceedInList) {
-        finalOptions = finalOptions.filter(opt => opt !== "Proceed");
-    }
   }
 
   // Handle conversational Yes/No correctly (don't mix generic Yes proceed with other specific ones)
