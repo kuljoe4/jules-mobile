@@ -6,6 +6,8 @@
 
 // ─── ApiKeysTab ────────────────────────────────────────────────────────────────
 const ApiKeysTab = ({ apiKey, setApiKey, githubToken, setGithubToken, ghRateLimitedReset, triggerSaveFeedback }) => {
+  const [showKey, setShowKey] = useState(false);
+  const [showGhKey, setShowGhKey] = useState(false);
 
   const isKeyInvalid = apiKey ? !isValidGoogleApiKey(apiKey) : false;
   const isGhTokenInvalid = githubToken ? !isValidGithubToken(githubToken) : false;
