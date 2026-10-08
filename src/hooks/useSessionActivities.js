@@ -218,6 +218,7 @@ export const useSessionActivities = ({
     actMapRef,
     lastTsRef,
     notFoundSinceRef,
+    activitiesAbortRef,
     getActivityKey // Expose for optimistic updates
   };
 };

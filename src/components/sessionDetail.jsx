@@ -87,7 +87,8 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     loadActivities,
     actMapRef,
     lastTsRef,
-    notFoundSinceRef
+    notFoundSinceRef,
+    activitiesAbortRef
   } = useSessionActivities({
     session,
     apiKey,
