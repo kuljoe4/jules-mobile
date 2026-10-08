@@ -336,6 +336,54 @@ export const GitHubApi = {
     }
   },
 
+
+  async closePullRequest(url) {
+    const match = url.match(/https:\/\/github\.com\/([a-zA-Z0-9\-_.]+)\/([a-zA-Z0-9\-_.]+)\/pull\/(\d+)/);
+    if (!match) throw new Error("Invalid GitHub Pull Request URL");
+
+    const [_, owner, repo, number] = match;
+    const repoFull = `${owner}/${repo}`;
+    if (!isValidGithubRepoName(repoFull)) {
+      throw new Error("Invalid GitHub repository format in URL");
+    }
+
+    const token = SafeStorage.loadGithubToken();
+    if (!token || !isValidGithubToken(token)) {
+      throw new Error("GitHub Token required to close PR. Please set your token in Settings.");
+    }
+
+    const headers = {
+      "Accept": "application/vnd.github.v3+json",
+      "Content-Type": "application/json",
+      "Authorization": `token ${token}`
+    };
+
+    const apiUrl = `https://api.github.com/repos/${owner}/${repo}/pulls/${number}`;
+    const controller = new AbortController();
+    const timeoutMs = SafeStorage.loadApiTimeout();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const res = await fetch(apiUrl, {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify({ state: "closed" }),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || `Failed to close PR (Status ${res.status})`);
+      }
+
+      return { data, repo: repoFull };
+    } catch (err) {
+      clearTimeout(timeoutId);
+      throw err;
+    }
+  },
+
   async mergePullRequest(url, mergeMethod = "merge") {
     const match = url.match(/https:\/\/github\.com\/([a-zA-Z0-9\-_.]+)\/([a-zA-Z0-9\-_.]+)\/pull\/(\d+)/);
     if (!match) throw new Error("Invalid GitHub Pull Request URL");

@@ -203,6 +203,32 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     }
   };
 
+  const handleClosePullRequest = async () => {
+    if (!pr || !pr.url) return;
+    if (!confirm(`Are you sure you want to mark PR #${pr.number} as closed?`)) return;
+
+    setBusy(true); setErr(null);
+    try {
+      await closePullRequest(pr.url);
+      setJustUpdated(true);
+      setGhActionFeedback({
+        type: "success",
+        message: `Pull Request #${pr.number} successfully marked as closed!`
+      });
+      setTimeout(() => setJustUpdated(false), 3000);
+      loadActivities(lastTsRef.current);
+      loadSession();
+    } catch (e) {
+      setGhActionFeedback({
+        type: "error",
+        message: e.message || "Failed to close Pull Request"
+      });
+      setErr(e.message || "Failed to close Pull Request");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleMergeBranchDirect = async () => {
     if (!repo || !b?.working) return;
     const commitMsg = getSmartTitle(session, b, activities, pr?.state === "merged");
@@ -2057,6 +2083,21 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                       <div style={{ fontFamily: "'IBM Plex Sans',sans-serif", fontSize: 12, color: T.red, fontWeight: 700 }}>
                         MERGE CONFLICTS DETECTED: This Pull Request cannot be merged automatically. Resolve conflicts on GitHub or rebase locally.
                       </div>
+                    </div>
+                  )}
+
+                  {/* Close Pull Request Actions */}
+                  {pr.state === "open" && (
+                    <div style={{ marginTop: 12, display: "flex", justifyContent: "flex-end" }}>
+                      <button onClick={handleClosePullRequest} disabled={busy} style={{
+                        background: "transparent", color: T.red, border: `1px solid ${T.red}40`, borderRadius: 6,
+                        padding: "6px 14px", fontFamily: "'JetBrains Mono',monospace",
+                        fontSize: 11, fontWeight: 900, cursor: busy ? "not-allowed" : "pointer", flexShrink: 0,
+                        opacity: busy ? 0.6 : 1, transition: "all .15s ease",
+                        display: "inline-flex", alignItems: "center", gap: 6
+                      }} onMouseEnter={e => e.currentTarget.style.background = `${T.red}10`} onMouseLeave={e => e.currentTarget.style.background = "transparent"} aria-label="Mark PR as closed" title="Mark this Pull Request as closed">
+                        <Ic n="x" s={13} c={T.red}/> CLOSE PR
+                      </button>
                     </div>
                   )}
 

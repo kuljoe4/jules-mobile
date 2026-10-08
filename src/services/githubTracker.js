@@ -635,6 +635,23 @@ const GitHubTracker = {
     return { pr, mergeRes };
   },
 
+
+  async closePullRequest(url) {
+    const { data } = await GitHubApi.closePullRequest(url);
+
+    const existing = this.GH_STATE_CACHE.get(url) || {};
+    const updatedInfo = {
+      ...existing,
+      state: "closed",
+      fetchedAt: Date.now(),
+      failed: false
+    };
+    this.GH_STATE_CACHE.set(url, updatedInfo);
+    if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("gh-pr-updated", { detail: { url, ...updatedInfo } }));
+    this.triggerGitHubFetch(url, true);
+    return data;
+  },
+
   async mergePullRequest(url, mergeMethod = "merge") {
     const { data } = await GitHubApi.mergePullRequest(url, mergeMethod);
 
@@ -1068,10 +1085,11 @@ const getCheckStatus = (activities = []) => GitHubTracker.getCheckStatus(activit
 const getDeploymentInfo = (repo, force = false) => GitHubTracker.getDeploymentInfo(repo, force);
 const getPrUrlAndNumber = (pr) => GitHubTracker.getPrUrlAndNumber(pr);
 const createPullRequest = (params) => GitHubTracker.createPullRequest(params);
+const closePullRequest = (url) => GitHubTracker.closePullRequest(url);
 const mergePullRequest = (url, mergeMethod) => GitHubTracker.mergePullRequest(url, mergeMethod);
 const mergeBranch = (params) => GitHubTracker.mergeBranch(params);
 const createAndMergePR = (params) => GitHubTracker.createAndMergePR(params);
 const deleteBranch = (repo, branch) => GitHubTracker.deleteBranch(repo, branch);
 const getPendingPRProposal = (s, activities = []) => GitHubTracker.getPendingPRProposal(s, activities);
 
-export { GitHubTracker, getPR, getPRInfo, getBranchInfo, getCheckStatus, getDeploymentInfo, getPrUrlAndNumber, createPullRequest, mergePullRequest, mergeBranch, createAndMergePR, deleteBranch, getPendingPRProposal };
+export { GitHubTracker, getPR, getPRInfo, getBranchInfo, getCheckStatus, getDeploymentInfo, getPrUrlAndNumber, createPullRequest, closePullRequest, mergePullRequest, mergeBranch, createAndMergePR, deleteBranch, getPendingPRProposal };
