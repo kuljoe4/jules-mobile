@@ -21,6 +21,12 @@
   "dependencies": {
     "express": "^5.2.1"
   },
+  "pnpm": {
+    "overrides": {
+      "electron-to-chromium": "1.5.444",
+      "regexpu-core": "6.5.2"
+    }
+  },
   "resolutions": {
     "electron-to-chromium": "1.5.444",
     "regexpu-core": "6.5.2"
