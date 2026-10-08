@@ -3,6 +3,112 @@
  * Personas, Network, Storage, API Keys) and delegating Design System Lab rendering
  * to the standalone DesignLab component.
  */
+
+// ─── ApiKeysTab ────────────────────────────────────────────────────────────────
+const ApiKeysTab = ({ apiKey, setApiKey, githubToken, setGithubToken, ghRateLimitedReset, triggerSaveFeedback }) => {
+
+  const isKeyInvalid = apiKey ? !isValidGoogleApiKey(apiKey) : false;
+  const isGhTokenInvalid = githubToken ? !isValidGithubToken(githubToken) : false;
+
+  return (
+    <div style={{animation:"fadeIn .2s ease", display:"flex", flexDirection:"column", gap:24}}>
+      <div style={{background:T.surfaceHi, padding:20, borderRadius:12, border:`1px solid ${T.border}`}}>
+        <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:16}}>
+          <Ic n="key" s={16} c={T.brand}/>
+          <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:12, fontWeight:700, color:T.text}}>API KEY</span>
+        </div>
+        <div style={{marginBottom:10}}>
+          <label htmlFor="jules_api_key_settings" style={{fontSize:11, color:T.textDim, marginBottom:8, fontFamily:"'JetBrains Mono',monospace", fontWeight:700, display: "block"}}>GOOGLE API KEY</label>
+          <div style={{display:"flex", alignItems:"center", gap:8}}>
+            <input
+              id="jules_api_key_settings"
+              type={showKey ? "text" : "password"}
+              value={apiKey}
+              onChange={(e) => {
+                const newKey = e.target.value.trim();
+                SafeStorage.saveApiKey(newKey);
+                setApiKey(newKey);
+                triggerSaveFeedback();
+              }}
+              placeholder="Paste your API key..."
+              maxLength={200}
+              aria-invalid={isKeyInvalid ? "true" : "false"}
+              aria-describedby={isKeyInvalid ? "settings-api-key-error" : undefined}
+              style={{
+                ...inputSt,
+                fontSize:13,
+                flex:1,
+                borderColor: isKeyInvalid ? T.red : T.border
+              }}
+            />
+            <button onClick={() => setShowKey(!showKey)} title={showKey ? "Hide API Key" : "Show API Key"} aria-label={showKey ? "Hide API Key" : "Show API Key"} style={{background:T.surface, border:`1px solid ${T.border}`, padding:10, borderRadius:8, cursor:"pointer"}}>
+              <Ic n={showKey ? "eye_closed" : "eye"} s={16} c={T.muted}/>
+            </button>
+          </div>
+          {isKeyInvalid && (
+            <div id="settings-api-key-error" role="alert" style={{marginTop:6, fontSize:11, color:T.red, fontFamily:"'JetBrains Mono',monospace", fontWeight:700}}>
+              ⚠️ Invalid API key format detected. Only printable non-space ASCII characters are allowed.
+            </div>
+          )}
+          <div style={{marginTop:6, fontSize:10, color:T.textDim, fontFamily:"'IBM Plex Sans',sans-serif"}}>
+            Your key is stored locally in your browser.
+          </div>
+        </div>
+      </div>
+
+      <div style={{background:T.surfaceHi, padding:20, borderRadius:12, border:`1px solid ${T.border}`}}>
+        <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:16}}>
+          <Ic n="git_pull" s={16} c={T.brand}/>
+          <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:12, fontWeight:700, color:T.text}}>GITHUB PAT (OPTIONAL)</span>
+        </div>
+        <div style={{marginBottom:10}}>
+          <label htmlFor="github_pat_settings" style={{fontSize:11, color:T.textDim, marginBottom:8, fontFamily:"'JetBrains Mono',monospace", fontWeight:700, display: "block"}}>GITHUB PERSONAL ACCESS TOKEN</label>
+          <div style={{display:"flex", alignItems:"center", gap:8}}>
+            <input
+              id="github_pat_settings"
+              type={showGhKey ? "text" : "password"}
+              value={githubToken}
+              onChange={(e) => {
+                const newToken = e.target.value.trim();
+                SafeStorage.saveGithubToken(newToken);
+                setGithubToken(newToken);
+                triggerSaveFeedback();
+              }}
+              placeholder="ghp_..."
+              maxLength={200}
+              aria-invalid={isGhTokenInvalid ? "true" : "false"}
+              aria-describedby={isGhTokenInvalid ? "settings-github-token-error" : undefined}
+              style={{
+                ...inputSt,
+                fontSize:13,
+                flex:1,
+                borderColor: isGhTokenInvalid ? T.red : T.border
+              }}
+            />
+            <button onClick={() => setShowGhKey(!showGhKey)} title={showGhKey ? "Hide Token" : "Show Token"} aria-label={showGhKey ? "Hide Token" : "Show Token"} style={{background:T.surface, border:`1px solid ${T.border}`, padding:10, borderRadius:8, cursor:"pointer"}}>
+              <Ic n={showGhKey ? "eye_closed" : "eye"} s={16} c={T.muted}/>
+            </button>
+          </div>
+          {isGhTokenInvalid && (
+            <div id="settings-github-token-error" role="alert" style={{marginTop:6, fontSize:11, color:T.red, fontFamily:"'JetBrains Mono',monospace", fontWeight:700}}>
+              ⚠️ Invalid GitHub token format detected. Only printable non-space ASCII characters are allowed.
+            </div>
+          )}
+          <div style={{marginTop:6, fontSize:10, color:T.textDim, fontFamily:"'IBM Plex Sans',sans-serif"}}>
+            Allows querying public/private GitHub repositories without rate limits. Stored locally in your browser.
+          </div>
+          {ghRateLimitedReset && (
+            <div role="alert" style={{marginTop:8, fontSize:11, color:T.amber, fontFamily:"'JetBrains Mono',monospace", fontWeight:700, background: `${T.amber}10`, padding: 8, borderRadius: 6, border: `1px solid ${T.amber}30`}}>
+              ⚠️ GitHub rate limit exceeded. Public API is limited to 60 req/hr. Reset at {ghRateLimitedReset}. Configure a Personal Access Token to increase this limit.
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
 const SettingsView = ({ onBack, isDesktop, settings, personas, setPersonas, todayCount, apiKey, setApiKey, githubToken, setGithubToken, ghRateLimitedReset }) => {
   const {
     pollInterval, setPollInterval,
@@ -49,8 +155,6 @@ const SettingsView = ({ onBack, isDesktop, settings, personas, setPersonas, toda
   const [newName, setNewName] = useState("");
   const [newPrompt, setNewPrompt] = useState("");
   const [newColor, setNewColor] = useState("#ffffff");
-  const [showKey, setShowKey] = useState(false);
-  const [showGhKey, setShowGhKey] = useState(false);
   const [bucketTimeframe, setBucketTimeframe] = useState("overall");
 
   const triggerSaveFeedback = () => {
@@ -113,106 +217,8 @@ const SettingsView = ({ onBack, isDesktop, settings, personas, setPersonas, toda
       <div style={{flex:1,overflowY:"auto",padding:"20px 24px",WebkitOverflowScrolling:"touch",minHeight:0}}>
         <div style={{maxWidth:560,margin:"0 auto"}}>
 
-          {tab === "api" && (() => {
-            const isKeyInvalid = apiKey ? !isValidGoogleApiKey(apiKey) : false;
-            const isGhTokenInvalid = githubToken ? !isValidGithubToken(githubToken) : false;
-            return (
-              <div style={{animation:"fadeIn .2s ease", display:"flex", flexDirection:"column", gap:24}}>
-                <div style={{background:T.surfaceHi, padding:20, borderRadius:12, border:`1px solid ${T.border}`}}>
-                  <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:16}}>
-                    <Ic n="key" s={16} c={T.brand}/>
-                    <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:12, fontWeight:700, color:T.text}}>API KEY</span>
-                  </div>
-                  <div style={{marginBottom:10}}>
-                    <label htmlFor="jules_api_key_settings" style={{fontSize:11, color:T.textDim, marginBottom:8, fontFamily:"'JetBrains Mono',monospace", fontWeight:700, display: "block"}}>GOOGLE API KEY</label>
-                    <div style={{display:"flex", alignItems:"center", gap:8}}>
-                      <input
-                        id="jules_api_key_settings"
-                        type={showKey ? "text" : "password"}
-                        value={apiKey}
-                        onChange={(e) => {
-                          const newKey = e.target.value.trim();
-                          SafeStorage.saveApiKey(newKey);
-                          setApiKey(newKey);
-                          triggerSaveFeedback();
-                        }}
-                        placeholder="Paste your API key..."
-                        maxLength={200}
-                        aria-invalid={isKeyInvalid ? "true" : "false"}
-                        aria-describedby={isKeyInvalid ? "settings-api-key-error" : undefined}
-                        style={{
-                          ...inputSt,
-                          fontSize:13,
-                          flex:1,
-                          borderColor: isKeyInvalid ? T.red : T.border
-                        }}
-                      />
-                      <button onClick={() => setShowKey(!showKey)} title={showKey ? "Hide API Key" : "Show API Key"} aria-label={showKey ? "Hide API Key" : "Show API Key"} style={{background:T.surface, border:`1px solid ${T.border}`, padding:10, borderRadius:8, cursor:"pointer"}}>
-                        <Ic n={showKey ? "eye_closed" : "eye"} s={16} c={T.muted}/>
-                      </button>
-                    </div>
-                    {isKeyInvalid && (
-                      <div id="settings-api-key-error" role="alert" style={{marginTop:6, fontSize:11, color:T.red, fontFamily:"'JetBrains Mono',monospace", fontWeight:700}}>
-                        ⚠️ Invalid API key format detected. Only printable non-space ASCII characters are allowed.
-                      </div>
-                    )}
-                    <div style={{marginTop:6, fontSize:10, color:T.textDim, fontFamily:"'IBM Plex Sans',sans-serif"}}>
-                      Your key is stored locally in your browser.
-                    </div>
-                  </div>
-                </div>
+          {tab === "api" && <ApiKeysTab apiKey={apiKey} setApiKey={setApiKey} githubToken={githubToken} setGithubToken={setGithubToken} ghRateLimitedReset={ghRateLimitedReset} triggerSaveFeedback={triggerSaveFeedback} />}
 
-                <div style={{background:T.surfaceHi, padding:20, borderRadius:12, border:`1px solid ${T.border}`}}>
-                  <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:16}}>
-                    <Ic n="git_pull" s={16} c={T.brand}/>
-                    <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:12, fontWeight:700, color:T.text}}>GITHUB PAT (OPTIONAL)</span>
-                  </div>
-                  <div style={{marginBottom:10}}>
-                    <label htmlFor="github_pat_settings" style={{fontSize:11, color:T.textDim, marginBottom:8, fontFamily:"'JetBrains Mono',monospace", fontWeight:700, display: "block"}}>GITHUB PERSONAL ACCESS TOKEN</label>
-                    <div style={{display:"flex", alignItems:"center", gap:8}}>
-                      <input
-                        id="github_pat_settings"
-                        type={showGhKey ? "text" : "password"}
-                        value={githubToken}
-                        onChange={(e) => {
-                          const newToken = e.target.value.trim();
-                          SafeStorage.saveGithubToken(newToken);
-                          setGithubToken(newToken);
-                          triggerSaveFeedback();
-                        }}
-                        placeholder="ghp_..."
-                        maxLength={200}
-                        aria-invalid={isGhTokenInvalid ? "true" : "false"}
-                        aria-describedby={isGhTokenInvalid ? "settings-github-token-error" : undefined}
-                        style={{
-                          ...inputSt,
-                          fontSize:13,
-                          flex:1,
-                          borderColor: isGhTokenInvalid ? T.red : T.border
-                        }}
-                      />
-                      <button onClick={() => setShowGhKey(!showGhKey)} title={showGhKey ? "Hide Token" : "Show Token"} aria-label={showGhKey ? "Hide Token" : "Show Token"} style={{background:T.surface, border:`1px solid ${T.border}`, padding:10, borderRadius:8, cursor:"pointer"}}>
-                        <Ic n={showGhKey ? "eye_closed" : "eye"} s={16} c={T.muted}/>
-                      </button>
-                    </div>
-                    {isGhTokenInvalid && (
-                      <div id="settings-github-token-error" role="alert" style={{marginTop:6, fontSize:11, color:T.red, fontFamily:"'JetBrains Mono',monospace", fontWeight:700}}>
-                        ⚠️ Invalid GitHub token format detected. Only printable non-space ASCII characters are allowed.
-                      </div>
-                    )}
-                    <div style={{marginTop:6, fontSize:10, color:T.textDim, fontFamily:"'IBM Plex Sans',sans-serif"}}>
-                      Allows querying public/private GitHub repositories without rate limits. Stored locally in your browser.
-                    </div>
-                    {ghRateLimitedReset && (
-                      <div role="alert" style={{marginTop:8, fontSize:11, color:T.amber, fontFamily:"'JetBrains Mono',monospace", fontWeight:700, background: `${T.amber}10`, padding: 8, borderRadius: 6, border: `1px solid ${T.amber}30`}}>
-                        ⚠️ GitHub rate limit exceeded. Public API is limited to 60 req/hr. Reset at {ghRateLimitedReset}. Configure a Personal Access Token to increase this limit.
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })()}
 
           {tab === "general" && (
             <div style={{animation:"fadeIn .2s ease", display:"flex", flexDirection:"column", gap:24}}>
