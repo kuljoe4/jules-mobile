@@ -356,7 +356,11 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
       setShowScroll(false);
     }
 
-    lastScrollY.current = y;
+    // Use a threshold to determine intent, update lastScrollY only if exceeded
+    // This allows slow scrolling to accumulate and accurately trigger header expansion.
+    if (Math.abs(diff) > 10) {
+      lastScrollY.current = y;
+    }
   }, [scrolled]);
 
   // OPTIMIZATION (Bolt): Reuse precomputed driftSessions array length directly instead of re-iterating over
@@ -1139,7 +1143,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
         padding:scrolled?"8px 12px":"12px 16px 0",
         background:T.surface,
         flexShrink:0,
-        transition:"padding .2s cubic-bezier(0.4, 0, 0.2, 1)",
+        transition:"padding .15s cubic-bezier(0.4, 0, 0.2, 1)",
         zIndex: 5,
         contain: "layout",
         position: "relative",
@@ -1195,7 +1199,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
               }}>
                 {session.title||session.prompt}
               </div>
-              <div style={{display:"flex", alignItems:"center", gap:8, marginTop: 2, animation:"fadeIn .2s ease", height: (repo || (session.prompt?.match(/#group-([a-zA-Z0-9]+)/)) || (scrolled && !headerExpanded)) ? 14 : 0, overflow: "hidden", transition: "all .2s cubic-bezier(0.4, 0, 0.2, 1)"}}>
+              <div style={{display:"flex", alignItems:"center", gap:8, marginTop: 2, animation:"fadeIn .2s ease", height: (repo || (session.prompt?.match(/#group-([a-zA-Z0-9]+)/)) || (scrolled && !headerExpanded)) ? 14 : 0, overflow: "hidden", transition: "all .15s cubic-bezier(0.4, 0, 0.2, 1)"}}>
                  {(() => {
                    const groupMatch = session.prompt?.match(/#group-([a-zA-Z0-9]+)/);
                    if (groupMatch) {
@@ -1512,7 +1516,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
           alignItems: "center",
           gap: 8,
           marginBottom: headerExpanded ? 8 : 0,
-          transition: "all .2s cubic-bezier(0.4, 0, 0.2, 1), height .2s ease",
+          transition: "all .15s cubic-bezier(0.4, 0, 0.2, 1), height .15s ease",
           pointerEvents: headerExpanded ? "auto" : "none",
           contain: "size layout",
         }}>
@@ -1832,7 +1836,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
         </div>
 
       {/* ── Content ── */}
-      <div ref={contentRef} onScroll={handleScroll} style={{flex:1,overflowY:"auto",padding:"14px 16px",paddingBottom:isDesktop?(replyingTo?140:80):(composerMinimized?(replyingTo?180:130):(replyingTo?270:220)),WebkitOverflowScrolling:"touch",minHeight:200,position:"relative"}}>
+      <div ref={contentRef} onScroll={handleScroll} style={{flex:1,overflowY:"auto",padding:"14px 16px",paddingBottom:isDesktop?(replyingTo?140:80):(composerMinimized?(replyingTo?180:130):(replyingTo?270:220)),WebkitOverflowScrolling:"touch",minHeight:200,position:"relative",contain:"layout"}}>
         {tab==="activity"&&(
           <>
             <div style={{display:"flex", alignItems:"center", gap:6, marginBottom:16, flexWrap:"wrap"}}>

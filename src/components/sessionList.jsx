@@ -260,7 +260,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
       <div style={{
         padding: sidebarCollapsed ? "12px 8px" : (scrolled ? "8px 16px 8px" : "12px 16px 0"),
         background: T.surface, borderBottom: `1px solid ${T.border}33`, flexShrink: 0,
-        transition: "padding .2s cubic-bezier(0.4, 0, 0.2, 1), background .2s cubic-bezier(0.4, 0, 0.2, 1)",
+        transition: "padding .15s cubic-bezier(0.4, 0, 0.2, 1), background .15s cubic-bezier(0.4, 0, 0.2, 1)",
         zIndex: 5, contain: "layout", position: "relative"
       }}>
         {refreshing && (
@@ -543,7 +543,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
           </div>
         )}
         {!sidebarCollapsed && (searchOpen || searchQuery) && (
-          <div style={{height:scrolled?0:42, overflow:"hidden", opacity:scrolled?0:1, transition:"all .25s cubic-bezier(0.4, 0, 0.2, 1)", marginBottom:scrolled?0:8, padding:scrolled?0:"4px 2px", pointerEvents:scrolled?"none":"auto"}}>
+          <div style={{height:scrolled?0:42, overflow:"hidden", opacity:scrolled?0:1, transition:"all .15s cubic-bezier(0.4, 0, 0.2, 1)", marginBottom:scrolled?0:8, padding:scrolled?0:"4px 2px", pointerEvents:scrolled?"none":"auto"}}>
             <div style={{position:"relative", display:"flex", alignItems:"center"}}>
               <div style={{position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", pointerEvents:"none"}}><Ic n="search" s={14} c={T.blue}/></div>
               <input
@@ -685,7 +685,7 @@ const SessionList = ({ sessions, onSelect, onRefresh, refreshing, justRefreshed,
           </div>
         )}
         {!sidebarCollapsed && (
-          <div style={{position: "relative", maxHeight:scrolled?0:60, opacity:scrolled?0:1, transition:"all .25s cubic-bezier(0.4, 0, 0.2, 1)", pointerEvents:scrolled?"none":"auto"}}>
+          <div style={{position: "relative", maxHeight:scrolled?0:60, opacity:scrolled?0:1, transition:"all .15s cubic-bezier(0.4, 0, 0.2, 1)", pointerEvents:scrolled?"none":"auto"}}>
           {!scrolled && <div style={{position:"absolute", right:0, top:0, bottom:10, width:40, background:`linear-gradient(to left, ${T.bg}, transparent)`, pointerEvents:"none", zIndex:2}}/>}
           <div style={{overflowX:"auto", padding:scrolled?0:"4px 2px 10px", scrollbarWidth:"none", WebkitOverflowScrolling:"touch"}}>
             <div style={{display:"flex",gap:5,minWidth:"max-content",padding:"4px 0", alignItems:"center"}}>
