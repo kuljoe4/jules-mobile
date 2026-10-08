@@ -73,6 +73,46 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     return () => window.removeEventListener("gh-pr-updated", h);
   }, []);
 
+  // ── Optimized activity loader: createTime cursor + Map dedup ──────────────
+  // First load fetches all; subsequent loads fetch only new (createTime filter)
+
+  const {
+    activities,
+    setActivities,
+    isStale,
+    setIsStale,
+    isSyncing,
+    syncPhase,
+    syncStats,
+    loadActivities,
+    actMapRef,
+    lastTsRef,
+    notFoundSinceRef
+  } = useSessionActivities({
+    session,
+    apiKey,
+    busy,
+    activityLimit,
+    cacheLimit,
+    onStatsUpdate,
+    isDeletedRef,
+    setIsDeleted,
+    setErr,
+    setJustUpdated,
+    initialActivities: useMemo(() => {
+      try {
+        const cache = SafeStorage.loadSessionCache();
+        const entry = cache[initSession.id];
+        if (entry) {
+          entry.ts = Date.now();
+          SafeStorage.saveSessionCache(cache);
+          return entry.activities || [];
+        }
+      } catch {}
+      return [];
+    }, [initSession.id])
+  });
+
   const [copiedReviews, setCopiedReviews] = useState({});
   const [copiedChat, setCopiedChat] = useState(false);
   const [copiedAllPrompts, setCopiedAllPrompts] = useState(false);
@@ -420,45 +460,6 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   const prevLenRef   = useRef(0);
 
 
-  // ── Optimized activity loader: createTime cursor + Map dedup ──────────────
-  // First load fetches all; subsequent loads fetch only new (createTime filter)
-
-  const {
-    activities,
-    setActivities,
-    isStale,
-    setIsStale,
-    isSyncing,
-    syncPhase,
-    syncStats,
-    loadActivities,
-    actMapRef,
-    lastTsRef,
-    notFoundSinceRef
-  } = useSessionActivities({
-    session,
-    apiKey,
-    busy,
-    activityLimit,
-    cacheLimit,
-    onStatsUpdate,
-    isDeletedRef,
-    setIsDeleted,
-    setErr,
-    setJustUpdated,
-    initialActivities: useMemo(() => {
-      try {
-        const cache = SafeStorage.loadSessionCache();
-        const entry = cache[initSession.id];
-        if (entry) {
-          entry.ts = Date.now();
-          SafeStorage.saveSessionCache(cache);
-          return entry.activities || [];
-        }
-      } catch {}
-      return [];
-    }, [initSession.id])
-  });
 
   const loadSession = useCallback(async () => {
     if (!isValidSessionId(session?.id) || isDeletedRef.current) return;
