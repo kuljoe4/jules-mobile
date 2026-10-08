@@ -75,7 +75,7 @@ const SessionCard = memo(({ s, onPress, onSelect, isSelected, isBulkSelected, on
   const titleStyle = useMemo(() => {
     if (!activeCheck) {
       return {
-        color: isSelected ? T.textHi : T.textDim,
+        color: isSelected ? T.textHi : T.muted,
         border: "none",
         background: "transparent",
       };
@@ -150,14 +150,17 @@ const SessionCard = memo(({ s, onPress, onSelect, isSelected, isBulkSelected, on
     : {};
 
   const bg = isSelected ? `${T.brand}15` : T.surface;
-  const borderColor = isSelected ? `${T.brand}60` : "transparent";
+  const hoverBg = isSelected ? `${T.brand}20` : T.surfaceHi;
+  const hoverBorderColor = isSelected ? `${T.brand}40` : `${T.border}60`;
+  const [isHovered, setIsHovered] = useState(false);
+  const borderColor = isSelected ? `${T.brand}30` : "transparent";
 
   return (
     <button ref={cardRef} onClick={handleClick}
       aria-label={`Session ${index}: ${s.title || s.prompt}. Status: ${m.label}. ${isUnread ? "New activity." : ""}`}
       style={{
-        width:"100%", background:bg, textAlign:"left", cursor:"pointer",
-        border: `1px solid ${borderColor}`,
+        width:"100%", background:isHovered ? hoverBg : bg, textAlign:"left", cursor:"pointer",
+        border: `1px solid ${isHovered ? hoverBorderColor : borderColor}`,
         borderRadius:8, padding:"10px 12px", marginBottom:6, transition:"all .15s cubic-bezier(0.4, 0, 0.2, 1)",
         position:"relative",
         minHeight:46,
@@ -166,6 +169,8 @@ const SessionCard = memo(({ s, onPress, onSelect, isSelected, isBulkSelected, on
         boxShadow: "none",
         zIndex: isSelected ? 2 : 1,
       }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       onFocus={e => e.currentTarget.style.borderColor = T.brand}
       onBlur={e => e.currentTarget.style.borderColor = borderColor}
     >
@@ -219,7 +224,8 @@ const SessionCard = memo(({ s, onPress, onSelect, isSelected, isBulkSelected, on
             flex:1, minWidth:0, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:13, fontWeight:600,
             lineHeight:1.3, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
             transition: "all .15s ease",
-            ...titleStyle
+            ...titleStyle,
+            color: isHovered && !isSelected && !activeCheck ? T.textDim : titleStyle.color
           }}
         >
           {s.title||s.prompt}
