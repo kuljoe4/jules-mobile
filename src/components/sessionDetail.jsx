@@ -2086,7 +2086,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                         {pr.title}
                       </div>
                       {pr.body && (
-                        <div style={{ fontSize: 14, color: T.textDim, lineHeight: 1.6, fontFamily: "'IBM Plex Sans',sans-serif", whiteSpace: "pre-wrap", overflowWrap: "break-word" }}>
+                        <div style={{ fontSize: 14, color: T.textDim, lineHeight: 1.6, fontFamily: "'IBM Plex Sans',sans-serif", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
                           <ExpandableContent text={pr.body} limit={300} showCopy={true} />
                         </div>
                       )}
@@ -2545,7 +2545,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                     marginTop: headerPromptExpanded ? 12 : 0,
                   }}
                 >
-                  <div style={{ fontSize: 14, color: T.textDim, lineHeight: 1.5, fontFamily: "'IBM Plex Sans',sans-serif", whiteSpace: "pre-wrap", overflowWrap: "break-word" }}>
+                  <div style={{ fontSize: 14, color: T.textDim, lineHeight: 1.5, fontFamily: "'IBM Plex Sans',sans-serif", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
                     <ExpandableContent text={session.prompt} limit={200} showCopy forceExpanded={scrolledActivityId === "original"} />
                   </div>
                 </div>

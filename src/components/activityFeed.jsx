@@ -284,8 +284,8 @@ const ChatBubble = memo(({ act, type, onMediaClick, onEdit, onReply, onSendFollo
         <div style={{
           fontSize: 15, color: T.text, lineHeight: 1.55,
           fontFamily: "'IBM Plex Sans',sans-serif",
-          overflowWrap: "break-word",
-          wordBreak: "normal"
+          overflowWrap: "anywhere",
+          wordBreak: "break-word"
         }}>
           <ExpandableContent text={text} limit={400} forceExpanded={forceExpanded} />
         </div>
@@ -471,11 +471,11 @@ const TimelineEvent = memo(({ act, onMediaClick, onReply, onSendFollowup }) => {
                 fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.purple,
                 marginTop: 1,
               }}>{i+1}</div>
-              <div style={{flex: 1, minWidth: 0}}>
-                <div style={{fontSize:14,color:T.text,fontWeight:700,lineHeight:1.5,wordBreak:"break-word",marginBottom:4}}>
+              <div style={{flex: 1, minWidth: 0, overflow: "hidden"}}>
+                <div style={{fontSize:14,color:T.text,fontWeight:700,lineHeight:1.5,wordBreak:"break-word",overflowWrap:"anywhere",marginBottom:4}}>
                   <Markdown text={st.title}/>
                 </div>
-                {st.description&&<div style={{fontSize:13,color:T.textDim,lineHeight:1.6,wordBreak:"break-word"}}>
+                {st.description&&<div style={{fontSize:13,color:T.textDim,lineHeight:1.6,wordBreak:"break-word",overflowWrap:"anywhere"}}>
                   <Markdown text={st.description}/>
                 </div>}
               </div>
