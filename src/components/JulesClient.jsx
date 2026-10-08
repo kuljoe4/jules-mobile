@@ -919,8 +919,8 @@ function JulesClient() {
                         (id === "archive" && mobileDrawerOpen && showArchived) ||
                         (!mobileDrawerOpen && mobileScreen === id && id !== "list" && id !== "archive");
 
-          const hasAlert = sessions.some(s=>["AWAITING_PLAN_APPROVAL","AWAITING_USER_FEEDBACK"].includes(s.state));
-          const buttonTitle = `${label}${hasAlert ? " (attention needed)" : ""}${isAct ? " (active view)" : ""}`;
+
+          const buttonTitle = `${label}${isAct ? " (active view)" : ""}`;
           return (
             <button
               key={id}
@@ -932,7 +932,7 @@ function JulesClient() {
             >
               <div style={{position:"relative", display:"flex", alignItems:"center", justifyContent:"center"}}>
                 <Ic n={n} s={20} c={isAct?T.brandLight:T.muted}/>
-                {hasAlert&&<div style={{position:"absolute",top:-2,right:-4,width:7,height:7,borderRadius:"50%",background:T.purple,border:`1.5px solid ${T.surface}`}}/>}
+
               </div>
               <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:isAct?T.brand:T.muted,fontWeight:isAct?700:400,letterSpacing:"0.07em"}}>{label}</span>
             </button>
