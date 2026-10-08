@@ -1186,12 +1186,12 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
                 lineHeight:1.3,
                 overflow:"hidden",
                 textOverflow:"ellipsis",
-                whiteSpace: scrolled ? "nowrap" : "normal",
+                whiteSpace: "nowrap",
                 display: "-webkit-box",
-                WebkitLineClamp:scrolled?1:2,
+                WebkitLineClamp:1,
                 WebkitBoxOrient:"vertical",
                 transition:"all .2s cubic-bezier(0.4, 0, 0.2, 1)",
-                minHeight: scrolled ? 18 : 38,
+                minHeight: 18,
               }}>
                 {session.title||session.prompt}
               </div>
