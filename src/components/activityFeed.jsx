@@ -636,7 +636,10 @@ const TimelineEvent = memo(({ act, onMediaClick, onReply, onSendFollowup }) => {
     case "sessionFailed": {
       title = "Session failed";
       const reason = act.sessionFailed?.reason;
-      const options = extractOptions(reason);
+      let options = extractOptions(reason);
+      if (options.length === 0) {
+        options = ["Retry task", "Explain why it failed"];
+      }
       detail = reason && (
         <div style={{marginTop:6}}>
           <div style={{fontSize:13,color:T.red,fontFamily:"'IBM Plex Sans',sans-serif",lineHeight:1.5}}>{reason}</div>
@@ -648,6 +651,8 @@ const TimelineEvent = memo(({ act, onMediaClick, onReply, onSendFollowup }) => {
                 <button
                   key={i}
                   onClick={(e) => { e.stopPropagation(); onSendFollowup(opt); }}
+                  title={`Send follow-up: ${opt}`}
+                  aria-label={`Send follow-up: ${opt}`}
                   style={{
                     background: T.brand, color: "#000", border: "none", borderRadius: 20,
                     padding: "6px 14px", fontFamily: "'IBM Plex Sans',sans-serif",
