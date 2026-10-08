@@ -151,9 +151,9 @@ const SessionCard = memo(({ s, onPress, onSelect, isSelected, isBulkSelected, on
 
   const bg = isSelected ? `${T.brand}15` : T.surface;
   const hoverBg = isSelected ? `${T.brand}20` : T.surfaceHi;
-  const hoverBorderColor = isSelected ? `${T.brand}40` : `${T.border}60`;
+  const hoverBorderColor = isSelected ? `${T.brand}30` : `${T.border}60`;
   const [isHovered, setIsHovered] = useState(false);
-  const borderColor = isSelected ? `${T.brand}30` : "transparent";
+  const borderColor = isSelected ? `${T.brand}20` : "transparent";
 
   return (
     <button ref={cardRef} onClick={handleClick}
