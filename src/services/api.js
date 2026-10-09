@@ -79,7 +79,7 @@ export async function apiCall(apiKey, path, opts={}) {
 
     // Implement a defensive request timeout to prevent client resource exhaustion and hanging socket connections
     const controller = new AbortController();
-    const timeoutMs = timeout || loadApiTimeout(); // default configured timeout
+    const timeoutMs = timeout || (typeof loadApiTimeout === 'function' ? loadApiTimeout() : 30000); // default configured timeout
     let timedOut = false;
     const timeoutId = setTimeout(() => {
       timedOut = true;
@@ -106,7 +106,8 @@ export async function apiCall(apiKey, path, opts={}) {
       if (removeAbortListener) removeAbortListener();
       clearTimeout(timeoutId);
 
-      if (err.name === 'AbortError') {
+      const isAborted = optsSignal?.aborted || err.name === 'AbortError' || err.message?.includes('aborted');
+      if (isAborted) {
         if (timedOut) {
           throw new Error(`API request timed out after ${timeoutMs}ms`);
         }
@@ -123,26 +124,40 @@ export async function apiCall(apiKey, path, opts={}) {
             console.warn("[apiCall] Device is offline. Waiting up to 10s for network connection...");
             await new Promise(resolve => {
               let resolved = false;
-              const onOnline = () => {
+              const finish = () => {
                 if (resolved) return;
                 resolved = true;
-                window.removeEventListener("online", onOnline);
+                window.removeEventListener("online", finish);
+                if (optsSignal) optsSignal.removeEventListener("abort", finish);
                 clearTimeout(offlineTimeout);
                 resolve();
               };
-              window.addEventListener("online", onOnline);
-              const offlineTimeout = setTimeout(() => {
-                if (resolved) return;
-                resolved = true;
-                window.removeEventListener("online", onOnline);
-                resolve();
-              }, 10000);
+              window.addEventListener("online", finish);
+              if (optsSignal) optsSignal.addEventListener("abort", finish);
+              const offlineTimeout = setTimeout(finish, 10000);
             });
+          }
+
+          if (optsSignal?.aborted) {
+            const abortErr = new Error("The user aborted a request.");
+            abortErr.name = "AbortError";
+            throw abortErr;
           }
 
           const delay = attempt * retryDelayMultiplier;
           console.warn(`[apiCall] Transient network failure on attempt ${attempt}. Retrying in ${delay}ms...`, sanitizeErrorMessage(err.toString()));
-          await new Promise(resolve => setTimeout(resolve, delay));
+          await new Promise(resolve => {
+            let resolved = false;
+            const finish = () => { if(resolved) return; resolved = true; if(optsSignal) optsSignal.removeEventListener("abort", finish); clearTimeout(delayTimeout); resolve(); };
+            if (optsSignal) optsSignal.addEventListener("abort", finish);
+            const delayTimeout = setTimeout(finish, delay);
+          });
+
+          if (optsSignal?.aborted) {
+            const abortErr = new Error("The user aborted a request.");
+            abortErr.name = "AbortError";
+            throw abortErr;
+          }
           continue;
         }
         throw new Error("Network or CORS request failed. Please check your network connection, API key validity, or if CORS restrictions are active.");
