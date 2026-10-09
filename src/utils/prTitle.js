@@ -67,7 +67,12 @@ export function getSmartBody(session, b, activities = [], ignoreProposal = false
   }
 
   if (!ignoreProposal && b?.commits && b.commits.length > 0 && b.commits[0].source !== "activity") {
-    const commitLogs = b.commits.map(c => `- ${c.sha ? `[${c.sha.slice(0, 7)}] ` : ""}${c.title || (c.message || "").split("\n")[0]}`).join("\n");
+    const logLines = [];
+    for (let i = 0; i < b.commits.length; i++) {
+      const c = b.commits[i];
+      logLines.push(`- ${c.sha ? `[${c.sha.slice(0, 7)}] ` : ""}${c.title || (c.message || "").split("\n")[0]}`);
+    }
+    const commitLogs = logLines.join("\n");
     const commitSection = `### Ahead Commits\n\n${commitLogs}\n\nCreated via Jules Mobile Client`;
     rawBody = rawBody ? `${rawBody}\n\n${commitSection}` : commitSection;
   } else if (!rawBody) {
