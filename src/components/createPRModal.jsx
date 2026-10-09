@@ -107,28 +107,33 @@ const CreatePRModal = ({ defaultTitle, defaultBody, repo, headBranch, baseBranch
               AHEAD COMMITS TO BE MERGED ({aheadCommits.length})
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 160, overflowY: "auto" }}>
-              {aheadCommits.map((c, i) => {
-                const subject = c.title || (c.message || "").trim().split("\n")[0] || "Ahead commit";
-                const desc = c.description || (c.message || "").trim().split("\n").slice(1).join("\n").trim();
+              {(() => {
+                const elements = [];
+                for (let i = 0; i < aheadCommits.length; i++) {
+                  const c = aheadCommits[i];
+                  const subject = c.title || (c.message || "").trim().split("\n")[0] || "Ahead commit";
+                  const desc = c.description || (c.message || "").trim().split("\n").slice(1).join("\n").trim();
 
-                return (
-                  <div key={c.sha || i} style={{ background: T.bg, padding: 8, borderRadius: 6, border: `1px solid ${T.border}` }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: desc ? 4 : 0 }}>
-                      <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 700, color: T.purple }}>
-                        {c.sha ? c.sha.slice(0, 7) : "commit"}
-                      </span>
-                      <span style={{ fontFamily: "'IBM Plex Sans',sans-serif", fontSize: 13, fontWeight: 700, color: T.textHi, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {subject}
-                      </span>
-                    </div>
-                    {desc && (
-                      <div style={{ fontFamily: "'IBM Plex Sans',sans-serif", fontSize: 11, color: T.textDim, lineHeight: 1.35, whiteSpace: "pre-wrap", opacity: 0.85 }}>
-                        {desc.length > 200 ? desc.slice(0, 197) + "..." : desc}
+                  elements.push(
+                    <div key={c.sha || i} style={{ background: T.bg, padding: 8, borderRadius: 6, border: `1px solid ${T.border}` }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: desc ? 4 : 0 }}>
+                        <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 700, color: T.purple }}>
+                          {c.sha ? c.sha.slice(0, 7) : "commit"}
+                        </span>
+                        <span style={{ fontFamily: "'IBM Plex Sans',sans-serif", fontSize: 13, fontWeight: 700, color: T.textHi, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {subject}
+                        </span>
                       </div>
-                    )}
-                  </div>
-                );
-              })}
+                      {desc && (
+                        <div style={{ fontFamily: "'IBM Plex Sans',sans-serif", fontSize: 11, color: T.textDim, lineHeight: 1.35, whiteSpace: "pre-wrap", opacity: 0.85 }}>
+                          {desc.length > 200 ? desc.slice(0, 197) + "..." : desc}
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+                return elements;
+              })()}
             </div>
           </div>
         )}
