@@ -2,7 +2,7 @@
 // to prevent redundant single-pass event filtering, position math, collision detection loops,
 // and graduation mark array allocations on high-frequency parent re-renders (such as network updates).
 const QuotaTimeline = React.memo(({ todayCount, plan }) => {
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(() => Date.now());
   const [zoomHours, setZoomHours] = useState(12); // Default 12h window
 
   useEffect(() => {

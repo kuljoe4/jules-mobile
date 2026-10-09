@@ -4,6 +4,16 @@
  * to the standalone DesignLab component.
  */
 
+const TABS = [
+  { id: "general", label: "GENERAL", ic: "settings" },
+  { id: "personas",label: "PERSONAS", ic: "tasks" },
+  { id: "network", label: "NETWORK", ic: "layers" },
+  { id: "storage", label: "STORAGE", ic: "database" },
+  { id: "analytics", label: "ANALYTICS", ic: "chart" },
+  { id: "api",     label: "API KEY", ic: "key" },
+  { id: "design",  label: "DESIGN LAB", ic: "layout_toggle" },
+];
+
 // ─── ApiKeysTab ────────────────────────────────────────────────────────────────
 const ApiKeysTab = ({ apiKey, setApiKey, githubToken, setGithubToken, ghRateLimitedReset, triggerSaveFeedback }) => {
   const [showKey, setShowKey] = useState(false);
@@ -164,7 +174,7 @@ const SettingsView = ({ onBack, isDesktop, settings, personas, setPersonas, toda
     clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => setHasSaved(false), 2000);
   };
-  const [snap, setSnap] = useState(NET.snapshot());
+  const [snap, setSnap] = useState(() => NET.snapshot());
   const [storage, setStorage] = useState(null);
 
   useEffect(() => NET.subscribe(s => setSnap(s)), []);
@@ -173,16 +183,6 @@ const SettingsView = ({ onBack, isDesktop, settings, personas, setPersonas, toda
   const { total, totalIn, totalOut, log } = snap;
   const webEst = total * 9 + 2.4;
   const reduction = total > 0 ? Math.round(((webEst - total) / webEst) * 100) : 0;
-
-  const TABS = [
-    { id: "general", label: "GENERAL", ic: "settings" },
-    { id: "personas",label: "PERSONAS", ic: "tasks" },
-    { id: "network", label: "NETWORK", ic: "layers" },
-    { id: "storage", label: "STORAGE", ic: "database" },
-    { id: "analytics", label: "ANALYTICS", ic: "chart" },
-    { id: "api",     label: "API KEY", ic: "key" },
-    { id: "design",  label: "DESIGN LAB", ic: "layout_toggle" },
-  ];
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%",minHeight:0}}>

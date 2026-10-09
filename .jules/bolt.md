@@ -101,3 +101,6 @@
 ## 2023-10-24 - [Avoid chained array allocations in useNewSessionFlow]
 **Learning:** Found chained `.map(b => b.displayName).filter(Boolean)` on branch processing in `src/hooks/useNewSessionFlow.js` which creates intermediate arrays.
 **Action:** Replaced chained methods with a traditional single-pass `for` loop, eliminating callback overhead and intermediate array allocations in a frequently re-rendered hook.
+## 2024-10-24 - Optimizing High-Frequency React Re-Renders
+**Learning:** Chaining array methods like `.filter().map()` and `.some()` in render loops or inside `useMemo` blocks creates continuous garbage collection churn due to intermediate array and callback allocations. Additionally, declaring static variables like `const TABS = [...]` directly inside functional components re-allocates those arrays on every single render pass. Initializing `useState(expensiveFunction())` instead of `useState(() => expensiveFunction())` forces synchronous execution of potentially heavy I/O tasks on every render.
+**Action:** Replace chained array manipulations with traditional, single-pass `for` loops in high-frequency components. Hoist static arrays outside of component scopes, or wrap dynamic ones in `useMemo`. Always use lazy initializer function references (e.g. `() => { ... }`) for computationally heavy or I/O dependent `useState` default values.

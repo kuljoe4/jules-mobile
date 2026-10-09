@@ -28,17 +28,32 @@ export const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFe
   const approved = useMemo(() => {
     if (!planAct) return false;
     const planTs = planAct.createTime;
-    return activities.some(a => a.planApproved && (!planTs || a.createTime >= planTs));
+    for (let i = 0; i < activities.length; i++) {
+      const a = activities[i];
+      if (a.planApproved && (!planTs || a.createTime >= planTs)) return true;
+    }
+    return false;
   }, [activities, planAct]);
 
-  const hasFeedback = globalNote.trim() || Object.values(stepNotes).some(n => n.trim());
+  const hasFeedback = useMemo(() => {
+    if (globalNote.trim()) return true;
+    for (const key in stepNotes) {
+      if (stepNotes[key]?.trim()) return true;
+    }
+    return false;
+  }, [globalNote, stepNotes]);
 
   const buildFeedbackMessage = () => {
     const parts = ["Please revise the plan based on my feedback:"];
-    const stepFeedback = steps
-      .filter(st => stepNotes[st.id]?.trim())
-      .map((st, i) => `Step ${i + 1} (${st.title}): ${stepNotes[st.id].trim()}`);
-    if (stepFeedback.length) parts.push(...stepFeedback);
+
+    for (let i = 0; i < steps.length; i++) {
+      const st = steps[i];
+      const note = stepNotes[st.id]?.trim();
+      if (note) {
+        parts.push(`Step ${i + 1} (${st.title}): ${note}`);
+      }
+    }
+
     if (globalNote.trim()) parts.push("Overall: " + globalNote.trim());
     return parts.join("\n");
   };
