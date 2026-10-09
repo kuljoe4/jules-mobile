@@ -1,6 +1,6 @@
 const DraftsBox = ({ onBack, isDesktop, onResume, onCreate, onStartNewSession, allSessions, activitiesMap, draftsMap = {}, onDraftChange, onSelectSession }) => {
   const [activeTab, setActiveTab] = useState("templates"); // "templates" or "followups"
-  const [drafts, setDrafts] = useState(loadDraftsBox());
+  const [drafts, setDrafts] = useState(() => loadDraftsBox());
 
   const handleDelete = (id) => {
     if (!confirm("Delete this draft?")) return;

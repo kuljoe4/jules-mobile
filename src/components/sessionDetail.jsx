@@ -609,11 +609,20 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     }
 
     if (selectedPersonas.size > 0) {
-      const personaPrompts = Array.from(selectedPersonas)
-        .map(id => personas.find(p => p.id === id)?.prompt)
-        .filter(Boolean);
+      const personaPrompts = [];
+      const personaLabels = [];
+
+      const ids = Array.from(selectedPersonas);
+      for (let i = 0; i < ids.length; i++) {
+        const p = personas.find(p => p.id === ids[i]);
+        if (p) {
+          if (p.prompt) personaPrompts.push(p.prompt);
+          if (p.label) personaLabels.push(p.label);
+        }
+      }
+
       if (personaPrompts.length > 0) {
-        const personaText = `(Persona: ${Array.from(selectedPersonas).map(id => personas.find(p => p.id === id)?.label).join(", ")})\n\n${personaPrompts.join("\n\n")}`;
+        const personaText = `(Persona: ${personaLabels.join(", ")})\n\n${personaPrompts.join("\n\n")}`;
         text = text ? `${text}\n\n${personaText}` : personaText;
       }
     }
@@ -763,7 +772,16 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     for (let i = activities.length - 1; i >= 0; i--) {
       if (activities[i].planGenerated) { planTs = activities[i].createTime; break; }
     }
-    const alreadyApproved = activities.some(a => a.planApproved && (!planTs || a.createTime >= planTs));
+
+    let alreadyApproved = false;
+    for (let i = 0; i < activities.length; i++) {
+      const a = activities[i];
+      if (a.planApproved && (!planTs || a.createTime >= planTs)) {
+        alreadyApproved = true;
+        break;
+      }
+    }
+
     if (alreadyApproved) {
       setTab("activity");
       return;
@@ -861,11 +879,20 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     userSentRef.current = true;
     let text = prompt;
     if (selectedPersonas.size > 0) {
-      const personaPrompts = Array.from(selectedPersonas)
-        .map(id => personas.find(p => p.id === id)?.prompt)
-        .filter(Boolean);
+      const personaPrompts = [];
+      const personaLabels = [];
+
+      const ids = Array.from(selectedPersonas);
+      for (let i = 0; i < ids.length; i++) {
+        const p = personas.find(p => p.id === ids[i]);
+        if (p) {
+          if (p.prompt) personaPrompts.push(p.prompt);
+          if (p.label) personaLabels.push(p.label);
+        }
+      }
+
       if (personaPrompts.length > 0) {
-        const personaText = `(Persona: ${Array.from(selectedPersonas).map(id => personas.find(p => p.id === id)?.label).join(", ")})\n\n${personaPrompts.join("\n\n")}`;
+        const personaText = `(Persona: ${personaLabels.join(", ")})\n\n${personaPrompts.join("\n\n")}`;
         text = text ? `${text}\n\n${personaText}` : personaText;
       }
     }
@@ -1011,7 +1038,12 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     for (let i = activities.length - 1; i >= 0; i--) {
       if (activities[i].planGenerated) { planTs = activities[i].createTime; break; }
     }
-    return activities.some(a => a.planApproved && (!planTs || a.createTime >= planTs));
+
+    for (let i = 0; i < activities.length; i++) {
+      const a = activities[i];
+      if (a.planApproved && (!planTs || a.createTime >= planTs)) return true;
+    }
+    return false;
   }, [activities]);
 
   // Auto-switch to PLAN tab when AWAITING_PLAN_APPROVAL
@@ -1020,14 +1052,14 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
   }, [currentState, isApproved]);
 
 
-  const TABS = [
+  const TABS = useMemo(() => [
     { id:"activity", label:"CHAT" },
     { id:"prompt",   label:"PROMPT" },
     ...(reviews.length > 0 ? [{ id: "reviews", label: "REVIEWS" }] : []),
     ...(latestPlan || currentState === "AWAITING_PLAN_APPROVAL" ? [{ id:"plan", label:"PLAN" }] : []),
     { id:"diff",     label:"DIFF" },
     ...(mediaArtifacts.length>0?[{ id:"media", label:"MEDIA" }]:[]),
-  ];
+  ], [reviews.length, latestPlan, currentState, mediaArtifacts.length]);
 
   const activeSyncing = isSyncing || busy || (syncPhase !== "IDLE" && syncPhase !== "DONE");
 

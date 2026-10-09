@@ -7,7 +7,8 @@ const RecentActivityLog = memo(({ log, total }) => {
 
   const groupedData = useMemo(() => {
     const groups = {};
-    log.forEach(r => {
+    for (let i = 0; i < log.length; i++) {
+      const r = log[i];
       const label = r.label || "Unknown Request";
       if (!groups[label]) {
         groups[label] = { label, bytesIn: 0, bytesOut: 0, totalBytes: 0, count: 0 };
@@ -16,24 +17,27 @@ const RecentActivityLog = memo(({ log, total }) => {
       groups[label].bytesOut += r.bytesOut;
       groups[label].totalBytes += (r.bytesIn + r.bytesOut);
       groups[label].count += 1;
-    });
+    }
 
-    return Object.values(groups)
-      .map(g => {
-        const pct = total > 0 ? (g.totalBytes / total) * 100 : 0;
-        return { ...g, pct };
-      })
-      .sort((a, b) => b.totalBytes - a.totalBytes);
+    const values = [];
+    for (const key in groups) {
+      const g = groups[key];
+      g.pct = total > 0 ? (g.totalBytes / total) * 100 : 0;
+      values.push(g);
+    }
+
+    return values.sort((a, b) => b.totalBytes - a.totalBytes);
   }, [log, total]);
 
   const rankedIndiv = useMemo(() => {
-    return log
-      .map(r => {
-        const totalBytes = r.bytesIn + r.bytesOut;
-        const pct = total > 0 ? (totalBytes / total) * 100 : 0;
-        return { ...r, totalBytes, pct };
-      })
-      .sort((a, b) => b.totalBytes - a.totalBytes);
+    const arr = new Array(log.length);
+    for (let i = 0; i < log.length; i++) {
+      const r = log[i];
+      const totalBytes = r.bytesIn + r.bytesOut;
+      const pct = total > 0 ? (totalBytes / total) * 100 : 0;
+      arr[i] = { ...r, totalBytes, pct };
+    }
+    return arr.sort((a, b) => b.totalBytes - a.totalBytes);
   }, [log, total]);
 
   return (
@@ -290,7 +294,7 @@ const BucketBreakdown = ({ snap, timeframe, setTimeframe }) => {
 };
 
 const NetworkMonitor = ({ onBack, isDesktop }) => {
-  const [snap, setSnap] = useState(NET.snapshot());
+  const [snap, setSnap] = useState(() => NET.snapshot());
   const [storage, setStorage] = useState(null);
   const [bucketTimeframe, setBucketTimeframe] = useState("overall");
 
