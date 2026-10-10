@@ -244,7 +244,8 @@ const useNewSessionFlow = ({ apiKey, personas, onCreate, initialDraft, onDraftSa
     // Heuristic for AI recommendations on splitting large payloads
     const payloadEst = (((finalPrompt.length || 0) + (source?.length || 0) + (activeBranch?.length || 0) + 38) / 1024);
     if (payloadEst > 0.5) { // Roughly 500+ characters, suggest splitting
-      finalPrompt += "\n\n[SYSTEM DIRECTIVE: Analyze the scope of this request. If the required changes are large, structure your plan into clear phases. Ensure that any step requiring more than 50 lines of code changes is split into multiple smaller steps (i.e. each step must be < 50 lines of estimated changes). Tag step titles with `[Parallel]` if they can run concurrently without race conditions, or `[Sequential: Step X]` if they depend on prior steps.]";
+      const sd = SafeStorage.loadSplitDirective();
+      if (sd) finalPrompt += "\n\n" + sd;
     }
 
     const body = {
