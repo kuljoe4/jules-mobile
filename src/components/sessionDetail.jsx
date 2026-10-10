@@ -2,6 +2,7 @@ import { useSessionActivities } from "../hooks/useSessionActivities.js";
 import { copyToClipboard } from "../utils/format.js";
 import { isValidSessionId } from "../utils/validation.js";
 import { MediaModal } from "./mediaModal.jsx";
+import { apiCall } from "../services/api.js";
 
 // ─── Session Detail ───────────────────────────────────────────────────────────
 const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete, onSessionUpdate, onStatsUpdate, isDesktop, pollInterval, setPollInterval, isArchived, onArchive, onUnarchive, onIgnore, onPause, onResume, cacheLimit, activityLimit, allSessions = [], activitiesMap = {}, onDraftChange, onToggleMobileDrawer, onOpenSplitSession }) => {
@@ -842,27 +843,78 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
     const shortParentId = session.id.split('-')[0] || session.id.substring(0, 8);
     const groupId = `#group-${shortParentId}`;
 
-    const promptText = `Please execute the following steps:\n\n` +
-      steps.map((st, i) => `${i + 1}. ${st.title}\n${st.description || ""}`).join("\n\n") +
-      `\n\n${groupId}`;
+    let lastDependsOnId = session.id;
+    let openedFirst = false;
+    let limitReached = false;
 
-    const splitSession = {
-       prompt: promptText,
-       source: session.sourceContext?.source,
-       branch: session.sourceContext?.githubRepoContext?.startingBranch,
-       requirePlanApproval: true,
-       autoMode: false
-    };
+    for (let i = 0; i < steps.length; i++) {
+      const st = steps[i];
+      const promptText = `Please execute the following step:\n\n1. ${st.title}\n${st.description || ""}\n\n${groupId}`;
 
-    if (mode === "queue") {
-       splitSession.dependsOnSessionId = session.id;
-       SafeStorage.saveQueuedSession(splitSession);
-    } else if (mode === "parallel") {
-       if (onOpenSplitSession) {
-         onOpenSplitSession(splitSession);
-       } else {
-         SafeStorage.saveDraftToBox(splitSession);
-       }
+      const splitSession = {
+         prompt: promptText,
+         source: session.sourceContext?.source,
+         branch: session.sourceContext?.githubRepoContext?.startingBranch,
+         requirePlanApproval: true,
+         autoMode: false
+      };
+
+      if (mode === "queue") {
+         splitSession.dependsOnSessionId = lastDependsOnId;
+         const saved = SafeStorage.saveQueuedSession(splitSession);
+         if (saved && saved.id) {
+           lastDependsOnId = saved.id;
+         }
+      } else if (mode === "parallel") {
+         if (limitReached) {
+           const draft = SafeStorage.saveDraftToBox(splitSession);
+           if (!openedFirst && onOpenSplitSession && draft) {
+             onOpenSplitSession(draft);
+             openedFirst = true;
+           }
+           continue;
+         }
+
+         try {
+           const body = {
+             prompt: splitSession.prompt,
+             requirePlanApproval: splitSession.requirePlanApproval,
+             ...(splitSession.source && {
+               sourceContext: {
+                 source: splitSession.source,
+                 githubRepoContext: { startingBranch: splitSession.branch }
+               },
+               ...(splitSession.autoMode && { automationMode: "AUTO_CREATE_PR" }),
+             }),
+           };
+
+           const newSessionRes = await apiCall(apiKey, "/sessions", {
+             method: "POST",
+             body,
+             timeout: 60000,
+             attempts: 1,
+             _label: "Create split session"
+           });
+
+           if (!openedFirst && onOpenSplitSession && newSessionRes) {
+             onOpenSplitSession(newSessionRes);
+             openedFirst = true;
+           }
+         } catch (err) {
+           console.error("Failed to start split session, saving as draft:", err);
+           limitReached = true;
+           const draft = SafeStorage.saveDraftToBox(splitSession);
+           if (!openedFirst && onOpenSplitSession && draft) {
+             onOpenSplitSession(draft);
+             openedFirst = true;
+           }
+
+           // Notify user about remaining steps going to drafts
+           if (i < steps.length) {
+             setErr("Concurrent session limit reached. Remaining steps were saved to Drafts.");
+           }
+         }
+      }
     }
 
     // After splitting, send a revision request to the current session to remove the split steps.
@@ -871,7 +923,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
 
     // Call the feedback function which updates the UI (sends the revision)
     await handleSendFeedback(revisionPrompt, true);
-  }, [session, activities]);
+  }, [session, activities, apiKey, onOpenSplitSession, setErr]);
 
   // Used by PlanView to send revision requests
   const handleSendFeedback = useCallback(async (prompt, stayOnTab = false) => {
