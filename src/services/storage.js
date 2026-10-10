@@ -1,4 +1,4 @@
-import { DEFAULT_LEAN_DIRECTIVE } from "../config/constants.js";
+import { DEFAULT_LEAN_DIRECTIVE, DEFAULT_SPLIT_DIRECTIVE } from "../config/constants.js";
 import { DEFAULT_PERSONAS } from "../config/personas.js";
 import { isValidGithubRepoName, isValidGithubToken, isValidGoogleApiKey, isValidSessionId, isValidStorageKey, sanitizeObjectKeys } from "../utils/validation.js";
 
@@ -38,6 +38,7 @@ const SafeStorage = {
     GITHUB_TOKEN: "jac_github_token",
     LEAN_MODE_REPOS: "jac_lean_mode_repos",
     LEAN_DIRECTIVE: "jac_lean_directive",
+    SPLIT_DIRECTIVE: "jac_split_directive",
     SESSIONS_LIST: "jac_sessions_list",
     SESSION_SORT: "jac_session_sort",
     REPO_FILTER: "jac_repo_filter",
@@ -441,6 +442,19 @@ const SafeStorage = {
 
   // Security: Validates and sanitizes lean mode system directives to prevent control character / null-byte injection
   // and prompt payload bloat/tampering when directives are appended to session prompt bodies.
+
+  loadSplitDirective() {
+    const v = this.getItem(this.KEYS.SPLIT_DIRECTIVE, DEFAULT_SPLIT_DIRECTIVE);
+    if (typeof v === "string" && v.trim() && !/[\x00-\x1F\x7F]/.test(v) && v.length <= 5000) {
+      return v;
+    }
+    return DEFAULT_SPLIT_DIRECTIVE;
+  },
+  saveSplitDirective(val) {
+    const str = typeof val === "string" ? val.trim() : "";
+    if (!str || /[\x00-\x1F\x7F]/.test(str) || str.length > 5000) return false;
+    return this.setItem(this.KEYS.SPLIT_DIRECTIVE, str);
+  },
   loadLeanDirective() {
     const v = this.getItem(this.KEYS.LEAN_DIRECTIVE, DEFAULT_LEAN_DIRECTIVE);
     if (typeof v === "string" && v.trim() && !/[\x00-\x1F\x7F]/.test(v) && v.length <= 5000) {

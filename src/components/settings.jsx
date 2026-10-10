@@ -133,7 +133,7 @@ const SettingsView = ({ onBack, isDesktop, settings, personas, setPersonas, toda
     planId, setPlanId,
     customDaily, setCustomDaily,
     apiTimeout, setApiTimeout,
-    leanDirective, setLeanDirective,
+    leanDirective, setLeanDirective, splitDirective, setSplitDirective,
     plan
   } = settings;
 

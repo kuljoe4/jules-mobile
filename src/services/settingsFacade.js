@@ -38,4 +38,5 @@ function loadCustomDaily() { return SafeStorage.loadCustomDaily(); }
 function saveCustomDaily(v) { SafeStorage.saveCustomDaily(v); }
 
 function loadLeanDirective() { return SafeStorage.loadLeanDirective(); }
+function loadSplitDirective() { return SafeStorage.loadSplitDirective(); }
 function saveLeanDirective(v) { SafeStorage.saveLeanDirective(v); }

@@ -11,6 +11,7 @@ const useAppSettings = ({ onSessionLimitChange } = {}) => {
   const [customDaily, setCustomDailyRaw] = useState(loadCustomDaily);
   const [apiTimeout, setApiTimeoutRaw] = useState(loadApiTimeout);
   const [leanDirective, setLeanDirectiveRaw] = useState(loadLeanDirective);
+  const [splitDirective, setSplitDirectiveRaw] = useState(loadSplitDirective);
 
   const setPollInterval = useCallback(ms => {
     savePollMs(ms);
@@ -77,6 +78,11 @@ const useAppSettings = ({ onSessionLimitChange } = {}) => {
     setLeanDirectiveRaw(val);
   }, []);
 
+  const setSplitDirective = useCallback(val => {
+    saveSplitDirective(val);
+    setSplitDirectiveRaw(val);
+  }, []);
+
   const plan = useMemo(() => {
     const p = PLANS.find(p => p.id === planId) || PLANS[0];
     if (p.id === "custom") return { ...p, daily: customDaily };
@@ -96,6 +102,7 @@ const useAppSettings = ({ onSessionLimitChange } = {}) => {
     customDaily, setCustomDaily,
     apiTimeout, setApiTimeout,
     leanDirective, setLeanDirective,
+    splitDirective, setSplitDirective,
     plan
   };
 };
