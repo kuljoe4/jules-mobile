@@ -231,16 +231,27 @@ const SettingsView = ({ onBack, isDesktop, settings, personas, setPersonas, toda
                     <Ic n="flow" s={16} c={T.brand}/>
                     <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:12, fontWeight:700, color:T.text}}>LARGE SESSION SPLIT DIRECTIVE</span>
                   </div>
-                  <Btn
-                    sm outline
-                    color={splitDirective === "" ? T.purple : T.textDim}
+                  <button
+                    type="button"
                     onClick={() => {
                       setSplitDirective(splitDirective === "" ? DEFAULT_SPLIT_DIRECTIVE : "");
                       triggerSaveFeedback();
                     }}
+                    style={{
+                      background: "transparent",
+                      border: `1px solid ${splitDirective === "" ? T.purple : T.border}`,
+                      borderRadius: 6,
+                      color: splitDirective === "" ? T.purple : T.textDim,
+                      fontFamily: "'JetBrains Mono',monospace",
+                      fontSize: 10,
+                      fontWeight: 800,
+                      padding: "6px 12px",
+                      cursor: "pointer",
+                      transition: "all .15s ease"
+                    }}
                   >
                     {splitDirective === "" ? "ENABLE" : "DISABLE"}
-                  </Btn>
+                  </button>
                 </div>
                 <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:13,color:T.textDim,lineHeight:1.5,marginBottom:12}}>
                   When enabled, this directive is automatically injected when you create a new session with a large prompt or many files. It instructs the AI to split the plan into smaller, concurrent or sequential steps.

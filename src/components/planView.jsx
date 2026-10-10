@@ -71,6 +71,8 @@ export const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFe
     } finally { setSending(false); }
   };
 
+  const isSplitEnabled = useMemo(() => SafeStorage.loadSplitDirective() !== "", []);
+
   // Split recommendations state
   const [selectedSteps, setSelectedSteps] = useState(new Set());
   const [hasAutoSelected, setHasAutoSelected] = useState(false);
@@ -207,8 +209,9 @@ export const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFe
             }}>
               {/* Step row */}
               <div style={{display:"flex",gap:10,alignItems:"flex-start",padding:"10px 12px"}}>
-                <input
-                  type="checkbox"
+                {isSplitEnabled && (
+                  <input
+                    type="checkbox"
                   checked={selectedSteps.has(st.id)}
                   onChange={(e) => {
                     const next = new Set(selectedSteps);
@@ -224,7 +227,8 @@ export const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFe
                     accentColor: T.purple
                   }}
                   aria-label={`Select Step ${i + 1}`}
-                />
+                  />
+                )}
                 <div style={{
                   width:24,height:24,borderRadius:4,flexShrink:0,marginTop:1,
                   background:hasNote?T.amberDim:T.purpleDim,
@@ -332,7 +336,7 @@ export const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFe
       </div>
 
       {/* Split action panel */}
-      {pendingApproval && !approved && selectedSteps.size > 0 && (
+      {isSplitEnabled && pendingApproval && !approved && selectedSteps.size > 0 && (
         <div style={{
           background: T.surface, border: `1px solid ${T.purple}40`,
           borderRadius: 7, padding: "12px 14px", marginBottom: 16,
