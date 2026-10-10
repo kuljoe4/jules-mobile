@@ -224,6 +224,46 @@ const SettingsView = ({ onBack, isDesktop, settings, personas, setPersonas, toda
 
           {tab === "general" && (
             <div style={{animation:"fadeIn .2s ease", display:"flex", flexDirection:"column", gap:24}}>
+
+              <div style={{background:T.surfaceHi, padding:20, borderRadius:12, border:`1px solid ${T.border}`}}>
+                <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16}}>
+                  <div style={{display:"flex", alignItems:"center", gap:8}}>
+                    <Ic n="flow" s={16} c={T.brand}/>
+                    <span style={{fontFamily:"'JetBrains Mono',monospace", fontSize:12, fontWeight:700, color:T.text}}>LARGE SESSION SPLIT DIRECTIVE</span>
+                  </div>
+                  <Btn
+                    sm outline
+                    color={splitDirective === "" ? T.purple : T.textDim}
+                    onClick={() => {
+                      setSplitDirective(splitDirective === "" ? DEFAULT_SPLIT_DIRECTIVE : "");
+                      triggerSaveFeedback();
+                    }}
+                  >
+                    {splitDirective === "" ? "ENABLE" : "DISABLE"}
+                  </Btn>
+                </div>
+                <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:13,color:T.textDim,lineHeight:1.5,marginBottom:12}}>
+                  When enabled, this directive is automatically injected when you create a new session with a large prompt or many files. It instructs the AI to split the plan into smaller, concurrent or sequential steps.
+                </div>
+                {splitDirective !== "" && (
+                  <textarea
+                    value={splitDirective}
+                    onChange={e => {
+                      setSplitDirective(e.target.value);
+                      triggerSaveFeedback();
+                    }}
+                    rows={4}
+                    maxLength={5000}
+                    style={{
+                      width:"100%",background:T.surface,border:`1px solid ${T.border}`,borderRadius:6,
+                      padding:"10px 12px",color:T.text,fontFamily:"'IBM Plex Sans',sans-serif",fontSize:13,
+                      lineHeight:1.45,resize:"vertical",outline:"none",boxSizing:"border-box"
+                    }}
+                    placeholder="Enter custom split directive..."
+                  />
+                )}
+              </div>
+
               <div style={{background:T.surfaceHi, padding:20, borderRadius:12, border:`1px solid ${T.border}`}}>
                 <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:16}}>
                   <Ic n="refresh" s={16} c={T.brand}/>
