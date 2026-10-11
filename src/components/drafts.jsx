@@ -233,7 +233,7 @@ const DraftsBox = ({ onBack, isDesktop, onResume, onCreate, onStartNewSession, a
                         fontFamily:"'JetBrains Mono',monospace", fontSize:13, color:T.brandLight,
                         background:"#040507", border:`1px solid ${T.border}`, borderRadius:6,
                         padding:12, marginBottom:16, minHeight:40, maxHeight:120, overflowY:"auto",
-                        whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-all"
+                        whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word"
                       }}>
                         {draftText}
                       </div>

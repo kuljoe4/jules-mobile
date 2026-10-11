@@ -237,7 +237,7 @@ export const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFe
                   fontFamily:"'JetBrains Mono',monospace",fontSize:11,fontWeight:700,
                   color:hasNote?T.amber:T.purple,
                 }}>{i+1}</div>
-                <div style={{flex:1,minWidth:0,overflow:"hidden"}}>
+                <div style={{flex:1,minWidth:0}}>
                   <div style={{fontFamily:"'IBM Plex Sans',sans-serif",fontSize:15,fontWeight:500,
                     color:T.text,lineHeight:1.35,marginBottom:st.description?10:0, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", wordBreak: "break-word", overflowWrap: "anywhere"}}>
                     <Markdown text={st.title} />

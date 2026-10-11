@@ -330,7 +330,7 @@ export const DiffViewer = memo(({ activities = [], isDesktop = false }) => {
                           <div style={{
                             fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: T.dim,
                             opacity: 0.8, letterSpacing: "0.02em",
-                            whiteSpace: "normal", wordBreak: "break-all"
+                            whiteSpace: "normal", wordBreak: "break-word"
                           }}>
                             {dir}/
                           </div>
@@ -338,7 +338,7 @@ export const DiffViewer = memo(({ activities = [], isDesktop = false }) => {
                         <div style={{
                           fontFamily: "'JetBrains Mono',monospace", fontSize: 12, fontWeight: 700,
                           color: isCollapsed ? T.textDim : T.textHi,
-                          whiteSpace: "normal", wordBreak: "break-all",
+                          whiteSpace: "normal", wordBreak: "break-word",
                           marginTop: dir ? 1 : 0
                         }}>
                           {base}
@@ -461,7 +461,7 @@ export const DiffViewer = memo(({ activities = [], isDesktop = false }) => {
                               </div>
                               <div style={{
                                 padding: "2px 10px", color: isAdd ? T.textHi : isRem ? T.textHi : T.textDim,
-                                whiteSpace: "pre-wrap", wordBreak: "break-all", flex: 1,
+                                whiteSpace: "pre-wrap", wordBreak: "break-word", flex: 1,
                                 opacity: (isAdd || isRem) ? 1 : 0.8,
                                 fontSize: 11,
                               }}>
