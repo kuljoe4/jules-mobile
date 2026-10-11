@@ -445,14 +445,14 @@ const SafeStorage = {
 
   loadSplitDirective() {
     const v = this.getItem(this.KEYS.SPLIT_DIRECTIVE, DEFAULT_SPLIT_DIRECTIVE);
-    if (typeof v === "string" && v.trim() && !/[\x00-\x1F\x7F]/.test(v) && v.length <= 5000) {
+    if (typeof v === "string" && (v === "" || (v.trim() && !/[\x00-\x1F\x7F]/.test(v))) && v.length <= 5000) {
       return v;
     }
     return DEFAULT_SPLIT_DIRECTIVE;
   },
   saveSplitDirective(val) {
     const str = typeof val === "string" ? val.trim() : "";
-    if (!str || /[\x00-\x1F\x7F]/.test(str) || str.length > 5000) return false;
+    if ((str !== "" && /[\x00-\x1F\x7F]/.test(str)) || str.length > 5000) return false;
     return this.setItem(this.KEYS.SPLIT_DIRECTIVE, str);
   },
   loadLeanDirective() {
