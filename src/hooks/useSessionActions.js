@@ -20,25 +20,32 @@ const useSessionActions = ({
     const ids = rawIds.filter(isValidSessionId);
     if (ids.length === 0) return;
     if (!confirm(`Are you sure you want to delete ${ids.length} session(s)?`)) return;
-    setSessions(prev => prev.filter(s => !ids.includes(s.id)));
-    ids.forEach(id => {
+    const idSet = new Set(ids);
+    setSessions(prev => prev.filter(s => !idSet.has(s.id)));
+    for (let i = 0; i < ids.length; i++) {
+      const id = ids[i];
       lastStates.current.delete(id);
       try { SafeStorage.clearFollowupDraft(id); } catch {}
-    });
+    }
     setDraftsMap(prev => {
       const next = { ...prev };
-      ids.forEach(id => delete next[id]);
+      for (let i = 0; i < ids.length; i++) {
+        delete next[ids[i]];
+      }
       return next;
     });
-    if (selected && ids.includes(selected.id)) {
+    if (selected && idSet.has(selected.id)) {
       setSelected(null);
       setDesktop("empty");
       setMobile("detail");
     }
 
-    for (const id of ids) {
-      apiCall(apiKey, `/sessions/${id}`, { method:"DELETE" }).catch(err => console.error(sanitizeErrorMessage(err ? String(err) : "")));
-    }
+    Promise.allSettled(
+      ids.map(id =>
+        apiCall(apiKey, `/sessions/${id}`, { method:"DELETE" })
+          .catch(err => console.error(sanitizeErrorMessage(err ? String(err) : "")))
+      )
+    );
   }, [apiKey, selected, setSessions, setDraftsMap, setSelected, setDesktop, setMobile, lastStates]);
 
   const handleBulkArchive = useCallback((rawIds) => {
@@ -47,7 +54,9 @@ const useSessionActions = ({
     if (ids.length === 0) return;
     setArchivedIds(prev => {
       const next = new Set(prev);
-      ids.forEach(id => next.add(id));
+      for (let i = 0; i < ids.length; i++) {
+        next.add(ids[i]);
+      }
       return next;
     });
   }, [setArchivedIds]);
@@ -58,7 +67,9 @@ const useSessionActions = ({
     if (ids.length === 0) return;
     setArchivedIds(prev => {
       const next = new Set(prev);
-      ids.forEach(id => next.delete(id));
+      for (let i = 0; i < ids.length; i++) {
+        next.delete(ids[i]);
+      }
       return next;
     });
   }, [setArchivedIds]);
@@ -67,20 +78,40 @@ const useSessionActions = ({
     if (!Array.isArray(rawIds)) return;
     const ids = rawIds.filter(isValidSessionId);
     if (ids.length === 0) return;
+    const idSet = new Set(ids);
+
     // Optimistic update
     setSessions(prev => prev.map(s => {
-      if (ids.includes(s.id)) return { ...s, state: "QUEUED" };
+      if (idSet.has(s.id)) return { ...s, state: "QUEUED" };
       return s;
     }));
 
-    for (const id of ids) {
-      lastStates.current.set(id, "QUEUED");
-      apiCall(apiKey, `/sessions/${id}:resume`, { method:"POST" }).then(updated => {
-        if (updated && updated.id) {
-          lastStates.current.set(updated.id, updated.state);
-          setSessions(prev => prev.map(s => s.id === updated.id ? updated : s));
-        }
-      }).catch(err => console.error(sanitizeErrorMessage(err ? String(err) : "")));
+    for (let i = 0; i < ids.length; i++) {
+      lastStates.current.set(ids[i], "QUEUED");
+    }
+
+    const results = await Promise.allSettled(
+      ids.map(id =>
+        apiCall(apiKey, `/sessions/${id}:resume`, { method:"POST" })
+          .catch(err => {
+            console.error(sanitizeErrorMessage(err ? String(err) : ""));
+            return null;
+          })
+      )
+    );
+
+    const updatedMap = new Map();
+    for (let i = 0; i < results.length; i++) {
+      const res = results[i];
+      const updated = res.status === 'fulfilled' ? res.value : null;
+      if (updated && updated.id) {
+        lastStates.current.set(updated.id, updated.state);
+        updatedMap.set(updated.id, updated);
+      }
+    }
+
+    if (updatedMap.size > 0) {
+      setSessions(prev => prev.map(s => updatedMap.get(s.id) || s));
     }
   }, [apiKey, setSessions, lastStates]);
 
@@ -90,20 +121,40 @@ const useSessionActions = ({
     if (ids.length === 0) return;
     if (!confirm(`Are you sure you want to pause ${ids.length} session(s)?`)) return;
 
+    const idSet = new Set(ids);
+
     // Optimistic update
     setSessions(prev => prev.map(s => {
-      if (ids.includes(s.id)) return { ...s, state: "PAUSED" };
+      if (idSet.has(s.id)) return { ...s, state: "PAUSED" };
       return s;
     }));
 
-    for (const id of ids) {
-      lastStates.current.set(id, "PAUSED");
-      apiCall(apiKey, `/sessions/${id}:pause`, { method:"POST" }).then(updated => {
-        if (updated && updated.id) {
-          lastStates.current.set(updated.id, updated.state);
-          setSessions(prev => prev.map(s => s.id === updated.id ? updated : s));
-        }
-      }).catch(err => console.error(sanitizeErrorMessage(err ? String(err) : "")));
+    for (let i = 0; i < ids.length; i++) {
+      lastStates.current.set(ids[i], "PAUSED");
+    }
+
+    const results = await Promise.allSettled(
+      ids.map(id =>
+        apiCall(apiKey, `/sessions/${id}:pause`, { method:"POST" })
+          .catch(err => {
+            console.error(sanitizeErrorMessage(err ? String(err) : ""));
+            return null;
+          })
+      )
+    );
+
+    const updatedMap = new Map();
+    for (let i = 0; i < results.length; i++) {
+      const res = results[i];
+      const updated = res.status === 'fulfilled' ? res.value : null;
+      if (updated && updated.id) {
+        lastStates.current.set(updated.id, updated.state);
+        updatedMap.set(updated.id, updated);
+      }
+    }
+
+    if (updatedMap.size > 0) {
+      setSessions(prev => prev.map(s => updatedMap.get(s.id) || s));
     }
   }, [apiKey, setSessions, lastStates]);
 
@@ -112,12 +163,15 @@ const useSessionActions = ({
     const ids = rawIds.filter(isValidSessionId);
     if (ids.length === 0) return;
     if (!confirm(`Are you sure you want to ignore ${ids.length} session(s)? This will remove them from your active list.`)) return;
+    const idSet = new Set(ids);
     setIgnoredIds(prev => {
       const next = new Set(prev);
-      ids.forEach(id => next.add(id));
+      for (let i = 0; i < ids.length; i++) {
+        next.add(ids[i]);
+      }
       return next;
     });
-    if (selected && ids.includes(selected.id)) {
+    if (selected && idSet.has(selected.id)) {
       setSelected(null);
       setDesktop("empty");
       setMobile("detail");
