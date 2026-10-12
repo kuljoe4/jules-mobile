@@ -532,6 +532,41 @@ assert.equal(SafeStorage.clearFollowupDraft('../path/traversal'), false);
 assert.equal(SafeStorage.saveFollowupDraft('sess\x00nullbyte', 'invalid'), false);
 assert.equal(SafeStorage.loadFollowupDraft('sess\x00nullbyte'), '');
 
+// Test SafeStorage.loadDraftsMap exception logging sanitization
+{
+  const origConsoleError = console.error;
+  let loggedArgs = null;
+
+  const originalLengthProp = Object.getOwnPropertyDescriptor(globalThis.localStorage, 'length');
+
+  try {
+    console.error = (...args) => {
+      loggedArgs = args;
+    };
+    Object.defineProperty(globalThis.localStorage, 'length', {
+      get: () => {
+        throw new Error("Storage access failed with key AIzaSyFakeKeyFormVerificationTesting123");
+      },
+      configurable: true
+    });
+
+    const resMap = SafeStorage.loadDraftsMap();
+    assert.deepEqual(resMap, {});
+    assert.ok(loggedArgs);
+    assert.equal(loggedArgs[0], "Error scanning follow-up drafts");
+    assert.equal(typeof loggedArgs[1], "string");
+    assert.equal(loggedArgs[1].includes("AIzaSyFakeKeyFormVerificationTesting123"), false);
+    assert.equal(loggedArgs[1].includes("[REDACTED_KEY]"), true);
+  } finally {
+    console.error = origConsoleError;
+    if (originalLengthProp) {
+      Object.defineProperty(globalThis.localStorage, 'length', originalLengthProp);
+    } else {
+      delete globalThis.localStorage.length;
+    }
+  }
+}
+
 // Test localStorage draft key scanning session ID validation logic
 const mockScanDrafts = (storage) => {
   const map = {};
