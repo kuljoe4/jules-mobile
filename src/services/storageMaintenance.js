@@ -52,7 +52,7 @@ async function getStorageInfo() {
       str += k + localStorage.getItem(k);
     }
     local = str.length * 2; // UTF-16 characters are 2 bytes
-  } catch (err) { console.warn("[Storage] LocalStorage estimate failed", sanitizeErrorMessage(err.toString())); }
+  } catch (err) { console.warn("[Storage] LocalStorage estimate failed", sanitizeErrorMessage(err ? String(err) : "")); }
 
   // 2. Navigator Storage API
   try {
@@ -64,7 +64,7 @@ async function getStorageInfo() {
         cache = est.usageDetails.caches;
       }
     }
-  } catch (err) { console.warn("[Storage] Estimate API failed", sanitizeErrorMessage(err.toString())); }
+  } catch (err) { console.warn("[Storage] Estimate API failed", sanitizeErrorMessage(err ? String(err) : "")); }
 
   // 3. Manual Cache Fallback (for browsers without usageDetails)
   if (cache === 0 && "caches" in window) {
@@ -82,7 +82,7 @@ async function getStorageInfo() {
           }
         }
       }
-    } catch (err) { console.warn("[Storage] Manual cache scan failed", sanitizeErrorMessage(err.toString())); }
+    } catch (err) { console.warn("[Storage] Manual cache scan failed", sanitizeErrorMessage(err ? String(err) : "")); }
   }
 
   // Final adjusted total (API used often doesn't include localStorage)
@@ -90,3 +90,5 @@ async function getStorageInfo() {
 
   return { used: totalUsed, quota, cache, local };
 }
+
+export { clearCacheOnly, clearDataOnly, resetApp, getStorageInfo };
