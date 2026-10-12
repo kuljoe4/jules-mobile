@@ -2,7 +2,7 @@ import { useSessionActivities } from "../hooks/useSessionActivities.js";
 import { copyToClipboard } from "../utils/format.js";
 import { isValidSessionId } from "../utils/validation.js";
 import { MediaModal } from "./mediaModal.jsx";
-import { apiCall } from "../services/api.js";
+import { apiCall, sanitizeErrorMessage } from "../services/api.js";
 
 // ─── Session Detail ───────────────────────────────────────────────────────────
 const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete, onSessionUpdate, onStatsUpdate, isDesktop, pollInterval, setPollInterval, isArchived, onArchive, onUnarchive, onIgnore, onPause, onResume, cacheLimit, activityLimit, allSessions = [], activitiesMap = {}, onDraftChange, onToggleMobileDrawer, onOpenSplitSession }) => {
@@ -481,7 +481,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
         // Do not display raw 404 errors in the UI for recently created or transiently missing sessions
         return;
       }
-      console.error("[LoadSession] Error:", err);
+      console.error("[LoadSession] Error:", sanitizeErrorMessage(err.toString()));
       setErr(err.message);
     }
   }, [apiKey, session.id, onSessionUpdate]);
@@ -901,7 +901,7 @@ const SessionDetail = ({ session:initSession, apiKey, personas, onBack, onDelete
              openedFirst = true;
            }
          } catch (err) {
-           console.error("Failed to start split session, saving as draft:", err);
+           console.error("Failed to start split session, saving as draft:", sanitizeErrorMessage(err.toString()));
            limitReached = true;
            const draft = SafeStorage.saveDraftToBox(splitSession);
            if (!openedFirst && onOpenSplitSession && draft) {
