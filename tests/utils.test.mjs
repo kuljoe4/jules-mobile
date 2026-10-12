@@ -1378,6 +1378,29 @@ await sendNotification(longTitle, longBody, "tag");
 assert.equal(sentTitle.length, 100);
 assert.equal(sentOptions.body.length, 200);
 
+// Test sendNotification unsanitized exception logging mitigation
+{
+  const origError = console.error;
+  let loggedMsg = null;
+  console.error = (label, msg) => {
+    loggedMsg = msg;
+  };
+
+  globalThis.Notification = class MockFailingNotification {
+    static permission = "granted";
+    constructor() {
+      throw new Error("Failed with secret key AIzaSyTestKey1234567890TestTestTest");
+    }
+  };
+  globalThis.window.Notification = globalThis.Notification;
+
+  await sendNotification("Test Title", "Test Body", "test-tag");
+  assert.equal(loggedMsg.includes("[REDACTED_KEY]"), true);
+  assert.equal(loggedMsg.includes("AIzaSyTestKey1234567890TestTestTest"), false);
+
+  console.error = origError;
+}
+
 // Test apiCall AbortError and Timeout handling
 {
   const origFetch = globalThis.fetch;
