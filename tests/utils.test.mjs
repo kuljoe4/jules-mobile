@@ -532,6 +532,41 @@ assert.equal(SafeStorage.clearFollowupDraft('../path/traversal'), false);
 assert.equal(SafeStorage.saveFollowupDraft('sess\x00nullbyte', 'invalid'), false);
 assert.equal(SafeStorage.loadFollowupDraft('sess\x00nullbyte'), '');
 
+// Test SafeStorage.loadDraftsMap exception logging sanitization
+{
+  const origConsoleError = console.error;
+  let loggedArgs = null;
+
+  const originalLengthProp = Object.getOwnPropertyDescriptor(globalThis.localStorage, 'length');
+
+  try {
+    console.error = (...args) => {
+      loggedArgs = args;
+    };
+    Object.defineProperty(globalThis.localStorage, 'length', {
+      get: () => {
+        throw new Error("Storage access failed with key AIzaSyFakeKeyFormVerificationTesting123");
+      },
+      configurable: true
+    });
+
+    const resMap = SafeStorage.loadDraftsMap();
+    assert.deepEqual(resMap, {});
+    assert.ok(loggedArgs);
+    assert.equal(loggedArgs[0], "Error scanning follow-up drafts");
+    assert.equal(typeof loggedArgs[1], "string");
+    assert.equal(loggedArgs[1].includes("AIzaSyFakeKeyFormVerificationTesting123"), false);
+    assert.equal(loggedArgs[1].includes("[REDACTED_KEY]"), true);
+  } finally {
+    console.error = origConsoleError;
+    if (originalLengthProp) {
+      Object.defineProperty(globalThis.localStorage, 'length', originalLengthProp);
+    } else {
+      delete globalThis.localStorage.length;
+    }
+  }
+}
+
 // Test localStorage draft key scanning session ID validation logic
 const mockScanDrafts = (storage) => {
   const map = {};
@@ -1432,6 +1467,13 @@ assert.equal(sanitizeErrorMessage('Plain text error'), "Plain text error");
 assert.equal(sanitizeErrorMessage('Invalid key AIzaSyTestKey1234567890TestTestTest provided'), "Invalid key [REDACTED_KEY] provided");
 assert.equal(sanitizeErrorMessage('Token ghp_123456789012345678901234567890123456 expired'), "Token [REDACTED_TOKEN] expired");
 assert.equal(sanitizeErrorMessage('Token github_pat_11AAAAAAA0123456789_abcdefghijklmnopqrstuvwxyz expired'), "Token [REDACTED_TOKEN] expired");
+
+// Test sanitizeErrorMessage with Error.toString() containing credentials
+const errWithKey = new Error('Fetch failed for key AIzaSyTestKey1234567890TestTestTest');
+assert.equal(sanitizeErrorMessage(errWithKey.toString()), 'Error: Fetch failed for key [REDACTED_KEY]');
+
+const errWithGhpToken = new Error('Unauthorized ghp_123456789012345678901234567890123456');
+assert.equal(sanitizeErrorMessage(errWithGhpToken.toString()), 'Error: Unauthorized [REDACTED_TOKEN]');
 assert.equal(sanitizeErrorMessage('<!DOCTYPE html><html><body>Error</body></html>', 503), "HTTP 503 Error");
 assert.equal(sanitizeErrorMessage('<html><body>Fatal Error</body></html>', 404), "HTTP 404 Error");
 assert.equal(sanitizeErrorMessage('Error with <b>bold</b> and <i>italic</i> tags'), "Error with bold and italic tags");
