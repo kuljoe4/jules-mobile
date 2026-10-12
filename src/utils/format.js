@@ -49,7 +49,6 @@ const CLEAN_MATH_CACHE = new Map();
 
 export const cleanMathText = (mathStr) => {
   if (typeof mathStr !== "string") return mathStr;
-  // Fast early-exit guard: if string contains no LaTeX syntax indicators, return trimmed string directly
   if (!mathStr.includes("\\") && !mathStr.includes("_") && !mathStr.includes("^") && !mathStr.includes("/quad")) {
     return mathStr.trim();
   }
@@ -168,8 +167,6 @@ export const formatSmartDashItems = (text) => {
   return result;
 };
 
-// Resilient, asynchronous clipboard copy function with fallback for non-secure contexts (HTTP)
-// and unsupported browsers. Catches all rejections to prevent unhandled promise exceptions.
 export const formatPlanSteps = (steps, stepIds = null) => {
   if (!steps || !Array.isArray(steps)) return "";
   // OPTIMIZATION (Bolt): Replace chained .filter().map() with a single O(N) loop
@@ -194,6 +191,8 @@ export const formatPlanSteps = (steps, stepIds = null) => {
   return parts.join("\n\n");
 };
 
+// Resilient, asynchronous clipboard copy function with fallback for non-secure contexts (HTTP)
+// and unsupported browsers. Catches all rejections to prevent unhandled promise exceptions.
 export const copyToClipboard = async (text) => {
   if (typeof text !== "string") text = String(text || "");
   if (typeof navigator !== "undefined" && navigator?.clipboard?.writeText) {

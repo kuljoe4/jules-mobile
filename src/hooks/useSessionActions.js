@@ -1,3 +1,8 @@
+import { useCallback } from 'react';
+import { apiCall, sanitizeErrorMessage } from '../services/api.js';
+import { isValidSessionId } from '../utils/validation.js';
+import { SafeStorage } from '../services/storage.js';
+
 const useSessionActions = ({
   apiKey,
   setSessions,
@@ -32,7 +37,7 @@ const useSessionActions = ({
     }
 
     for (const id of ids) {
-      apiCall(apiKey, `/sessions/${id}`, { method:"DELETE" }).catch(err => console.error(sanitizeErrorMessage(err.toString())));
+      apiCall(apiKey, `/sessions/${id}`, { method:"DELETE" }).catch(err => console.error(sanitizeErrorMessage(err ? String(err) : "")));
     }
   }, [apiKey, selected, setSessions, setDraftsMap, setSelected, setDesktop, setMobile, lastStates]);
 
@@ -75,7 +80,7 @@ const useSessionActions = ({
           lastStates.current.set(updated.id, updated.state);
           setSessions(prev => prev.map(s => s.id === updated.id ? updated : s));
         }
-      }).catch(err => console.error(sanitizeErrorMessage(err.toString())));
+      }).catch(err => console.error(sanitizeErrorMessage(err ? String(err) : "")));
     }
   }, [apiKey, setSessions, lastStates]);
 
@@ -98,7 +103,7 @@ const useSessionActions = ({
           lastStates.current.set(updated.id, updated.state);
           setSessions(prev => prev.map(s => s.id === updated.id ? updated : s));
         }
-      }).catch(err => console.error(sanitizeErrorMessage(err.toString())));
+      }).catch(err => console.error(sanitizeErrorMessage(err ? String(err) : "")));
     }
   }, [apiKey, setSessions, lastStates]);
 
@@ -131,7 +136,7 @@ const useSessionActions = ({
         lastStates.current.set(updated.id, updated.state);
         setSessions(prev => prev.map(s => s.id === updated.id ? updated : s));
       }
-    }).catch(err => console.error(sanitizeErrorMessage(err.toString())));
+    }).catch(err => console.error(sanitizeErrorMessage(err ? String(err) : "")));
   }, [apiKey, setSessions, lastStates]);
 
   const handleResume = useCallback(id => {
@@ -145,7 +150,7 @@ const useSessionActions = ({
         lastStates.current.set(updated.id, updated.state);
         setSessions(prev => prev.map(s => s.id === updated.id ? updated : s));
       }
-    }).catch(err => console.error(sanitizeErrorMessage(err.toString())));
+    }).catch(err => console.error(sanitizeErrorMessage(err ? String(err) : "")));
   }, [apiKey, setSessions, lastStates]);
 
   const handleArchive = useCallback(id => {
@@ -210,3 +215,5 @@ const useSessionActions = ({
     handleDelete
   };
 };
+
+export default useSessionActions;
