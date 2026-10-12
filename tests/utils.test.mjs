@@ -1549,6 +1549,10 @@ assert.equal(sanitizeErrorMessage(errWithKey2.toString()), 'Error: Fetch failed 
 
 const errWithGhpToken = new Error('Unauthorized ghp_123456789012345678901234567890123456');
 assert.equal(sanitizeErrorMessage(errWithGhpToken.toString()), 'Error: Unauthorized [REDACTED_TOKEN]');
+
+// Test MultiPersonaPicker and UI component exception sanitization
+const componentPointerErr = new Error('Pointer events failed with key AIzaSyTestKey1234567890TestTestTest');
+assert.equal(sanitizeErrorMessage(componentPointerErr.toString()), 'Error: Pointer events failed with key [REDACTED_KEY]');
 assert.equal(sanitizeErrorMessage('<!DOCTYPE html><html><body>Error</body></html>', 503), "HTTP 503 Error");
 assert.equal(sanitizeErrorMessage('<html><body>Fatal Error</body></html>', 404), "HTTP 404 Error");
 assert.equal(sanitizeErrorMessage('Error with <b>bold</b> and <i>italic</i> tags'), "Error with bold and italic tags");
