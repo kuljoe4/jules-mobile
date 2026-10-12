@@ -21,6 +21,7 @@ import { GitHubApi } from '../src/services/githubApi.js';
 import { getSmartTitle, getSmartBody } from '../src/utils/prTitle.js';
 import { apiCall, sanitizeErrorMessage } from '../src/services/api.js';
 import { sendNotification, requestNotificationPermission } from '../src/services/notifications.js';
+import { getStorageInfo } from '../src/services/storageMaintenance.js';
 
 if (typeof globalThis.localStorage === 'undefined') {
   const storageMap = new Map();
@@ -1475,8 +1476,8 @@ assert.equal(sanitizeErrorMessage('Token ghp_12345678901234567890123456789012345
 assert.equal(sanitizeErrorMessage('Token github_pat_11AAAAAAA0123456789_abcdefghijklmnopqrstuvwxyz expired'), "Token [REDACTED_TOKEN] expired");
 
 // Test sanitizeErrorMessage with Error.toString() containing credentials
-const errWithKey = new Error('Fetch failed for key AIzaSyTestKey1234567890TestTestTest');
-assert.equal(sanitizeErrorMessage(errWithKey.toString()), 'Error: Fetch failed for key [REDACTED_KEY]');
+const errWithKey2 = new Error('Fetch failed for key AIzaSyTestKey1234567890TestTestTest');
+assert.equal(sanitizeErrorMessage(errWithKey2.toString()), 'Error: Fetch failed for key [REDACTED_KEY]');
 
 const errWithGhpToken = new Error('Unauthorized ghp_123456789012345678901234567890123456');
 assert.equal(sanitizeErrorMessage(errWithGhpToken.toString()), 'Error: Unauthorized [REDACTED_TOKEN]');
@@ -1595,4 +1596,43 @@ assert.equal(sanitizeErrorMessage(null), "HTTP 500 Error");
     else delete globalThis.NET;
   }
 }
+// Test getStorageInfo exception handling and console.warn sanitization
+{
+  const origConsoleWarn = console.warn;
+  const loggedWarnings = [];
+  console.warn = (...args) => {
+    loggedWarnings.push(args);
+  };
+
+  const origLengthProp = Object.getOwnPropertyDescriptor(globalThis.localStorage, 'length');
+
+  try {
+    // 1. Trigger LocalStorage estimation error with sensitive key in error message
+    Object.defineProperty(globalThis.localStorage, 'length', {
+      get: () => {
+        throw new Error("LocalStorage access failed for key AIzaSyFakeKeyFormVerificationTesting123");
+      },
+      configurable: true
+    });
+
+    const info = await getStorageInfo();
+    assert.equal(typeof info, 'object');
+    assert.equal(typeof info.used, 'number');
+
+    assert.ok(loggedWarnings.length > 0);
+    const lsWarn = loggedWarnings.find(w => w[0] === "[Storage] LocalStorage estimate failed");
+    assert.ok(lsWarn);
+    assert.equal(typeof lsWarn[1], 'string');
+    assert.equal(lsWarn[1].includes("AIzaSyFakeKeyFormVerificationTesting123"), false);
+    assert.equal(lsWarn[1].includes("[REDACTED_KEY]"), true);
+  } finally {
+    console.warn = origConsoleWarn;
+    if (origLengthProp) {
+      Object.defineProperty(globalThis.localStorage, 'length', origLengthProp);
+    } else {
+      delete globalThis.localStorage.length;
+    }
+  }
+}
+
 console.log('Utility tests passed');
