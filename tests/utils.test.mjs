@@ -1404,6 +1404,12 @@ await assert.rejects(async () => { await apiCall('key', ''); }, { message: 'Inva
 
 // Test sanitizeErrorMessage
 assert.equal(sanitizeErrorMessage('{"error":{"message":"JSON Error Message"}}'), "JSON Error Message");
+const errWithKey = new Error('Request failed with key AIzaSyTestKey1234567890TestTestTest');
+assert.equal(sanitizeErrorMessage(errWithKey.toString()), 'Error: Request failed with key [REDACTED_KEY]');
+const errWithToken = new Error('Unauthorized ghp_123456789012345678901234567890123456 access');
+assert.equal(sanitizeErrorMessage(errWithToken.toString()), 'Error: Unauthorized [REDACTED_TOKEN] access');
+const errWithHtml = new Error('<html><body>Service Unavailable</body></html>');
+assert.equal(sanitizeErrorMessage(errWithHtml.toString()), 'HTTP 500 Error');
 assert.equal(sanitizeErrorMessage('{"message":"Another JSON Error"}'), "Another JSON Error");
 assert.equal(sanitizeErrorMessage('Plain text error'), "Plain text error");
 assert.equal(sanitizeErrorMessage('Invalid key AIzaSyTestKey1234567890TestTestTest provided'), "Invalid key [REDACTED_KEY] provided");

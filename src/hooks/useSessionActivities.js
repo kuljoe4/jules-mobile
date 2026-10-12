@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
-import { apiCall } from '../services/api.js';
+import { apiCall, sanitizeErrorMessage } from '../services/api.js';
 import { SafeStorage } from '../services/storage.js';
 import { getActivitiesSize, getApproxBytes, fastDeepEqual } from '../utils/performance.js';
 import { isValidSessionId } from '../utils/validation.js';
@@ -51,7 +51,7 @@ export const useSessionActivities = ({
   const loadActivities = useCallback(async (sinceTs = null) => {
     // Security: Validate session ID to prevent endpoint path manipulation or parameter pollution
     if (!isValidSessionId(session?.id) || isDeletedRef.current) {
-      console.error("[LoadActivities] Aborting request due to invalid session ID:", session?.id);
+      console.error("[LoadActivities] Aborting request due to invalid session ID:", sanitizeErrorMessage(String(session?.id || "")));
       return;
     }
     if (activitiesAbortRef.current) {
@@ -160,7 +160,7 @@ export const useSessionActivities = ({
           SafeStorage.saveActStats(allStats);
           onStatsUpdate?.(session.id, stats);
           window.dispatchEvent(new CustomEvent("jac_stats_updated", { detail: allStats }));
-        } catch (e) { console.error("Failed to save stats", e); }
+        } catch (e) { console.error("Failed to save stats", sanitizeErrorMessage(e.toString())); }
       }
 
       // Success! Reset 404 counter
@@ -194,7 +194,7 @@ export const useSessionActivities = ({
         // Do not display raw 404 errors in the UI for recently created or transiently missing sessions
         return;
       }
-      console.error("[LoadActivities] Error:", err);
+      console.error("[LoadActivities] Error:", sanitizeErrorMessage(err.toString()));
       setErr(err.message);
     } finally {
       if (activitiesAbortRef.current === controller) {

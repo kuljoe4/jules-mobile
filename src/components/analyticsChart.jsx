@@ -1,4 +1,5 @@
 import { SafeStorage } from '../services/storage.js';
+import { sanitizeErrorMessage } from '../services/api.js';
 
 const AnalyticsChart = ({ getSessions }) => {
   const { useState, useEffect, useMemo, useRef } = window.React || globalThis.React;
@@ -13,7 +14,7 @@ const AnalyticsChart = ({ getSessions }) => {
       try {
         setSessions(SafeStorage.loadSessionsList());
       } catch (err) {
-        console.error("Failed to load sessions for analytics", err);
+        console.error("Failed to load sessions for analytics", sanitizeErrorMessage(err.toString()));
       }
     }
   }, [getSessions]);
