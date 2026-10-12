@@ -1475,8 +1475,8 @@ assert.equal(sanitizeErrorMessage('Token ghp_12345678901234567890123456789012345
 assert.equal(sanitizeErrorMessage('Token github_pat_11AAAAAAA0123456789_abcdefghijklmnopqrstuvwxyz expired'), "Token [REDACTED_TOKEN] expired");
 
 // Test sanitizeErrorMessage with Error.toString() containing credentials
-const errWithKey = new Error('Fetch failed for key AIzaSyTestKey1234567890TestTestTest');
-assert.equal(sanitizeErrorMessage(errWithKey.toString()), 'Error: Fetch failed for key [REDACTED_KEY]');
+const errWithKeyFetch = new Error('Fetch failed for key AIzaSyTestKey1234567890TestTestTest');
+assert.equal(sanitizeErrorMessage(errWithKeyFetch.toString()), 'Error: Fetch failed for key [REDACTED_KEY]');
 
 const errWithGhpToken = new Error('Unauthorized ghp_123456789012345678901234567890123456');
 assert.equal(sanitizeErrorMessage(errWithGhpToken.toString()), 'Error: Unauthorized [REDACTED_TOKEN]');
@@ -1488,6 +1488,13 @@ assert.equal(sanitizeErrorMessage('  Too   much \n whitespace \t here  '), "Too 
 assert.equal(sanitizeErrorMessage(''), "HTTP 500 Error");
 assert.equal(sanitizeErrorMessage('', 400), "HTTP 400 Error");
 assert.equal(sanitizeErrorMessage(null), "HTTP 500 Error");
+
+// Test null-safe exception string formatting for logging and error states (e.g., useNewSessionFlow)
+const testErrWithKey = new Error('Failed to start session with key AIzaSyTestKey1234567890TestTestTest');
+assert.equal(sanitizeErrorMessage(testErrWithKey ? String(testErrWithKey) : ""), 'Error: Failed to start session with key [REDACTED_KEY]');
+assert.equal(sanitizeErrorMessage(testErrWithKey?.message || String(testErrWithKey)), 'Failed to start session with key [REDACTED_KEY]');
+assert.equal(sanitizeErrorMessage(null ? String(null) : ""), 'HTTP 500 Error');
+assert.equal(sanitizeErrorMessage(undefined ? String(undefined) : ""), 'HTTP 500 Error');
 
 
 
