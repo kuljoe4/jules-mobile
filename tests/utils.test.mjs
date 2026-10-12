@@ -1558,6 +1558,13 @@ assert.equal(sanitizeErrorMessage(''), "HTTP 500 Error");
 assert.equal(sanitizeErrorMessage('', 400), "HTTP 400 Error");
 assert.equal(sanitizeErrorMessage(null), "HTTP 500 Error");
 
+// Test null-safe exception string formatting for logging and error states (e.g., useNewSessionFlow)
+const testErrWithKey = new Error('Failed to start session with key AIzaSyTestKey1234567890TestTestTest');
+assert.equal(sanitizeErrorMessage(testErrWithKey ? String(testErrWithKey) : ""), 'Error: Failed to start session with key [REDACTED_KEY]');
+assert.equal(sanitizeErrorMessage(testErrWithKey?.message || String(testErrWithKey)), 'Failed to start session with key [REDACTED_KEY]');
+assert.equal(sanitizeErrorMessage(null ? String(null) : ""), 'HTTP 500 Error');
+assert.equal(sanitizeErrorMessage(undefined ? String(undefined) : ""), 'HTTP 500 Error');
+
 
 
 // Test apiCall quota error handling
