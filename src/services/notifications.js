@@ -37,14 +37,14 @@ async function sendNotification(title, body, tag) {
         await reg.showNotification(cleanTitle, { body: cleanBody, tag: cleanTag, icon });
         return;
       }
-    } catch (e) { console.warn("[Notify] SW notification failed, falling back", sanitizeErrorMessage(e.message || String(e))); }
+    } catch (e) { console.warn("[Notify] SW notification failed, falling back", sanitizeErrorMessage(e.toString())); }
   }
 
   // Fallback to standard Notification constructor
   try {
     new Notification(cleanTitle, { body: cleanBody, tag: cleanTag, icon });
   } catch (e) {
-    console.error("[Notify] Notification constructor failed", sanitizeErrorMessage(e.message || String(e)));
+    console.error("[Notify] Notification constructor failed", sanitizeErrorMessage(e.toString()));
   }
 }
 

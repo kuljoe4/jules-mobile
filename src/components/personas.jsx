@@ -1,3 +1,5 @@
+import { sanitizeErrorMessage } from '../services/api.js';
+
 const React = window.React || globalThis.React;
 
 const MultiPersonaPicker = ({ personas, selectedIds, onToggle, style: s = {} }) => {
@@ -24,7 +26,7 @@ const MultiPersonaPicker = ({ personas, selectedIds, onToggle, style: s = {} }) 
           }
         }
       } catch (err) {
-        console.error("[MultiPersonaPicker] onWheel error:", err);
+        console.error("[MultiPersonaPicker] onWheel error:", sanitizeErrorMessage(err.toString()));
       }
     };
 
@@ -48,7 +50,7 @@ const MultiPersonaPicker = ({ personas, selectedIds, onToggle, style: s = {} }) 
           el.scrollLeft = scrollLeftStart - walk;
         }
       } catch (err) {
-        console.error("[MultiPersonaPicker] onPointerMove error:", err);
+        console.error("[MultiPersonaPicker] onPointerMove error:", sanitizeErrorMessage(err.toString()));
       }
     };
 
@@ -89,7 +91,7 @@ const MultiPersonaPicker = ({ personas, selectedIds, onToggle, style: s = {} }) 
       }
       onToggle(id);
     } catch (err) {
-      console.error("[MultiPersonaPicker] handleToggle error:", err);
+      console.error("[MultiPersonaPicker] handleToggle error:", sanitizeErrorMessage(err.toString()));
     }
   };
 
