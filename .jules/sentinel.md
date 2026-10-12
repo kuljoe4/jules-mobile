@@ -179,5 +179,10 @@
 **Prevention:** Wrap exception strings in catch blocks with `sanitizeErrorMessage(e.message || String(e))` prior to console output.
 ## 2026-09-21 - Unsanitized Exception Logging in Session Detail Component
 **Vulnerability:** In `src/components/sessionDetail.jsx`, caught error objects during session fetching (`loadSession`) and split session creation (`handleSplitPlan`) were logged directly to the browser console as raw Error objects (`console.error("[LoadSession] Error:", err)`). This bypassed `sanitizeErrorMessage`, potentially exposing unredacted API tokens or verbose stack traces in developer tools.
-**Learning:** All `console.error` and `console.warn` log invocations throughout React components must convert error objects to strings and route them through `sanitizeErrorMessage` to prevent sensitive credential exposure or stack trace leakage in browser logs.
+**Learning:** All `console.error` and `console.error` log invocations throughout React components must convert error objects to strings and route them through `sanitizeErrorMessage` to prevent sensitive credential exposure or stack trace leakage in browser logs.
 **Prevention:** Import `sanitizeErrorMessage` from `../services/api.js` in React components and wrap all logged error objects with `sanitizeErrorMessage(err.toString())`.
+
+## 2026-10-12 - Unsanitized Exception Logging in MultiPersonaPicker
+**Vulnerability:** Event handler catch blocks in `src/components/personas.jsx` could potentially log raw error objects to `console.error`. Logging unsanitized error objects can leak internal stack traces or authorization details to developer tools.
+**Learning:** UI event handler catch blocks in React components must use null-safe string conversions (`err ? String(err) : ""`) wrapped with `sanitizeErrorMessage` prior to console output.
+**Prevention:** Always wrap component exception logging in `console.error` calls with `sanitizeErrorMessage(err ? String(err) : "")`.
