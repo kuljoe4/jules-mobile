@@ -6,9 +6,9 @@ import { sanitizeErrorMessage } from './api.js';
 async function clearCacheOnly() {
   if (!confirm("Clear Service Worker cache? This will redownload all assets on next load.")) return;
   try {
-    if ("caches" in window) {
-      const keys = await caches.keys();
-      await Promise.all(keys.map(k => caches.delete(k)));
+    if (typeof window !== "undefined" && "caches" in window) {
+      const keys = await window.caches.keys();
+      await Promise.all(keys.map(k => window.caches.delete(k)));
     }
     alert("Cache cleared.");
   } catch (err) { alert("Error: " + err.message); }
@@ -26,11 +26,11 @@ async function resetApp() {
   try {
     localStorage.clear();
     sessionStorage.clear();
-    if ("caches" in window) {
-      const keys = await caches.keys();
-      await Promise.all(keys.map(k => caches.delete(k)));
+    if (typeof window !== "undefined" && "caches" in window) {
+      const keys = await window.caches.keys();
+      await Promise.all(keys.map(k => window.caches.delete(k)));
     }
-    if ("serviceWorker" in navigator) {
+    if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
       const regs = await navigator.serviceWorker.getRegistrations();
       await Promise.all(regs.map(r => r.unregister()));
     }
@@ -41,22 +41,24 @@ async function resetApp() {
   }
 }
 
-async function getStorageInfo() {
+export async function getStorageInfo() {
   let used = 0, quota = 0, cache = 0, local = 0;
 
   // 1. LocalStorage Estimation
   try {
     let str = "";
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      str += k + localStorage.getItem(k);
+    if (typeof localStorage !== "undefined") {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        str += k + localStorage.getItem(k);
+      }
     }
     local = str.length * 2; // UTF-16 characters are 2 bytes
   } catch (err) { console.warn("[Storage] LocalStorage estimate failed", sanitizeErrorMessage(err.toString())); }
 
   // 2. Navigator Storage API
   try {
-    if (navigator.storage && navigator.storage.estimate) {
+    if (typeof navigator !== "undefined" && navigator.storage && navigator.storage.estimate) {
       const est = await navigator.storage.estimate();
       used = est.usage || 0;
       quota = est.quota || 0;
@@ -67,11 +69,11 @@ async function getStorageInfo() {
   } catch (err) { console.warn("[Storage] Estimate API failed", sanitizeErrorMessage(err.toString())); }
 
   // 3. Manual Cache Fallback (for browsers without usageDetails)
-  if (cache === 0 && "caches" in window) {
+  if (cache === 0 && typeof window !== "undefined" && "caches" in window) {
     try {
-      const keys = await caches.keys();
+      const keys = await window.caches.keys();
       for (const key of keys) {
-        const c = await caches.open(key);
+        const c = await window.caches.open(key);
         const reqs = await c.keys();
         const matches = await Promise.all(reqs.map(r => c.match(r)));
         for (const res of matches) {

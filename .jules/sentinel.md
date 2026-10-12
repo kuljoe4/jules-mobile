@@ -182,6 +182,10 @@
 **Learning:** All `console.error` and `console.warn` log invocations throughout React components must convert error objects to strings and route them through `sanitizeErrorMessage` to prevent sensitive credential exposure or stack trace leakage in browser logs.
 **Prevention:** Import `sanitizeErrorMessage` from `../services/api.js` in React components and wrap all logged error objects with `sanitizeErrorMessage(err.toString())`.
 
+## 2026-10-13 - Unsanitized Exception Logging in Storage Maintenance
+**Vulnerability:** Catch blocks in storage maintenance routines (`src/services/storageMaintenance.js`) passed raw exception objects directly to `console.warn`. Exception objects logged in browser contexts can expose unredacted sensitive credentials or internal stack details in developer tools.
+**Learning:** Exception logging in storage estimation and manual cache scanning routines must convert error objects to strings (`err.toString()`) and pass them through `sanitizeErrorMessage` to redact sensitive API keys or personal access tokens.
+**Prevention:** Wrap all logged exception objects in catch blocks with `sanitizeErrorMessage(err.toString())`.
 ## 2026-10-13 - Unsanitized Exception Logging and State Assignment in Session Flow Hooks
 **Vulnerability:** In `src/hooks/useNewSessionFlow.js`, caught exception objects during session initialization were directly logged or assigned to component error state without null-safe sanitization (`console.error` with `err.toString()`, `setErr(err.message)`). Calling `.toString()` on null/undefined error objects causes runtime TypeErrors, and assigning unsanitized error messages to state risks reflecting raw API keys or tokens into UI error alerts.
 **Learning:** Error state setters and console logging in custom session flow hooks must safely format error inputs with nullish guards (`err ? String(err) : ""`, `err?.message || String(err)`) and sanitize all error strings via `sanitizeErrorMessage` before setting state or outputting to console.
