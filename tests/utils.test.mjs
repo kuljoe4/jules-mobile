@@ -1475,8 +1475,8 @@ assert.equal(sanitizeErrorMessage('Token ghp_12345678901234567890123456789012345
 assert.equal(sanitizeErrorMessage('Token github_pat_11AAAAAAA0123456789_abcdefghijklmnopqrstuvwxyz expired'), "Token [REDACTED_TOKEN] expired");
 
 // Test sanitizeErrorMessage with Error.toString() containing credentials
-const errWithKey = new Error('Fetch failed for key AIzaSyTestKey1234567890TestTestTest');
-assert.equal(sanitizeErrorMessage(errWithKey.toString()), 'Error: Fetch failed for key [REDACTED_KEY]');
+const errWithKey2 = new Error('Fetch failed for key AIzaSyTestKey1234567890TestTestTest');
+assert.equal(sanitizeErrorMessage(errWithKey2.toString()), 'Error: Fetch failed for key [REDACTED_KEY]');
 
 const errWithGhpToken = new Error('Unauthorized ghp_123456789012345678901234567890123456');
 assert.equal(sanitizeErrorMessage(errWithGhpToken.toString()), 'Error: Unauthorized [REDACTED_TOKEN]');
@@ -1489,7 +1489,28 @@ assert.equal(sanitizeErrorMessage(''), "HTTP 500 Error");
 assert.equal(sanitizeErrorMessage('', 400), "HTTP 400 Error");
 assert.equal(sanitizeErrorMessage(null), "HTTP 500 Error");
 
+// Test promise exception logging sanitization in session actions
+{
+  const loggedErrors = [];
+  const origConsoleError = console.error;
+  console.error = (...args) => {
+    loggedErrors.push(args.join(' '));
+  };
 
+  try {
+    const sensitiveErr = new Error('DELETE /sessions/s1 failed with key AIzaSyTestKey1234567890TestTestTest and ghp_123456789012345678901234567890123456');
+    const p = Promise.reject(sensitiveErr);
+    await p.catch(err => console.error(sanitizeErrorMessage(err ? String(err) : "")));
+
+    assert.equal(loggedErrors.length, 1);
+    assert.equal(loggedErrors[0].includes('AIzaSyTestKey'), false);
+    assert.equal(loggedErrors[0].includes('ghp_1234567890'), false);
+    assert.equal(loggedErrors[0].includes('[REDACTED_KEY]'), true);
+    assert.equal(loggedErrors[0].includes('[REDACTED_TOKEN]'), true);
+  } finally {
+    console.error = origConsoleError;
+  }
+}
 
 // Test apiCall quota error handling
 {
