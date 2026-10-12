@@ -1409,6 +1409,13 @@ assert.equal(sanitizeErrorMessage('Plain text error'), "Plain text error");
 assert.equal(sanitizeErrorMessage('Invalid key AIzaSyTestKey1234567890TestTestTest provided'), "Invalid key [REDACTED_KEY] provided");
 assert.equal(sanitizeErrorMessage('Token ghp_123456789012345678901234567890123456 expired'), "Token [REDACTED_TOKEN] expired");
 assert.equal(sanitizeErrorMessage('Token github_pat_11AAAAAAA0123456789_abcdefghijklmnopqrstuvwxyz expired'), "Token [REDACTED_TOKEN] expired");
+
+// Test sanitizeErrorMessage with Error.toString() containing credentials
+const errWithKey = new Error('Fetch failed for key AIzaSyTestKey1234567890TestTestTest');
+assert.equal(sanitizeErrorMessage(errWithKey.toString()), 'Error: Fetch failed for key [REDACTED_KEY]');
+
+const errWithGhpToken = new Error('Unauthorized ghp_123456789012345678901234567890123456');
+assert.equal(sanitizeErrorMessage(errWithGhpToken.toString()), 'Error: Unauthorized [REDACTED_TOKEN]');
 assert.equal(sanitizeErrorMessage('<!DOCTYPE html><html><body>Error</body></html>', 503), "HTTP 503 Error");
 assert.equal(sanitizeErrorMessage('<html><body>Fatal Error</body></html>', 404), "HTTP 404 Error");
 assert.equal(sanitizeErrorMessage('Error with <b>bold</b> and <i>italic</i> tags'), "Error with bold and italic tags");
