@@ -94,6 +94,63 @@ const bulkIdsCandidate = [
 const filteredBulkIds = bulkIdsCandidate.filter(isValidSessionId);
 assert.deepEqual(filteredBulkIds, ['sess_valid_1', 'sess_valid_2']);
 
+// Test bulk resume / bulk pause concurrent API call resolution and batched state merging
+{
+  const testIds = ['sess_valid_1', 'sess_valid_2', 'sess_valid_3'];
+  const mockSessions = [
+    { id: 'sess_valid_1', state: 'PAUSED' },
+    { id: 'sess_valid_2', state: 'PAUSED' },
+    { id: 'sess_valid_3', state: 'PAUSED' },
+    { id: 'sess_other_4', state: 'COMPLETED' },
+  ];
+
+  // Simulated optimistic update using Set lookup
+  const idSet = new Set(testIds);
+  let sessionsState = mockSessions.map(s => idSet.has(s.id) ? { ...s, state: 'QUEUED' } : s);
+  assert.equal(sessionsState[0].state, 'QUEUED');
+  assert.equal(sessionsState[1].state, 'QUEUED');
+  assert.equal(sessionsState[2].state, 'QUEUED');
+  assert.equal(sessionsState[3].state, 'COMPLETED');
+
+  // Simulated concurrent API responses (2 success, 1 failure)
+  const lastStates = new Map();
+  for (let i = 0; i < testIds.length; i++) {
+    lastStates.set(testIds[i], 'QUEUED');
+  }
+
+  const mockApiCall = async (id) => {
+    if (id === 'sess_valid_3') {
+      throw new Error('500 Service Error');
+    }
+    return { id, state: 'IN_PROGRESS', updateTime: '2026-08-25T12:00:00Z' };
+  };
+
+  const results = await Promise.all(
+    testIds.map(id => mockApiCall(id).catch(() => null))
+  );
+
+  const updatedMap = new Map();
+  for (let i = 0; i < results.length; i++) {
+    const updated = results[i];
+    if (updated && updated.id) {
+      lastStates.set(updated.id, updated.state);
+      updatedMap.set(updated.id, updated);
+    }
+  }
+
+  assert.equal(updatedMap.size, 2);
+  assert.equal(lastStates.get('sess_valid_1'), 'IN_PROGRESS');
+  assert.equal(lastStates.get('sess_valid_2'), 'IN_PROGRESS');
+  assert.equal(lastStates.get('sess_valid_3'), 'QUEUED');
+
+  // Single-pass batched state application
+  sessionsState = sessionsState.map(s => updatedMap.get(s.id) || s);
+  assert.equal(sessionsState[0].state, 'IN_PROGRESS');
+  assert.equal(sessionsState[1].state, 'IN_PROGRESS');
+  assert.equal(sessionsState[2].state, 'QUEUED');
+  assert.equal(sessionsState[3].state, 'COMPLETED');
+}
+
 assert.equal(isValidGitBranchName('feature/mobile-refactor'), true);
 assert.equal(isValidGitBranchName('-danger'), false);
 assert.equal(isValidGitBranchName('feature//double'), false);
@@ -1531,8 +1588,8 @@ await assert.rejects(async () => { await apiCall('key', ''); }, { message: 'Inva
 
 // Test sanitizeErrorMessage
 assert.equal(sanitizeErrorMessage('{"error":{"message":"JSON Error Message"}}'), "JSON Error Message");
-const errWithKey = new Error('Request failed with key AIzaSyTestKey1234567890TestTestTest');
-assert.equal(sanitizeErrorMessage(errWithKey.toString()), 'Error: Request failed with key [REDACTED_KEY]');
+const errWithKey1 = new Error('Request failed with key AIzaSyTestKey1234567890TestTestTest');
+assert.equal(sanitizeErrorMessage(errWithKey1.toString()), 'Error: Request failed with key [REDACTED_KEY]');
 const errWithToken = new Error('Unauthorized ghp_123456789012345678901234567890123456 access');
 assert.equal(sanitizeErrorMessage(errWithToken.toString()), 'Error: Unauthorized [REDACTED_TOKEN] access');
 const errWithHtml = new Error('<html><body>Service Unavailable</body></html>');

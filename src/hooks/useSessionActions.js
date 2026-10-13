@@ -20,45 +20,32 @@ const useSessionActions = ({
     const ids = rawIds.filter(isValidSessionId);
     if (ids.length === 0) return;
     if (!confirm(`Are you sure you want to delete ${ids.length} session(s)?`)) return;
-
     const idSet = new Set(ids);
-    setSessions(prev => {
-      const next = [];
-      for (let i = 0; i < prev.length; i++) {
-        const s = prev[i];
-        if (!idSet.has(s.id)) next.push(s);
-      }
-      return next.length === prev.length ? prev : next;
-    });
-
+    setSessions(prev => prev.filter(s => !idSet.has(s.id)));
     for (let i = 0; i < ids.length; i++) {
       const id = ids[i];
       lastStates.current.delete(id);
       try { SafeStorage.clearFollowupDraft(id); } catch {}
     }
-
     setDraftsMap(prev => {
       let changed = false;
       const next = { ...prev };
       for (let i = 0; i < ids.length; i++) {
-        const id = ids[i];
-        if (id in next) {
-          delete next[id];
-          changed = true;
-        }
+        delete next[ids[i]];
       }
-      return changed ? next : prev;
+      return next;
     });
-
     if (selected && idSet.has(selected.id)) {
       setSelected(null);
       setDesktop("empty");
       setMobile("detail");
     }
 
-    Promise.allSettled(
+    await Promise.all(
       ids.map(id =>
-        apiCall(apiKey, `/sessions/${id}`, { method:"DELETE" }).catch(err => console.error(sanitizeErrorMessage(err ? String(err) : "")))
+        apiCall(apiKey, `/sessions/${id}`, { method: "DELETE" }).catch(err =>
+          console.error(sanitizeErrorMessage(err ? String(err) : ""))
+        )
       )
     );
   }, [apiKey, selected, setSessions, setDraftsMap, setSelected, setDesktop, setMobile, lastStates]);
@@ -96,24 +83,35 @@ const useSessionActions = ({
 
     const idSet = new Set(ids);
     // Optimistic update
-    setSessions(prev => {
-      let changed = false;
-      const len = prev.length;
-      const next = new Array(len);
-      for (let i = 0; i < len; i++) {
-        const s = prev[i];
-        if (idSet.has(s.id)) {
-          next[i] = { ...s, state: "QUEUED" };
-          changed = true;
-        } else {
-          next[i] = s;
-        }
-      }
-      return changed ? next : prev;
-    });
+    setSessions(prev => prev.map(s => {
+      if (idSet.has(s.id)) return { ...s, state: "QUEUED" };
+      return s;
+    }));
 
     for (let i = 0; i < ids.length; i++) {
       lastStates.current.set(ids[i], "QUEUED");
+    }
+
+    const results = await Promise.all(
+      ids.map(id =>
+        apiCall(apiKey, `/sessions/${id}:resume`, { method: "POST" }).catch(err => {
+          console.error(sanitizeErrorMessage(err ? String(err) : ""));
+          return null;
+        })
+      )
+    );
+
+    const updatedMap = new Map();
+    for (let i = 0; i < results.length; i++) {
+      const updated = results[i];
+      if (updated && updated.id) {
+        lastStates.current.set(updated.id, updated.state);
+        updatedMap.set(updated.id, updated);
+      }
+    }
+
+    if (updatedMap.size > 0) {
+      setSessions(prev => prev.map(s => updatedMap.get(s.id) || s));
     }
 
     Promise.allSettled(
@@ -160,24 +158,35 @@ const useSessionActions = ({
 
     const idSet = new Set(ids);
     // Optimistic update
-    setSessions(prev => {
-      let changed = false;
-      const len = prev.length;
-      const next = new Array(len);
-      for (let i = 0; i < len; i++) {
-        const s = prev[i];
-        if (idSet.has(s.id)) {
-          next[i] = { ...s, state: "PAUSED" };
-          changed = true;
-        } else {
-          next[i] = s;
-        }
-      }
-      return changed ? next : prev;
-    });
+    setSessions(prev => prev.map(s => {
+      if (idSet.has(s.id)) return { ...s, state: "PAUSED" };
+      return s;
+    }));
 
     for (let i = 0; i < ids.length; i++) {
       lastStates.current.set(ids[i], "PAUSED");
+    }
+
+    const results = await Promise.all(
+      ids.map(id =>
+        apiCall(apiKey, `/sessions/${id}:pause`, { method: "POST" }).catch(err => {
+          console.error(sanitizeErrorMessage(err ? String(err) : ""));
+          return null;
+        })
+      )
+    );
+
+    const updatedMap = new Map();
+    for (let i = 0; i < results.length; i++) {
+      const updated = results[i];
+      if (updated && updated.id) {
+        lastStates.current.set(updated.id, updated.state);
+        updatedMap.set(updated.id, updated);
+      }
+    }
+
+    if (updatedMap.size > 0) {
+      setSessions(prev => prev.map(s => updatedMap.get(s.id) || s));
     }
 
     Promise.allSettled(
