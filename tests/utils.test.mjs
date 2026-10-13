@@ -1746,4 +1746,43 @@ assert.equal(sanitizeErrorMessage(null), "HTTP 500 Error");
     else delete globalThis.NET;
   }
 }
+// Test getStorageInfo exception handling and console.warn sanitization
+{
+  const origConsoleWarn = console.warn;
+  const loggedWarnings = [];
+  console.warn = (...args) => {
+    loggedWarnings.push(args);
+  };
+
+  const origLengthProp = Object.getOwnPropertyDescriptor(globalThis.localStorage, 'length');
+
+  try {
+    // 1. Trigger LocalStorage estimation error with sensitive key in error message
+    Object.defineProperty(globalThis.localStorage, 'length', {
+      get: () => {
+        throw new Error("LocalStorage access failed for key AIzaSyFakeKeyFormVerificationTesting123");
+      },
+      configurable: true
+    });
+
+    const info = await getStorageInfo();
+    assert.equal(typeof info, 'object');
+    assert.equal(typeof info.used, 'number');
+
+    assert.ok(loggedWarnings.length > 0);
+    const lsWarn = loggedWarnings.find(w => w[0] === "[Storage] LocalStorage estimate failed");
+    assert.ok(lsWarn);
+    assert.equal(typeof lsWarn[1], 'string');
+    assert.equal(lsWarn[1].includes("AIzaSyFakeKeyFormVerificationTesting123"), false);
+    assert.equal(lsWarn[1].includes("[REDACTED_KEY]"), true);
+  } finally {
+    console.warn = origConsoleWarn;
+    if (origLengthProp) {
+      Object.defineProperty(globalThis.localStorage, 'length', origLengthProp);
+    } else {
+      delete globalThis.localStorage.length;
+    }
+  }
+}
+
 console.log('Utility tests passed');

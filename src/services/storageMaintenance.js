@@ -3,7 +3,7 @@ import { sanitizeErrorMessage } from './api.js';
 // ─── Daily session counter ────────────────────────────────────────────────────
 
 
-async function clearCacheOnly() {
+export async function clearCacheOnly() {
   if (!confirm("Clear Service Worker cache? This will redownload all assets on next load.")) return;
   try {
     if (typeof window !== "undefined" && "caches" in window) {
@@ -11,17 +11,17 @@ async function clearCacheOnly() {
       await Promise.all(keys.map(k => window.caches.delete(k)));
     }
     alert("Cache cleared.");
-  } catch (err) { alert("Error: " + err.message); }
+  } catch (err) { alert("Error: " + (err?.message || String(err))); }
 }
 
-async function clearDataOnly() {
+export async function clearDataOnly() {
   if (!confirm("Clear all settings, keys, and session data? You will be logged out.")) return;
   localStorage.clear();
   sessionStorage.clear();
   location.reload();
 }
 
-async function resetApp() {
+export async function resetApp() {
   if (!confirm("FULL RESET: Clear all local data, settings, and cache?")) return;
   try {
     localStorage.clear();
@@ -36,7 +36,7 @@ async function resetApp() {
     }
     location.reload(true);
   } catch (err) {
-    alert("Error: " + err.message);
+    alert("Error: " + (err?.message || String(err)));
     location.reload();
   }
 }
@@ -54,7 +54,7 @@ export async function getStorageInfo() {
       }
     }
     local = str.length * 2; // UTF-16 characters are 2 bytes
-  } catch (err) { console.warn("[Storage] LocalStorage estimate failed", sanitizeErrorMessage(err.toString())); }
+  } catch (err) { console.warn("[Storage] LocalStorage estimate failed", sanitizeErrorMessage(err ? String(err) : "")); }
 
   // 2. Navigator Storage API
   try {
@@ -66,7 +66,7 @@ export async function getStorageInfo() {
         cache = est.usageDetails.caches;
       }
     }
-  } catch (err) { console.warn("[Storage] Estimate API failed", sanitizeErrorMessage(err.toString())); }
+  } catch (err) { console.warn("[Storage] Estimate API failed", sanitizeErrorMessage(err ? String(err) : "")); }
 
   // 3. Manual Cache Fallback (for browsers without usageDetails)
   if (cache === 0 && typeof window !== "undefined" && "caches" in window) {
@@ -84,7 +84,7 @@ export async function getStorageInfo() {
           }
         }
       }
-    } catch (err) { console.warn("[Storage] Manual cache scan failed", sanitizeErrorMessage(err.toString())); }
+    } catch (err) { console.warn("[Storage] Manual cache scan failed", sanitizeErrorMessage(err ? String(err) : "")); }
   }
 
   // Final adjusted total (API used often doesn't include localStorage)
