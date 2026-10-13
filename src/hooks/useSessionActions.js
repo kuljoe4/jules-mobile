@@ -15,7 +15,7 @@ const useSessionActions = ({
   setMobile,
   lastStates
 }) => {
-  const handleBulkDelete = useCallback((rawIds) => {
+  const handleBulkDelete = useCallback(async (rawIds) => {
     if (!Array.isArray(rawIds)) return;
     const ids = rawIds.filter(isValidSessionId);
     if (ids.length === 0) return;
@@ -76,7 +76,7 @@ const useSessionActions = ({
     });
   }, [setArchivedIds]);
 
-  const handleBulkResume = useCallback((rawIds) => {
+  const handleBulkResume = useCallback(async (rawIds) => {
     if (!Array.isArray(rawIds)) return;
     const ids = rawIds.filter(isValidSessionId);
     if (ids.length === 0) return;
@@ -150,7 +150,7 @@ const useSessionActions = ({
     });
   }, [apiKey, setSessions, lastStates]);
 
-  const handleBulkPause = useCallback((rawIds) => {
+  const handleBulkPause = useCallback(async (rawIds) => {
     if (!Array.isArray(rawIds)) return;
     const ids = rawIds.filter(isValidSessionId);
     if (ids.length === 0) return;
