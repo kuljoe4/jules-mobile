@@ -26,15 +26,13 @@ const useSessionActions = ({
       const id = ids[i];
       lastStates.current.delete(id);
       try { SafeStorage.clearFollowupDraft(id); } catch {}
-    }
+    });
     setDraftsMap(prev => {
       const next = { ...prev };
-      for (let i = 0; i < ids.length; i++) {
-        delete next[ids[i]];
-      }
+      ids.forEach(id => delete next[id]);
       return next;
     });
-    if (selected && idSet.has(selected.id)) {
+    if (selected && ids.includes(selected.id)) {
       setSelected(null);
       setDesktop("empty");
       setMobile("detail");
@@ -55,9 +53,7 @@ const useSessionActions = ({
     if (ids.length === 0) return;
     setArchivedIds(prev => {
       const next = new Set(prev);
-      for (let i = 0; i < ids.length; i++) {
-        next.add(ids[i]);
-      }
+      ids.forEach(id => next.add(id));
       return next;
     });
   }, [setArchivedIds]);
@@ -68,9 +64,7 @@ const useSessionActions = ({
     if (ids.length === 0) return;
     setArchivedIds(prev => {
       const next = new Set(prev);
-      for (let i = 0; i < ids.length; i++) {
-        next.delete(ids[i]);
-      }
+      ids.forEach(id => next.delete(id));
       return next;
     });
   }, [setArchivedIds]);
@@ -83,7 +77,7 @@ const useSessionActions = ({
     const idSet = new Set(ids);
     // Optimistic update
     setSessions(prev => prev.map(s => {
-      if (idSet.has(s.id)) return { ...s, state: "QUEUED" };
+      if (ids.includes(s.id)) return { ...s, state: "QUEUED" };
       return s;
     }));
 
@@ -120,10 +114,9 @@ const useSessionActions = ({
     if (ids.length === 0) return Promise.resolve();
     if (!confirm(`Are you sure you want to pause ${ids.length} session(s)?`)) return Promise.resolve();
 
-    const idSet = new Set(ids);
     // Optimistic update
     setSessions(prev => prev.map(s => {
-      if (idSet.has(s.id)) return { ...s, state: "PAUSED" };
+      if (ids.includes(s.id)) return { ...s, state: "PAUSED" };
       return s;
     }));
 

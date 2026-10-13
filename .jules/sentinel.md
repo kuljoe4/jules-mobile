@@ -181,3 +181,8 @@
 **Vulnerability:** In `src/components/sessionDetail.jsx`, caught error objects during session fetching (`loadSession`) and split session creation (`handleSplitPlan`) were logged directly to the browser console as raw Error objects (`console.error("[LoadSession] Error:", err)`). This bypassed `sanitizeErrorMessage`, potentially exposing unredacted API tokens or verbose stack traces in developer tools.
 **Learning:** All `console.error` and `console.warn` log invocations throughout React components must convert error objects to strings and route them through `sanitizeErrorMessage` to prevent sensitive credential exposure or stack trace leakage in browser logs.
 **Prevention:** Import `sanitizeErrorMessage` from `../services/api.js` in React components and wrap all logged error objects with `sanitizeErrorMessage(err.toString())`.
+
+## 2026-10-13 - Unsanitized Exception Logging in Storage Maintenance Handlers
+**Vulnerability:** In `src/services/storageMaintenance.js`, exceptions caught during storage estimations (`getStorageInfo`) were logged directly or without null guards when calling `sanitizeErrorMessage`. Logging unsanitized error objects or un-guarded exception messages to `console.warn` could leak sensitive credentials or internal path details in browser developer tools.
+**Learning:** Exception handling across storage maintenance routines must stringify caught exceptions safely with nullish guards (`err ? String(err) : ""`) and pass them through `sanitizeErrorMessage` before logging to `console.warn`.
+**Prevention:** Always wrap caught exceptions in storage services with `sanitizeErrorMessage(err ? String(err) : "")` prior to console output.
