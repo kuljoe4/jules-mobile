@@ -21,7 +21,6 @@ import { GitHubApi } from '../src/services/githubApi.js';
 import { getSmartTitle, getSmartBody } from '../src/utils/prTitle.js';
 import { apiCall, sanitizeErrorMessage } from '../src/services/api.js';
 import { sendNotification, requestNotificationPermission } from '../src/services/notifications.js';
-import { getStorageInfo } from '../src/services/storageMaintenance.js';
 
 if (typeof globalThis.localStorage === 'undefined') {
   const storageMap = new Map();
@@ -1521,8 +1520,8 @@ assert.equal(sanitizeErrorMessage('Token ghp_12345678901234567890123456789012345
 assert.equal(sanitizeErrorMessage('Token github_pat_11AAAAAAA0123456789_abcdefghijklmnopqrstuvwxyz expired'), "Token [REDACTED_TOKEN] expired");
 
 // Test sanitizeErrorMessage with Error.toString() containing credentials
-const errWithKey2 = new Error('Fetch failed for key AIzaSyTestKey1234567890TestTestTest');
-assert.equal(sanitizeErrorMessage(errWithKey2.toString()), 'Error: Fetch failed for key [REDACTED_KEY]');
+const errWithKey = new Error('Fetch failed for key AIzaSyTestKey1234567890TestTestTest');
+assert.equal(sanitizeErrorMessage(errWithKey.toString()), 'Error: Fetch failed for key [REDACTED_KEY]');
 
 const errWithGhpToken = new Error('Unauthorized ghp_123456789012345678901234567890123456');
 assert.equal(sanitizeErrorMessage(errWithGhpToken.toString()), 'Error: Unauthorized [REDACTED_TOKEN]');

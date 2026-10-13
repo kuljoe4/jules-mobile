@@ -15,13 +15,15 @@ const useSessionActions = ({
   setMobile,
   lastStates
 }) => {
-  const handleBulkDelete = useCallback(async (rawIds) => {
-    if (!Array.isArray(rawIds)) return;
+  const handleBulkDelete = useCallback((rawIds) => {
+    if (!Array.isArray(rawIds)) return Promise.resolve();
     const ids = rawIds.filter(isValidSessionId);
-    if (ids.length === 0) return;
-    if (!confirm(`Are you sure you want to delete ${ids.length} session(s)?`)) return;
-    setSessions(prev => prev.filter(s => !ids.includes(s.id)));
-    ids.forEach(id => {
+    if (ids.length === 0) return Promise.resolve();
+    if (!confirm(`Are you sure you want to delete ${ids.length} session(s)?`)) return Promise.resolve();
+    const idSet = new Set(ids);
+    setSessions(prev => prev.filter(s => !idSet.has(s.id)));
+    for (let i = 0; i < ids.length; i++) {
+      const id = ids[i];
       lastStates.current.delete(id);
       try { SafeStorage.clearFollowupDraft(id); } catch {}
     });
@@ -36,9 +38,13 @@ const useSessionActions = ({
       setMobile("detail");
     }
 
-    for (const id of ids) {
-      apiCall(apiKey, `/sessions/${id}`, { method:"DELETE" }).catch(err => console.error(sanitizeErrorMessage(err ? String(err) : "")));
-    }
+    return Promise.all(
+      ids.map(id =>
+        apiCall(apiKey, `/sessions/${id}`, { method: "DELETE" }).catch(err =>
+          console.error(sanitizeErrorMessage(err ? String(err) : ""))
+        )
+      )
+    );
   }, [apiKey, selected, setSessions, setDraftsMap, setSelected, setDesktop, setMobile, lastStates]);
 
   const handleBulkArchive = useCallback((rawIds) => {
@@ -63,32 +69,50 @@ const useSessionActions = ({
     });
   }, [setArchivedIds]);
 
-  const handleBulkResume = useCallback(async (rawIds) => {
-    if (!Array.isArray(rawIds)) return;
+  const handleBulkResume = useCallback((rawIds) => {
+    if (!Array.isArray(rawIds)) return Promise.resolve();
     const ids = rawIds.filter(isValidSessionId);
-    if (ids.length === 0) return;
+    if (ids.length === 0) return Promise.resolve();
+
+    const idSet = new Set(ids);
     // Optimistic update
     setSessions(prev => prev.map(s => {
       if (ids.includes(s.id)) return { ...s, state: "QUEUED" };
       return s;
     }));
 
-    for (const id of ids) {
-      lastStates.current.set(id, "QUEUED");
-      apiCall(apiKey, `/sessions/${id}:resume`, { method:"POST" }).then(updated => {
+    for (let i = 0; i < ids.length; i++) {
+      lastStates.current.set(ids[i], "QUEUED");
+    }
+
+    return Promise.all(
+      ids.map(id =>
+        apiCall(apiKey, `/sessions/${id}:resume`, { method: "POST" }).catch(err => {
+          console.error(sanitizeErrorMessage(err ? String(err) : ""));
+          return null;
+        })
+      )
+    ).then(results => {
+      const updatedMap = new Map();
+      for (let i = 0; i < results.length; i++) {
+        const updated = results[i];
         if (updated && updated.id) {
           lastStates.current.set(updated.id, updated.state);
-          setSessions(prev => prev.map(s => s.id === updated.id ? updated : s));
+          updatedMap.set(updated.id, updated);
         }
-      }).catch(err => console.error(sanitizeErrorMessage(err ? String(err) : "")));
-    }
+      }
+
+      if (updatedMap.size > 0) {
+        setSessions(prev => prev.map(s => updatedMap.get(s.id) || s));
+      }
+    });
   }, [apiKey, setSessions, lastStates]);
 
-  const handleBulkPause = useCallback(async (rawIds) => {
-    if (!Array.isArray(rawIds)) return;
+  const handleBulkPause = useCallback((rawIds) => {
+    if (!Array.isArray(rawIds)) return Promise.resolve();
     const ids = rawIds.filter(isValidSessionId);
-    if (ids.length === 0) return;
-    if (!confirm(`Are you sure you want to pause ${ids.length} session(s)?`)) return;
+    if (ids.length === 0) return Promise.resolve();
+    if (!confirm(`Are you sure you want to pause ${ids.length} session(s)?`)) return Promise.resolve();
 
     // Optimistic update
     setSessions(prev => prev.map(s => {
@@ -96,15 +120,31 @@ const useSessionActions = ({
       return s;
     }));
 
-    for (const id of ids) {
-      lastStates.current.set(id, "PAUSED");
-      apiCall(apiKey, `/sessions/${id}:pause`, { method:"POST" }).then(updated => {
+    for (let i = 0; i < ids.length; i++) {
+      lastStates.current.set(ids[i], "PAUSED");
+    }
+
+    return Promise.all(
+      ids.map(id =>
+        apiCall(apiKey, `/sessions/${id}:pause`, { method: "POST" }).catch(err => {
+          console.error(sanitizeErrorMessage(err ? String(err) : ""));
+          return null;
+        })
+      )
+    ).then(results => {
+      const updatedMap = new Map();
+      for (let i = 0; i < results.length; i++) {
+        const updated = results[i];
         if (updated && updated.id) {
           lastStates.current.set(updated.id, updated.state);
-          setSessions(prev => prev.map(s => s.id === updated.id ? updated : s));
+          updatedMap.set(updated.id, updated);
         }
-      }).catch(err => console.error(sanitizeErrorMessage(err ? String(err) : "")));
-    }
+      }
+
+      if (updatedMap.size > 0) {
+        setSessions(prev => prev.map(s => updatedMap.get(s.id) || s));
+      }
+    });
   }, [apiKey, setSessions, lastStates]);
 
   const handleBulkIgnore = useCallback((rawIds) => {
