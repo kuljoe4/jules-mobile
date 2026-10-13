@@ -468,8 +468,8 @@ const TimelineEvent = memo(({ act, onMediaClick, onReply, onSendFollowup }) => {
                 fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.purple,
                 marginTop: 1,
               }}>{i+1}</div>
-              <div style={{flex: 1, minWidth: 0}}>
-                <div style={{fontSize:14,color:T.text,fontWeight:700,lineHeight:1.5,wordBreak:"break-word",overflowWrap:"anywhere",marginBottom:4, display: "flex", flexWrap: "wrap"}}>
+              <div style={{flex: 1, minWidth: 0, overflow: "hidden"}}>
+                <div style={{fontSize:14,color:T.text,fontWeight:700,lineHeight:1.5,wordBreak:"break-word",overflowWrap:"anywhere",marginBottom:4}}>
                   <Markdown text={st.title}/>
                 </div>
                 {st.description&&<div style={{fontSize:13,color:T.textDim,lineHeight:1.6,wordBreak:"break-word",overflowWrap:"anywhere"}}>
@@ -492,7 +492,7 @@ const TimelineEvent = memo(({ act, onMediaClick, onReply, onSendFollowup }) => {
               </button>
             </div>
           ))}
-          <div style={{display:"flex", justifyContent:"flex-end", marginTop: 8, flexWrap: "wrap", gap: 8}}>
+          <div style={{display:"flex", justifyContent:"flex-end", marginTop: 8}}>
             <button
               onClick={handleCopyPlan}
               title={copiedPlan ? "Plan text copied to clipboard" : selectedSteps.size > 0 ? "Copy selected steps" : "Copy plan text"}
