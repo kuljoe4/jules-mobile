@@ -16,10 +16,10 @@ const useSessionActions = ({
   lastStates
 }) => {
   const handleBulkDelete = useCallback((rawIds) => {
-    if (!Array.isArray(rawIds)) return;
+    if (!Array.isArray(rawIds)) return Promise.resolve();
     const ids = rawIds.filter(isValidSessionId);
-    if (ids.length === 0) return;
-    if (!confirm(`Are you sure you want to delete ${ids.length} session(s)?`)) return;
+    if (ids.length === 0) return Promise.resolve();
+    if (!confirm(`Are you sure you want to delete ${ids.length} session(s)?`)) return Promise.resolve();
     const idSet = new Set(ids);
     setSessions(prev => prev.filter(s => !idSet.has(s.id)));
     for (let i = 0; i < ids.length; i++) {
@@ -28,7 +28,6 @@ const useSessionActions = ({
       try { SafeStorage.clearFollowupDraft(id); } catch {}
     }
     setDraftsMap(prev => {
-      let changed = false;
       const next = { ...prev };
       for (let i = 0; i < ids.length; i++) {
         delete next[ids[i]];
@@ -41,7 +40,7 @@ const useSessionActions = ({
       setMobile("detail");
     }
 
-    await Promise.all(
+    return Promise.all(
       ids.map(id =>
         apiCall(apiKey, `/sessions/${id}`, { method: "DELETE" }).catch(err =>
           console.error(sanitizeErrorMessage(err ? String(err) : ""))
@@ -77,9 +76,9 @@ const useSessionActions = ({
   }, [setArchivedIds]);
 
   const handleBulkResume = useCallback((rawIds) => {
-    if (!Array.isArray(rawIds)) return;
+    if (!Array.isArray(rawIds)) return Promise.resolve();
     const ids = rawIds.filter(isValidSessionId);
-    if (ids.length === 0) return;
+    if (ids.length === 0) return Promise.resolve();
 
     const idSet = new Set(ids);
     // Optimistic update
@@ -92,69 +91,34 @@ const useSessionActions = ({
       lastStates.current.set(ids[i], "QUEUED");
     }
 
-    const results = await Promise.all(
+    return Promise.all(
       ids.map(id =>
         apiCall(apiKey, `/sessions/${id}:resume`, { method: "POST" }).catch(err => {
           console.error(sanitizeErrorMessage(err ? String(err) : ""));
           return null;
         })
       )
-    );
-
-    const updatedMap = new Map();
-    for (let i = 0; i < results.length; i++) {
-      const updated = results[i];
-      if (updated && updated.id) {
-        lastStates.current.set(updated.id, updated.state);
-        updatedMap.set(updated.id, updated);
-      }
-    }
-
-    if (updatedMap.size > 0) {
-      setSessions(prev => prev.map(s => updatedMap.get(s.id) || s));
-    }
-
-    Promise.allSettled(
-      ids.map(id => apiCall(apiKey, `/sessions/${id}:resume`, { method:"POST" }))
     ).then(results => {
       const updatedMap = new Map();
       for (let i = 0; i < results.length; i++) {
-        const res = results[i];
-        if (res.status === 'fulfilled' && res.value && res.value.id) {
-          const updated = res.value;
+        const updated = results[i];
+        if (updated && updated.id) {
           lastStates.current.set(updated.id, updated.state);
           updatedMap.set(updated.id, updated);
-        } else if (res.status === 'rejected') {
-          console.error(sanitizeErrorMessage(res.reason ? String(res.reason) : ""));
         }
       }
 
       if (updatedMap.size > 0) {
-        setSessions(prev => {
-          let changed = false;
-          const len = prev.length;
-          const next = new Array(len);
-          for (let i = 0; i < len; i++) {
-            const s = prev[i];
-            const updated = updatedMap.get(s.id);
-            if (updated) {
-              next[i] = updated;
-              changed = true;
-            } else {
-              next[i] = s;
-            }
-          }
-          return changed ? next : prev;
-        });
+        setSessions(prev => prev.map(s => updatedMap.get(s.id) || s));
       }
     });
   }, [apiKey, setSessions, lastStates]);
 
   const handleBulkPause = useCallback((rawIds) => {
-    if (!Array.isArray(rawIds)) return;
+    if (!Array.isArray(rawIds)) return Promise.resolve();
     const ids = rawIds.filter(isValidSessionId);
-    if (ids.length === 0) return;
-    if (!confirm(`Are you sure you want to pause ${ids.length} session(s)?`)) return;
+    if (ids.length === 0) return Promise.resolve();
+    if (!confirm(`Are you sure you want to pause ${ids.length} session(s)?`)) return Promise.resolve();
 
     const idSet = new Set(ids);
     // Optimistic update
@@ -167,60 +131,25 @@ const useSessionActions = ({
       lastStates.current.set(ids[i], "PAUSED");
     }
 
-    const results = await Promise.all(
+    return Promise.all(
       ids.map(id =>
         apiCall(apiKey, `/sessions/${id}:pause`, { method: "POST" }).catch(err => {
           console.error(sanitizeErrorMessage(err ? String(err) : ""));
           return null;
         })
       )
-    );
-
-    const updatedMap = new Map();
-    for (let i = 0; i < results.length; i++) {
-      const updated = results[i];
-      if (updated && updated.id) {
-        lastStates.current.set(updated.id, updated.state);
-        updatedMap.set(updated.id, updated);
-      }
-    }
-
-    if (updatedMap.size > 0) {
-      setSessions(prev => prev.map(s => updatedMap.get(s.id) || s));
-    }
-
-    Promise.allSettled(
-      ids.map(id => apiCall(apiKey, `/sessions/${id}:pause`, { method:"POST" }))
     ).then(results => {
       const updatedMap = new Map();
       for (let i = 0; i < results.length; i++) {
-        const res = results[i];
-        if (res.status === 'fulfilled' && res.value && res.value.id) {
-          const updated = res.value;
+        const updated = results[i];
+        if (updated && updated.id) {
           lastStates.current.set(updated.id, updated.state);
           updatedMap.set(updated.id, updated);
-        } else if (res.status === 'rejected') {
-          console.error(sanitizeErrorMessage(res.reason ? String(res.reason) : ""));
         }
       }
 
       if (updatedMap.size > 0) {
-        setSessions(prev => {
-          let changed = false;
-          const len = prev.length;
-          const next = new Array(len);
-          for (let i = 0; i < len; i++) {
-            const s = prev[i];
-            const updated = updatedMap.get(s.id);
-            if (updated) {
-              next[i] = updated;
-              changed = true;
-            } else {
-              next[i] = s;
-            }
-          }
-          return changed ? next : prev;
-        });
+        setSessions(prev => prev.map(s => updatedMap.get(s.id) || s));
       }
     });
   }, [apiKey, setSessions, lastStates]);
@@ -230,15 +159,12 @@ const useSessionActions = ({
     const ids = rawIds.filter(isValidSessionId);
     if (ids.length === 0) return;
     if (!confirm(`Are you sure you want to ignore ${ids.length} session(s)? This will remove them from your active list.`)) return;
-    const idSet = new Set(ids);
     setIgnoredIds(prev => {
       const next = new Set(prev);
-      for (let i = 0; i < ids.length; i++) {
-        next.add(ids[i]);
-      }
+      ids.forEach(id => next.add(id));
       return next;
     });
-    if (selected && idSet.has(selected.id)) {
+    if (selected && ids.includes(selected.id)) {
       setSelected(null);
       setDesktop("empty");
       setMobile("detail");
@@ -250,40 +176,12 @@ const useSessionActions = ({
     if (!confirm("Are you sure you want to pause this session?")) return;
 
     // Optimistic update
-    setSessions(prev => {
-      let changed = false;
-      const len = prev.length;
-      const next = new Array(len);
-      for (let i = 0; i < len; i++) {
-        const s = prev[i];
-        if (s.id === id) {
-          next[i] = { ...s, state: "PAUSED" };
-          changed = true;
-        } else {
-          next[i] = s;
-        }
-      }
-      return changed ? next : prev;
-    });
+    setSessions(prev => prev.map(s => s.id === id ? { ...s, state: "PAUSED" } : s));
     lastStates.current.set(id, "PAUSED");
     apiCall(apiKey, `/sessions/${id}:pause`, { method:"POST" }).then(updated => {
       if (updated && updated.id) {
         lastStates.current.set(updated.id, updated.state);
-        setSessions(prev => {
-          let changed = false;
-          const len = prev.length;
-          const next = new Array(len);
-          for (let i = 0; i < len; i++) {
-            const s = prev[i];
-            if (s.id === updated.id) {
-              next[i] = updated;
-              changed = true;
-            } else {
-              next[i] = s;
-            }
-          }
-          return changed ? next : prev;
-        });
+        setSessions(prev => prev.map(s => s.id === updated.id ? updated : s));
       }
     }).catch(err => console.error(sanitizeErrorMessage(err ? String(err) : "")));
   }, [apiKey, setSessions, lastStates]);
@@ -292,40 +190,12 @@ const useSessionActions = ({
     if (!isValidSessionId(id)) return;
 
     // Optimistic update
-    setSessions(prev => {
-      let changed = false;
-      const len = prev.length;
-      const next = new Array(len);
-      for (let i = 0; i < len; i++) {
-        const s = prev[i];
-        if (s.id === id) {
-          next[i] = { ...s, state: "QUEUED" };
-          changed = true;
-        } else {
-          next[i] = s;
-        }
-      }
-      return changed ? next : prev;
-    });
+    setSessions(prev => prev.map(s => s.id === id ? { ...s, state: "QUEUED" } : s));
     lastStates.current.set(id, "QUEUED");
     apiCall(apiKey, `/sessions/${id}:resume`, { method:"POST" }).then(updated => {
       if (updated && updated.id) {
         lastStates.current.set(updated.id, updated.state);
-        setSessions(prev => {
-          let changed = false;
-          const len = prev.length;
-          const next = new Array(len);
-          for (let i = 0; i < len; i++) {
-            const s = prev[i];
-            if (s.id === updated.id) {
-              next[i] = updated;
-              changed = true;
-            } else {
-              next[i] = s;
-            }
-          }
-          return changed ? next : prev;
-        });
+        setSessions(prev => prev.map(s => s.id === updated.id ? updated : s));
       }
     }).catch(err => console.error(sanitizeErrorMessage(err ? String(err) : "")));
   }, [apiKey, setSessions, lastStates]);
@@ -375,8 +245,7 @@ const useSessionActions = ({
     setSelected(null);
     setDesktop("empty");
     setMobile("detail");
-    apiCall(apiKey, `/sessions/${id}`, { method:"DELETE" }).catch(err => console.error(sanitizeErrorMessage(err ? String(err) : "")));
-  }, [apiKey, lastStates, setSessions, setDraftsMap, setSelected, setDesktop, setMobile]);
+  }, [lastStates, setSessions, setDraftsMap, setSelected, setDesktop, setMobile]);
 
   return {
     handleBulkDelete,

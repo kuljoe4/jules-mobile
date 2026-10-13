@@ -179,22 +179,5 @@
 **Prevention:** Wrap exception strings in catch blocks with `sanitizeErrorMessage(e.message || String(e))` prior to console output.
 ## 2026-09-21 - Unsanitized Exception Logging in Session Detail Component
 **Vulnerability:** In `src/components/sessionDetail.jsx`, caught error objects during session fetching (`loadSession`) and split session creation (`handleSplitPlan`) were logged directly to the browser console as raw Error objects (`console.error("[LoadSession] Error:", err)`). This bypassed `sanitizeErrorMessage`, potentially exposing unredacted API tokens or verbose stack traces in developer tools.
-**Learning:** All `console.error` and `console.error` log invocations throughout React components must convert error objects to strings and route them through `sanitizeErrorMessage` to prevent sensitive credential exposure or stack trace leakage in browser logs.
+**Learning:** All `console.error` and `console.warn` log invocations throughout React components must convert error objects to strings and route them through `sanitizeErrorMessage` to prevent sensitive credential exposure or stack trace leakage in browser logs.
 **Prevention:** Import `sanitizeErrorMessage` from `../services/api.js` in React components and wrap all logged error objects with `sanitizeErrorMessage(err.toString())`.
-
-## 2026-10-12 - Unsanitized Exception Logging in MultiPersonaPicker
-**Vulnerability:** Event handler catch blocks in `src/components/personas.jsx` could potentially log raw error objects to `console.error`. Logging unsanitized error objects can leak internal stack traces or authorization details to developer tools.
-**Learning:** UI event handler catch blocks in React components must use null-safe string conversions (`err ? String(err) : ""`) wrapped with `sanitizeErrorMessage` prior to console output.
-**Prevention:** Always wrap component exception logging in `console.error` calls with `sanitizeErrorMessage(err ? String(err) : "")`.
-## 2026-10-13 - Unsanitized Exception Logging in Storage Maintenance
-**Vulnerability:** Catch blocks in storage maintenance routines (`src/services/storageMaintenance.js`) passed raw exception objects directly to `console.warn`. Exception objects logged in browser contexts can expose unredacted sensitive credentials or internal stack details in developer tools.
-**Learning:** Exception logging in storage estimation and manual cache scanning routines must convert error objects to strings (`err.toString()`) and pass them through `sanitizeErrorMessage` to redact sensitive API keys or personal access tokens.
-**Prevention:** Wrap all logged exception objects in catch blocks with `sanitizeErrorMessage(err.toString())`.
-## 2026-10-13 - Unsanitized Exception Logging and State Assignment in Session Flow Hooks
-**Vulnerability:** In `src/hooks/useNewSessionFlow.js`, caught exception objects during session initialization were directly logged or assigned to component error state without null-safe sanitization (`console.error` with `err.toString()`, `setErr(err.message)`). Calling `.toString()` on null/undefined error objects causes runtime TypeErrors, and assigning unsanitized error messages to state risks reflecting raw API keys or tokens into UI error alerts.
-**Learning:** Error state setters and console logging in custom session flow hooks must safely format error inputs with nullish guards (`err ? String(err) : ""`, `err?.message || String(err)`) and sanitize all error strings via `sanitizeErrorMessage` before setting state or outputting to console.
-**Prevention:** Always wrap caught exceptions in session flow hooks with `sanitizeErrorMessage(err ? String(err) : "")` for logging and `sanitizeErrorMessage(err?.message || String(err))` for state assignment.
-## 2026-10-13 - Unsanitized Exception Logging in MultiPersonaPicker
-**Vulnerability:** In `src/components/personas.jsx`, exception handlers in `handleToggle`, `onWheel`, and `onPointerMove` converted error objects via `err.toString()`. If a non-object or nullish value was thrown or if the error contained raw credentials, invoking `.toString()` could fail or bypass safe string conversion.
-**Learning:** Exception handling across UI components must safely convert caught errors using nullish checks (`err ? String(err) : ""`) prior to passing through `sanitizeErrorMessage` to ensure fail-safe logging without runtime TypeErrors or credential leakage.
-**Prevention:** Always convert caught exception objects using `err ? String(err) : ""` and wrap with `sanitizeErrorMessage` in `console.error` calls.

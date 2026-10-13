@@ -25,7 +25,7 @@ const useAutoPoll = (interval, fn) => {
 
       timer = setTimeout(async () => {
         if (!active) return;
-        try { await fnRef.current(); } catch (err) { console.error("Poll failed", sanitizeErrorMessage(err ? String(err) : "")); }
+        try { await fnRef.current(); } catch (err) { console.error("Poll failed", sanitizeErrorMessage(err.toString())); }
         if (active) run();
       }, interval);
     };
@@ -41,7 +41,7 @@ const useAutoPoll = (interval, fn) => {
 
     const handleResume = () => {
       if (active && document.visibilityState === "visible") {
-        try { fnRef.current(); } catch (err) { console.error("Poll on resume failed", sanitizeErrorMessage(err ? String(err) : "")); }
+        try { fnRef.current(); } catch (err) { console.error("Poll on resume failed", sanitizeErrorMessage(err.toString())); }
       }
     };
     window.addEventListener("visibilitychange", handleResume);
