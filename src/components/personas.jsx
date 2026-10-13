@@ -26,7 +26,7 @@ const MultiPersonaPicker = ({ personas, selectedIds, onToggle, style: s = {} }) 
           }
         }
       } catch (err) {
-        console.error("[MultiPersonaPicker] onWheel error:", sanitizeErrorMessage(err.toString()));
+        console.error("[MultiPersonaPicker] onWheel error:", sanitizeErrorMessage(err ? String(err) : ""));
       }
     };
 
@@ -50,7 +50,7 @@ const MultiPersonaPicker = ({ personas, selectedIds, onToggle, style: s = {} }) 
           el.scrollLeft = scrollLeftStart - walk;
         }
       } catch (err) {
-        console.error("[MultiPersonaPicker] onPointerMove error:", sanitizeErrorMessage(err.toString()));
+        console.error("[MultiPersonaPicker] onPointerMove error:", sanitizeErrorMessage(err ? String(err) : ""));
       }
     };
 
@@ -91,7 +91,7 @@ const MultiPersonaPicker = ({ personas, selectedIds, onToggle, style: s = {} }) 
       }
       onToggle(id);
     } catch (err) {
-      console.error("[MultiPersonaPicker] handleToggle error:", sanitizeErrorMessage(err.toString()));
+      console.error("[MultiPersonaPicker] handleToggle error:", sanitizeErrorMessage(err ? String(err) : ""));
     }
   };
 

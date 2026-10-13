@@ -170,7 +170,7 @@ const useNewSessionFlow = ({ apiKey, personas, onCreate, initialDraft, onDraftSa
           if (last && sorted.some(x => x.name === last)) setSource(last);
           else if (sorted.length > 0) setSource(sorted[0].name);
         }
-      } catch (err) { setErr(err.message); }
+      } catch (err) { setErr(sanitizeErrorMessage(err?.message || String(err))); }
       finally { setLoadSrc(false); }
     })();
   }, []);
@@ -278,8 +278,8 @@ const useNewSessionFlow = ({ apiKey, personas, onCreate, initialDraft, onDraftSa
         onCreate(normalizeSession(d));
       }
     } catch (err) {
-      console.error("[useNewSessionFlow] Error starting session:", sanitizeErrorMessage(err.toString()));
-      setErr(err.message || "Failed to start session. Please check your network connection or parameters.");
+      console.error("[useNewSessionFlow] Error starting session:", sanitizeErrorMessage(err ? String(err) : ""));
+      setErr(sanitizeErrorMessage(err?.message || String(err)) || "Failed to start session. Please check your network connection or parameters.");
     } finally {
       setSub(false);
     }
