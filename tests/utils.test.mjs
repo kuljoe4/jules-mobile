@@ -21,6 +21,7 @@ import { GitHubApi } from '../src/services/githubApi.js';
 import { getSmartTitle, getSmartBody } from '../src/utils/prTitle.js';
 import { apiCall, sanitizeErrorMessage } from '../src/services/api.js';
 import { sendNotification, requestNotificationPermission } from '../src/services/notifications.js';
+import { getStorageInfo } from '../src/services/storageMaintenance.js';
 
 if (typeof globalThis.localStorage === 'undefined') {
   const storageMap = new Map();
@@ -588,6 +589,74 @@ assert.equal(SafeStorage.loadFollowupDraft('../path/traversal'), '');
 assert.equal(SafeStorage.clearFollowupDraft('../path/traversal'), false);
 assert.equal(SafeStorage.saveFollowupDraft('sess\x00nullbyte', 'invalid'), false);
 assert.equal(SafeStorage.loadFollowupDraft('sess\x00nullbyte'), '');
+
+// Test getStorageInfo exception logging sanitization
+{
+  const origConsoleWarn = console.warn;
+  let loggedWarning = null;
+
+  try {
+    console.warn = (label, msg) => {
+      loggedWarning = { label, msg };
+    };
+
+    const originalLengthProp = Object.getOwnPropertyDescriptor(globalThis.localStorage, 'length');
+    Object.defineProperty(globalThis.localStorage, 'length', {
+      get: () => {
+        throw new Error("LocalStorage access failed with key AIzaSyTestKey1234567890TestTestTest");
+      },
+      configurable: true
+    });
+
+    await getStorageInfo();
+
+    assert.ok(loggedWarning);
+    assert.equal(loggedWarning.label, "[Storage] LocalStorage estimate failed");
+    assert.equal(typeof loggedWarning.msg, "string");
+    assert.equal(loggedWarning.msg.includes("AIzaSyTestKey1234567890TestTestTest"), false);
+    assert.equal(loggedWarning.msg.includes("[REDACTED_KEY]"), true);
+
+    if (originalLengthProp) {
+      Object.defineProperty(globalThis.localStorage, 'length', originalLengthProp);
+    } else {
+      delete globalThis.localStorage.length;
+    }
+  } finally {
+    console.warn = origConsoleWarn;
+  }
+}
+
+// Test getStorageInfo manual cache scan exception logging sanitization
+{
+  const origConsoleWarn = console.warn;
+  let loggedWarning = null;
+
+  const origWindow = globalThis.window;
+  globalThis.window = {
+    caches: {
+      keys: async () => {
+        throw new Error("Manual cache scan failed with key AIzaSyTestKey1234567890TestTestTest");
+      }
+    }
+  };
+
+  try {
+    console.warn = (label, msg) => {
+      loggedWarning = { label, msg };
+    };
+
+    await getStorageInfo();
+
+    assert.ok(loggedWarning);
+    assert.equal(loggedWarning.label, "[Storage] Manual cache scan failed");
+    assert.equal(typeof loggedWarning.msg, "string");
+    assert.equal(loggedWarning.msg.includes("AIzaSyTestKey1234567890TestTestTest"), false);
+    assert.equal(loggedWarning.msg.includes("[REDACTED_KEY]"), true);
+  } finally {
+    console.warn = origConsoleWarn;
+    globalThis.window = origWindow;
+  }
+}
 
 // Test SafeStorage.loadDraftsMap exception logging sanitization
 {
@@ -1532,11 +1601,15 @@ assert.equal(sanitizeErrorMessage('Token ghp_12345678901234567890123456789012345
 assert.equal(sanitizeErrorMessage('Token github_pat_11AAAAAAA0123456789_abcdefghijklmnopqrstuvwxyz expired'), "Token [REDACTED_TOKEN] expired");
 
 // Test sanitizeErrorMessage with Error.toString() containing credentials
-const errWithKey = new Error('Fetch failed for key AIzaSyTestKey1234567890TestTestTest');
-assert.equal(sanitizeErrorMessage(errWithKey.toString()), 'Error: Fetch failed for key [REDACTED_KEY]');
+const errWithKey2 = new Error('Fetch failed for key AIzaSyTestKey1234567890TestTestTest');
+assert.equal(sanitizeErrorMessage(errWithKey2.toString()), 'Error: Fetch failed for key [REDACTED_KEY]');
 
 const errWithGhpToken = new Error('Unauthorized ghp_123456789012345678901234567890123456');
 assert.equal(sanitizeErrorMessage(errWithGhpToken.toString()), 'Error: Unauthorized [REDACTED_TOKEN]');
+
+// Test MultiPersonaPicker and UI component exception sanitization
+const componentPointerErr = new Error('Pointer events failed with key AIzaSyTestKey1234567890TestTestTest');
+assert.equal(sanitizeErrorMessage(componentPointerErr.toString()), 'Error: Pointer events failed with key [REDACTED_KEY]');
 assert.equal(sanitizeErrorMessage('<!DOCTYPE html><html><body>Error</body></html>', 503), "HTTP 503 Error");
 assert.equal(sanitizeErrorMessage('<html><body>Fatal Error</body></html>', 404), "HTTP 404 Error");
 assert.equal(sanitizeErrorMessage('Error with <b>bold</b> and <i>italic</i> tags'), "Error with bold and italic tags");
@@ -1546,7 +1619,28 @@ assert.equal(sanitizeErrorMessage(''), "HTTP 500 Error");
 assert.equal(sanitizeErrorMessage('', 400), "HTTP 400 Error");
 assert.equal(sanitizeErrorMessage(null), "HTTP 500 Error");
 
+// Test promise exception logging sanitization in session actions
+{
+  const loggedErrors = [];
+  const origConsoleError = console.error;
+  console.error = (...args) => {
+    loggedErrors.push(args.join(' '));
+  };
 
+  try {
+    const sensitiveErr = new Error('DELETE /sessions/s1 failed with key AIzaSyTestKey1234567890TestTestTest and ghp_123456789012345678901234567890123456');
+    const p = Promise.reject(sensitiveErr);
+    await p.catch(err => console.error(sanitizeErrorMessage(err ? String(err) : "")));
+
+    assert.equal(loggedErrors.length, 1);
+    assert.equal(loggedErrors[0].includes('AIzaSyTestKey'), false);
+    assert.equal(loggedErrors[0].includes('ghp_1234567890'), false);
+    assert.equal(loggedErrors[0].includes('[REDACTED_KEY]'), true);
+    assert.equal(loggedErrors[0].includes('[REDACTED_TOKEN]'), true);
+  } finally {
+    console.error = origConsoleError;
+  }
+}
 
 // Test apiCall quota error handling
 {
