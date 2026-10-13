@@ -163,9 +163,9 @@ export const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFe
         background:approved?T.brandDim:pendingApproval?T.purpleDim:T.surfaceHi,
         border:`1px solid ${approved?T.brand+"40":pendingApproval?T.purple+"40":T.border}`,
       }}>
-        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:approved||!pendingApproval?0:8, flexWrap: "wrap"}}>
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:approved||!pendingApproval?0:8}}>
           <div style={{flex:1,fontFamily:"'JetBrains Mono',monospace",fontSize:12,fontWeight:700,
-            color:approved?T.brand:pendingApproval?T.purple:T.muted,letterSpacing:"0.06em", minWidth: "150px"}}>
+            color:approved?T.brand:pendingApproval?T.purple:T.muted,letterSpacing:"0.06em"}}>
             {approved?"✓ PLAN APPROVED":pendingApproval?"PLAN READY FOR REVIEW":"PLAN PREVIEW"}
           </div>
           <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:T.textDim}}>
@@ -410,7 +410,7 @@ export const PlanView = memo(({ activities, session, apiKey, onApprove, onSendFe
             </div>
           )}
 
-          <div style={{display:"flex",gap:8, flexWrap: "wrap"}}>
+          <div style={{display:"flex",gap:8}}>
             {(() => {
               let reviseTitle = undefined;
               let reviseAria = undefined;
