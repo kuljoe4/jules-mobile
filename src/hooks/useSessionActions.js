@@ -366,7 +366,8 @@ const useSessionActions = ({
     setSelected(null);
     setDesktop("empty");
     setMobile("detail");
-  }, [lastStates, setSessions, setDraftsMap, setSelected, setDesktop, setMobile]);
+    apiCall(apiKey, `/sessions/${id}`, { method:"DELETE" }).catch(err => console.error(sanitizeErrorMessage(err ? String(err) : "")));
+  }, [apiKey, lastStates, setSessions, setDraftsMap, setSelected, setDesktop, setMobile]);
 
   return {
     handleBulkDelete,

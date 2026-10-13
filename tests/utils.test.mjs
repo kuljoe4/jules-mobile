@@ -1562,14 +1562,28 @@ assert.equal(sanitizeErrorMessage(''), "HTTP 500 Error");
 assert.equal(sanitizeErrorMessage('', 400), "HTTP 400 Error");
 assert.equal(sanitizeErrorMessage(null), "HTTP 500 Error");
 
-// Test null-safe exception string formatting for logging and error states (e.g., useNewSessionFlow)
-const testErrWithKey = new Error('Failed to start session with key AIzaSyTestKey1234567890TestTestTest');
-assert.equal(sanitizeErrorMessage(testErrWithKey ? String(testErrWithKey) : ""), 'Error: Failed to start session with key [REDACTED_KEY]');
-assert.equal(sanitizeErrorMessage(testErrWithKey?.message || String(testErrWithKey)), 'Failed to start session with key [REDACTED_KEY]');
-assert.equal(sanitizeErrorMessage(null ? String(null) : ""), 'HTTP 500 Error');
-assert.equal(sanitizeErrorMessage(undefined ? String(undefined) : ""), 'HTTP 500 Error');
+// Test promise exception logging sanitization in session actions
+{
+  const loggedErrors = [];
+  const origConsoleError = console.error;
+  console.error = (...args) => {
+    loggedErrors.push(args.join(' '));
+  };
 
+  try {
+    const sensitiveErr = new Error('DELETE /sessions/s1 failed with key AIzaSyTestKey1234567890TestTestTest and ghp_123456789012345678901234567890123456');
+    const p = Promise.reject(sensitiveErr);
+    await p.catch(err => console.error(sanitizeErrorMessage(err ? String(err) : "")));
 
+    assert.equal(loggedErrors.length, 1);
+    assert.equal(loggedErrors[0].includes('AIzaSyTestKey'), false);
+    assert.equal(loggedErrors[0].includes('ghp_1234567890'), false);
+    assert.equal(loggedErrors[0].includes('[REDACTED_KEY]'), true);
+    assert.equal(loggedErrors[0].includes('[REDACTED_TOKEN]'), true);
+  } finally {
+    console.error = origConsoleError;
+  }
+}
 
 // Test apiCall quota error handling
 {
