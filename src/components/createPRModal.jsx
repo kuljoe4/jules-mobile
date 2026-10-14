@@ -75,6 +75,7 @@ const CreatePRModal = ({ defaultTitle, defaultBody, repo, headBranch, baseBranch
           <button
             onClick={handleCreateAndMerge}
             disabled={!prTitle.trim() || busy}
+            aria-label="Create and Merge PR"
             style={{
               flex: 1.2, padding: "10px", borderRadius: 8, border: "none",
               background: T.purple, color: "#000", fontFamily: "'JetBrains Mono',monospace",

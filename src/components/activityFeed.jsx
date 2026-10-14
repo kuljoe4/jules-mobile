@@ -645,6 +645,7 @@ const TimelineEvent = memo(({ act, onMediaClick, onReply, onSendFollowup }) => {
                 <button
                   key={i}
                   onClick={(e) => { e.stopPropagation(); onSendFollowup(opt); }}
+                  aria-label={`Send follow-up: ${opt}`}
                   style={{
                     background: T.brand, color: "#000", border: "none", borderRadius: 20,
                     padding: "6px 14px", fontFamily: "'IBM Plex Sans',sans-serif",

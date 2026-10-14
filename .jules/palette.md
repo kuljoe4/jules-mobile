@@ -129,3 +129,6 @@
 ## 2026-10-06 - [Dynamic Icons for Edit Action Buttons]
 **Learning:** Edit buttons that only use text to indicate their action can feel somewhat disconnected, particularly when other related actions (like copy or reply) incorporate icons. Adding an appropriate icon, such as a pencil, alongside the text label for edit buttons brings visual consistency to action strips.
 **Action:** When implementing or updating edit buttons in chat action strips or similar contexts, include a pencil icon (`<Ic n="pencil" />`) alongside the text to visually reinforce the action and maintain consistency with other icon-equipped buttons in the same group.
+## 2026-10-14 - Multiline Button ARIA Labels
+**Learning:** When using regex or grep to find missing `aria-label` attributes on JSX buttons, you often get false positives because `aria-label` attributes are frequently defined several lines below the opening `<button` tag in this codebase.
+**Action:** Always inspect the full element (at least 15-20 lines down) before assuming an `aria-label` is missing, or rely on AST tools rather than simple greps to find true missing attributes.
