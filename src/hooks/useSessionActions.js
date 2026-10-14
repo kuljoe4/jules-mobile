@@ -41,13 +41,17 @@ const useSessionActions = ({
       setMobile("detail");
     }
 
-    await Promise.all(
+    Promise.allSettled(
       ids.map(id =>
-        apiCall(apiKey, `/sessions/${id}`, { method: "DELETE" }).catch(err =>
-          console.error(sanitizeErrorMessage(err ? String(err) : ""))
-        )
+        apiCall(apiKey, `/sessions/${id}`, { method: "DELETE" })
       )
-    );
+    ).then(results => {
+      for (let i = 0; i < results.length; i++) {
+        if (results[i].status === 'rejected') {
+          console.error(sanitizeErrorMessage(results[i].reason ? String(results[i].reason) : ""));
+        }
+      }
+    });
   }, [apiKey, selected, setSessions, setDraftsMap, setSelected, setDesktop, setMobile, lastStates]);
 
   const handleBulkArchive = useCallback((rawIds) => {
@@ -90,28 +94,6 @@ const useSessionActions = ({
 
     for (let i = 0; i < ids.length; i++) {
       lastStates.current.set(ids[i], "QUEUED");
-    }
-
-    const results = await Promise.all(
-      ids.map(id =>
-        apiCall(apiKey, `/sessions/${id}:resume`, { method: "POST" }).catch(err => {
-          console.error(sanitizeErrorMessage(err ? String(err) : ""));
-          return null;
-        })
-      )
-    );
-
-    const updatedMap = new Map();
-    for (let i = 0; i < results.length; i++) {
-      const updated = results[i];
-      if (updated && updated.id) {
-        lastStates.current.set(updated.id, updated.state);
-        updatedMap.set(updated.id, updated);
-      }
-    }
-
-    if (updatedMap.size > 0) {
-      setSessions(prev => prev.map(s => updatedMap.get(s.id) || s));
     }
 
     Promise.allSettled(
@@ -165,28 +147,6 @@ const useSessionActions = ({
 
     for (let i = 0; i < ids.length; i++) {
       lastStates.current.set(ids[i], "PAUSED");
-    }
-
-    const results = await Promise.all(
-      ids.map(id =>
-        apiCall(apiKey, `/sessions/${id}:pause`, { method: "POST" }).catch(err => {
-          console.error(sanitizeErrorMessage(err ? String(err) : ""));
-          return null;
-        })
-      )
-    );
-
-    const updatedMap = new Map();
-    for (let i = 0; i < results.length; i++) {
-      const updated = results[i];
-      if (updated && updated.id) {
-        lastStates.current.set(updated.id, updated.state);
-        updatedMap.set(updated.id, updated);
-      }
-    }
-
-    if (updatedMap.size > 0) {
-      setSessions(prev => prev.map(s => updatedMap.get(s.id) || s));
     }
 
     Promise.allSettled(
