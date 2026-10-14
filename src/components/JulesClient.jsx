@@ -148,7 +148,11 @@ function JulesClient() {
   });
 
   useEffect(() => {
-    cleanupActivityStats(allSessions.map(s => s.id));
+    const ids = new Array(allSessions.length);
+    for (let i = 0; i < allSessions.length; i++) {
+      ids[i] = allSessions[i].id;
+    }
+    cleanupActivityStats(ids);
   }, [allSessions]);
 
   useEffect(() => {
@@ -366,46 +370,66 @@ function JulesClient() {
           const prevSelected = selectedId ? prev.find(s => (s.id || s.name) === selectedId) : null;
           let adjustedBatch = currentBatch;
           if (prevSelected) {
-            adjustedBatch = currentBatch.map(s => {
+            const tempBatch = new Array(currentBatch.length);
+            for (let i = 0; i < currentBatch.length; i++) {
+              const s = currentBatch[i];
               if ((s.id || s.name) === selectedId) {
                 const sTs = parseDateMs(s.updateTime || s.createTime);
                 const prevTs = parseDateMs(prevSelected.updateTime || prevSelected.createTime);
                 if (prevTs > sTs) {
-                  return prevSelected;
+                  tempBatch[i] = prevSelected;
+                  continue;
                 }
               }
-              return s;
-            });
+              tempBatch[i] = s;
+            }
+            adjustedBatch = tempBatch;
           }
 
           let merged = [];
           if (currentIsFirstPageOfFull) {
             let oldestTs = 0;
+            const batchIds = new Set();
             if (adjustedBatch.length > 0) {
               // OPTIMIZATION (Bolt): Replace Math.min(...array.map(...)) with standard for loop
               // to prevent maximum call stack size exceeded errors on large arrays and avoid intermediate allocations.
               let minTs = Infinity;
               for (let i = 0; i < adjustedBatch.length; i++) {
                 const s = adjustedBatch[i];
+                batchIds.add(s.id || s.name);
                 const ts = parseDateMs(s.updateTime || s.createTime);
                 if (ts < minTs) minTs = ts;
               }
               oldestTs = minTs === Infinity ? 0 : minTs;
             }
-            const batchIds = new Set(adjustedBatch.map(s => s.id || s.name));
-            const preserved = prev.filter(s => {
-              if (batchIds.has(s.id || s.name)) return false;
+            const preserved = [];
+            for (let i = 0; i < prev.length; i++) {
+              const s = prev[i];
+              if (batchIds.has(s.id || s.name)) continue;
               const ts = parseDateMs(s.updateTime || s.createTime);
               const isRecent = (Date.now() - parseDateMs(s.createTime || s.updateTime)) < 300000;
-              return ts >= oldestTs || ACTIVE_STATES.has(s.state) || isRecent;
-            });
-            merged = [...adjustedBatch, ...preserved];
+              if (ts >= oldestTs || ACTIVE_STATES.has(s.state) || isRecent) {
+                preserved.push(s);
+              }
+            }
+            merged = new Array(adjustedBatch.length + preserved.length);
+            for (let i = 0; i < adjustedBatch.length; i++) merged[i] = adjustedBatch[i];
+            for (let i = 0; i < preserved.length; i++) merged[adjustedBatch.length + i] = preserved[i];
           } else {
-            const batchIds = new Set(adjustedBatch.map(s => s.id || s.name));
-            merged = [
-              ...adjustedBatch,
-              ...prev.filter(s => !batchIds.has(s.id || s.name))
-            ];
+            const batchIds = new Set();
+            for (let i = 0; i < adjustedBatch.length; i++) {
+              batchIds.add(adjustedBatch[i].id || adjustedBatch[i].name);
+            }
+            const preserved = [];
+            for (let i = 0; i < prev.length; i++) {
+              const s = prev[i];
+              if (!batchIds.has(s.id || s.name)) {
+                preserved.push(s);
+              }
+            }
+            merged = new Array(adjustedBatch.length + preserved.length);
+            for (let i = 0; i < adjustedBatch.length; i++) merged[i] = adjustedBatch[i];
+            for (let i = 0; i < preserved.length; i++) merged[adjustedBatch.length + i] = preserved[i];
           }
 
           // Sort: Newly created first, then active first, then by selected sort (update/create time)
@@ -509,8 +533,17 @@ function JulesClient() {
           const validUpdates = checked.filter(Boolean);
           if (validUpdates.length > 0 && sessionsAbortRef.current === controller) {
             setSessions(prev => {
-              const updatedMap = new Map(validUpdates.map(s => [s.id || s.name, s]));
-              return prev.map(s => updatedMap.get(s.id || s.name) || s);
+              const updatedMap = new Map();
+              for (let i = 0; i < validUpdates.length; i++) {
+                const s = validUpdates[i];
+                updatedMap.set(s.id || s.name, s);
+              }
+              const next = new Array(prev.length);
+              for (let i = 0; i < prev.length; i++) {
+                const s = prev[i];
+                next[i] = updatedMap.get(s.id || s.name) || s;
+              }
+              return next;
             });
           }
         }
@@ -588,7 +621,14 @@ function JulesClient() {
       else if (updated.state === "FAILED") sendNotification("SESSION FAILED", `Session: ${label}`, updated.id);
     }
     lastStates.current.set(updated.id, updated.state);
-    setSessions(prev => prev.map(s=>s.id===updated.id?updated:s));
+    setSessions(prev => {
+      const next = new Array(prev.length);
+      for (let i = 0; i < prev.length; i++) {
+        const s = prev[i];
+        next[i] = s.id === updated.id ? updated : s;
+      }
+      return next;
+    });
   }, []);
 
   const handleStatsUpdate = useCallback((id, stats) => {
