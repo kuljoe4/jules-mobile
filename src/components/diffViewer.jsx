@@ -184,6 +184,7 @@ export const DiffViewer = memo(({ activities = [], isDesktop = false }) => {
         </div>
         <div style={{display:"flex", gap:6, alignItems:"center"}}>
           <button
+            aria-label="Copy debug report to clipboard"
             onClick={() => {
               const debugReport = {
                 patchCount: recentPatches.length,
