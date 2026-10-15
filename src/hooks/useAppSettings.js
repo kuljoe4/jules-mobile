@@ -7,6 +7,7 @@ const useAppSettings = ({ onSessionLimitChange } = {}) => {
   const [activityLimit, setActivityLimitRaw] = useState(loadActivityLimit);
   const [cacheLimit, setCacheLimitRaw] = useState(loadCacheLimit);
   const [notifications, setNotificationsRaw] = useState(loadNotify);
+  const [notifySound, setNotifySoundRaw] = useState(loadNotifySound);
   const [planId, setPlanIdRaw] = useState(loadPlan);
   const [customDaily, setCustomDailyRaw] = useState(loadCustomDaily);
   const [apiTimeout, setApiTimeoutRaw] = useState(loadApiTimeout);
@@ -58,6 +59,11 @@ const useAppSettings = ({ onSessionLimitChange } = {}) => {
     setNotificationsRaw(v);
   }, []);
 
+  const setNotifySound = useCallback(v => {
+    saveNotifySound(v);
+    setNotifySoundRaw(v);
+  }, []);
+
   const setPlanId = useCallback(id => {
     savePlan(id);
     setPlanIdRaw(id);
@@ -98,6 +104,7 @@ const useAppSettings = ({ onSessionLimitChange } = {}) => {
     activityLimit, setActivityLimit,
     cacheLimit, setCacheLimit,
     notifications, setNotifications,
+    notifySound, setNotifySound,
     planId, setPlanId,
     customDaily, setCustomDaily,
     apiTimeout, setApiTimeout,

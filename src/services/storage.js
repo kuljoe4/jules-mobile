@@ -8,6 +8,7 @@ const SafeStorage = {
   // ─── KEYS ──────────────────────────────────────────────────────────────────
   KEYS: {
     NOTIFY: "jac_notifications",
+    NOTIFY_SOUND: "jac_notify_sound",
     POLL: "jac_poll_ms",
     ACT_POLL: "jac_act_poll_ms",
     ACTIVE_POLL: "jac_active_poll_ms",
@@ -113,6 +114,14 @@ const SafeStorage = {
   },
   saveNotify(v) {
     this.setItem(this.KEYS.NOTIFY, v ? "1" : "0");
+  },
+
+  loadNotifySound() {
+    const v = this.getItem(this.KEYS.NOTIFY_SOUND);
+    return v === null ? true : v === "1"; // Default to true if unset
+  },
+  saveNotifySound(v) {
+    this.setItem(this.KEYS.NOTIFY_SOUND, v ? "1" : "0");
   },
 
   loadPollMs() {

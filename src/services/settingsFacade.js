@@ -23,6 +23,8 @@ function loadGapThreshold() { return SafeStorage.loadGapThreshold(); }
 function saveGapThreshold(v) { SafeStorage.saveGapThreshold(v); }
 function saveLimit(v) { SafeStorage.saveLimit(v); }
 
+function loadNotifySound() { return SafeStorage.loadNotifySound(); }
+function saveNotifySound(v) { SafeStorage.saveNotifySound(v); }
 
 // ─── Plan limits (from jules.google/docs/usage-limits) ───────────────────────
 const PLANS = [
