@@ -477,10 +477,26 @@ function JulesClient() {
               const lastState = lastStates.current.get(s.id || s.name);
               if (lastState && lastState !== s.state) {
                 const label = s.title || s.prompt || s.id || s.name;
-                if (s.state === "AWAITING_PLAN_APPROVAL") sendNotification("PLAN READY", `Session: ${label}`, s.id || s.name);
-                else if (s.state === "AWAITING_USER_FEEDBACK") sendNotification("INPUT NEEDED", `Session: ${label}`, s.id || s.name);
-                else if (s.state === "COMPLETED") sendNotification("SESSION DONE", `Session: ${label}`, s.id);
-                else if (s.state === "FAILED") sendNotification("SESSION FAILED", `Session: ${label}`, s.id);
+
+                // Cross-tab visibility check to avoid background tab notification spam
+                let shouldNotify = true;
+                const stateKey = `jac_notif_state_${s.id || s.name}_${s.state}`;
+                try {
+                  const ackedAt = parseInt(localStorage.getItem(stateKey) || "0", 10);
+                  if (Date.now() - ackedAt < 10000) {
+                    shouldNotify = false;
+                  } else if (document.visibilityState === "visible") {
+                    localStorage.setItem(stateKey, Date.now().toString());
+                    shouldNotify = false;
+                  }
+                } catch (e) {}
+
+                if (shouldNotify) {
+                  if (s.state === "AWAITING_PLAN_APPROVAL") sendNotification("PLAN READY", `Session: ${label}`, s.id || s.name);
+                  else if (s.state === "AWAITING_USER_FEEDBACK") sendNotification("INPUT NEEDED", `Session: ${label}`, s.id || s.name);
+                  else if (s.state === "COMPLETED") sendNotification("SESSION DONE", `Session: ${label}`, s.id);
+                  else if (s.state === "FAILED") sendNotification("SESSION FAILED", `Session: ${label}`, s.id);
+                }
               }
               lastStates.current.set(s.id, s.state);
             });
@@ -615,10 +631,25 @@ function JulesClient() {
     const lastState = lastStates.current.get(updated.id);
     if (loadNotify() && lastState && lastState !== updated.state) {
       const label = updated.title || updated.prompt || updated.id;
-      if (updated.state === "AWAITING_PLAN_APPROVAL") sendNotification("PLAN READY", `Session: ${label}`, updated.id);
-      else if (updated.state === "AWAITING_USER_FEEDBACK") sendNotification("INPUT NEEDED", `Session: ${label}`, updated.id);
-      else if (updated.state === "COMPLETED") sendNotification("SESSION DONE", `Session: ${label}`, updated.id);
-      else if (updated.state === "FAILED") sendNotification("SESSION FAILED", `Session: ${label}`, updated.id);
+
+      let shouldNotify = true;
+      const stateKey = `jac_notif_state_${updated.id}_${updated.state}`;
+      try {
+        const ackedAt = parseInt(localStorage.getItem(stateKey) || "0", 10);
+        if (Date.now() - ackedAt < 10000) {
+          shouldNotify = false;
+        } else if (document.visibilityState === "visible") {
+          localStorage.setItem(stateKey, Date.now().toString());
+          shouldNotify = false;
+        }
+      } catch (e) {}
+
+      if (shouldNotify) {
+        if (updated.state === "AWAITING_PLAN_APPROVAL") sendNotification("PLAN READY", `Session: ${label}`, updated.id);
+        else if (updated.state === "AWAITING_USER_FEEDBACK") sendNotification("INPUT NEEDED", `Session: ${label}`, updated.id);
+        else if (updated.state === "COMPLETED") sendNotification("SESSION DONE", `Session: ${label}`, updated.id);
+        else if (updated.state === "FAILED") sendNotification("SESSION FAILED", `Session: ${label}`, updated.id);
+      }
     }
     lastStates.current.set(updated.id, updated.state);
     setSessions(prev => {
