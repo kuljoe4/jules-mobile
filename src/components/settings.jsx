@@ -130,6 +130,7 @@ const SettingsView = ({ onBack, isDesktop, settings, personas, setPersonas, toda
     activityLimit, setActivityLimit,
     cacheLimit, setCacheLimit,
     notifications, setNotifications,
+    notifySound, setNotifySound,
     planId, setPlanId,
     customDaily, setCustomDaily,
     apiTimeout, setApiTimeout,
@@ -352,7 +353,7 @@ const SettingsView = ({ onBack, isDesktop, settings, personas, setPersonas, toda
 
                 <div style={{marginBottom:20}}>
                   <div style={{fontSize:11, color:T.textDim, marginBottom:8, fontFamily:"'JetBrains Mono',monospace", fontWeight:700}}>BROWSER NOTIFICATIONS</div>
-                  <div style={{display:"flex", gap:12, alignItems:"center"}}>
+                  <div style={{display:"flex", gap:12, alignItems:"center", flexWrap:"wrap"}}>
                      <button
                        onClick={() => { setNotifications(!notifications); triggerSaveFeedback(); }}
                        aria-pressed={notifications ? "true" : "false"}
@@ -373,6 +374,20 @@ const SettingsView = ({ onBack, isDesktop, settings, personas, setPersonas, toda
                        Notify on status changes like "DONE" or "APPROVE".
                      </div>
                   </div>
+
+                  {notifications && (
+                    <div style={{marginTop:12, paddingLeft:4, borderLeft:`2px solid ${T.border}`}}>
+                      <label style={{display:"flex", alignItems:"center", gap:8, cursor:"pointer", userSelect:"none"}}>
+                        <input
+                          type="checkbox"
+                          checked={notifySound}
+                          onChange={(e) => { setNotifySound(e.target.checked); triggerSaveFeedback(); }}
+                          style={{ accentColor: T.brand, cursor:"pointer" }}
+                        />
+                        <span style={{fontSize:12, color:T.textHover, fontFamily:"'IBM Plex Sans',sans-serif"}}>Play sound for notifications</span>
+                      </label>
+                    </div>
+                  )}
                 </div>
 
                 <div style={{marginTop:8, background:T.amberDim, border:`1px solid ${T.amber}20`, borderRadius:8, padding:12, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:11, color:T.amber, lineHeight:1.5}}>
