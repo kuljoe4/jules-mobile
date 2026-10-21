@@ -481,10 +481,10 @@ function JulesClient() {
                 // Cross-tab visibility check to avoid background tab notification spam
                 // Note: We don't suppress notifications when visible anymore because the user explicitly wants them while the app is active.
                 // We leave the pure deduplication logic in `sendNotification` where it belongs.
-                if (s.state === "AWAITING_PLAN_APPROVAL") sendNotification("PLAN READY", `Session: ${label}`, s.id || s.name);
-                else if (s.state === "AWAITING_USER_FEEDBACK") sendNotification("INPUT NEEDED", `Session: ${label}`, s.id || s.name);
-                else if (s.state === "COMPLETED") sendNotification("SESSION DONE", `Session: ${label}`, s.id);
-                else if (s.state === "FAILED") sendNotification("SESSION FAILED", `Session: ${label}`, s.id);
+                if (s.state === "AWAITING_PLAN_APPROVAL") sendNotification("PLAN READY", `Session: ${label}`, s.id || s.name, s.id || s.name);
+                else if (s.state === "AWAITING_USER_FEEDBACK") sendNotification("INPUT NEEDED", `Session: ${label}`, s.id || s.name, s.id || s.name);
+                else if (s.state === "COMPLETED") sendNotification("SESSION DONE", `Session: ${label}`, s.id, s.id || s.name);
+                else if (s.state === "FAILED") sendNotification("SESSION FAILED", `Session: ${label}`, s.id, s.id || s.name);
               }
               lastStates.current.set(s.id, s.state);
             });
@@ -620,10 +620,10 @@ function JulesClient() {
     if (loadNotify() && lastState && lastState !== updated.state) {
       const label = updated.title || updated.prompt || updated.id;
 
-      if (updated.state === "AWAITING_PLAN_APPROVAL") sendNotification("PLAN READY", `Session: ${label}`, updated.id);
-      else if (updated.state === "AWAITING_USER_FEEDBACK") sendNotification("INPUT NEEDED", `Session: ${label}`, updated.id);
-      else if (updated.state === "COMPLETED") sendNotification("SESSION DONE", `Session: ${label}`, updated.id);
-      else if (updated.state === "FAILED") sendNotification("SESSION FAILED", `Session: ${label}`, updated.id);
+      if (updated.state === "AWAITING_PLAN_APPROVAL") sendNotification("PLAN READY", `Session: ${label}`, updated.id, updated.id);
+      else if (updated.state === "AWAITING_USER_FEEDBACK") sendNotification("INPUT NEEDED", `Session: ${label}`, updated.id, updated.id);
+      else if (updated.state === "COMPLETED") sendNotification("SESSION DONE", `Session: ${label}`, updated.id, updated.id);
+      else if (updated.state === "FAILED") sendNotification("SESSION FAILED", `Session: ${label}`, updated.id, updated.id);
     }
     lastStates.current.set(updated.id, updated.state);
     setSessions(prev => {
@@ -648,6 +648,55 @@ function JulesClient() {
     if (mobileDrawerOpen) closeMobileDrawer();
     if (isDesktop) setDesktop("detail"); else setMobile("detail");
   }, [isDesktop, mobileDrawerOpen, closeMobileDrawer]);
+
+  useEffect(() => {
+    const onNavSession = (e) => {
+      const sid = e.detail || (e.data && e.data.sid);
+      if (sid) {
+        handleSelect({ id: sid });
+      }
+    };
+
+    const onSwMessage = (e) => {
+      try {
+        if (e.data && e.data.type === "NAV_SESSION") {
+          console.log("[JulesClient] Received NAV_SESSION from SW, navigating to:", e.data.sid);
+          onNavSession({ detail: e.data.sid });
+        }
+      } catch (err) {
+        console.error("[JulesClient] Failed handling SW message:", String(err));
+      }
+    };
+
+    window.addEventListener("nav-session", onNavSession);
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.addEventListener("message", onSwMessage);
+    }
+
+    // Check query params on load
+    if (typeof window !== "undefined") {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const sid = params.get("session");
+        if (sid) {
+          console.log("[JulesClient] Initializing session from query param:", sid);
+          handleSelect({ id: sid });
+          const newUrl = new URL(window.location);
+          newUrl.searchParams.delete("session");
+          window.history.replaceState({}, "", newUrl);
+        }
+      } catch (err) {
+        console.error("[JulesClient] Failed parsing session from URL:", String(err));
+      }
+    }
+
+    return () => {
+      window.removeEventListener("nav-session", onNavSession);
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.removeEventListener("message", onSwMessage);
+      }
+    };
+  }, [handleSelect]);
 
   const handleOpenSplitSession = useCallback((draft) => {
     setSelectedDraft(draft);

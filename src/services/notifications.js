@@ -46,7 +46,7 @@ export const requestNotificationPermission = async () => {
   }
 };
 
-async function sendNotification(title, body, tag) {
+async function sendNotification(title, body, tag, sessionId) {
   if (!loadNotify()) return;
   if (typeof window === "undefined" || !("Notification" in window) || Notification.permission !== "granted") return;
 
@@ -55,6 +55,7 @@ async function sendNotification(title, body, tag) {
   const cleanTitle = typeof title === "string" ? title.replace(/[\x00-\x1F\x7F]/g, "").trim().slice(0, 100) : "";
   const cleanBody = typeof body === "string" ? body.replace(/[\x00-\x1F\x7F]/g, "").trim().slice(0, 200) : "";
   const cleanTag = typeof tag === "string" ? tag.replace(/[\x00-\x1F\x7F]/g, "").replace(/\s/g, "").trim().slice(0, 100) : undefined;
+  const cleanSessionId = typeof sessionId === "string" ? sessionId.replace(/[\x00-\x1F\x7F]/g, "").trim() : undefined;
 
   if (!cleanTitle) return;
 
@@ -81,7 +82,7 @@ async function sendNotification(title, body, tag) {
         new Promise((_, reject) => setTimeout(() => reject(new Error("SW ready timeout")), 800))
       ]);
       if (reg && reg.showNotification) {
-        await reg.showNotification(cleanTitle, { body: cleanBody, tag: cleanTag, icon });
+        await reg.showNotification(cleanTitle, { body: cleanBody, tag: cleanTag, icon, data: { sid: cleanSessionId } });
         sent = true;
       }
     } catch (e) {
@@ -92,7 +93,11 @@ async function sendNotification(title, body, tag) {
   // Fallback to standard Notification constructor
   if (!sent) {
     try {
-      new Notification(cleanTitle, { body: cleanBody, tag: cleanTag, icon });
+      const n = new Notification(cleanTitle, { body: cleanBody, tag: cleanTag, icon, data: { sid: cleanSessionId } });
+      n.onclick = () => {
+        window.focus();
+        if (cleanSessionId) window.dispatchEvent(new CustomEvent("nav-session", { detail: cleanSessionId }));
+      };
       sent = true;
     } catch (e) {
       console.error("[Notify] Notification constructor failed", sanitizeErrorMessage(e.toString()));
