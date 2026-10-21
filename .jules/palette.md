@@ -132,3 +132,6 @@
 ## 2026-10-14 - Multiline Button ARIA Labels
 **Learning:** When using regex or grep to find missing `aria-label` attributes on JSX buttons, you often get false positives because `aria-label` attributes are frequently defined several lines below the opening `<button` tag in this codebase.
 **Action:** Always inspect the full element (at least 15-20 lines down) before assuming an `aria-label` is missing, or rely on AST tools rather than simple greps to find true missing attributes.
+## 2023-10-21 - [Screen Reader Support for Empty States]
+**Learning:** Static empty states (like in `drafts.jsx`) lacked explicit ARIA roles and labels, causing screen readers to skip past them and leaving users unaware that the view was intentionally empty rather than broken or loading.
+**Action:** Always wrap visual "empty states" (e.g., NO SAVED SESSIONS) in a container with `role="status"` and a descriptive `aria-label` to ensure they are announced correctly to assistive technologies.

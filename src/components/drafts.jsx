@@ -71,7 +71,7 @@ const DraftsBox = ({ onBack, isDesktop, onResume, onCreate, onStartNewSession, a
 
           {activeTab === "templates" ? (
             drafts.length === 0 ? (
-              <div style={{textAlign:"center",padding:"60px 24px",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>
+              <div role="status" aria-label="No saved sessions" style={{textAlign:"center",padding:"60px 24px",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>
                 <div style={{width:52, height:52, borderRadius:16, background:T.surfaceHi, display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 16px", border:`1px solid ${T.border}`}}>
                   <Ic n="archive" s={22} c={T.brand}/>
                 </div>
@@ -172,7 +172,7 @@ const DraftsBox = ({ onBack, isDesktop, onResume, onCreate, onStartNewSession, a
             )
           ) : (
             followupSessions.length === 0 ? (
-              <div style={{textAlign:"center",padding:"60px 24px",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>
+              <div role="status" aria-label="No unsent follow-up chats" style={{textAlign:"center",padding:"60px 24px",fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:T.textDim}}>
                 <div style={{width:52, height:52, borderRadius:16, background:T.surfaceHi, display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 16px", border:`1px solid ${T.border}`}}>
                   <Ic n="layers" s={22} c={T.brand}/>
                 </div>
