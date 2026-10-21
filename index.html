@@ -173,6 +173,20 @@
           '    })));',
           '  }',
           '});',
+          'self.addEventListener("notificationclick",e=>{',
+          '  e.notification.close();',
+          '  const sid = e.notification.data && e.notification.data.sid;',
+          '  e.waitUntil(clients.matchAll({type:"window",includeUncontrolled:true}).then(cs=>{',
+          '    for(const c of cs){',
+          '      if(c.url.startsWith(self.location.origin)){',
+          '        c.focus();',
+          '        if(sid) c.postMessage({type:"NAV_SESSION",sid});',
+          '        return;',
+          '      }',
+          '    }',
+          '    return clients.openWindow(self.location.origin + (sid ? "?session="+encodeURIComponent(sid) : ""));',
+          '  }));',
+          '});',
         ].join("");
         // data: URI SW — same-origin restriction bypassed on secure origins
         const swDataURI = "data:text/javascript;base64," + btoa(swSrc);
