@@ -186,3 +186,8 @@
 **Vulnerability:** In `src/services/storageMaintenance.js`, exceptions caught during storage estimations (`getStorageInfo`) were logged directly or without null guards when calling `sanitizeErrorMessage`. Logging unsanitized error objects or un-guarded exception messages to `console.warn` could leak sensitive credentials or internal path details in browser developer tools.
 **Learning:** Exception handling across storage maintenance routines must stringify caught exceptions safely with nullish guards (`err ? String(err) : ""`) and pass them through `sanitizeErrorMessage` before logging to `console.warn`.
 **Prevention:** Always wrap caught exceptions in storage services with `sanitizeErrorMessage(err ? String(err) : "")` prior to console output.
+
+## 2026-10-28 - Unsanitized Exception Logging in JulesClient Event Handlers
+**Vulnerability:** In `src/components/JulesClient.jsx`, error objects caught during service worker message handling and query parameter parsing were logged directly to the browser console without passing through `sanitizeErrorMessage`. This could expose unredacted API tokens or verbose stack traces in developer tools.
+**Learning:** All `console.error` and `console.warn` invocations handling user-facing or network-driven events must pass error strings through `sanitizeErrorMessage` to prevent sensitive credential exposure.
+**Prevention:** Wrap all logged error objects with `sanitizeErrorMessage(String(err))` in React components.
