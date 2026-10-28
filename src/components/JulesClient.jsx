@@ -664,7 +664,7 @@ function JulesClient() {
           onNavSession({ detail: e.data.sid });
         }
       } catch (err) {
-        console.error("[JulesClient] Failed handling SW message:", String(err));
+        console.error("[JulesClient] Failed handling SW message:", sanitizeErrorMessage(String(err)));
       }
     };
 
@@ -686,7 +686,7 @@ function JulesClient() {
           window.history.replaceState({}, "", newUrl);
         }
       } catch (err) {
-        console.error("[JulesClient] Failed parsing session from URL:", String(err));
+        console.error("[JulesClient] Failed parsing session from URL:", sanitizeErrorMessage(String(err)));
       }
     }
 
