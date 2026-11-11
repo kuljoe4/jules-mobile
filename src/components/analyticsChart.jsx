@@ -40,7 +40,9 @@ Generate a comprehensive trend chart and metric report detailing how the applica
   // Group by persona if they exist
   const personaStats = useMemo(() => {
     const stats = {};
-    sessions.forEach(s => {
+    // OPTIMIZATION (Bolt): Replaced array .forEach() with traditional for loops to avoid callback overhead during high-frequency data processing.
+    for (let i = 0; i < sessions.length; i++) {
+      const s = sessions[i];
       // Jules mobile uses state instead of status
       const isCompleted = s.state === "COMPLETED";
       const isFailed = s.state === "FAILED";
@@ -49,19 +51,20 @@ Generate a comprehensive trend chart and metric report detailing how the applica
       const personas = s.focusRoles || s.personas || [];
 
       if (personas && Array.isArray(personas) && personas.length > 0) {
-        personas.forEach(pId => {
+        for (let j = 0; j < personas.length; j++) {
+          const pId = personas[j];
           if (!stats[pId]) stats[pId] = { total: 0, completed: 0, failed: 0 };
           stats[pId].total++;
           if (isCompleted) stats[pId].completed++;
           if (isFailed) stats[pId].failed++;
-        });
+        }
       } else {
         if (!stats["none"]) stats["none"] = { total: 0, completed: 0, failed: 0 };
         stats["none"].total++;
         if (isCompleted) stats["none"].completed++;
         if (isFailed) stats["none"].failed++;
       }
-    });
+    }
     return Object.entries(stats).sort((a, b) => b[1].total - a[1].total);
   }, [sessions]);
 
